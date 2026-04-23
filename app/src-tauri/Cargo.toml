@@ -21,7 +21,7 @@ tauri-build = { version = "2.5", features = [] }
 [dependencies]
 # No feature flags — we don't serve file:// assets directly; the app
 # invokes `verify_file` via IPC and the backend reads the path.
-tauri = { version = "2.10" }
+tauri = { version = "2.10", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 provcheck-core = { path = "../../crates/provcheck-core" }

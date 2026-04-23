@@ -2,8 +2,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::path::PathBuf;
-
 use serde::Serialize;
+use provcheck_core::prelude::*;
 
 /// JSON-friendly wrapper around provcheck_core::Report.
 ///
@@ -16,13 +16,13 @@ use serde::Serialize;
 struct VerifyResponse {
     ok: bool,
     error: Option<String>,
-    report: Option<provcheck_core::Report>,
+    report: Option<Report>,
 }
 
 #[tauri::command]
 fn verify_file(path: String) -> VerifyResponse {
     let path = PathBuf::from(path);
-    match provcheck_core::verify(&path) {
+    match verify(&path) {
         Ok(report) => VerifyResponse {
             ok: true,
             error: None,

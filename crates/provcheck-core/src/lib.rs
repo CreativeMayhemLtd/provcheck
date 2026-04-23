@@ -10,14 +10,14 @@
 //! that with default options).
 //!
 //! ```no_run
-//! use provcheck_core::verify;
+//! use provcheck_core::prelude::*;
 //! use std::path::Path;
 //!
 //! let report = verify(Path::new("signed.wav"))?;
 //! if report.verified {
 //!     println!("Signed by {:?}", report.signer);
 //! }
-//! # Ok::<(), provcheck_core::Error>(())
+//! # Ok::<(), Error>(())
 //! ```
 
 use std::path::Path;
@@ -25,6 +25,17 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 
 pub mod render;
+
+pub mod prelude {
+    pub use super::render;
+    pub use super::{
+      Error,
+      Report,
+      VerifyOptions,
+      verify,
+      verify_with_options,
+    };
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
