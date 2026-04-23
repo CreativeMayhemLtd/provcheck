@@ -1,0 +1,119 @@
+name: Build release binaries
+
+# Fires when a `v<x.y.z>` tag is pushed to the private dev repo. Runs
+# the build on all three target OSes and uploads the platform archives
+# as workflow artefacts, ready for `scripts/publish-release.sh` to
+# collect and ship to the public release repo.
+#
+# The release workflow deliberately does NOT push anything to a public
+# repo — that's the maintainer's explicit gesture. See
+# `scripts/README.md` and the Milestone 4 notes in `README.md` for
+# the reasoning behind the manual-control release flow.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag name to use in artefact filenames (e.g. v0.1.0)"
+        required: true
+        default: "v0.0.0-dev"
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  build:
+    name: build (${{ matrix.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            archive: zip
+            artefact_suffix: windows-x86_64
+            bin_ext: .exe
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            archive: tar.gz
+            artefact_suffix: linux-x86_64
+            bin_ext: ""
+          - os: macos-13 # x86_64 runner
+            target: x86_64-apple-darwin
+            archive: tar.gz
+            artefact_suffix: macos-x86_64
+            bin_ext: ""
+          - os: macos-14 # aarch64 runner
+            target: aarch64-apple-darwin
+            archive: tar.gz
+            artefact_suffix: macos-aarch64
+            bin_ext: ""
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+
+      # Resolve the tag name — either the ref that triggered the build,
+      # or the workflow_dispatch input. The archive filenames include
+      # it so released downloads are self-identifying.
+      - name: Resolve release tag
+        id: tag
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "value=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: cargo build --release -p provcheck-cli
+        run: cargo build --release -p provcheck-cli --target ${{ matrix.target }}
+
+      - name: Stage archive (${{ matrix.archive }})
+        id: stage
+        shell: bash
+        run: |
+          tag="${{ steps.tag.outputs.value }}"
+          stage_dir="provcheck-${tag}-${{ matrix.artefact_suffix }}"
+          mkdir -p "$stage_dir"
+          cp "target/${{ matrix.target }}/release/provcheck${{ matrix.bin_ext }}" "$stage_dir/"
+          cp README.md LICENSE "$stage_dir/"
+
+          if [[ "${{ matrix.archive }}" == "zip" ]]; then
+            archive_name="${stage_dir}.zip"
+            # Git Bash on windows-latest ships `zip` — avoids the
+            # PowerShell path-quoting quirks Compress-Archive has.
+            7z a -tzip "$archive_name" "$stage_dir" >/dev/null
+          else
+            archive_name="${stage_dir}.tar.gz"
+            tar -czf "$archive_name" "$stage_dir"
+          fi
+
+          # Produce a sha256 alongside — the README tells users to verify
+          # against the site's checksum page, and this is where the
+          # authoritative value originates.
+          if command -v sha256sum >/dev/null; then
+            sha256sum "$archive_name" > "${archive_name}.sha256"
+          else
+            shasum -a 256 "$archive_name" > "${archive_name}.sha256"
+          fi
+
+          echo "archive_name=$archive_name" >> "$GITHUB_OUTPUT"
+
+      - name: Upload artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: provcheck-${{ steps.tag.outputs.value }}-${{ matrix.artefact_suffix }}
+          path: |
+            ${{ steps.stage.outputs.archive_name }}
+            ${{ steps.stage.outputs.archive_name }}.sha256
+          if-no-files-found: error
+          retention-days: 30

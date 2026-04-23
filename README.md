@@ -138,7 +138,7 @@ a non-technical recipient at.
 | 1 | Workspace scaffold + `provcheck-core` crate + fixtures | In progress |
 | 2 | `provcheck-cli` with human + JSON output, integration tests | Pending |
 | 3 | Tauri GUI (drag-drop verifier) | Pending |
-| 4 | CI + GitHub Releases for Win/Mac/Linux | Pending |
+| 4 | CI + GitHub Releases for Win/Mac/Linux | In progress (workflows landed, first tagged release pending) |
 | 5 | Bundle CLI inside rAIdio.bot `tools/` + `build.ps1` gate | Pending |
 | 6 | Website download page + vAIdeo.bot bundling | Deferred |
 
