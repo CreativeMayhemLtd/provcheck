@@ -25,8 +25,8 @@ impl Display for Report {
         if let Some(reason) = &self.failure_reason {
             let _ = writeln!(f, "  reason: {}", reason);
         }
-        if let Some(fmt) = &self.format {
-            let _ = writeln!(f, "  format: {}", fmt);
+        if let Some(format) = &self.format {
+            let _ = writeln!(f, "  format: {}", format);
         }
         if let Some(manifest) = &self.active_manifest {
             let _ = writeln!(f, "  manifest: {}", manifest);
