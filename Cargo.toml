@@ -1,8 +1,9 @@
 [workspace]
 members = [
     "crates/provcheck",
+    "crates/provcheck-platform",
     "crates/provcheck-cli",
-    "crates/provcheck-examples", "crates/provcheck-platform",
+    "crates/provcheck-examples",
 ]
 resolver = "2"
 
