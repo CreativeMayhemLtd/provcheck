@@ -15,7 +15,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::Parser;
-use provcheck_core::VerifyOptions;
+use provcheck_core::prelude::*;
 
 /// Verify C2PA Content Credentials on a file.
 #[derive(Debug, Parser)]
@@ -80,7 +80,7 @@ fn main() -> ExitCode {
         require_trusted: args.require_trusted,
     };
 
-    let report = match provcheck_core::verify_with_options(&args.file, &opts) {
+    let report = match verify_with_options(&args.file, &opts) {
         Ok(r) => r,
         Err(e) => {
             if !args.quiet {
@@ -92,7 +92,7 @@ fn main() -> ExitCode {
 
     if !args.quiet {
         if args.json {
-            match provcheck_core::render::to_json_string(&report) {
+            match report.to_json_string() {
                 Ok(j) => println!("{}", j),
                 Err(e) => {
                     eprintln!("provcheck: failed to serialize JSON: {}", e);
@@ -100,7 +100,7 @@ fn main() -> ExitCode {
                 }
             }
         } else {
-            print!("{}", provcheck_core::render::to_human_string(&report));
+            print!("{}", report);
         }
     }
 
