@@ -1,12 +1,13 @@
 # provcheck
 
 **Download:**
-[Windows](https://github.com/CreativeMayhemLtd/provcheck/releases/latest/download/provcheck-windows-x64.zip) ·
-[Linux](https://github.com/CreativeMayhemLtd/provcheck/releases/latest/download/provcheck-linux-x64.tar.gz) ·
-[Apple](https://github.com/CreativeMayhemLtd/provcheck/releases/latest/download/provcheck-macos.dmg) ·
+[Windows](https://github.com/CreativeMayhemLtd/provcheck/releases) ·
+[Linux](https://github.com/CreativeMayhemLtd/provcheck/releases) ·
+[Apple](https://github.com/CreativeMayhemLtd/provcheck/releases) ·
 [Source](https://github.com/CreativeMayhemLtd/provcheck/archive/refs/heads/main.zip)
 
-*(Binary download links activate with the first tagged release — see [Status](#status). Until then, build from source or grab a test build from [provcheck.ai](https://provcheck.ai).)*
+*(Binary releases are coming with Milestone 4 — see [Status](#status).
+Until then the platform links land on the Releases page, source archive is live now.)*
 
 ---
 
@@ -125,9 +126,9 @@ a non-technical recipient at.
 - runs locally (privacy-preserving — files never leave your machine),
 - ships as a single binary,
 - is free and permissively licensed (Apache-2.0),
-- is bundled with [rAIdio.bot](https://github.com/rAIdio-bot) and
-  [vAIdeo.bot](https://github.com/memescreamer/vAIdeo.bot) so every
-  output they produce is trivially re-verifiable by recipients,
+- is bundled with [rAIdio.bot](https://store.steampowered.com/app/4600000)
+  (and, later, vAIdeo.bot) so every output those tools produce is
+  trivially re-verifiable by recipients,
 - works on ANY C2PA-signed content, not just ours.
 
 ## Milestones
