@@ -20,3 +20,15 @@ c2pa.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+
+[dev-dependencies]
+# Generate test certificates at test-run time — matches rAIdio.bot's
+# per-install CA + EE pattern so fixtures reflect real-world use.
+# `x509-parser` feature unlocks `Issuer::from_ca_cert_der` which lets
+# us re-use the self-signed CA as an issuer for the end-entity cert
+# (matches the rAIdio.bot signer.rs flow 1:1).
+rcgen = { version = "0.14", features = ["x509-parser"] }
+# Tiny WAV writer for synthesizing a silent test fixture (no audio
+# content = no copyright question).
+hound = "3"
+tempfile = "3"
