@@ -15,7 +15,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::Parser;
-use provcheck_core::prelude::*;
+use provcheck::prelude::*;
 
 /// Verify C2PA Content Credentials on a file.
 #[derive(Debug, Parser)]
@@ -30,7 +30,7 @@ struct Args {
     file: PathBuf,
 
     /// Emit machine-readable JSON instead of the human-readable report.
-    /// Handy for CI and scripting — schema matches `provcheck_core::Report`.
+    /// Handy for CI and scripting — schema matches `provcheck::Report`.
     #[arg(long)]
     json: bool,
 

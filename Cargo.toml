@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "crates/provcheck-core",
+    "crates/provcheck",
     "crates/provcheck-cli",
     "crates/provcheck-examples",
 ]

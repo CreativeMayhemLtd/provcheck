@@ -1,7 +1,7 @@
 # Test fixtures
 
 The integration test suite in `../integration.rs` (pending) exercises
-`provcheck-core::verify` against a known set of files covering the
+`provcheck::verify` against a known set of files covering the
 five outcome categories every verifier must handle:
 
 | Fixture                    | Expected outcome                  |

@@ -10,7 +10,7 @@
 //! that with default options).
 //!
 //! ```no_run
-//! use provcheck_core::prelude::*;
+//! use provcheck::prelude::*;
 //! use std::path::Path;
 //!
 //! let report = verify(Path::new("signed.wav"))?;

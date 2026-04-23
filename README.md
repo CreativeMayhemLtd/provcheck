@@ -95,7 +95,7 @@ Human-readable:
 provcheck my-song.wav
 ```
 
-Machine-readable (stable JSON schema — matches `provcheck_core::Report`):
+Machine-readable (stable JSON schema — matches `provcheck::Report`):
 
 ```bash
 provcheck --json my-song.wav

@@ -24,7 +24,7 @@ tauri-build = { version = "2.5", features = [] }
 tauri = { version = "2.10", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-provcheck-core = { path = "../../crates/provcheck-core" }
+provcheck = { path = "../../crates/provcheck" }
 
 [[bin]]
 name = "provcheck-app"

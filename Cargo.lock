@@ -1867,17 +1867,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "provcheck-cli"
-version = "0.1.1"
-dependencies = [
- "anyhow",
- "clap",
- "provcheck-core",
- "serde_json",
-]
-
-[[package]]
-name = "provcheck-core"
+name = "provcheck"
 version = "0.1.1"
 dependencies = [
  "c2pa",
@@ -1887,6 +1877,16 @@ dependencies = [
  "serde_json",
  "tempfile",
  "thiserror 2.0.18",
+]
+
+[[package]]
+name = "provcheck-cli"
+version = "0.1.1"
+dependencies = [
+ "anyhow",
+ "clap",
+ "provcheck",
+ "serde_json",
 ]
 
 [[package]]
