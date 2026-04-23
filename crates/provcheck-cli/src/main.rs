@@ -15,6 +15,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::Parser;
+use provcheck_core::VerifyOptions;
 
 /// Verify C2PA Content Credentials on a file.
 #[derive(Debug, Parser)]
@@ -37,12 +38,49 @@ struct Args {
     /// shell pipelines where you only care about pass/fail.
     #[arg(long, short)]
     quiet: bool,
+
+    /// Path to a PEM bundle of trust anchors. Any signer whose chain
+    /// ends at a cert in this bundle is reported as trusted. Without
+    /// this flag, provcheck verifies the cryptographic integrity of
+    /// the manifest but does not assert that the signer is trusted —
+    /// the `trusted` field will be null / "unknown".
+    #[arg(long, value_name = "PATH")]
+    trust_store: Option<PathBuf>,
+
+    /// Require the signer to chain to a trusted anchor. Implies
+    /// `--trust-store` must also be provided: a file that verifies
+    /// cryptographically but whose signer is not in the trust store
+    /// will exit 1 instead of 0.
+    #[arg(long, requires = "trust_store")]
+    require_trusted: bool,
 }
 
 fn main() -> ExitCode {
     let args = Args::parse();
 
-    let report = match provcheck_core::verify(&args.file) {
+    let trust_store_pem = match args.trust_store.as_deref() {
+        Some(path) => match std::fs::read_to_string(path) {
+            Ok(s) => Some(s),
+            Err(e) => {
+                if !args.quiet {
+                    eprintln!(
+                        "provcheck: could not read trust store '{}': {}",
+                        path.display(),
+                        e
+                    );
+                }
+                return ExitCode::from(2);
+            }
+        },
+        None => None,
+    };
+
+    let opts = VerifyOptions {
+        trust_store_pem,
+        require_trusted: args.require_trusted,
+    };
+
+    let report = match provcheck_core::verify_with_options(&args.file, &opts) {
         Ok(r) => r,
         Err(e) => {
             if !args.quiet {

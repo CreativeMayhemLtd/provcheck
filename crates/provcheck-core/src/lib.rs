@@ -6,7 +6,8 @@
 //! The library is intentionally thin — it wraps `c2pa::Reader` with a
 //! stable [`Report`] type that both the CLI and the GUI render.
 //! Behaviour is identical across front-ends because there is exactly
-//! one code path through `verify`.
+//! one code path through `verify_with_options` (and `verify` wraps
+//! that with default options).
 //!
 //! ```no_run
 //! use provcheck_core::verify;
@@ -31,6 +32,40 @@ pub enum Error {
     Io(#[from] std::io::Error),
     #[error("C2PA read failed: {0}")]
     C2pa(#[from] c2pa::Error),
+    #[error("invalid trust-store PEM: {0}")]
+    InvalidTrustStore(String),
+}
+
+/// Options controlling a single `verify_with_options` call.
+///
+/// The default is equivalent to `verify(path)`: no trust-list policy,
+/// no trust requirement. Set `trust_store_pem` + `require_trusted` to
+/// enforce corporate / archival trust rules at the tool level.
+#[derive(Debug, Default, Clone)]
+pub struct VerifyOptions {
+    /// Optional PEM bundle of additional trust-anchor root certificates.
+    /// When `Some`, the bundle augments the default C2PA trust list so
+    /// certificates chaining to any of these roots are marked trusted
+    /// on the `Report`.
+    ///
+    /// The bundle is passed verbatim to `c2pa::Settings::trust.user_anchors`
+    /// — see the C2PA crate docs for the exact PEM format expected
+    /// (standard concatenated PEM, one BEGIN/END CERTIFICATE block per cert).
+    pub trust_store_pem: Option<String>,
+
+    /// When `true`, a manifest whose signing certificate does NOT chain
+    /// to a trusted root (either the built-in C2PA trust list OR the
+    /// optional `trust_store_pem` bundle) will report `verified: false`
+    /// with a trust-specific failure reason.
+    ///
+    /// When `false` (the default), trust-list membership is advisory
+    /// only — the `Report::trusted` field still reflects the check,
+    /// but `verified` only tracks cryptographic integrity.
+    ///
+    /// This is the distinction the website's FAQ calls out: we report
+    /// what the crypto says. Whether to require a trust-anchor is a
+    /// separate policy call, made explicit here rather than baked in.
+    pub require_trusted: bool,
 }
 
 /// The outcome of verifying a single file.
@@ -42,12 +77,26 @@ pub enum Error {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Report {
     /// True iff the file carries a C2PA manifest that parses cleanly
-    /// and whose signature validates.
+    /// and whose signature validates. If `VerifyOptions::require_trusted`
+    /// is set, also requires the signing certificate to be trusted.
     pub verified: bool,
 
     /// True iff the file has NO C2PA manifest at all (as distinct from
     /// a manifest that exists but fails verification).
     pub unsigned: bool,
+
+    /// Tri-state trust-list membership:
+    ///
+    /// - `Some(true)`  — signing cert chains to a trusted root
+    ///   (default C2PA list or user-provided anchors).
+    /// - `Some(false)` — cert does NOT chain to any trusted root
+    ///   (typical for per-install signers like rAIdio.bot's pattern).
+    /// - `None` — no manifest, or trust status couldn't be determined
+    ///   from the validation log.
+    ///
+    /// This field is reported regardless of `VerifyOptions::require_trusted`
+    /// so policy decisions stay in the caller's hands.
+    pub trusted: Option<bool>,
 
     /// Human-readable reason when `verified` is false. `None` when
     /// everything's fine.
@@ -79,14 +128,16 @@ pub struct Report {
     pub format: Option<String>,
 
     /// Number of validation status entries. Zero means no validation
-    /// errors; >0 means the signature or manifest had integrity issues.
+    /// errors; >0 means the signature or manifest had integrity issues
+    /// (after filtering out codes that reflect trust-policy choices
+    /// provcheck deliberately doesn't enforce by default).
     pub validation_errors: usize,
 }
 
 impl Report {
     /// Exit code convention used by the CLI.
     ///
-    /// `0` — signed and verified.
+    /// `0` — signed and verified (including trust, if required).
     /// `1` — unsigned OR invalid.
     /// The `2` exit-code for I/O errors is handled at the CLI layer,
     /// not by the report.
@@ -95,49 +146,69 @@ impl Report {
     }
 }
 
-/// Verify the C2PA credentials on the file at `path`.
+/// Verify the C2PA credentials on the file at `path` with default
+/// options (no trust-list enforcement).
+///
+/// See [`verify_with_options`] for the full-featured variant.
+pub fn verify(path: &Path) -> Result<Report, Error> {
+    verify_with_options(path, &VerifyOptions::default())
+}
+
+/// Verify the C2PA credentials on the file at `path` with caller-
+/// controlled trust-list policy.
 ///
 /// Returns a populated [`Report`]. Does not panic on unsigned or
 /// invalid input — those are reported via the `Report` fields.
 ///
-/// Only returns `Err` on I/O failure (file missing, unreadable). An
-/// absent C2PA manifest (a file that was never signed) is reported
-/// as `unsigned: true, verified: false` on the returned `Report`, not
-/// as an error. A present-but-malformed or tamper-broken manifest is
+/// Only returns `Err` on I/O failure (file missing, unreadable) or
+/// on an invalid `trust_store_pem`. An absent C2PA manifest is
+/// reported as `unsigned: true` on the returned `Report`, not as an
+/// error. A present-but-malformed or tamper-broken manifest is
 /// reported as `verified: false` with a descriptive `failure_reason`.
-pub fn verify(path: &Path) -> Result<Report, Error> {
+pub fn verify_with_options(path: &Path, opts: &VerifyOptions) -> Result<Report, Error> {
+    // Validate trust-store PEM before touching the filesystem — a
+    // malformed PEM is a caller bug, not a file problem, and we want
+    // it to surface cleanly regardless of whether the target file
+    // exists.
+    if let Some(pem) = opts.trust_store_pem.as_deref() {
+        sanity_check_pem(pem)?;
+    }
+
     // Guard: file must exist and be a file. c2pa::Reader would also
     // surface this, but a preflight check gives us a cleaner error.
     let _ = std::fs::metadata(path)?;
 
-    let reader = match c2pa::Reader::from_file(path) {
+    let reader_result = if let Some(pem) = opts.trust_store_pem.as_deref() {
+        // Build a Settings object that layers the caller's PEM bundle
+        // on top of the default C2PA trust list. c2pa parses the PEM
+        // lazily at verification time, so a malformed bundle surfaces
+        // as a Reader error — we preflight it with `sanity_check_pem`
+        // above to return a cleaner Error::InvalidTrustStore.
+        let mut settings = c2pa::Settings::default();
+        settings.trust.user_anchors = Some(pem.to_string());
+        let context = c2pa::Context::new()
+            .with_settings(settings)
+            .map_err(|e| Error::InvalidTrustStore(e.to_string()))?;
+        c2pa::Reader::from_context(context).with_file(path)
+    } else {
+        c2pa::Reader::from_file(path)
+    };
+
+    let reader = match reader_result {
         Ok(r) => r,
         Err(c2pa::Error::JumbfNotFound) | Err(c2pa::Error::JumbfBoxNotFound) => {
-            // File opened fine — there's just no C2PA manifest in it.
-            // "Unsigned" outcome, exit 1, not an error.
             return Ok(unsigned_report(None));
         }
         Err(c2pa::Error::UnsupportedType) => {
-            // File format isn't something c2pa knows how to read at all
-            // (text file, proprietary blob, etc.). We can say with
-            // confidence: no verifiable C2PA here. Treat as unsigned
-            // with a clarifying reason — exit 1, not an IO error. The
-            // user's mental model is "did it verify?" and the answer
-            // is a clear no.
             return Ok(unsigned_report(Some(
                 "file format not supported by the C2PA reader".into(),
             )));
         }
         Err(e) if is_manifest_parse_error(&e) => {
-            // File HAS a manifest — we know because we got past the
-            // not-found / unsupported branches — but the manifest
-            // structure is malformed. This is the tampered-manifest
-            // case. Report as failed verification (exit 1) rather
-            // than internal error (exit 2) because the user's
-            // question "did this verify?" has a clear answer: no.
             return Ok(Report {
                 verified: false,
                 unsigned: false,
+                trusted: None,
                 failure_reason: Some(format!("manifest is malformed or tampered: {}", e)),
                 active_manifest: None,
                 signer: None,
@@ -155,57 +226,56 @@ pub fn verify(path: &Path) -> Result<Report, Error> {
     let state = reader.validation_state();
 
     // Failure codes that we intentionally DO NOT treat as verification
-    // failures. These reflect trust-list and timestamp-authority policy
-    // decisions, not the cryptographic integrity of the manifest. A
-    // per-install signer (rAIdio.bot / vAIdeo.bot pattern) will always
-    // fire `signingCredential.untrusted` — reporting that as "not
-    // verified" would make every real-world output look broken. Users
-    // who care about trust-list membership can read `signer` +
-    // `trusted` and apply their own policy.
+    // failures for the default `verified` flag. Trust-list membership
+    // is a separate dimension, reported via `trusted`. Callers who
+    // want to enforce trust set `VerifyOptions::require_trusted`.
     const TRUST_POLICY_IGNORED: &[&str] = &[
-        // cert not on a public trust list (expected for per-install certs)
         "signingCredential.untrusted",
-        // TSA-related — we don't require a trusted timestamp authority
         "timeStamp.untrusted",
         "timeStamp.mismatch",
         "signingCredential.ocsp.skipped",
         "signingCredential.ocsp.inaccessible",
     ];
 
-    let validation_errors = reader
+    let status_codes: Vec<&c2pa::validation_status::ValidationStatus> = reader
         .validation_status()
-        .map(|v| {
-            v.iter()
-                .filter(|s| matches!(s.kind(), c2pa::status_tracker::LogKind::Failure))
-                .filter(|s| !TRUST_POLICY_IGNORED.contains(&s.code()))
-                .count()
-        })
-        .unwrap_or(0);
+        .map(|v| v.iter().collect())
+        .unwrap_or_default();
 
-    // `verified` requires BOTH:
-    //   - the manifest's cryptographic integrity passes
-    //     (validation_state is Valid or Trusted),
-    //   - AND no validation-status failure codes are present.
-    //
-    // c2pa-rs 0.78 can return ValidationState::Valid even when a
-    // validation_status failure entry is set — e.g., tampered audio
-    // under a hash-bound manifest surfaces as a failure code without
-    // flipping validation_state, because validation_state reflects
-    // manifest-store integrity specifically. The tool's headline
-    // signal is "did anything go wrong?", so we AND the two together.
-    // Callers who want the raw c2pa state can read
-    // `validation_errors` directly.
-    //
-    // Trust-list membership (ValidationState::Trusted) is NOT
-    // required — provcheck reports the signer identity and leaves
-    // trust-list policy to the caller. Reporting a locally-signed
-    // manifest as "unverified" would confuse the majority of users
-    // whose tools sign with per-install certs (rAIdio.bot's pattern).
+    let validation_errors = status_codes
+        .iter()
+        .filter(|s| matches!(s.kind(), c2pa::status_tracker::LogKind::Failure))
+        .filter(|s| !TRUST_POLICY_IGNORED.contains(&s.code()))
+        .count();
+
+    // Trust-list membership is only evaluated when the caller asked a
+    // trust question — i.e. they supplied a trust store OR demanded
+    // `require_trusted`. Without that, the `trusted` field stays None
+    // and renderers omit the trust line entirely. Rationale: the c2pa
+    // crate emits `signingCredential.untrusted` against its default
+    // CAI trust list for any cert that isn't in it, which is most
+    // per-install signing certs. Reporting "untrusted" by default
+    // would be technically accurate but materially misleading.
+    let trust_was_configured = opts.trust_store_pem.is_some() || opts.require_trusted;
+    let trusted = if trust_was_configured {
+        evaluate_trust(&reader)
+    } else {
+        None
+    };
+
+    // `verified` cryptographic integrity — same definition as before.
     let crypto_ok = matches!(
         state,
         c2pa::ValidationState::Valid | c2pa::ValidationState::Trusted
     );
-    let verified = crypto_ok && validation_errors == 0;
+    let crypto_and_no_errors = crypto_ok && validation_errors == 0;
+
+    // Apply the caller's trust requirement on top of crypto.
+    let verified = if opts.require_trusted {
+        crypto_and_no_errors && matches!(trusted, Some(true))
+    } else {
+        crypto_and_no_errors
+    };
 
     let active = reader.active_manifest();
 
@@ -215,10 +285,6 @@ pub fn verify(path: &Path) -> Result<Report, Error> {
             let signer = sig.and_then(|s| s.common_name.clone().or_else(|| s.issuer.clone()));
             let signed_at = sig.and_then(|s| s.time.clone());
 
-            // Flatten assertions into a JSON object keyed by label —
-            // readable at a glance, preserves full payload. Assertions
-            // whose value can't be extracted (rare) get a string
-            // placeholder so nothing silently drops.
             let mut assertion_map = serde_json::Map::new();
             for a in m.assertions() {
                 let key = a.label().to_string();
@@ -226,17 +292,13 @@ pub fn verify(path: &Path) -> Result<Report, Error> {
                     .value()
                     .cloned()
                     .unwrap_or_else(|_| serde_json::Value::String("<value unavailable>".into()));
-                // If the same label appears twice (possible — e.g.,
-                // multiple c2pa.actions entries) we keep them as a
-                // JSON array rather than overwriting.
                 match assertion_map.remove(&key) {
                     Some(serde_json::Value::Array(mut arr)) => {
                         arr.push(val);
                         assertion_map.insert(key, serde_json::Value::Array(arr));
                     }
                     Some(existing) => {
-                        assertion_map
-                            .insert(key, serde_json::Value::Array(vec![existing, val]));
+                        assertion_map.insert(key, serde_json::Value::Array(vec![existing, val]));
                     }
                     None => {
                         assertion_map.insert(key, val);
@@ -260,12 +322,18 @@ pub fn verify(path: &Path) -> Result<Report, Error> {
     let failure_reason = if verified {
         None
     } else {
-        Some(format_failure_reason(state, validation_errors))
+        Some(format_failure_reason(
+            state,
+            validation_errors,
+            trusted,
+            opts.require_trusted,
+        ))
     };
 
     Ok(Report {
         verified,
         unsigned: false,
+        trusted,
         failure_reason,
         active_manifest,
         signer,
@@ -276,6 +344,49 @@ pub fn verify(path: &Path) -> Result<Report, Error> {
         format,
         validation_errors,
     })
+}
+
+fn evaluate_trust(reader: &c2pa::Reader) -> Option<bool> {
+    // Trust is a tri-state: trusted / untrusted / unknown.
+    //
+    // The c2pa crate records SIGNING_CREDENTIAL_TRUSTED as a SUCCESS
+    // status and SIGNING_CREDENTIAL_UNTRUSTED as a FAILURE status.
+    // `reader.validation_status()` only surfaces errors — so a
+    // cleanly-trusted cert is invisible there. We have to look at
+    // the full ValidationResults (success + failure lists) to
+    // distinguish "trusted" from "not evaluated".
+    let results = reader.validation_results()?;
+    let active = results.active_manifest()?;
+
+    if active
+        .success()
+        .iter()
+        .any(|s| s.code() == "signingCredential.trusted")
+    {
+        return Some(true);
+    }
+    if active
+        .failure()
+        .iter()
+        .any(|s| s.code() == "signingCredential.untrusted")
+    {
+        return Some(false);
+    }
+    None
+}
+
+fn sanity_check_pem(pem: &str) -> Result<(), Error> {
+    if !pem.contains("-----BEGIN CERTIFICATE-----") {
+        return Err(Error::InvalidTrustStore(
+            "no BEGIN CERTIFICATE block found in PEM bundle".into(),
+        ));
+    }
+    if !pem.contains("-----END CERTIFICATE-----") {
+        return Err(Error::InvalidTrustStore(
+            "no END CERTIFICATE block found in PEM bundle".into(),
+        ));
+    }
+    Ok(())
 }
 
 /// c2pa errors that mean "the file is trying to carry a C2PA manifest
@@ -320,6 +431,7 @@ fn unsigned_report(reason: Option<String>) -> Report {
     Report {
         verified: false,
         unsigned: true,
+        trusted: None,
         failure_reason: reason,
         active_manifest: None,
         signer: None,
@@ -332,12 +444,31 @@ fn unsigned_report(reason: Option<String>) -> Report {
     }
 }
 
-fn format_failure_reason(state: c2pa::ValidationState, error_count: usize) -> String {
-    // `state` being Valid/Trusted with errors > 0 is the tamper-
-    // detected-but-manifest-intact case (e.g., audio data modified
-    // under a hash-bound manifest). `state` being Invalid is
-    // manifest-level breakage. We narrate both clearly.
+fn format_failure_reason(
+    state: c2pa::ValidationState,
+    error_count: usize,
+    trusted: Option<bool>,
+    require_trusted: bool,
+) -> String {
     let plural = |n: usize| if n == 1 { "" } else { "s" };
+
+    // Trust-requirement failure: crypto passed but cert isn't trusted.
+    if require_trusted
+        && matches!(trusted, Some(false) | None)
+        && matches!(
+            state,
+            c2pa::ValidationState::Valid | c2pa::ValidationState::Trusted
+        )
+        && error_count == 0
+    {
+        return match trusted {
+            Some(false) => "signing certificate is not on the configured trust list".into(),
+            None => "trust status could not be established for the signing certificate".into(),
+            Some(true) => unreachable!("trusted=true but failure_reason called"),
+        };
+    }
+
+    // Crypto / manifest failures.
     match state {
         c2pa::ValidationState::Invalid => format!(
             "manifest failed structural or cryptographic validation ({} error{})",
@@ -345,10 +476,6 @@ fn format_failure_reason(state: c2pa::ValidationState, error_count: usize) -> St
             plural(error_count.max(1))
         ),
         c2pa::ValidationState::Valid | c2pa::ValidationState::Trusted => {
-            // Only called from the non-verified code path, so
-            // error_count is expected to be > 0 here. Keep it
-            // defensive anyway — fall back to a generic message if
-            // it isn't, so callers never see an empty reason string.
             if error_count > 0 {
                 format!(
                     "content verification failed — {} validation error{} (likely tampered payload under a hash-bound manifest)",
@@ -377,6 +504,7 @@ mod tests {
         let mut r = Report {
             verified: false,
             unsigned: true,
+            trusted: None,
             failure_reason: None,
             active_manifest: None,
             signer: None,
@@ -390,5 +518,17 @@ mod tests {
         assert_eq!(r.exit_code(), 1);
         r.verified = true;
         assert_eq!(r.exit_code(), 0);
+    }
+
+    #[test]
+    fn invalid_trust_store_pem_is_err() {
+        let opts = VerifyOptions {
+            trust_store_pem: Some("not a pem at all".into()),
+            require_trusted: false,
+        };
+        // Use a fake path — sanity_check should reject the PEM
+        // before we even look at the file.
+        let err = verify_with_options(Path::new("any.wav"), &opts).unwrap_err();
+        assert!(matches!(err, Error::InvalidTrustStore(_)));
     }
 }

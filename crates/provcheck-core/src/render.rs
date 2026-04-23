@@ -41,6 +41,19 @@ pub fn to_human_string(report: &Report) -> String {
     if let Some(signer) = &report.signer {
         let _ = writeln!(s, "  signer: {}", signer);
     }
+    match report.trusted {
+        Some(true) => {
+            let _ = writeln!(s, "  trust: signer is in the configured trust store");
+        }
+        Some(false) => {
+            let _ = writeln!(s, "  trust: signer is NOT in the configured trust store");
+        }
+        None => {
+            // No trust-store configured — stay quiet. The absence of
+            // this line means "trust was not evaluated", which matches
+            // the default CLI invocation.
+        }
+    }
     if let Some(when) = &report.signed_at {
         let _ = writeln!(s, "  signed: {}", when);
     }
@@ -48,7 +61,11 @@ pub fn to_human_string(report: &Report) -> String {
         let _ = writeln!(s, "  tool: {}", tool);
     }
     if report.ingredient_count > 0 {
-        let _ = writeln!(s, "  ingredients: {} (derived content)", report.ingredient_count);
+        let _ = writeln!(
+            s,
+            "  ingredients: {} (derived content)",
+            report.ingredient_count
+        );
     }
     if report.validation_errors > 0 {
         let _ = writeln!(s, "  validation errors: {}", report.validation_errors);

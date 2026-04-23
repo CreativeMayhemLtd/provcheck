@@ -16,8 +16,8 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use clap::Parser;
 use rcgen::{
-    BasicConstraints, CertificateParams, DistinguishedName, DnType, ExtendedKeyUsagePurpose,
-    IsCa, KeyPair, KeyUsagePurpose,
+    BasicConstraints, CertificateParams, DistinguishedName, DnType, ExtendedKeyUsagePurpose, IsCa,
+    KeyPair, KeyUsagePurpose,
 };
 
 #[derive(Debug, Parser)]
@@ -207,20 +207,10 @@ fn doomscroll_manifest_json() -> String {
 
 // ----- Signing ---------------------------------------------------------------
 
-fn sign_with_brand(
-    src: &Path,
-    dest: &Path,
-    brand: Brand,
-    manifest_json: String,
-) -> Result<()> {
+fn sign_with_brand(src: &Path, dest: &Path, brand: Brand, manifest_json: String) -> Result<()> {
     let (cert_pem, key_pem) = generate_chain(brand)?;
-    let signer = c2pa::create_signer::from_keys(
-        &cert_pem,
-        &key_pem,
-        c2pa::SigningAlg::Es256,
-        None,
-    )
-    .context("create_signer")?;
+    let signer = c2pa::create_signer::from_keys(&cert_pem, &key_pem, c2pa::SigningAlg::Es256, None)
+        .context("create_signer")?;
 
     let mut builder = c2pa::Builder::from_json(&manifest_json).context("builder from json")?;
 
@@ -279,9 +269,10 @@ fn generate_chain(brand: Brand) -> Result<(Vec<u8>, Vec<u8>)> {
     ee_params.extended_key_usages = vec![ExtendedKeyUsagePurpose::EmailProtection];
     ee_params.use_authority_key_identifier_extension = true;
 
-    let ca_issuer =
-        rcgen::Issuer::from_ca_cert_der(ca_cert.der(), &ca_key).context("ca issuer")?;
-    let ee_cert = ee_params.signed_by(&ee_key, &ca_issuer).context("ee sign")?;
+    let ca_issuer = rcgen::Issuer::from_ca_cert_der(ca_cert.der(), &ca_key).context("ca issuer")?;
+    let ee_cert = ee_params
+        .signed_by(&ee_key, &ca_issuer)
+        .context("ee sign")?;
 
     let chain_pem = format!("{}{}", ee_cert.pem(), ca_cert.pem());
     let key_pem = ee_key.serialize_pem();
