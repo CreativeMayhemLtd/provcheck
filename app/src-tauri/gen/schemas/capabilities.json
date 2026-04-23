@@ -1,0 +1,1 @@
+{"default":{"identifier":"default","description":"Minimum permissions — the app only needs core event handling (drag-drop) and core window control. All file I/O goes through the `verify_file` Tauri command, which is allow-listed via invoke_handler on the Rust side.","local":true,"windows":["main"],"permissions":["core:default","core:event:default","core:window:default"]}}

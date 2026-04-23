@@ -1,0 +1,37 @@
+# The Tauri app has its own release profile, own toolchain constraints,
+# and own bundle targets — and Tauri's CLI expects to be invoked from
+# `app/src-tauri/` as a top-level project root. Keeping it OUTSIDE the
+# top-level Cargo workspace avoids churn in the main workspace on every
+# frontend rebuild and simplifies the `cargo tauri build` flow.
+[workspace]
+
+[package]
+name = "provcheck-app"
+version = "0.1.0"
+description = "Drag-drop GUI for provcheck — verify C2PA Content Credentials."
+edition = "2024"
+rust-version = "1.85"
+license = "Apache-2.0"
+authors = ["Creative Mayhem UG <info@rAIdio.bot>"]
+publish = false
+
+[build-dependencies]
+tauri-build = { version = "2.5", features = [] }
+
+[dependencies]
+# No feature flags — we don't serve file:// assets directly; the app
+# invokes `verify_file` via IPC and the backend reads the path.
+tauri = { version = "2.10" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+provcheck-core = { path = "../../crates/provcheck-core" }
+
+[[bin]]
+name = "provcheck-app"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true

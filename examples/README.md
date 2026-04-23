@@ -1,7 +1,7 @@
 # Example signed media
 
-Three files here to kick the tires with. Both carry real C2PA
-Content Credentials and verify cleanly under `provcheck`.
+Two files here to kick the tires with. Both carry real C2PA Content
+Credentials and verify cleanly under `provcheck`.
 
 ## `rAIdio.bot-sample.mp3` (+ `rAIdio.bot-sample.c2pa` sidecar)
 
@@ -26,26 +26,49 @@ it up automatically.
 provcheck examples/rAIdio.bot-sample.mp3
 ```
 
-## `vAIdeo.bot-sample.mp4`
+## `doomscroll.fm-sample.mp4`
 
 ~660 KB short AI-generated video bumper from
-[**DoomscrollFM**](https://doomscroll.fm) — an autonomous AI satirical
-news broadcast produced by [**vAIdeo.bot**](https://vaideo.bot),
-rAIdio.bot's sibling product (video + audio).
+[**Doomscroll.fm**](https://doomscroll.fm) — an autonomous AI
+satirical news broadcast by [Creative Mayhem UG](https://creativemayhem.app),
+producing ~10–12 episodes per day, all signed at source.
 
 Signed with a C2PA manifest that includes:
 
 - `c2pa.actions.v2` — AI-generated marker.
-- `c2pa.hash.bmff.v3` — data-hash binding for the MP4 payload,
-  so tampering with the video bytes invalidates verification.
-- `com.vaideo.product` — product attribution.
-- `com.doomscroll.episode` — broadcast context.
+- `c2pa.hash.bmff.v3` — data-hash binding for the MP4 payload, so
+  tampering with the video bytes invalidates verification.
+- `com.doomscroll.broadcast` — broadcast attribution + vendor.
+- `com.doomscroll.distribution` — **template pattern** for any C2PA
+  publisher whose content might be rebroadcast through platforms
+  that re-encode media on upload. Contains four fields:
+  - `provenanceStatement` — states plainly what a C2PA signature
+    does and doesn't mean. The signature attests that the bytes
+    are authentic to what the publisher published; it is a
+    provenance claim, not a truth claim about the content.
+  - `canonicalSource` — the URL where the authoritative signed
+    publication lives.
+  - `canonicalSourceDescription` — reinforces that this is where
+    the always-signed copy lives.
+  - `rebroadcastDisclaimer` — tells end users that a file failing
+    verification is not necessarily altered; it may just have lost
+    its signature during re-encoding at a redistribution platform.
+    Directs them to the canonical source to verify the original.
+  - `integrityRecommendation` — tells republishers and archivists
+    to pull from the canonical source to keep the signature chain
+    intact.
+
+  Worth shipping in any publisher's manifest. End users who
+  encounter stripped copies online get a clear path to re-verify
+  against the authoritative publication instead of having to guess
+  what signature loss means.
+- `com.doomscroll.episode` — episode-level context.
 
 MP4 format carries its manifest **embedded in the file** — no
 sidecar.
 
 ```
-provcheck examples/vAIdeo.bot-sample.mp4
+provcheck examples/doomscroll.fm-sample.mp4
 ```
 
 ## Regenerating
@@ -56,22 +79,22 @@ files by the in-tree `provcheck-examples` binary:
 ```
 cargo run --release -p provcheck-examples -- \
   --audio-in <path-to-rAIdio-mp3> \
-  --video-in <path-to-DoomscrollFM-bumper-mp4> \
+  --video-in <path-to-Doomscroll.fm-bumper-mp4> \
   --out-dir examples
 ```
 
 Each run synthesises a fresh ES256 cert chain (the common-name on
-the signing cert is the product brand, which is what `provcheck`
-surfaces as `signer`). No private keys ship with this repo.
+the signing cert is the brand — rAIdio.bot or Doomscroll.fm — which
+is what `provcheck` surfaces as `signer`). No private keys ship with
+this repo.
 
 ## Licensing
 
 The audio + video content in these samples is AI-generated output
-from Creative Mayhem UG products (rAIdio.bot and vAIdeo.bot). These
-specific sample files are licensed under Apache-2.0 along with the
-rest of this repository.
+from Creative Mayhem UG products. These specific sample files are
+licensed under Apache-2.0 along with the rest of this repository.
 
-Training data for the underlying AI models is disclosed in the
-embedded manifest's `com.raidio.model.trainingDataSource` and
-`com.raidio.model.trainingDataLicense` fields — read them via
-`provcheck`.
+Training data for the underlying AI models (where applicable) is
+disclosed in the embedded manifests — read them via `provcheck` and
+look at `com.raidio.model.trainingDataSource` and
+`com.raidio.model.trainingDataLicense`.

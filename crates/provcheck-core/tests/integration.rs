@@ -232,7 +232,7 @@ fn shipped_examples_verify() {
 
     for (filename, expected_signer) in [
         ("rAIdio.bot-sample.mp3", "rAIdio.bot"),
-        ("vAIdeo.bot-sample.mp4", "vAIdeo.bot"),
+        ("doomscroll.fm-sample.mp4", "Doomscroll.fm"),
     ] {
         let path = examples.join(filename);
         if !path.exists() {

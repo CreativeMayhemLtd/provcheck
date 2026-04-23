@@ -1,0 +1,40 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "provcheck",
+  "version": "0.1.0",
+  "identifier": "app.creativemayhem.provcheck",
+  "build": {
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "provcheck — C2PA verifier",
+        "width": 880,
+        "height": 680,
+        "minWidth": 640,
+        "minHeight": 520,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true,
+        "backgroundColor": "#0D0D0F",
+        "dragDropEnabled": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/icon.ico"
+    ],
+    "copyright": "© 2026 Creative Mayhem UG (haftungsbeschränkt)",
+    "category": "Utility",
+    "shortDescription": "Verify C2PA Content Credentials on any file.",
+    "longDescription": "provcheck is a free, open-source, local-first desktop verifier for C2PA Content Credentials. Drag a file in — signed or unsigned — and see the manifest in full. No account, no web upload, no vendor lock-in."
+  }
+}

@@ -54,14 +54,14 @@ fn main() -> Result<()> {
     )
     .context("signing rAIdio.bot audio sample")?;
 
-    let video_out = args.out_dir.join("vAIdeo.bot-sample.mp4");
+    let video_out = args.out_dir.join("doomscroll.fm-sample.mp4");
     sign_with_brand(
         &args.video_in,
         &video_out,
-        Brand::VaideoBot,
-        vaideo_manifest_json(),
+        Brand::DoomscrollFm,
+        doomscroll_manifest_json(),
     )
-    .context("signing vAIdeo.bot video sample")?;
+    .context("signing Doomscroll.fm video sample")?;
 
     println!("\nRegenerated:");
     println!("  {}", audio_out.display());
@@ -80,14 +80,17 @@ fn main() -> Result<()> {
 #[derive(Copy, Clone)]
 enum Brand {
     RaidioBot,
-    VaideoBot,
+    DoomscrollFm,
 }
 
 impl Brand {
     fn common_name(self) -> &'static str {
         match self {
             Brand::RaidioBot => "rAIdio.bot",
-            Brand::VaideoBot => "vAIdeo.bot",
+            // Doomscroll.fm is a separate workflow / broadcast — not
+            // a vAIdeo.bot product. Sibling-product attribution waits
+            // for vAIdeo.bot's own pre-release announcement.
+            Brand::DoomscrollFm => "Doomscroll.fm",
         }
     }
 }
@@ -139,42 +142,62 @@ fn raidio_manifest_json() -> String {
     .to_string()
 }
 
-fn vaideo_manifest_json() -> String {
-    // vAIdeo.bot sibling product. Same Creative Mayhem studio; video
-    // + audio. The sample is a DoomscrollFM bumper (short promo
-    // clip) because DoomscrollFM is vAIdeo.bot's flagship broadcast.
+fn doomscroll_manifest_json() -> String {
+    // Doomscroll.fm is an autonomous AI-generated satirical news
+    // broadcast — its own workflow, not a product under another
+    // Creative Mayhem brand. Attribute to the broadcast directly.
+    //
+    // The `com.doomscroll.distribution` assertion below is doing
+    // something important that any C2PA publisher probably wants
+    // to copy. C2PA verification is a provenance attestation — it
+    // confirms a file's bytes are authentic to what the publisher
+    // published. It is NOT a truth claim about the content itself.
+    // Some redistribution platforms re-encode media during upload
+    // and, in doing so, may strip embedded C2PA manifests. A user
+    // who retrieves a clip off such a rebroadcast and verifies it
+    // will see "unsigned" and has no way, on its own, to know
+    // whether the bytes still match the original publication. The
+    // disclaimer + canonical-source pointer gives them the answer:
+    // retrieve the signed version from the canonical URL and check
+    // against that.
     r#"{
-      "claim_generator": "vAIdeo.bot/0.1.0",
-      "title": "Sample: vAIdeo.bot AI-generated video (DoomscrollFM bumper)",
+      "claim_generator": "doomscroll.fm/3.0",
+      "title": "Sample: Doomscroll.fm AI-generated video (episode bumper)",
       "assertions": [
         {
           "label": "c2pa.actions",
           "data": {
             "actions": [{
               "action": "c2pa.created",
-              "softwareAgent": "vAIdeo.bot/0.1.0",
+              "softwareAgent": "doomscroll.fm/3.0",
               "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia"
             }]
           }
         },
         {
-          "label": "com.vaideo.product",
+          "label": "com.doomscroll.broadcast",
           "data": {
-            "productName": "vAIdeo.bot",
-            "productUrl": "https://vaideo.bot",
-            "productVendor": "Creative Mayhem UG",
-            "productType": "Local-first AI video + audio production studio",
-            "siblingProduct": "rAIdio.bot (audio-only)"
+            "broadcast": "Doomscroll.fm",
+            "broadcastUrl": "https://doomscroll.fm",
+            "broadcastVendor": "Creative Mayhem UG",
+            "broadcastDescription": "Autonomous AI-generated satirical news broadcast. Approximately 10–12 episodes per day. All content is C2PA-signed at source."
+          }
+        },
+        {
+          "label": "com.doomscroll.distribution",
+          "data": {
+            "provenanceStatement": "A valid C2PA signature from Doomscroll.fm attests that this file's bytes are authentic to the copy Doomscroll.fm originally published. It is a cryptographic attestation of provenance — not a truth claim about the content itself, and not a judgement on whether the content is accurate or inaccurate.",
+            "canonicalSource": "https://doomscroll.fm",
+            "canonicalSourceDescription": "The authoritative, always-signed publication of every Doomscroll.fm clip. If you have a copy that fails C2PA verification, retrieve the version here — that one is cryptographically demonstrable as authentic to the original Doomscroll.fm publication.",
+            "rebroadcastDisclaimer": "Some redistribution platforms re-encode media during upload and may strip the embedded C2PA manifest in the process. A file that fails verification has not necessarily been altered — it may simply have lost its cryptographic link back to the original publication during re-encoding. To confirm that a clip you encountered elsewhere is authentic to Doomscroll.fm's original publication, retrieve the canonical signed copy and verify that one.",
+            "integrityRecommendation": "When ingesting Doomscroll.fm content for archival or republication, pulling from the canonical source preserves the signature chain and keeps provenance verifiable end-to-end."
           }
         },
         {
           "label": "com.doomscroll.episode",
           "data": {
-            "broadcast": "DoomscrollFM",
-            "broadcastUrl": "https://doomscroll.fm",
             "contentType": "episode-bumper",
-            "broadcastDescription": "Autonomous AI-generated satirical news broadcast. ~10–12 episodes per day. All content 100% C2PA-signed at source.",
-            "note": "Every clip DoomscrollFM publishes carries provenance credentials you can verify yourself with provcheck."
+            "note": "Short promo clip used between episode segments."
           }
         }
       ]
