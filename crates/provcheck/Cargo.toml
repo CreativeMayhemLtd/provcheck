@@ -1,5 +1,5 @@
 [package]
-name = "provcheck-core"
+name = "provcheck"
 description = "Verify C2PA Content Credentials on any supported media file."
 version.workspace = true
 edition.workspace = true
@@ -11,7 +11,7 @@ homepage.workspace = true
 readme.workspace = true
 
 [lib]
-name = "provcheck_core"
+name = "provcheck"
 
 [dependencies]
 # Inherit feature set from workspace (no default features,

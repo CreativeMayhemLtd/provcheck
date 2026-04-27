@@ -1,0 +1,23 @@
+[package]
+name = "provcheck-platform"
+description = "C2PA Content Credentials verification platform"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+
+[lib]
+name = "provcheck_platform"
+
+[dependencies]
+provcheck = { path = "../provcheck" }
+# Inherit feature set from workspace (no default features,
+# `rust_native_crypto` + `file_io`) so the build doesn't need OpenSSL.
+c2pa.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true

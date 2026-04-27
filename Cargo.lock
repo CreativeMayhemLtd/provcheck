@@ -1867,17 +1867,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "provcheck-cli"
-version = "0.1.1"
-dependencies = [
- "anyhow",
- "clap",
- "provcheck-core",
- "serde_json",
-]
-
-[[package]]
-name = "provcheck-core"
+name = "provcheck"
 version = "0.1.1"
 dependencies = [
  "c2pa",
@@ -1890,6 +1880,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "provcheck-cli"
+version = "0.1.1"
+dependencies = [
+ "anyhow",
+ "clap",
+ "provcheck",
+ "serde_json",
+]
+
+[[package]]
 name = "provcheck-examples"
 version = "0.1.1"
 dependencies = [
@@ -1897,6 +1897,17 @@ dependencies = [
  "c2pa",
  "clap",
  "rcgen",
+]
+
+[[package]]
+name = "provcheck-platform"
+version = "0.1.1"
+dependencies = [
+ "c2pa",
+ "provcheck",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

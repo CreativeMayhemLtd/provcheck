@@ -3,11 +3,11 @@
 
 use std::path::PathBuf;
 use serde::Serialize;
-use provcheck_core::prelude::*;
+use provcheck::prelude::*;
 
-/// JSON-friendly wrapper around provcheck_core::Report.
+/// JSON-friendly wrapper around provcheck::Report.
 ///
-/// `provcheck_core::Report` already derives Serialize, but we return
+/// `provcheck::Report` already derives Serialize, but we return
 /// it through this wrapper anyway so the Tauri command's return type
 /// never leaks a `Result<T, E>` where `T` is a foreign type — keeps
 /// the frontend contract stable if the core type ever adds fields

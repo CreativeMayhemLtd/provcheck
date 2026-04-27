@@ -21,7 +21,7 @@
 use std::fs;
 use std::path::Path;
 
-use provcheck_core::{VerifyOptions, verify, verify_with_options};
+use provcheck::prelude::*;
 
 // ---- Fixture generation helpers ---------------------------------------------
 
@@ -381,7 +381,7 @@ fn malformed_trust_store_pem_is_err() {
     };
     let err = verify_with_options(&dest, &opts).expect_err("malformed PEM must Err");
     assert!(
-        matches!(err, provcheck_core::Error::InvalidTrustStore(_)),
+        matches!(err, Error::InvalidTrustStore(_)),
         "expected InvalidTrustStore, got {:?}",
         err
     );

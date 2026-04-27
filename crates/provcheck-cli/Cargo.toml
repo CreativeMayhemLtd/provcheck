@@ -15,7 +15,7 @@ name = "provcheck"
 path = "src/main.rs"
 
 [dependencies]
-provcheck-core = { path = "../provcheck-core", version = "0.1.0" }
+provcheck = { path = "../provcheck" }
 clap = { workspace = true }
 anyhow = { workspace = true }
 serde_json = { workspace = true }
