@@ -25,7 +25,7 @@ pub mod verification;
 
 pub mod prelude {
     pub use super::Error;
-    pub use crate::report::Report;
+    pub use crate::report::{AttestationStatus, DidAttestation, Report};
     pub use crate::verification::{VerifyOptions, verify, verify_with_options};
 }
 
@@ -37,6 +37,12 @@ pub enum Error {
     C2pa(#[from] c2pa::Error),
     #[error("invalid trust-store PEM: {0}")]
     InvalidTrustStore(String),
+    #[error("DID resolution failed: {0}")]
+    DidResolution(String),
+    #[error("PDS access failed: {0}")]
+    PdsAccess(String),
+    #[error("attestation processing failed: {0}")]
+    AttestationFailed(String),
 }
 
 fn sanity_check_pem(pem: &str) -> Result<(), Error> {
@@ -105,6 +111,7 @@ fn unsigned_report(reason: Option<String>) -> prelude::Report {
         ingredient_count: 0,
         format: None,
         validation_errors: 0,
+        did_attestation: None,
     }
 }
 

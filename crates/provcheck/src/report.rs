@@ -64,6 +64,66 @@ pub struct Report {
     /// (after filtering out codes that reflect trust-policy choices
     /// provcheck deliberately doesn't enforce by default).
     pub validation_errors: usize,
+
+    /// DID-anchored attestation result. Always `None` from the offline
+    /// `verify_with_options` path — populated only by
+    /// `provcheck_platform::verify_with_attestation` when the caller
+    /// asked for second-factor identity verification via
+    /// `--bsky-handle` or `--did`. Omitted from JSON when `None`.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub did_attestation: Option<DidAttestation>,
+}
+
+/// Outcome of a DID-anchored second-factor check, populated on
+/// [`Report::did_attestation`] when the caller routed through
+/// `provcheck_platform::verify_with_attestation`. Renderers should
+/// treat the `status` field as load-bearing and the rest as
+/// descriptive.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DidAttestation {
+    /// The DID the check was performed against (resolved from handle
+    /// if the caller supplied a handle; otherwise the DID they
+    /// supplied). Empty string if resolution failed before a DID was
+    /// determined.
+    pub did: String,
+
+    /// The bsky / atproto handle the caller supplied, if any. Echoed
+    /// back so renderers can show "@creator.bsky.social" without
+    /// re-resolving.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub handle: Option<String>,
+
+    /// Match / Mismatch / NotPublished / ResolutionFailed.
+    pub status: AttestationStatus,
+
+    /// On `Match`, the fingerprint that matched (full
+    /// `sha256:<hex>`). `None` otherwise.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub matched_fingerprint: Option<String>,
+
+    /// Human-readable detail. Always present on `ResolutionFailed`;
+    /// usually present on `Mismatch` and `NotPublished`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+}
+
+/// Tri-state-plus-failure status for DID-anchored attestation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AttestationStatus {
+    /// Signing certificate's fingerprint matches an active record
+    /// under the resolved DID.
+    Match,
+    /// DID resolves and at least one active `app.provcheck.signingKey`
+    /// record exists, but none match the signing certificate's
+    /// fingerprint.
+    Mismatch,
+    /// DID resolves but the creator has no active
+    /// `app.provcheck.signingKey` records.
+    NotPublished,
+    /// DID could not be resolved (handle didn't resolve, DID document
+    /// unreachable, PDS unreachable, network failure, etc.).
+    ResolutionFailed,
 }
 
 impl Report {
@@ -120,6 +180,46 @@ impl Display for Report {
                 // No trust-store configured — stay quiet. The absence of
                 // this line means "trust was not evaluated", which matches
                 // the default CLI invocation.
+            }
+        }
+        if let Some(att) = &self.did_attestation {
+            // Identity label: prefer the handle for readability; fall
+            // back to the DID. Both can be present; show DID alongside
+            // when handle is also there.
+            let label = match (&att.handle, att.did.as_str()) {
+                (Some(h), did) if !did.is_empty() => format!("@{} ({})", h, did),
+                (Some(h), _) => format!("@{}", h),
+                (None, did) if !did.is_empty() => did.to_string(),
+                (None, _) => "<no identity>".to_string(),
+            };
+            match att.status {
+                AttestationStatus::Match => {
+                    let _ = writeln!(f, "  attested by: {}", label);
+                    if let Some(fp) = &att.matched_fingerprint {
+                        let _ = writeln!(f, "    fingerprint: {}", fp);
+                    }
+                    if let Some(msg) = &att.message {
+                        let _ = writeln!(f, "    label: {}", msg);
+                    }
+                }
+                AttestationStatus::Mismatch => {
+                    let _ = writeln!(f, "  attestation MISMATCH for: {}", label);
+                    if let Some(msg) = &att.message {
+                        let _ = writeln!(f, "    {}", msg);
+                    }
+                }
+                AttestationStatus::NotPublished => {
+                    let _ = writeln!(f, "  attestation: no signing-key records under {}", label);
+                    if let Some(msg) = &att.message {
+                        let _ = writeln!(f, "    {}", msg);
+                    }
+                }
+                AttestationStatus::ResolutionFailed => {
+                    let _ = writeln!(f, "  attestation UNAVAILABLE for: {}", label);
+                    if let Some(msg) = &att.message {
+                        let _ = writeln!(f, "    {}", msg);
+                    }
+                }
             }
         }
         if let Some(when) = &self.signed_at {

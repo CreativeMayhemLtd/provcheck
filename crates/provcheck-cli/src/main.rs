@@ -16,6 +16,7 @@ use std::process::ExitCode;
 
 use clap::Parser;
 use provcheck::prelude::*;
+use provcheck_platform::{AttestationOptions, verify_with_attestation};
 
 /// Verify C2PA Content Credentials on a file.
 #[derive(Debug, Parser)]
@@ -53,10 +54,47 @@ struct Args {
     /// will exit 1 instead of 0.
     #[arg(long, requires = "trust_store")]
     require_trusted: bool,
+
+    /// Bsky / atproto handle to second-factor the signature against
+    /// (e.g. `creator.bsky.social`). Resolves the handle to a DID,
+    /// fetches the creator's published `app.provcheck.signingKey`
+    /// records from their PDS, and reports whether the signing
+    /// certificate's SHA-256 fingerprint matches a published key.
+    /// Mutually exclusive with `--did`.
+    #[arg(long, value_name = "HANDLE", conflicts_with = "did")]
+    bsky_handle: Option<String>,
+
+    /// DID to second-factor against (e.g. `did:plc:abc...` or
+    /// `did:web:creator.com`). Bypasses handle resolution. Mutually
+    /// exclusive with `--bsky-handle`.
+    #[arg(long, value_name = "DID")]
+    did: Option<String>,
+
+    /// Require an attestation match. A file whose signing certificate
+    /// is not attested by the supplied handle/DID will exit 1, even if
+    /// the cryptographic signature itself is valid. Requires either
+    /// `--bsky-handle` or `--did`.
+    #[arg(long)]
+    require_attested: bool,
+
+    /// Skip the on-disk cache for DID documents and PDS records.
+    /// Every check hits the network. Useful after a creator rotates
+    /// keys.
+    #[arg(long)]
+    no_attestation_cache: bool,
 }
 
 fn main() -> ExitCode {
     let args = Args::parse();
+
+    // require_attested needs either --bsky-handle or --did. clap's
+    // `requires` only takes a single arg name, so enforce the OR here.
+    if args.require_attested && args.bsky_handle.is_none() && args.did.is_none() {
+        if !args.quiet {
+            eprintln!("provcheck: --require-attested needs either --bsky-handle or --did");
+        }
+        return ExitCode::from(2);
+    }
 
     let trust_store_pem = match args.trust_store.as_deref() {
         Some(path) => match std::fs::read_to_string(path) {
@@ -75,18 +113,42 @@ fn main() -> ExitCode {
         None => None,
     };
 
-    let opts = VerifyOptions {
+    let verify_opts = VerifyOptions {
         trust_store_pem,
         require_trusted: args.require_trusted,
     };
 
-    let report = match verify_with_options(&args.file, &opts) {
-        Ok(r) => r,
-        Err(e) => {
-            if !args.quiet {
-                eprintln!("provcheck: {}", e);
+    // Dispatch: route through the platform wrapper iff the user asked
+    // for attestation. Keeps the offline path completely free of any
+    // platform-crate code paths when nobody's asked for networking.
+    let want_attestation = args.bsky_handle.is_some() || args.did.is_some();
+
+    let report = if want_attestation {
+        let attest_opts = AttestationOptions {
+            bsky_handle: args.bsky_handle.clone(),
+            did: args.did.clone(),
+            require_attested: args.require_attested,
+            cache_dir: None,
+            no_cache: args.no_attestation_cache,
+        };
+        match verify_with_attestation(&args.file, &verify_opts, &attest_opts) {
+            Ok(r) => r,
+            Err(e) => {
+                if !args.quiet {
+                    eprintln!("provcheck: {}", e);
+                }
+                return ExitCode::from(2);
             }
-            return ExitCode::from(2);
+        }
+    } else {
+        match verify_with_options(&args.file, &verify_opts) {
+            Ok(r) => r,
+            Err(e) => {
+                if !args.quiet {
+                    eprintln!("provcheck: {}", e);
+                }
+                return ExitCode::from(2);
+            }
         }
     };
 

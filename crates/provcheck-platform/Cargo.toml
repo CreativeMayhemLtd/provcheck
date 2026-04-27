@@ -21,3 +21,17 @@ c2pa.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+# DID-anchored attestation networking + cache. Sync HTTPS via rustls,
+# no tokio, no OpenSSL — keeps the workspace's no-async stance intact.
+ureq = { version = "3", default-features = false, features = ["rustls", "json"] }
+sha2 = "0.10"
+pem = "3"
+time = { version = "0.3", features = ["parsing", "formatting", "macros"] }
+dirs = "5"
+
+[dev-dependencies]
+# Cert chains for fingerprint round-trip tests; silent WAV synth for
+# fixtures; tempdir for cache isolation.
+rcgen = { version = "0.14", features = ["x509-parser"] }
+hound = "3"
+tempfile = "3"

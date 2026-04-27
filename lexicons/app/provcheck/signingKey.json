@@ -1,0 +1,63 @@
+{
+  "lexicon": 1,
+  "id": "app.provcheck.signingKey",
+  "description": "A C2PA signing certificate that the creator publishes as belonging to them. Allows verifiers to second-factor a C2PA signature against the creator's atproto identity: a signing certificate is considered attested by this DID iff its SHA-256 fingerprint matches one in an active record of this collection. One record per certificate; rotation is additive (publish a new record), retirement uses validUntil.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "any",
+      "record": {
+        "type": "object",
+        "required": ["createdAt", "fingerprint", "algorithm"],
+        "properties": {
+          "createdAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "When this record was published."
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 256,
+            "description": "Human-readable label for this key (e.g. 'rAIdio.bot ES256 signing key', 'YubiKey 5C nano')."
+          },
+          "fingerprint": {
+            "type": "string",
+            "description": "Cryptographic fingerprint of the certificate's DER encoding. Format: 'sha256:' followed by lowercase hex.",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "algorithm": {
+            "type": "string",
+            "description": "Signature algorithm advertised by this certificate's public key.",
+            "knownValues": [
+              "ES256",
+              "ES384",
+              "ES512",
+              "PS256",
+              "PS384",
+              "PS512",
+              "RS256",
+              "RS384",
+              "RS512",
+              "Ed25519"
+            ]
+          },
+          "validFrom": {
+            "type": "string",
+            "format": "datetime",
+            "description": "Earliest time this key should be considered authoritative for the creator. Verifiers reject records where now < validFrom. Defaults to createdAt if unset."
+          },
+          "validUntil": {
+            "type": "string",
+            "format": "datetime",
+            "description": "Time after which this key should not be trusted. Verifiers reject records where now >= validUntil. Absent means open-ended validity."
+          },
+          "supersededBy": {
+            "type": "string",
+            "format": "at-uri",
+            "description": "AT-URI of a newer signingKey record that replaces this one. Informational — verifiers should rely on validUntil for trust decisions."
+          }
+        }
+      }
+    }
+  }
+}
