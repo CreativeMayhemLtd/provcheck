@@ -1,0 +1,9 @@
+# Statically link the MSVC C runtime (VCRUNTIME140 + UCRT) into the
+# Windows binary so a downloaded `provcheck.exe` runs on a clean Windows
+# machine that does not have the Visual C++ Redistributable installed.
+# Without this, end users see "VCRUNTIME140.dll was not found" or a silent
+# STATUS_DLL_NOT_FOUND (0xC0000135) on launch. Safe here because the whole
+# tree is pure Rust + rustls + rust_native_crypto — no FFI to a C library
+# that would expect the dynamic CRT across a DLL boundary.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

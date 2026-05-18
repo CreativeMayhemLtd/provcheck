@@ -1954,7 +1954,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "c2pa",
  "hound",
@@ -1967,7 +1967,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-cli"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "clap",
@@ -1978,7 +1978,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-examples"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "c2pa",
@@ -1988,7 +1988,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-platform"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "c2pa",
  "dirs",

@@ -3582,7 +3582,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "c2pa",
  "serde",
@@ -3592,7 +3592,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-app"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "provcheck",
  "serde",
