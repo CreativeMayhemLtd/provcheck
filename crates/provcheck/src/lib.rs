@@ -25,7 +25,10 @@ pub mod verification;
 
 pub mod prelude {
     pub use super::Error;
-    pub use crate::report::{AttestationStatus, DidAttestation, Report};
+    pub use crate::report::{
+        AttestationStatus, DidAttestation, Report, WatermarkBrand, WatermarkKind, WatermarkResult,
+        WatermarkStatus,
+    };
     pub use crate::verification::{VerifyOptions, verify, verify_with_options};
 }
 
@@ -112,6 +115,7 @@ fn unsigned_report(reason: Option<String>) -> prelude::Report {
         format: None,
         validation_errors: 0,
         did_attestation: None,
+        watermarks: Vec::new(),
     }
 }
 

@@ -107,6 +107,7 @@ pub fn verify_with_options(path: &Path, opts: &VerifyOptions) -> Result<Report, 
                 format: None,
                 validation_errors: 1,
                 did_attestation: None,
+                watermarks: Vec::new(),
             });
         }
         Err(e) => return Err(Error::C2pa(e)),
@@ -233,6 +234,7 @@ pub fn verify_with_options(path: &Path, opts: &VerifyOptions) -> Result<Report, 
         format,
         validation_errors,
         did_attestation: None,
+        watermarks: Vec::new(),
     })
 }
 

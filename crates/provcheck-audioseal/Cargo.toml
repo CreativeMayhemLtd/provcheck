@@ -1,0 +1,32 @@
+[package]
+name = "provcheck-audioseal"
+description = "AudioSeal neural-watermark detection for provcheck."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+
+[lib]
+name = "provcheck_audioseal"
+
+[dependencies]
+provcheck = { path = "../provcheck" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+# NOTE: this crate is currently a scaffold. The license check
+# is already complete (AudioSeal code + weights are both MIT
+# since 2024-04-02), but the actual detection pipeline — STFT
+# front-end, tract-onnx wrapper, decode back-end — has not
+# been ported yet. When ported it will take the same
+# dependency set as `provcheck-watermark`: tract-onnx,
+# symphonia, rubato, realfft. See lib.rs for the integration
+# checklist.
+
+[dev-dependencies]
+tempfile = "3"

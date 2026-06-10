@@ -7,7 +7,7 @@
 
 [package]
 name = "provcheck-app"
-version = "0.1.2"
+version = "0.2.0"
 description = "Drag-drop GUI for provcheck — verify C2PA Content Credentials."
 edition = "2024"
 rust-version = "1.85"
@@ -25,6 +25,10 @@ tauri = { version = "2.10", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 provcheck = { path = "../../crates/provcheck" }
+provcheck-platform = { path = "../../crates/provcheck-platform" }
+provcheck-watermark = { path = "../../crates/provcheck-watermark" }
+provcheck-audioseal = { path = "../../crates/provcheck-audioseal" }
+provcheck-wavmark = { path = "../../crates/provcheck-wavmark" }
 
 [[bin]]
 name = "provcheck-app"

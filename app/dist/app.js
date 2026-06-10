@@ -37,6 +37,14 @@ const $reasonText    = document.getElementById("reason-text");
 const $kvMain        = document.getElementById("kv-main");
 const $kvClaims      = document.getElementById("kv-claims");
 const $claimsHeading = document.getElementById("claims-heading");
+const $watermarks     = document.getElementById("watermarks");
+const $attestation    = document.getElementById("attestation");
+const $attestationIcon  = document.getElementById("attestation-icon");
+const $attestationTitle = document.getElementById("attestation-title");
+const $attestationSub   = document.getElementById("attestation-sub");
+const $attestationFp    = document.getElementById("attestation-fingerprint");
+const $idHandle       = document.getElementById("identity-handle");
+const $idRequire      = document.getElementById("identity-require-attested");
 const $chooseBtn      = document.getElementById("choose-btn");
 const $verifyAgain    = document.getElementById("verify-another");
 const $copyJson       = document.getElementById("copy-json");
@@ -113,6 +121,9 @@ function renderReport(report, path) {
     $reason.hidden = true;
   }
 
+  renderAttestation(report.did_attestation);
+  renderWatermarks(report.watermarks);
+
   $kvMain.innerHTML = "";
   const rows = [
     ["Signer", report.signer, false],
@@ -164,12 +175,181 @@ function renderReport(report, path) {
   }
 }
 
+function renderAttestation(att) {
+  // Four states keyed on DidAttestation.status — mirrors the
+  // CLI Display impl in crates/provcheck/src/report.rs.
+  // Hidden when offline-only (the user typed no handle/DID).
+  if (!att || typeof att !== "object") {
+    $attestation.hidden = true;
+    return;
+  }
+  const status = att.status || "";
+  const label = formatAttestationLabel(att);
+
+  let cls, icon, title, sub;
+  if (status === "match") {
+    cls = "is-match";
+    icon = "✓";
+    title = "Attested by " + label;
+    sub = att.message || "Signing certificate matches a key published under this identity.";
+  } else if (status === "mismatch") {
+    cls = "is-mismatch";
+    icon = "✕";
+    title = "Attestation mismatch for " + label;
+    sub = att.message ||
+      "Signing certificate does not match any key published under this identity.";
+  } else if (status === "not_published") {
+    cls = "is-not-published";
+    icon = "—";
+    title = "No keys published under " + label;
+    sub = att.message ||
+      "This identity exists but has not published any signingKey records.";
+  } else {
+    cls = "is-resolution-failed";
+    icon = "?";
+    title = "Could not resolve " + label;
+    sub = att.message || "Identity resolution failed (handle/DID unreachable).";
+  }
+
+  $attestation.hidden = false;
+  $attestation.className = "attestation-badge " + cls;
+  $attestationIcon.textContent = icon;
+  $attestationTitle.textContent = title;
+  $attestationSub.textContent = sub;
+
+  if (status === "match" && att.matched_fingerprint) {
+    $attestationFp.hidden = false;
+    $attestationFp.textContent = att.matched_fingerprint;
+  } else {
+    $attestationFp.hidden = true;
+    $attestationFp.textContent = "";
+  }
+}
+
+function formatAttestationLabel(att) {
+  // Prefer @handle for readability, fall back to the DID, then
+  // a generic placeholder so the UI never shows an empty label.
+  if (att.handle) {
+    return att.handle.startsWith("did:") ? att.handle : "@" + att.handle;
+  }
+  if (att.did) return att.did;
+  return "this identity";
+}
+
+function renderWatermarks(list) {
+  // One badge per detector that ran. Four per-badge states:
+  //   detected   → green check, brand name + confidence %
+  //   degraded   → amber check, brand name + "(degraded)" + %
+  //   undetected → red x, "no mark detected"
+  //   skipped    → dim dash, e.g. "not audio" or "model error"
+  $watermarks.innerHTML = "";
+  if (!Array.isArray(list) || list.length === 0) {
+    $watermarks.hidden = true;
+    return;
+  }
+  $watermarks.hidden = false;
+  for (const wm of list) {
+    $watermarks.appendChild(buildWatermarkBadge(wm));
+  }
+}
+
+function buildWatermarkBadge(wm) {
+  const detector =
+    wm.kind === "silent_cipher" ? "silentcipher" : (wm.kind || "watermark");
+  const msg = wm.message || "";
+  const status = wm.status || (wm.detected ? "detected" : "not_detected");
+  const pct = Math.round((Number(wm.confidence) || 0) * 100);
+  const brandLabel = formatBrand(wm.brand);
+
+  let cls, icon, title, sub;
+  if (status === "detected") {
+    cls = "is-detected";
+    icon = "✓";
+    title = detector + " · " + brandLabel;
+    sub = pct + "% confidence";
+  } else if (status === "degraded") {
+    cls = "is-degraded";
+    icon = "✓";
+    title = detector + " · " + brandLabel;
+    sub = pct + "% confidence — mark is degraded (partial corruption likely)";
+  } else if (msg.length > 0) {
+    cls = "is-skipped";
+    icon = "—";
+    title = detector + ": n/a";
+    sub = msg;
+  } else {
+    cls = "is-undetected";
+    icon = "✕";
+    title = detector + ": no mark detected";
+    sub = "";
+  }
+
+  const badge = document.createElement("div");
+  badge.className = "watermark-badge " + cls;
+
+  const iconEl = document.createElement("div");
+  iconEl.className = "watermark-icon";
+  iconEl.setAttribute("aria-hidden", "true");
+  iconEl.textContent = icon;
+  badge.appendChild(iconEl);
+
+  const text = document.createElement("div");
+  text.className = "watermark-text";
+  const titleEl = document.createElement("p");
+  titleEl.className = "watermark-title";
+  titleEl.textContent = title;
+  text.appendChild(titleEl);
+  const subEl = document.createElement("p");
+  subEl.className = "watermark-sub";
+  subEl.textContent = sub;
+  text.appendChild(subEl);
+  badge.appendChild(text);
+
+  return badge;
+}
+
+function formatBrand(brand) {
+  // Serde tags WatermarkBrand with `{"code": "..."}`. Unknowns
+  // carry extra fields (`letters` or `schema`). Detection is
+  // brand-agnostic — any silentcipher mark from a non-CM source
+  // still lights this badge green, just with an "unrecognized"
+  // attribution.
+  if (!brand || typeof brand !== "object") return "unrecognized source";
+  switch (brand.code) {
+    case "raidio":     return "rAIdio.bot";
+    case "doomscroll": return "doomscroll.fm";
+    case "vaideo":     return "vAIdeo.bot";
+    case "unknown_ascii": {
+      const letters = Array.isArray(brand.letters) ? brand.letters : [];
+      const ascii = letters.map((b) => String.fromCharCode(b)).join("");
+      return "unrecognized source “" + ascii + "”";
+    }
+    case "unknown_schema":
+      return "unrecognized payload schema (v" + (brand.schema ?? "?") + ")";
+    default:
+      return "unrecognized source";
+  }
+}
+
 // ---- Actions -------------------------------------------------------------
 
 async function verifyPath(path) {
   showLoading(prettyPath(path));
+  const id = loadIdentity();
+  // Single text input for both bsky handle and DID — sniff
+  // the `did:` prefix to route correctly into the two
+  // Tauri command args. Tauri auto-camelCases `require_attested`
+  // → `requireAttested` on the JS side.
+  const raw = (id.handle || "").trim();
+  const isDid = raw.startsWith("did:");
+  const args = {
+    path,
+    handle: isDid ? null : (raw || null),
+    did: isDid ? raw : null,
+    requireAttested: !!id.requireAttested,
+  };
   try {
-    const resp = await invoke("verify_file", { path });
+    const resp = await invoke("verify_file", args);
     if (!resp.ok) {
       showResult(errorReport(resp.error || "Could not read file."), path);
       return;
@@ -178,6 +358,45 @@ async function verifyPath(path) {
   } catch (e) {
     showResult(errorReport("Internal error: " + (e && e.toString ? e.toString() : "unknown")), path);
   }
+}
+
+// ---- Identity (bsky handle / DID) persistence ----------------------------
+
+const IDENTITY_STORAGE_KEY = "provcheck.identity";
+
+function loadIdentity() {
+  // localStorage is the only persistence layer here. Bsky
+  // handles and DIDs are public identifiers — nothing secret
+  // crosses this boundary.
+  try {
+    const raw = localStorage.getItem(IDENTITY_STORAGE_KEY);
+    if (!raw) return { handle: "", requireAttested: false };
+    const parsed = JSON.parse(raw);
+    return {
+      handle: typeof parsed.handle === "string" ? parsed.handle : "",
+      requireAttested: !!parsed.requireAttested,
+    };
+  } catch {
+    return { handle: "", requireAttested: false };
+  }
+}
+
+function saveIdentity() {
+  const payload = {
+    handle: ($idHandle && $idHandle.value || "").trim(),
+    requireAttested: !!($idRequire && $idRequire.checked),
+  };
+  try {
+    localStorage.setItem(IDENTITY_STORAGE_KEY, JSON.stringify(payload));
+  } catch {
+    /* storage full / disabled — silent no-op */
+  }
+}
+
+function hydrateIdentityInputs() {
+  const id = loadIdentity();
+  if ($idHandle) $idHandle.value = id.handle || "";
+  if ($idRequire) $idRequire.checked = !!id.requireAttested;
 }
 
 function errorReport(msg) {
@@ -193,6 +412,8 @@ function errorReport(msg) {
     ingredient_count: 0,
     format: null,
     validation_errors: 0,
+    did_attestation: null,
+    watermarks: [],
   };
 }
 
@@ -278,6 +499,8 @@ function explainSample(productName, fileName) {
       ingredient_count: 0,
       format: null,
       validation_errors: 0,
+      did_attestation: null,
+      watermarks: [],
     },
     fileName,
   );
@@ -290,6 +513,16 @@ $sampleRaidio.addEventListener("keydown", (e) => {
 $sampleDoomscroll.addEventListener("keydown", (e) => {
   if (e.key === "Enter" || e.key === " ") explainSample("Doomscroll.fm", "doomscroll.fm-sample.mp4");
 });
+
+// Identity inputs — hydrate from localStorage, persist on every change.
+if ($idHandle) {
+  $idHandle.addEventListener("input", saveIdentity);
+  $idHandle.addEventListener("change", saveIdentity);
+}
+if ($idRequire) {
+  $idRequire.addEventListener("change", saveIdentity);
+}
+hydrateIdentityInputs();
 
 // Initial state.
 showEmpty();

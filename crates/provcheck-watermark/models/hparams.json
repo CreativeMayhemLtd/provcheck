@@ -1,0 +1,42 @@
+{
+  "_comment": "Detector configuration shipped with the silentcipher-decoder.onnx weights. The fields here are read by hparams.rs at build time and compiled into the binary as constants. Do not hand-edit without checking the matching Rust constants.",
+  "model_type": "44.1k",
+  "sample_rate": 44100,
+  "n_fft": 4096,
+  "hop_length": 2048,
+  "win_length": 4096,
+  "window": "hann",
+  "stft_center": true,
+  "stft_pad_mode": "reflect",
+  "stft_normalized": false,
+  "stft_freq_bins": 2049,
+  "vctk_avg_energy": 0.002837200844477648,
+  "message_band_size": 1024,
+  "message_dim": 5,
+  "message_len": 21,
+  "n_messages": 1,
+  "min_tiles_for_detection": 1,
+  "confidence_detected_threshold": 0.70,
+  "confidence_degraded_threshold": 0.50,
+  "schema_version_byte_index": 3,
+  "schema_v1": {
+    "brand_bytes": [0, 1, 2],
+    "schema_byte": 3,
+    "reserved_byte": 4,
+    "brand_registry": {
+      "RAI": "raidio",
+      "DFM": "doomscroll",
+      "VAI": "vaideo"
+    }
+  },
+  "onnx_input": {
+    "name": "carrier",
+    "shape": [1, 1, 2049, "T"],
+    "dtype": "float32"
+  },
+  "onnx_output": {
+    "name": "logits",
+    "shape": [1, 1, 5, "T"],
+    "dtype": "float32"
+  }
+}

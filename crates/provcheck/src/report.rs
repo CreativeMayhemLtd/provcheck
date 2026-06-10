@@ -72,6 +72,27 @@ pub struct Report {
     /// `--bsky-handle` or `--did`. Omitted from JSON when `None`.
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub did_attestation: Option<DidAttestation>,
+
+    /// Neural-watermark detection results. Always empty from
+    /// the core `verify_with_options` path — populated only by
+    /// callers that invoked one or more detectors (the
+    /// silentcipher detector lives in `provcheck-watermark`;
+    /// future sibling crates will add AudioSeal, WavMark, and
+    /// any other FOSS-licensed families) and pushed each
+    /// result into this vec.
+    ///
+    /// Independent of C2PA: these signals corroborate or
+    /// contradict the manifest rather than relying on the same
+    /// trust chain. Each entry's [`WatermarkResult::kind`]
+    /// identifies which detector ran. Multiple entries are
+    /// expected once a build ships more than one detector; the
+    /// order is detector-driven (registration order).
+    ///
+    /// Omitted from JSON when empty so a `--no-watermark` run
+    /// or a build with no detectors compiled in produces
+    /// indistinguishable output.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub watermarks: Vec<WatermarkResult>,
 }
 
 /// Outcome of a DID-anchored second-factor check, populated on
@@ -105,6 +126,147 @@ pub struct DidAttestation {
     /// usually present on `Mismatch` and `NotPublished`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
+}
+
+/// Outcome of a neural-watermark detection pass, populated on
+/// [`Report::watermark`] when the caller invoked the
+/// `provcheck-watermark` detector. The check is independent of
+/// C2PA — its purpose is to corroborate (or contradict) the
+/// manifest using a signal that doesn't share the C2PA trust
+/// chain.
+///
+/// Detector scope is named explicitly via [`WatermarkKind`] so a
+/// renderer can say "silentcipher: detected" rather than the
+/// vaguer "watermark detected" — useful because each detector
+/// only finds watermarks embedded by its matching encoder.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WatermarkResult {
+    /// Which detector family ran. For now, always
+    /// `SilentCipher`. New variants will arrive when additional
+    /// detector families (AudioSeal, SynthID, …) are added.
+    pub kind: WatermarkKind,
+
+    /// Tri-state quality of the detection:
+    ///
+    /// - `Detected`     — confidence ≥ 0.70, structurally valid
+    /// - `Degraded`     — 0.50 ≤ confidence < 0.70, structurally valid
+    /// - `NotDetected`  — confidence < 0.50 OR no valid message structure
+    ///
+    /// The legacy boolean question "did we find a mark?" maps to
+    /// `status != NotDetected`; the boolean is exposed for
+    /// convenience as [`detected`](Self::detected).
+    pub status: WatermarkStatus,
+
+    /// Convenience boolean: `true` iff `status` is `Detected` OR
+    /// `Degraded`. Renderers that only want a green/red answer
+    /// can read this. `--require-watermark` on the CLI checks
+    /// this field.
+    pub detected: bool,
+
+    /// Detector confidence in `[0.0, 1.0]`. Production renders
+    /// land at 0.85–0.99. For unmarked input the back-end
+    /// returns 0.0 as a sentinel (rather than the ~0.20 random
+    /// floor) because we short-circuit on structural-validity
+    /// failure before computing the confidence statistic.
+    pub confidence: f32,
+
+    /// Recovered payload bytes (5 bytes / 40 bits for
+    /// silentcipher), populated whenever the message structure
+    /// was valid — i.e. whenever `status != NotDetected`.
+    /// Omitted from JSON when `None`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payload: Option<Vec<u8>>,
+
+    /// Recognised brand (issuer) of the watermark, parsed from
+    /// the payload according to its schema version. `None` when
+    /// the payload couldn't be parsed (unknown schema, or
+    /// `status == NotDetected`). Omitted from JSON when `None`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub brand: Option<WatermarkBrand>,
+
+    /// Human-readable status detail. Used for non-detected
+    /// outcomes that the renderer should distinguish from a
+    /// real "not detected on audio" result — e.g. "not audio",
+    /// "decoder error: …", "audio shorter than minimum
+    /// detection window". Omitted from JSON when `None`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+}
+
+/// Identifies which neural-watermark detector family produced
+/// a [`WatermarkResult`]. Variants here are restricted to
+/// FOSS-licensed detector families — see
+/// `WATERMARK_LICENSE_POLICY.md` at the workspace root for the
+/// admission rule and current pass/fail survey.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WatermarkKind {
+    /// Sony's silentcipher (Interspeech 2024). MIT-licensed
+    /// code + weights. Implemented in `provcheck-watermark`.
+    SilentCipher,
+    /// Meta's AudioSeal (ICML 2024). MIT-licensed code + model
+    /// weights (relicensed from CC-BY-NC to full MIT on
+    /// 2024-04-02). Scaffolded in `provcheck-audioseal`.
+    AudioSeal,
+    /// WavMark (Chen et al., arXiv:2308.12770). MIT-licensed
+    /// code, weights distributed via the `wavmark` PyPI
+    /// package under the same terms. Scaffolded in
+    /// `provcheck-wavmark`.
+    WavMark,
+}
+
+/// Tri-state quality of a watermark detection. See
+/// [`WatermarkResult::status`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WatermarkStatus {
+    /// Confidence ≥ 0.70 and the recovered message is
+    /// structurally valid. The watermark is present and the
+    /// payload can be trusted.
+    Detected,
+    /// 0.50 ≤ confidence < 0.70. The message is structurally
+    /// valid but some symbols disagreed across tiles — the file
+    /// is most likely silentcipher-marked but the mark has been
+    /// degraded (re-encoding, EQ, room recording, etc.) and the
+    /// payload may be partially corrupted.
+    Degraded,
+    /// Either confidence < 0.50, or the recovered symbols did
+    /// not form a valid silentcipher message (no terminator).
+    /// Treated as "no mark present" by callers.
+    NotDetected,
+}
+
+/// Recognised brand (issuer) of a watermark, parsed from the
+/// payload bytes via the schema dispatch rules defined by
+/// `provcheck-watermark`. The schema byte (currently always
+/// at index 3) selects how the rest of the payload is
+/// interpreted; today only schema 1 is in production use.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "code", rename_all = "snake_case")]
+pub enum WatermarkBrand {
+    /// rAIdio.bot — payload `RAI` (`[82, 65, 73]`).
+    Raidio,
+    /// doomscroll.fm — payload `DFM` (`[68, 70, 77]`).
+    Doomscroll,
+    /// vAIdeo.bot — payload `VAI` (`[86, 65, 73]`). Reserved
+    /// for the video product when it joins the registry.
+    Vaideo,
+    /// Schema 1 payload with an ASCII brand code that isn't yet
+    /// in the registry. The three letters are echoed back so
+    /// the renderer can display them verbatim, but no name is
+    /// assigned.
+    UnknownAscii {
+        /// The three ASCII bytes from payload positions 0..3.
+        letters: [u8; 3],
+    },
+    /// Payload schema version isn't 1 — structure of the
+    /// remaining bytes is detector-version-specific and we
+    /// don't know how to interpret it. Raw payload is on
+    /// [`WatermarkResult::payload`].
+    UnknownSchema {
+        /// The schema byte read from payload index 3.
+        schema: u8,
+    },
 }
 
 /// Tri-state-plus-failure status for DID-anchored attestation.
@@ -222,6 +384,50 @@ impl Display for Report {
                 }
             }
         }
+        if !self.watermarks.is_empty() {
+            let _ = writeln!(f, "[watermarks]");
+            for wm in &self.watermarks {
+                let detector = match wm.kind {
+                    WatermarkKind::SilentCipher => "silentcipher",
+                    WatermarkKind::AudioSeal => "audioseal",
+                    WatermarkKind::WavMark => "wavmark",
+                };
+                let pct = (wm.confidence.clamp(0.0, 1.0) * 100.0).round() as u32;
+                match wm.status {
+                    WatermarkStatus::Detected | WatermarkStatus::Degraded => {
+                        let qualifier = match wm.status {
+                            WatermarkStatus::Detected => "detected",
+                            WatermarkStatus::Degraded => "detected (degraded)",
+                            WatermarkStatus::NotDetected => unreachable!(),
+                        };
+                        let brand_label = wm
+                            .brand
+                            .as_ref()
+                            .map(format_brand_label)
+                            .unwrap_or_else(|| "<unknown brand>".to_string());
+                        let _ = writeln!(
+                            f,
+                            "  {}: {} — {} ({}% confidence)",
+                            detector, qualifier, brand_label, pct
+                        );
+                        if let Some(payload) = &wm.payload
+                            && !payload.is_empty()
+                        {
+                            let hex: String =
+                                payload.iter().map(|b| format!("{:02x}", b)).collect();
+                            let _ = writeln!(f, "    payload: {}", hex);
+                        }
+                    }
+                    WatermarkStatus::NotDetected => {
+                        if let Some(msg) = &wm.message {
+                            let _ = writeln!(f, "  {}: n/a ({})", detector, msg);
+                        } else {
+                            let _ = writeln!(f, "  {}: not detected", detector);
+                        }
+                    }
+                }
+            }
+        }
         if let Some(when) = &self.signed_at {
             let _ = writeln!(f, "  signed: {}", when);
         }
@@ -246,6 +452,30 @@ impl Display for Report {
         }
 
         Ok(())
+    }
+}
+
+fn format_brand_label(brand: &WatermarkBrand) -> String {
+    match brand {
+        WatermarkBrand::Raidio => "rAIdio.bot".to_string(),
+        WatermarkBrand::Doomscroll => "doomscroll.fm".to_string(),
+        WatermarkBrand::Vaideo => "vAIdeo.bot".to_string(),
+        WatermarkBrand::UnknownAscii { letters } => {
+            // Schema-1 brand triplet whose ASCII isn't in the
+            // known registry. Surface the three letters so the
+            // user can recognise a new product even before our
+            // registry catches up — the payload bytes are still
+            // shown verbatim on the line below for forensics.
+            let s = std::str::from_utf8(letters).unwrap_or("???");
+            format!("unrecognized source \"{}\"", s)
+        }
+        WatermarkBrand::UnknownSchema { schema } => {
+            // Schema byte isn't 1 — the rest of the payload's
+            // structure is opaque to this build of provcheck.
+            // Detection itself is still valid; we just can't
+            // identify the issuer or its conventions.
+            format!("unrecognized payload schema (v{})", schema)
+        }
     }
 }
 

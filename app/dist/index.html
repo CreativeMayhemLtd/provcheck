@@ -22,6 +22,22 @@
     </div>
   </header>
 
+  <!-- Identity bar: optional bsky handle / DID for DID-anchored
+       attestation (Phase 1 second-factor). Empty = pure offline
+       verify, exactly as before. Values persist to localStorage. -->
+  <section class="identity-bar" id="identity-bar">
+    <label class="identity-field">
+      <span class="identity-label">Bsky handle</span>
+      <input type="text" id="identity-handle"
+             placeholder="optional · e.g. creator.bsky.social or did:plc:…"
+             autocomplete="off" spellcheck="false" />
+    </label>
+    <label class="identity-toggle">
+      <input type="checkbox" id="identity-require-attested" />
+      <span>Require attested</span>
+    </label>
+  </section>
+
   <main class="stage">
     <!-- Empty state: drop zone -->
     <section class="dropzone" id="dropzone">
@@ -57,6 +73,17 @@
       <div class="reason" id="reason" hidden>
         <p id="reason-text"></p>
       </div>
+
+      <div class="attestation-badge" id="attestation" hidden>
+        <div class="attestation-icon" id="attestation-icon" aria-hidden="true"></div>
+        <div class="attestation-text">
+          <p class="attestation-title" id="attestation-title">—</p>
+          <p class="attestation-sub" id="attestation-sub"></p>
+          <p class="attestation-fingerprint mono" id="attestation-fingerprint" hidden></p>
+        </div>
+      </div>
+
+      <div class="watermarks" id="watermarks" hidden></div>
 
       <div class="details" id="details">
         <dl class="kv" id="kv-main"></dl>

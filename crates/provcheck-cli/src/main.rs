@@ -82,6 +82,21 @@ struct Args {
     /// keys.
     #[arg(long)]
     no_attestation_cache: bool,
+
+    /// Skip the neural-watermark detector. By default, provcheck
+    /// runs the silentcipher detector on every input and reports
+    /// the result alongside the C2PA verdict. Set this when you
+    /// only care about the C2PA signal or want to avoid the
+    /// inference cost.
+    #[arg(long)]
+    no_watermark: bool,
+
+    /// Require a detected neural watermark. A file whose audio
+    /// does not carry a recognised silentcipher mark will exit 1
+    /// even if the C2PA signature is otherwise valid. Mirrors
+    /// `--require-attested`. Implies the detector runs.
+    #[arg(long, conflicts_with = "no_watermark")]
+    require_watermark: bool,
 }
 
 fn main() -> ExitCode {
@@ -123,7 +138,7 @@ fn main() -> ExitCode {
     // platform-crate code paths when nobody's asked for networking.
     let want_attestation = args.bsky_handle.is_some() || args.did.is_some();
 
-    let report = if want_attestation {
+    let mut report = if want_attestation {
         let attest_opts = AttestationOptions {
             bsky_handle: args.bsky_handle.clone(),
             did: args.did.clone(),
@@ -152,6 +167,33 @@ fn main() -> ExitCode {
         }
     };
 
+    // Watermark detection is independent of the C2PA verdict —
+    // each enabled detector runs unconditionally unless
+    // suppressed. Errors here are never fatal: a missing file
+    // would already have surfaced above, and detectors report
+    // decoder problems via the result's `message` field rather
+    // than throwing. Adding a new FOSS detector means appending
+    // another `if let Ok(...)` block here in registration
+    // order; the Display + JSON layers iterate the vec.
+    if !args.no_watermark {
+        if let Ok(w) = provcheck_watermark::detect(&args.file) {
+            report.watermarks.push(w);
+        }
+        if let Ok(w) = provcheck_audioseal::detect(&args.file) {
+            report.watermarks.push(w);
+        }
+        if let Ok(w) = provcheck_wavmark::detect(&args.file) {
+            report.watermarks.push(w);
+        }
+    }
+
+    // `--require-watermark` escalates "no detector found a
+    // mark" to exit 1, the same way `--require-attested` does.
+    // A run with multiple detectors passes if at least one
+    // returns `detected == true`.
+    let watermark_failed_requirement =
+        args.require_watermark && !report.watermarks.iter().any(|w| w.detected);
+
     if !args.quiet {
         if args.json {
             match report.to_json_string() {
@@ -166,5 +208,13 @@ fn main() -> ExitCode {
         }
     }
 
-    ExitCode::from(report.exit_code() as u8)
+    // Compose final exit code: C2PA verdict OR watermark policy
+    // can each force exit 1. Either can move a 0 to 1 but neither
+    // moves a 1 back to 0.
+    let final_exit = if watermark_failed_requirement {
+        1
+    } else {
+        report.exit_code() as u8
+    };
+    ExitCode::from(final_exit)
 }

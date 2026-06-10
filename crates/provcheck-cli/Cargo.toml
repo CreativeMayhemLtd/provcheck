@@ -17,6 +17,9 @@ path = "src/main.rs"
 [dependencies]
 provcheck = { path = "../provcheck" }
 provcheck-platform = { path = "../provcheck-platform" }
+provcheck-watermark = { path = "../provcheck-watermark" }
+provcheck-audioseal = { path = "../provcheck-audioseal" }
+provcheck-wavmark = { path = "../provcheck-wavmark" }
 clap = { workspace = true }
 anyhow = { workspace = true }
 serde_json = { workspace = true }
