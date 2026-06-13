@@ -1,0 +1,47 @@
+[package]
+name = "provcheck-publish"
+description = "atproto record CRUD for provcheck-kit: publishes app.provcheck.signingKey records to a creator's PDS."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+
+[lib]
+name = "provcheck_publish"
+
+[dependencies]
+# Shared wire-format types — the same SigningKeyRecord the verifier
+# (provcheck-platform) reads.
+provcheck-attestation-spec = { path = "../provcheck-attestation-spec" }
+
+# atrium-rs ecosystem for atproto. Per architectural decision #2 in
+# the plan: this crate is the one place we accept tokio + async.
+# Versions verified against crates.io 2026-06-14 (atrium-api 0.25.8,
+# atrium-xrpc-client 0.5.14+, atrium-identity 0.1.9). All MIT.
+atrium-api = "0.25"
+atrium-xrpc-client = { version = "0.5", features = ["reqwest"] }
+atrium-identity = "0.1"
+
+# Async runtime. `rt` (single-threaded) is enough — the CLI runs one
+# atproto operation at a time; we don't need rt-multi-thread.
+tokio = { version = "1", features = ["rt", "macros", "fs", "sync", "time"] }
+
+# Workspace-pinned
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+# Timestamp handling for session expiry tracking.
+time = { version = "0.3", features = ["parsing", "formatting", "serde"] }
+
+# Owner-only file perms for session.json on Unix; cross-platform
+# path resolution.
+dirs = "5"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt", "macros", "test-util"] }
+tempfile = "3"
