@@ -54,3 +54,5 @@ x509-parser = "0.16"
 # code uses the spec crate's fingerprint helpers and doesn't need
 # to touch the pem crate directly.
 pem = "3"
+# Filesystem isolation for the persist-layer tests.
+tempfile = "3"
