@@ -1034,13 +1034,47 @@ pub mod import_backup {
 async fn load_or_explain_session(
     dir: &std::path::Path,
 ) -> anyhow::Result<provcheck_publish::AtprotoClient> {
-    use anyhow::Context;
-    provcheck_publish::AtprotoClient::load_session(dir)
-        .await
-        .context(
-            "load atproto session — run `kit login` first if you haven't, \
-             or re-run if the refresh JWT has expired",
-        )
+    use provcheck_publish::session::SessionError;
+    match provcheck_publish::AtprotoClient::load_session(dir).await {
+        Ok(c) => Ok(c),
+        // Route session-expired through the KitError variant so
+        // main.rs's exit-code mapping returns 3 (CI flows like
+        // `kit publish || kit login && kit publish` can distinguish
+        // expired-session from network/auth failures).
+        Err(SessionError::SessionExpired) => {
+            Err(anyhow::Error::from(KitError::SessionExpired))
+        }
+        Err(SessionError::Io(e)) if e.kind() == std::io::ErrorKind::NotFound => {
+            Err(anyhow::anyhow!(
+                "no atproto session on disk — run `kit login` first"
+            ))
+        }
+        Err(e) => Err(anyhow::anyhow!("load atproto session: {e}")),
+    }
+}
+
+/// Walk an [`anyhow::Error`]'s chain looking for anything that
+/// indicates a session-expired condition: a direct
+/// [`KitError::SessionExpired`], a [`provcheck_publish::session::SessionError::SessionExpired`]
+/// wrapped under `.context()`, or a [`provcheck_publish::records::RecordsError::NoSession`].
+/// The `main.rs` exit-code router uses this to route session
+/// failures to exit code 3 regardless of where in the call stack
+/// they originated.
+pub fn is_session_expired(err: &anyhow::Error) -> bool {
+    use provcheck_publish::records::RecordsError;
+    use provcheck_publish::session::SessionError;
+    err.chain().any(|src| {
+        if let Some(kit_err) = src.downcast_ref::<KitError>() {
+            return matches!(kit_err, KitError::SessionExpired);
+        }
+        if let Some(sess_err) = src.downcast_ref::<SessionError>() {
+            return matches!(sess_err, SessionError::SessionExpired);
+        }
+        if let Some(rec_err) = src.downcast_ref::<RecordsError>() {
+            return matches!(rec_err, RecordsError::NoSession);
+        }
+        false
+    })
 }
 
 pub mod login {
@@ -1208,10 +1242,27 @@ pub mod publish {
             valid_until: None,
             superseded_by: None,
         };
-        let at_uri = writer
-            .publish_signing_key(&record)
-            .await
-            .context("atproto publish_signing_key")?;
+        let at_uri = match writer.publish_signing_key(&record).await {
+            Ok(uri) => uri,
+            Err(e) => {
+                // The publish call's outcome is genuinely
+                // ambiguous on connection failures: the request
+                // might have reached the PDS and been committed
+                // before our connection dropped. Tell the user
+                // explicitly so they don't assume "publish failed"
+                // means "no record was created" and immediately
+                // retry — a retry produces a duplicate if the
+                // first one landed. `kit list` is the source of
+                // truth.
+                eprintln!(
+                    "warning: publish outcome unconfirmed. The PDS may or may \
+                     not have committed the record. Run `kit list` to check \
+                     before retrying — a retry without checking creates a \
+                     duplicate if the first call landed."
+                );
+                return Err(anyhow::anyhow!("atproto publish_signing_key: {e}"));
+            }
+        };
 
         // Refresh session-on-disk in case atrium rotated the JWTs
         // during the call. Cheap, keeps subsequent commands working.
@@ -1518,27 +1569,44 @@ pub mod rotate {
         };
 
         // Step 4: promote staging → primary. The old data dir gets
-        // moved aside to keys-rotated-<old-fp-prefix>/.
+        // moved aside to keys-rotated-<old-fp-prefix>/. Failures
+        // here are the dangerous case — the new record is already
+        // on atproto but the local identity is still the old one.
+        // We attempt to delete the orphan published record so the
+        // user isn't left with a fingerprint they can't sign with;
+        // if the cleanup also fails (rare — network down, etc.),
+        // surface BOTH errors so they can finish the cleanup
+        // manually.
         let backup_dir = rotated_path_for(&dir, &old.fingerprint);
-        std::fs::rename(&dir, &backup_dir).with_context(|| {
-            format!(
-                "move old identity {} → {} (manual cleanup may be required; \
-                 the new record at {new_uri} is on atproto but the local \
-                 identity is still the old one)",
-                dir.display(),
-                backup_dir.display()
-            )
-        })?;
-        std::fs::rename(&staging, &dir).with_context(|| {
-            format!(
-                "move staging {} → {} (rollback: rename {} back to {} \
-                 to restore the old identity)",
-                staging.display(),
-                dir.display(),
-                backup_dir.display(),
-                dir.display(),
-            )
-        })?;
+        if let Err(rename_err) = std::fs::rename(&dir, &backup_dir) {
+            let cleanup = cleanup_orphan_published(&writer, &new_uri).await;
+            let _ = std::fs::remove_dir_all(&staging);
+            return Err(format_partial_rotation_err(
+                "move old identity into rotated-out slot",
+                &dir,
+                &backup_dir,
+                rename_err,
+                &new_uri,
+                cleanup,
+            ));
+        }
+        if let Err(rename_err) = std::fs::rename(&staging, &dir) {
+            let cleanup = cleanup_orphan_published(&writer, &new_uri).await;
+            // Restore the old identity to its primary location so
+            // the user keeps working with their existing key.
+            let restore_err = std::fs::rename(&backup_dir, &dir).err();
+            let _ = std::fs::remove_dir_all(&staging);
+            return Err(format_partial_rotation_err_with_restore(
+                "promote staging → primary",
+                &staging,
+                &dir,
+                &backup_dir,
+                rename_err,
+                restore_err,
+                &new_uri,
+                cleanup,
+            ));
+        }
         save_public_artefacts(&dir, &new_locked).context("save new identity.json")?;
 
         // Step 5: revoke the old record with supersededBy →
@@ -1611,10 +1679,140 @@ pub mod rotate {
         parent.join(format!("{leaf}-rotated-{short}"))
     }
 
-    // No tests here yet — rotate needs an atproto mock to drive
-    // end-to-end. The path-arithmetic helpers (staging_path_for,
-    // rotated_path_for) are pure functions and can grow direct
-    // unit tests in a follow-up.
+    /// Attempt to delete a just-published `signingKey` record that
+    /// can't be associated with a local key. Returns Ok when the
+    /// orphan is gone, Err with the underlying network/atproto
+    /// failure when the cleanup itself failed.
+    ///
+    /// Used by the rotate flow when a filesystem rename fails after
+    /// the new record has been published — the publish succeeded
+    /// but the local state can't reach the matching key, so the
+    /// record is unsignable and serves no purpose. Leaving it
+    /// behind would clutter `kit list` and confuse verifiers.
+    async fn cleanup_orphan_published(
+        writer: &provcheck_publish::RecordWriter<'_>,
+        new_uri: &provcheck_publish::AtUri,
+    ) -> Result<(), String> {
+        let rkey = new_uri
+            .rkey()
+            .ok_or_else(|| format!("could not parse rkey from {new_uri}"))?;
+        writer
+            .delete_signing_key(rkey)
+            .await
+            .map_err(|e| format!("delete_signing_key({rkey}): {e}"))
+    }
+
+    fn format_partial_rotation_err(
+        step: &str,
+        from: &std::path::Path,
+        to: &std::path::Path,
+        cause: std::io::Error,
+        new_uri: &provcheck_publish::AtUri,
+        cleanup: Result<(), String>,
+    ) -> anyhow::Error {
+        let cleanup_msg = match cleanup {
+            Ok(()) => format!(
+                "the orphan record at {new_uri} was deleted from atproto, \
+                 so atproto state is consistent with the (unchanged) local \
+                 identity"
+            ),
+            Err(e) => format!(
+                "attempt to clean up the orphan record at {new_uri} also \
+                 failed ({e}). Run `kit revoke <new-fingerprint>` (or wait \
+                 for connectivity and re-run `kit rotate`) to clear it"
+            ),
+        };
+        anyhow::anyhow!(
+            "rotate: failed to {step} ({} → {}): {cause}. {cleanup_msg}",
+            from.display(),
+            to.display(),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn format_partial_rotation_err_with_restore(
+        step: &str,
+        from: &std::path::Path,
+        to: &std::path::Path,
+        backup: &std::path::Path,
+        cause: std::io::Error,
+        restore_err: Option<std::io::Error>,
+        new_uri: &provcheck_publish::AtUri,
+        cleanup: Result<(), String>,
+    ) -> anyhow::Error {
+        let cleanup_msg = match cleanup {
+            Ok(()) => format!(
+                "the orphan record at {new_uri} was deleted from atproto"
+            ),
+            Err(e) => format!(
+                "atproto cleanup of orphan record at {new_uri} also failed ({e}); \
+                 run `kit revoke <new-fingerprint>` once connectivity returns"
+            ),
+        };
+        let restore_msg = match restore_err {
+            None => format!(
+                "the old identity has been restored to {}",
+                to.display()
+            ),
+            Some(e) => format!(
+                "AND the old identity could not be restored to {} either ({e}); \
+                 manually rename {} → {} to recover",
+                to.display(),
+                backup.display(),
+                to.display(),
+            ),
+        };
+        anyhow::anyhow!(
+            "rotate: failed to {step} ({} → {}): {cause}. {restore_msg}. {cleanup_msg}",
+            from.display(),
+            to.display(),
+        )
+    }
+
+    // No end-to-end tests here yet — rotate needs an atproto mock
+    // to drive. The path-arithmetic helpers (staging_path_for,
+    // rotated_path_for) are pure functions and have direct unit
+    // tests below.
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn rotated_path_uses_fingerprint_shard() {
+            let dir = std::path::Path::new("/tmp").join("provcheck-kit");
+            let p = rotated_path_for(
+                &dir,
+                "sha256:0123456789abcdef0000000000000000000000000000000000000000000000aa",
+            );
+            assert_eq!(
+                p.file_name().and_then(|s| s.to_str()),
+                Some("provcheck-kit-rotated-01234567")
+            );
+            assert_eq!(p.parent(), dir.parent());
+        }
+
+        #[test]
+        fn rotated_path_handles_unprefixed_fingerprint() {
+            let dir = std::path::Path::new("/tmp").join("provcheck-kit");
+            let p = rotated_path_for(&dir, "abc12345");
+            assert_eq!(
+                p.file_name().and_then(|s| s.to_str()),
+                Some("provcheck-kit-rotated-abc12345")
+            );
+        }
+
+        #[test]
+        fn staging_path_is_sibling_of_dir() {
+            let dir = std::path::Path::new("/var/data").join("provcheck-kit");
+            let p = staging_path_for(&dir);
+            assert_eq!(
+                p.file_name().and_then(|s| s.to_str()),
+                Some("provcheck-kit-staging")
+            );
+            assert_eq!(p.parent(), dir.parent());
+        }
+    }
 }
 
 pub mod verify {
@@ -1771,6 +1969,36 @@ mod tests {
             }
             _ => panic!("wrong subcommand"),
         }
+    }
+
+    #[test]
+    fn is_session_expired_catches_direct_kit_error() {
+        let err = anyhow::Error::from(KitError::SessionExpired);
+        assert!(super::is_session_expired(&err));
+    }
+
+    #[test]
+    fn is_session_expired_catches_session_error_chain() {
+        // SessionError::SessionExpired wrapped under .context() — the
+        // common shape errors travel through publish/list/etc.
+        let inner: anyhow::Error =
+            provcheck_publish::session::SessionError::SessionExpired.into();
+        let wrapped = inner.context("atproto session reload");
+        assert!(super::is_session_expired(&wrapped));
+    }
+
+    #[test]
+    fn is_session_expired_catches_records_no_session() {
+        let inner: anyhow::Error =
+            provcheck_publish::records::RecordsError::NoSession.into();
+        let wrapped = inner.context("atproto publish");
+        assert!(super::is_session_expired(&wrapped));
+    }
+
+    #[test]
+    fn is_session_expired_ignores_unrelated_errors() {
+        let err = anyhow::anyhow!("file not found");
+        assert!(!super::is_session_expired(&err));
     }
 
     #[test]
