@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+pub use provcheck_attestation_spec::IdentityClaim;
+
 /// The outcome of verifying a single file.
 ///
 /// `verified` is the load-bearing field — everything else is
@@ -72,6 +74,19 @@ pub struct Report {
     /// `--bsky-handle` or `--did`. Omitted from JSON when `None`.
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub did_attestation: Option<DidAttestation>,
+
+    /// Self-asserted identity claim from the signed asset's
+    /// `app.provcheck.identity` C2PA assertion, if present. Always
+    /// reported when the assertion was found in the manifest — but
+    /// the verifier MUST NOT trust this claim on its own. The
+    /// surrounding flow (`--auto-identity` on the CLI, the GUI
+    /// auto-fill) uses it as a hint to skip manual identity entry;
+    /// the actual trust decision happens in the
+    /// [`did_attestation`](Self::did_attestation) cross-check against
+    /// the DID's `app.provcheck.signingKey` records. Omitted from
+    /// JSON when `None`.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub identity: Option<IdentityClaim>,
 
     /// Neural-watermark detection results. Always empty from
     /// the core `verify_with_options` path — populated only by
@@ -342,6 +357,21 @@ impl Display for Report {
                 // No trust-store configured — stay quiet. The absence of
                 // this line means "trust was not evaluated", which matches
                 // the default CLI invocation.
+            }
+        }
+        if let Some(claim) = &self.identity {
+            // Self-asserted identity from the asset's
+            // app.provcheck.identity assertion. Render with an
+            // explicit "claims" word so a reader doesn't confuse
+            // it with the cryptographically-anchored did_attestation
+            // below — the claim alone is never trust-anchoring.
+            match &claim.handle {
+                Some(h) => {
+                    let _ = writeln!(f, "  claims identity: @{} ({})", h, claim.did);
+                }
+                None => {
+                    let _ = writeln!(f, "  claims identity: {}", claim.did);
+                }
             }
         }
         if let Some(att) = &self.did_attestation {

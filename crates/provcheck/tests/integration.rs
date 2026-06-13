@@ -387,6 +387,87 @@ fn malformed_trust_store_pem_is_err() {
     );
 }
 
+/// Sign `src` to `dest` with a manifest that embeds an
+/// `app.provcheck.identity` assertion. Used by the identity
+/// extraction tests below; produces the same kind of file
+/// `provcheck-kit sign --embed-identity` would.
+fn sign_with_identity(src: &Path, dest: &Path, did: &str, handle: Option<&str>) -> String {
+    let (cert_pem, key_pem, ca_pem) = generate_test_chain();
+    let signer = c2pa::create_signer::from_keys(&cert_pem, &key_pem, c2pa::SigningAlg::Es256, None)
+        .expect("create signer");
+
+    let claim = if let Some(h) = handle {
+        serde_json::json!({ "did": did, "handle": h, "version": 1 })
+    } else {
+        serde_json::json!({ "did": did, "version": 1 })
+    };
+    let manifest = serde_json::json!({
+        "claim_generator": "provcheck-test/0.1.0",
+        "title": "identity assertion fixture",
+        "assertions": [
+            {"label": "c2pa.actions", "data": {"actions": [{"action": "c2pa.created"}]}},
+            {"label": "app.provcheck.identity", "data": claim}
+        ]
+    })
+    .to_string();
+
+    let mut builder = c2pa::Builder::from_json(&manifest).expect("builder");
+    builder
+        .sign_file(signer.as_ref(), src, dest)
+        .expect("sign file");
+
+    ca_pem
+}
+
+#[test]
+fn identity_assertion_is_extracted_into_report() {
+    let tmp = tempfile::tempdir().expect("tmp");
+    let unsigned = tmp.path().join("u.wav");
+    let signed = tmp.path().join("s.wav");
+    write_silent_wav(&unsigned);
+    sign_with_identity(
+        &unsigned,
+        &signed,
+        "did:plc:integrationtest",
+        Some("rt.bsky.social"),
+    );
+
+    let report = verify(&signed).expect("verify");
+    assert!(report.verified, "crypto valid: {:?}", report.failure_reason);
+    let identity = report.identity.expect("identity claim extracted");
+    assert_eq!(identity.did, "did:plc:integrationtest");
+    assert_eq!(identity.handle.as_deref(), Some("rt.bsky.social"));
+    assert_eq!(identity.version, Some(1));
+}
+
+#[test]
+fn identity_assertion_optional_handle_is_extracted() {
+    let tmp = tempfile::tempdir().expect("tmp");
+    let unsigned = tmp.path().join("u.wav");
+    let signed = tmp.path().join("s.wav");
+    write_silent_wav(&unsigned);
+    sign_with_identity(&unsigned, &signed, "did:plc:nohandle", None);
+
+    let report = verify(&signed).expect("verify");
+    let identity = report.identity.expect("identity claim extracted");
+    assert_eq!(identity.did, "did:plc:nohandle");
+    assert_eq!(identity.handle, None);
+}
+
+#[test]
+fn no_identity_assertion_leaves_field_none() {
+    // Standard sign_file flow (no identity assertion) → report.identity is None.
+    let tmp = tempfile::tempdir().expect("tmp");
+    let unsigned = tmp.path().join("u.wav");
+    let signed = tmp.path().join("s.wav");
+    write_silent_wav(&unsigned);
+    let _ = sign_file(&unsigned, &signed);
+
+    let report = verify(&signed).expect("verify");
+    assert!(report.verified);
+    assert!(report.identity.is_none(), "no assertion → no claim");
+}
+
 #[test]
 fn unsupported_format_reports_unsigned_not_error() {
     let tmp = tempfile::tempdir().expect("tmp");

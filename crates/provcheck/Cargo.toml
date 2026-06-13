@@ -21,6 +21,11 @@ serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 
+# Shared wire-shape contract — IdentityClaim + IDENTITY_ASSERTION_LABEL.
+# Same rationale as provcheck-platform's dep on this crate: both
+# verifier paths read assertions a publisher might produce.
+provcheck-attestation-spec = { path = "../provcheck-attestation-spec" }
+
 [dev-dependencies]
 # Generate test certificates at test-run time — matches rAIdio.bot's
 # per-install CA + EE pattern so fixtures reflect real-world use.

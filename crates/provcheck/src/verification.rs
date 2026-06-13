@@ -107,6 +107,7 @@ pub fn verify_with_options(path: &Path, opts: &VerifyOptions) -> Result<Report, 
                 format: None,
                 validation_errors: 1,
                 did_attestation: None,
+                identity: None,
                 watermarks: Vec::new(),
             });
         }
@@ -169,45 +170,70 @@ pub fn verify_with_options(path: &Path, opts: &VerifyOptions) -> Result<Report, 
 
     let active = reader.active_manifest();
 
-    let (active_manifest, signer, signed_at, claim_generator, format, assertions, ingredient_count) =
-        if let Some(m) = active {
-            let sig = m.signature_info();
-            let signer = sig.and_then(|s| s.common_name.clone().or_else(|| s.issuer.clone()));
-            let signed_at = sig.and_then(|s| s.time.clone());
+    let (
+        active_manifest,
+        signer,
+        signed_at,
+        claim_generator,
+        format,
+        assertions,
+        ingredient_count,
+        identity,
+    ) = if let Some(m) = active {
+        let sig = m.signature_info();
+        let signer = sig.and_then(|s| s.common_name.clone().or_else(|| s.issuer.clone()));
+        let signed_at = sig.and_then(|s| s.time.clone());
 
-            let mut assertion_map = serde_json::Map::new();
-            for a in m.assertions() {
-                let key = a.label().to_string();
-                let val = a
-                    .value()
-                    .cloned()
-                    .unwrap_or_else(|_| serde_json::Value::String("<value unavailable>".into()));
-                match assertion_map.remove(&key) {
-                    Some(serde_json::Value::Array(mut arr)) => {
-                        arr.push(val);
-                        assertion_map.insert(key, serde_json::Value::Array(arr));
-                    }
-                    Some(existing) => {
-                        assertion_map.insert(key, serde_json::Value::Array(vec![existing, val]));
-                    }
-                    None => {
-                        assertion_map.insert(key, val);
-                    }
-                }
+        let mut assertion_map = serde_json::Map::new();
+        let mut identity_claim: Option<crate::report::IdentityClaim> = None;
+        for a in m.assertions() {
+            let key = a.label().to_string();
+            let val = a
+                .value()
+                .cloned()
+                .unwrap_or_else(|_| serde_json::Value::String("<value unavailable>".into()));
+
+            // c2pa-rs sometimes appends a hashed disambiguation suffix
+            // to user-defined assertion labels (e.g.
+            // "app.provcheck.identity__jumbf=..."). Match both the bare
+            // label and any string that starts with the label + "__".
+            // The first valid IdentityClaim we find wins (assertions
+            // are walked in manifest order).
+            if identity_claim.is_none()
+                && is_identity_label(&key)
+                && let Ok(claim) =
+                    serde_json::from_value::<crate::report::IdentityClaim>(val.clone())
+            {
+                identity_claim = Some(claim);
             }
 
-            (
-                m.label().map(|s| s.to_string()),
-                signer,
-                signed_at,
-                m.claim_generator().map(|s| s.to_string()),
-                m.format().map(|s| s.to_string()),
-                serde_json::Value::Object(assertion_map),
-                m.ingredients().len(),
-            )
-        } else {
-            (None, None, None, None, None, serde_json::Value::Null, 0)
-        };
+            match assertion_map.remove(&key) {
+                Some(serde_json::Value::Array(mut arr)) => {
+                    arr.push(val);
+                    assertion_map.insert(key, serde_json::Value::Array(arr));
+                }
+                Some(existing) => {
+                    assertion_map.insert(key, serde_json::Value::Array(vec![existing, val]));
+                }
+                None => {
+                    assertion_map.insert(key, val);
+                }
+            }
+        }
+
+        (
+            m.label().map(|s| s.to_string()),
+            signer,
+            signed_at,
+            m.claim_generator().map(|s| s.to_string()),
+            m.format().map(|s| s.to_string()),
+            serde_json::Value::Object(assertion_map),
+            m.ingredients().len(),
+            identity_claim,
+        )
+    } else {
+        (None, None, None, None, None, serde_json::Value::Null, 0, None)
+    };
 
     let failure_reason = if verified {
         None
@@ -234,8 +260,27 @@ pub fn verify_with_options(path: &Path, opts: &VerifyOptions) -> Result<Report, 
         format,
         validation_errors,
         did_attestation: None,
+        identity,
         watermarks: Vec::new(),
     })
+}
+
+/// Match the bare `app.provcheck.identity` assertion label and any
+/// label c2pa-rs has decorated with a `__<suffix>` disambiguator.
+/// Producers always write the bare label; the suffix gets added by
+/// c2pa-rs during manifest assembly when an assertion's payload hash
+/// becomes part of the label. We accept either shape so this
+/// extraction doesn't get fooled by the decoration.
+fn is_identity_label(label: &str) -> bool {
+    label == provcheck_attestation_spec::IDENTITY_ASSERTION_LABEL
+        || label.starts_with(&format!(
+            "{}__",
+            provcheck_attestation_spec::IDENTITY_ASSERTION_LABEL
+        ))
+        || label.starts_with(&format!(
+            "{}.",
+            provcheck_attestation_spec::IDENTITY_ASSERTION_LABEL
+        ))
 }
 
 fn evaluate_trust(reader: &c2pa::Reader) -> Option<bool> {
