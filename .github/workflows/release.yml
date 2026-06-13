@@ -75,10 +75,18 @@ jobs:
             echo "value=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: cargo build --release -p provcheck-cli
-        run: cargo build --release -p provcheck-cli --target ${{ matrix.target }}
+      # Build both CLI binaries in a single cargo invocation so the
+      # workspace is compiled once. provcheck (verifier) and
+      # provcheck-kit (creator-side toolkit) ship as separate
+      # archives so a user grabs only the binary they need —
+      # verifiers don't carry the atrium/tokio surface, signers
+      # don't carry watermark detectors.
+      - name: cargo build --release (provcheck + provcheck-kit)
+        run: |
+          cargo build --release --target ${{ matrix.target }} \
+            -p provcheck-cli -p provcheck-kit
 
-      - name: Stage archive (${{ matrix.archive }})
+      - name: Stage provcheck archive (${{ matrix.archive }})
         id: stage
         shell: bash
         run: |
@@ -109,13 +117,52 @@ jobs:
 
           echo "archive_name=$archive_name" >> "$GITHUB_OUTPUT"
 
-      - name: Upload artefact
+      - name: Stage provcheck-kit archive (${{ matrix.archive }})
+        id: stage_kit
+        shell: bash
+        run: |
+          tag="${{ steps.tag.outputs.value }}"
+          stage_dir="provcheck-kit-${tag}-${{ matrix.artefact_suffix }}"
+          mkdir -p "$stage_dir"
+          cp "target/${{ matrix.target }}/release/provcheck-kit${{ matrix.bin_ext }}" "$stage_dir/"
+          cp README.md LICENSE "$stage_dir/"
+          # Carry the spec writeup so a creator who installs the
+          # kit also has the wire-format reference at hand.
+          cp docs/atproto-signing-key.md "$stage_dir/"
+
+          if [[ "${{ matrix.archive }}" == "zip" ]]; then
+            archive_name="${stage_dir}.zip"
+            7z a -tzip "$archive_name" "$stage_dir" >/dev/null
+          else
+            archive_name="${stage_dir}.tar.gz"
+            tar -czf "$archive_name" "$stage_dir"
+          fi
+
+          if command -v sha256sum >/dev/null; then
+            sha256sum "$archive_name" > "${archive_name}.sha256"
+          else
+            shasum -a 256 "$archive_name" > "${archive_name}.sha256"
+          fi
+
+          echo "archive_name=$archive_name" >> "$GITHUB_OUTPUT"
+
+      - name: Upload provcheck artefact
         uses: actions/upload-artifact@v4
         with:
           name: provcheck-${{ steps.tag.outputs.value }}-${{ matrix.artefact_suffix }}
           path: |
             ${{ steps.stage.outputs.archive_name }}
             ${{ steps.stage.outputs.archive_name }}.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload provcheck-kit artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: provcheck-kit-${{ steps.tag.outputs.value }}-${{ matrix.artefact_suffix }}
+          path: |
+            ${{ steps.stage_kit.outputs.archive_name }}
+            ${{ steps.stage_kit.outputs.archive_name }}.sha256
           if-no-files-found: error
           retention-days: 30
 

@@ -4,7 +4,18 @@
 # (CreativeMayhemLtd/provcheck), then cut a GitHub Release there.
 #
 # Usage:
-#     scripts/publish-release.sh v0.1.0 "path/to/provcheck-win.zip" "path/to/provcheck-macos.tar.gz" ...
+#     scripts/publish-release.sh v0.3.0 \
+#       dist/provcheck-v0.3.0-{windows,linux,macos}-*.{zip,tar.gz} \
+#       dist/provcheck-kit-v0.3.0-{windows,linux,macos}-*.{zip,tar.gz} \
+#       dist/provcheck-gui-v0.3.0-*.{exe,msi,deb,AppImage,dmg}
+#
+# From v0.3.0 onward, the release ships THREE binary surfaces:
+#   * provcheck       — read-only verifier (the original CLI).
+#   * provcheck-kit   — creator-side toolkit (mint identity, sign,
+#                       atproto publish; v0.3.0+).
+#   * provcheck-gui   — Tauri desktop app (verifier-only — kit GUI
+#                       lands in a later release).
+# Each ships as one archive per OS, with a matching .sha256 sidecar.
 #
 # What it does:
 #   1. Sanity-checks that the tag exists locally and points at a
@@ -28,7 +39,8 @@ set -euo pipefail
 
 if [[ $# -lt 1 ]]; then
   echo "usage: $0 <tag> [artefact...]" >&2
-  echo "example: $0 v0.1.0 dist/provcheck-win.zip dist/provcheck-macos.tar.gz" >&2
+  echo "example: $0 v0.3.0 dist/provcheck-v0.3.0-*.{zip,tar.gz} \\" >&2
+  echo "                   dist/provcheck-kit-v0.3.0-*.{zip,tar.gz}" >&2
   exit 2
 fi
 

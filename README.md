@@ -117,6 +117,44 @@ fi
 | `1` | File is unsigned, or its manifest is invalid / tampered. |
 | `2` | I/O error, unreadable file, or internal error. |
 
+## For creators — sign + publish (v0.3.0+)
+
+A separate binary, **`provcheck-kit`**, handles the producer side:
+mint a signing certificate, sign your media, and publish the cert
+fingerprint to your atproto identity so anyone verifying with
+`provcheck` can cross-check the signature against you.
+
+```bash
+# One-time setup
+provcheck-kit init                    # mint a fresh ES256 keypair
+provcheck-kit login -u me.bsky.social # attach an atproto identity
+provcheck-kit publish                 # publish the cert fingerprint
+
+# Sign + verify a file
+provcheck-kit sign mix.wav --embed-identity
+provcheck mix.wav --auto-identity     # verifies + cross-checks the atproto record
+```
+
+What the kit gives you:
+
+- **Identity custody** — keys live in your OS keychain (Keychain on
+  macOS, Credential Manager on Windows, Secret Service on Linux),
+  or in an age-encrypted file with optional recovery recipients
+  for break-glass restore.
+- **C2PA signing** — wraps the c2pa-rs builder with a sensible
+  default manifest; pass `--manifest` for custom JSON.
+- **atproto publish** — full lifecycle: publish, list, revoke (with
+  audit-preserving `validUntil` tombstones), and `rotate` (mint
+  new key + publish + revoke old, in one command, with cleanup on
+  any partial failure).
+- **Identity assertion** — `--embed-identity` writes an
+  `app.provcheck.identity` C2PA assertion so verifiers can
+  auto-fill the identity input without the user typing the
+  handle.
+
+The full spec is in [`docs/atproto-signing-key.md`](docs/atproto-signing-key.md);
+the kit is Apache-2.0 just like the rest of provcheck.
+
 ## Supported formats
 
 Whatever the upstream [`c2pa` crate](https://crates.io/crates/c2pa)
