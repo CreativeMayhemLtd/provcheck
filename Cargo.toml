@@ -5,6 +5,7 @@ members = [
     "crates/provcheck-attestation-spec",
     "crates/provcheck-sign",
     "crates/provcheck-publish",
+    "crates/provcheck-kit",
     "crates/provcheck-watermark",
     "crates/provcheck-audioseal",
     "crates/provcheck-wavmark",

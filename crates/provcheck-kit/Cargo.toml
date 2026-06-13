@@ -1,0 +1,40 @@
+[package]
+name = "provcheck-kit"
+description = "Artist-side CLI for provcheck: cert generation, C2PA signing, atproto attestation publishing."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+
+[[bin]]
+name = "provcheck-kit"
+path = "src/main.rs"
+
+[dependencies]
+# The two sibling crates this CLI composes.
+provcheck-sign = { path = "../provcheck-sign" }
+provcheck-publish = { path = "../provcheck-publish" }
+provcheck-attestation-spec = { path = "../provcheck-attestation-spec" }
+
+# CLI plumbing
+clap = { workspace = true }
+anyhow = { workspace = true }
+serde_json.workspace = true
+thiserror.workspace = true
+
+# Async runtime — provcheck-publish is async. `rt` (single-thread)
+# is plenty for the kit's single-flow CLI shape.
+tokio = { version = "1", features = ["rt", "macros"] }
+
+# Secret-input prompts. The CLI's only contact with key material is
+# through these.
+rpassword = "7"
+secrecy = "0.10"
+
+# Time formatting for recovery-recipient `added_at` stamping and
+# the `validUntil = now()` revocation flow.
+time = { version = "0.3", features = ["parsing", "formatting"] }
