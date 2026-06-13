@@ -38,13 +38,17 @@ dirs = "5"
 # Timestamp handling for identity.json's created_at field.
 time = { version = "0.3", features = ["parsing", "formatting", "serde", "macros"] }
 
-# Key custody — these are pulled in here so the public KeyProvider
-# trait can be defined in this crate's lib.rs, even though the
-# concrete encrypted-file and keychain providers ship in follow-up
-# work. The deps don't add to the binary until the providers'
-# modules ship.
+# Key custody — common to all backends.
 secrecy = "0.10"
 zeroize = { version = "1.8", features = ["derive"] }
+
+# AgeFileProvider: at-rest encryption via the age format. age does
+# the actual crypto (scrypt for the passphrase recipient stanza,
+# X25519+ECDH for the recovery-recipient stanzas, ChaCha20-Poly1305
+# STREAM for the payload). Recipient-set semantics and the
+# documented retroactive-revocation footgun are in architectural
+# decision #5 of the plan.
+age = "0.11"
 
 [dev-dependencies]
 # Round-trip tests: re-read the rcgen output via x509-parser to

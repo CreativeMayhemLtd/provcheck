@@ -56,12 +56,17 @@ pub fn identity_json_path(base: &Path) -> PathBuf {
     keys_dir(base).join("identity.json")
 }
 
-/// `{dir}/keys/signing.key.enc` — encrypted private key.
+/// `{dir}/keys/signing.key.age` — age-encrypted private key.
 ///
 /// Only present when `identity.json.key_provider == EncryptedFile`.
-/// The keychain backend doesn't use this path at all.
-pub fn encrypted_key_path(base: &Path) -> PathBuf {
-    keys_dir(base).join("signing.key.enc")
+/// The keychain backend doesn't use this path at all. The file is in
+/// standard age format (`age = "0.11"`) so any age-compatible tool
+/// (`rage` CLI, the Go `age` binary, etc.) can decrypt it given the
+/// passphrase — see architectural decision #5 in the plan for the
+/// recipient model and the documented retroactive-revocation
+/// limitation.
+pub fn age_key_path(base: &Path) -> PathBuf {
+    keys_dir(base).join("signing.key.age")
 }
 
 /// Errors from the persistence layer. Caller surfaces these via
@@ -256,7 +261,7 @@ mod tests {
         assert!(identity_json_path(dir.path()).is_file());
         // We don't write the encrypted key file in this layer —
         // that's the EncryptedFileProvider's job (sub-pass 3).
-        assert!(!encrypted_key_path(dir.path()).exists());
+        assert!(!age_key_path(dir.path()).exists());
     }
 
     #[test]
