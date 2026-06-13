@@ -1010,35 +1010,660 @@ pub mod import_backup {
     }
 }
 
-macro_rules! stub_command {
-    ($modname:ident, $struct_name:ident, $err_label:literal $(, $field:ident: $ty:ty $(= $attr:meta)?)* $(,)?) => {
-        pub mod $modname {
-            use super::*;
+// ----------------------------------------------------------------
+// atproto-side commands (login / logout / publish / list / revoke
+// / rotate) and the cross-cutting `verify` shortcut.
+//
+// These all share the same load-and-resume-session preamble. The
+// helpers in this section keep the common shape in one place.
+// ----------------------------------------------------------------
 
-            #[derive(Debug, Args)]
-            pub struct $struct_name {
-                #[command(flatten)]
-                pub data_dir: DataDirOpt,
-                $(
-                    $(#[$attr])?
-                    pub $field: $ty,
-                )*
-            }
-
-            pub async fn run(_args: $struct_name) -> anyhow::Result<()> {
-                Err(anyhow::Error::from(KitError::NotImplemented($err_label)))
-            }
-        }
-    };
+async fn load_or_explain_session(
+    dir: &std::path::Path,
+) -> anyhow::Result<provcheck_publish::AtprotoClient> {
+    use anyhow::Context;
+    provcheck_publish::AtprotoClient::load_session(dir)
+        .await
+        .context(
+            "load atproto session — run `kit login` first if you haven't, \
+             or re-run if the refresh JWT has expired",
+        )
 }
 
-stub_command!(login, CliArgs, "login");
-stub_command!(logout, CliArgs, "logout");
-stub_command!(publish, CliArgs, "publish");
-stub_command!(list, CliArgs, "list");
-stub_command!(revoke, CliArgs, "revoke");
-stub_command!(rotate, CliArgs, "rotate");
-stub_command!(verify, CliArgs, "verify");
+pub mod login {
+    use anyhow::{Context, Result};
+    use clap::Args;
+
+    use provcheck_publish::AtprotoClient;
+    use provcheck_sign::persist::{default_dir, load_locked, save_public_artefacts};
+
+    use super::DataDirOpt;
+
+    #[derive(Debug, Args)]
+    pub struct CliArgs {
+        #[command(flatten)]
+        pub data_dir: DataDirOpt,
+
+        /// atproto handle (e.g. `creator.bsky.social`) or DID.
+        #[arg(long, short = 'u')]
+        pub handle: String,
+
+        /// PDS host. Defaults to bsky.social.
+        #[arg(long, default_value = "https://bsky.social")]
+        pub pds: String,
+    }
+
+    pub async fn run(args: CliArgs) -> Result<()> {
+        let dir = args
+            .data_dir
+            .data_dir
+            .clone()
+            .map(Ok)
+            .unwrap_or_else(|| default_dir().context("resolve default data directory"))?;
+
+        // App password input — rpassword hides it.
+        eprintln!("atproto app password (NOT your account password):");
+        let app_password = rpassword::prompt_password("app password: ")
+            .context("read app password from terminal")?;
+
+        let client = AtprotoClient::login(&args.pds, &args.handle, &app_password)
+            .await
+            .context("atproto login")?;
+        client
+            .save_session(&dir)
+            .await
+            .context("persist session to disk")?;
+
+        // Stamp the resolved did + handle onto the local identity so
+        // `kit status` and `kit publish` have them without a network
+        // call. Optional — login works without a local identity (a
+        // user could log in just to `kit list` someone else's flow).
+        if let Ok(mut locked) = load_locked(&dir) {
+            let snap = client.snapshot();
+            locked.did = Some(snap.did.clone());
+            locked.handle = Some(snap.handle.clone());
+            save_public_artefacts(&dir, &locked).context("stamp did + handle on identity.json")?;
+        }
+
+        let snap = client.snapshot();
+        eprintln!("✓ Logged in as {} ({}).", snap.handle, snap.did);
+        eprintln!("  Session persisted to {}", dir.display());
+        Ok(())
+    }
+}
+
+pub mod logout {
+    use anyhow::{Context, Result};
+    use clap::Args;
+
+    use provcheck_publish::AtprotoClient;
+    use provcheck_sign::persist::default_dir;
+
+    use super::DataDirOpt;
+
+    #[derive(Debug, Args)]
+    pub struct CliArgs {
+        #[command(flatten)]
+        pub data_dir: DataDirOpt,
+    }
+
+    pub async fn run(args: CliArgs) -> Result<()> {
+        let dir = args
+            .data_dir
+            .data_dir
+            .clone()
+            .map(Ok)
+            .unwrap_or_else(|| default_dir().context("resolve default data directory"))?;
+        AtprotoClient::logout(&dir).context("delete session.json")?;
+        eprintln!("✓ Local session deleted.");
+        eprintln!(
+            "  Note: atproto app-password sessions don't have a server-side \
+             revoke endpoint. Anyone with a copy of the refresh JWT can use \
+             it until it expires server-side. If you suspect leakage, revoke \
+             the app password from bsky.app settings."
+        );
+        Ok(())
+    }
+}
+
+pub mod publish {
+    use anyhow::{Context, Result, bail};
+    use clap::Args;
+    use time::OffsetDateTime;
+    use time::format_description::well_known::Rfc3339;
+
+    use provcheck_attestation_spec::SigningKeyRecord;
+    use provcheck_publish::RecordWriter;
+    use provcheck_sign::persist::{default_dir, load_locked};
+
+    use super::DataDirOpt;
+
+    #[derive(Debug, Args)]
+    pub struct CliArgs {
+        #[command(flatten)]
+        pub data_dir: DataDirOpt,
+
+        /// Optional label stored alongside the published record
+        /// ("studio mac", "ci server", "live rig").
+        #[arg(long, short = 'l')]
+        pub label: Option<String>,
+
+        /// Publish even if a record with this fingerprint already
+        /// exists in the user's repo. Without this flag the
+        /// command refuses to create a duplicate.
+        #[arg(long)]
+        pub force: bool,
+    }
+
+    pub async fn run(args: CliArgs) -> Result<()> {
+        let dir = args
+            .data_dir
+            .data_dir
+            .clone()
+            .map(Ok)
+            .unwrap_or_else(|| default_dir().context("resolve default data directory"))?;
+        let locked = load_locked(&dir).context("load identity")?;
+        let client = super::load_or_explain_session(&dir).await?;
+        let writer = RecordWriter::new(&client);
+
+        // Refuse to publish a duplicate without --force. Atproto
+        // happily creates a second record with the same fingerprint
+        // (rkey is server-assigned and different), but that's
+        // confusing for the verifier (which trusts the newest active
+        // record per fingerprint). Better to surface the dup loudly.
+        if !args.force {
+            let existing = writer.list_signing_keys().await.context("atproto list")?;
+            if existing.iter().any(|(_, r)| r.fingerprint == locked.fingerprint) {
+                bail!(
+                    "a record with fingerprint {} already exists in your repo. \
+                     Pass --force to publish anyway (creates a second record); \
+                     use `kit rotate` if you mean to swap to a fresh fingerprint.",
+                    locked.fingerprint
+                );
+            }
+        }
+
+        let created_at = OffsetDateTime::now_utc()
+            .format(&Rfc3339)
+            .context("format created_at")?;
+        let record = SigningKeyRecord {
+            created_at,
+            fingerprint: locked.fingerprint.clone(),
+            algorithm: locked.algorithm.clone(),
+            label: args.label.clone(),
+            valid_from: None,
+            valid_until: None,
+            superseded_by: None,
+        };
+        let at_uri = writer
+            .publish_signing_key(&record)
+            .await
+            .context("atproto publish_signing_key")?;
+
+        // Refresh session-on-disk in case atrium rotated the JWTs
+        // during the call. Cheap, keeps subsequent commands working.
+        let _ = client.save_session(&dir).await;
+
+        eprintln!("✓ Published.");
+        eprintln!("  at-uri:      {}", at_uri);
+        eprintln!("  fingerprint: {}", locked.fingerprint);
+        if let Some(label) = &args.label {
+            eprintln!("  label:       {}", label);
+        }
+        Ok(())
+    }
+}
+
+pub mod list {
+    use anyhow::{Context, Result};
+    use clap::Args;
+
+    use provcheck_publish::RecordWriter;
+    use provcheck_sign::persist::default_dir;
+
+    use super::DataDirOpt;
+
+    #[derive(Debug, Args)]
+    pub struct CliArgs {
+        #[command(flatten)]
+        pub data_dir: DataDirOpt,
+
+        /// Emit JSON instead of the human-readable table. Useful
+        /// for piping into jq in CI.
+        #[arg(long)]
+        pub json: bool,
+    }
+
+    pub async fn run(args: CliArgs) -> Result<()> {
+        let dir = args
+            .data_dir
+            .data_dir
+            .clone()
+            .map(Ok)
+            .unwrap_or_else(|| default_dir().context("resolve default data directory"))?;
+        let client = super::load_or_explain_session(&dir).await?;
+        let writer = RecordWriter::new(&client);
+        let records = writer.list_signing_keys().await.context("atproto list")?;
+
+        if args.json {
+            let payload: Vec<_> = records
+                .iter()
+                .map(|(uri, r)| {
+                    serde_json::json!({
+                        "at_uri": uri.as_str(),
+                        "record": r,
+                    })
+                })
+                .collect();
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&payload).context("format json")?
+            );
+            return Ok(());
+        }
+
+        if records.is_empty() {
+            println!("No app.provcheck.signingKey records in your repo.");
+            println!("Run `kit publish` to publish the current local fingerprint.");
+            return Ok(());
+        }
+        println!("app.provcheck.signingKey records ({}):", records.len());
+        for (uri, record) in &records {
+            let rkey = uri.rkey().unwrap_or("?");
+            let status = describe_status(record);
+            println!("  - rkey {rkey}  [{status}]");
+            println!("      fingerprint: {}", record.fingerprint);
+            println!("      algorithm:   {}", record.algorithm);
+            println!("      created:     {}", record.created_at);
+            if let Some(label) = &record.label {
+                println!("      label:       {}", label);
+            }
+            if let Some(vu) = &record.valid_until {
+                println!("      validUntil:  {}", vu);
+            }
+            if let Some(s) = &record.superseded_by {
+                println!("      supersededBy: {}", s);
+            }
+        }
+        Ok(())
+    }
+
+    fn describe_status(r: &provcheck_attestation_spec::SigningKeyRecord) -> &'static str {
+        if r.superseded_by.is_some() {
+            "superseded"
+        } else if r.valid_until.is_some() {
+            "revoked"
+        } else {
+            "active"
+        }
+    }
+}
+
+pub mod revoke {
+    use anyhow::{Context, Result, bail};
+    use clap::Args;
+    use time::OffsetDateTime;
+    use time::format_description::well_known::Rfc3339;
+
+    use provcheck_publish::RecordWriter;
+    use provcheck_sign::persist::default_dir;
+
+    use super::DataDirOpt;
+
+    #[derive(Debug, Args)]
+    pub struct CliArgs {
+        #[command(flatten)]
+        pub data_dir: DataDirOpt,
+
+        /// Fingerprint of the record to revoke (full
+        /// `sha256:<hex>` form).
+        pub fingerprint: String,
+
+        /// at-uri of a replacement record (set on the revoked
+        /// record as `supersededBy`). Useful when manually
+        /// rotating; `kit rotate` fills this in automatically.
+        #[arg(long, value_name = "AT-URI")]
+        pub superseded_by: Option<String>,
+    }
+
+    pub async fn run(args: CliArgs) -> Result<()> {
+        let dir = args
+            .data_dir
+            .data_dir
+            .clone()
+            .map(Ok)
+            .unwrap_or_else(|| default_dir().context("resolve default data directory"))?;
+        let client = super::load_or_explain_session(&dir).await?;
+        let writer = RecordWriter::new(&client);
+        let records = writer.list_signing_keys().await.context("atproto list")?;
+        let (uri, mut record) = records
+            .into_iter()
+            .find(|(_, r)| r.fingerprint == args.fingerprint)
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "no record with fingerprint {} in your repo",
+                    args.fingerprint
+                )
+            })?;
+        let rkey = uri
+            .rkey()
+            .ok_or_else(|| anyhow::anyhow!("matched record has malformed at-uri: {}", uri))?;
+
+        if record.valid_until.is_some() {
+            bail!(
+                "record at {} is already revoked (validUntil = {}). \
+                 Re-running revoke is a no-op.",
+                uri,
+                record.valid_until.as_deref().unwrap_or("?"),
+            );
+        }
+
+        record.valid_until = Some(
+            OffsetDateTime::now_utc()
+                .format(&Rfc3339)
+                .context("format validUntil")?,
+        );
+        record.superseded_by = args.superseded_by.clone();
+
+        writer
+            .update_signing_key(rkey, &record)
+            .await
+            .context("atproto update_signing_key")?;
+
+        eprintln!("✓ Revoked.");
+        eprintln!("  at-uri:      {}", uri);
+        eprintln!("  fingerprint: {}", record.fingerprint);
+        eprintln!("  validUntil:  {}", record.valid_until.as_deref().unwrap_or(""));
+        if let Some(s) = &record.superseded_by {
+            eprintln!("  supersededBy: {}", s);
+        }
+        Ok(())
+    }
+}
+
+pub mod rotate {
+    //! Single-shot key rotation: mint a new keypair, publish its
+    //! record, revoke the old record (linked via supersededBy), and
+    //! swap the keys/ dir.
+    //!
+    //! The flow is "best-effort atomic" rather than transactional:
+    //! at each step we surface what succeeded and what didn't so a
+    //! user whose network dropped mid-rotation can run
+    //! `kit list` / `kit revoke` to finish the job manually. A
+    //! future `kit reconcile` is the cleaner answer.
+
+    use std::path::PathBuf;
+
+    use anyhow::{Context, Result};
+    use clap::Args;
+    use time::OffsetDateTime;
+    use time::format_description::well_known::Rfc3339;
+
+    use provcheck_attestation_spec::SigningKeyRecord;
+    use provcheck_publish::RecordWriter;
+    use provcheck_sign::cert::generate;
+    use provcheck_sign::persist::{default_dir, load_locked, save_public_artefacts};
+    use provcheck_sign::providers::{AgeFileProvider, KeyProvider, KeychainProvider};
+    use provcheck_sign::types::{KeyProviderKind, LockedIdentity};
+
+    use crate::prompts::new_passphrase;
+
+    use super::DataDirOpt;
+
+    #[derive(Debug, Args)]
+    pub struct CliArgs {
+        #[command(flatten)]
+        pub data_dir: DataDirOpt,
+
+        /// Optional label for the new published record.
+        #[arg(long, short = 'l')]
+        pub label: Option<String>,
+    }
+
+    pub async fn run(args: CliArgs) -> Result<()> {
+        let dir = args
+            .data_dir
+            .data_dir
+            .clone()
+            .map(Ok)
+            .unwrap_or_else(|| default_dir().context("resolve default data directory"))?;
+        let old = load_locked(&dir).context("load current identity")?;
+        let client = super::load_or_explain_session(&dir).await?;
+        let writer = RecordWriter::new(&client);
+
+        // Resolve the old record's rkey BEFORE we touch anything —
+        // saves us a doomed publish if the old fingerprint isn't on
+        // atproto in the first place.
+        let existing = writer.list_signing_keys().await.context("atproto list")?;
+        let old_entry = existing
+            .iter()
+            .find(|(_, r)| r.fingerprint == old.fingerprint && r.valid_until.is_none())
+            .cloned();
+
+        // Step 1: generate fresh keypair.
+        let subject = provcheck_sign::cert::SubjectInfo::default();
+        let generated = generate(&subject).context("generate new keypair")?;
+        let new_fingerprint = generated.fingerprint.clone();
+        let new_key_secret = secrecy::SecretString::from(generated.key_pem.clone());
+
+        let new_locked = LockedIdentity {
+            chain_pem: generated.chain_pem.clone(),
+            fingerprint: new_fingerprint.clone(),
+            algorithm: generated.algorithm.clone(),
+            did: old.did.clone(),
+            handle: old.handle.clone(),
+            created_at: OffsetDateTime::now_utc(),
+            key_provider: old.key_provider,
+            recovery_recipients: old.recovery_recipients.clone(),
+        };
+
+        // Step 2: stage the new private key beside the old one
+        // under `keys-staging/` (sibling dir of the data dir),
+        // then promote on success. Simpler than a rename dance.
+        let staging = staging_path_for(&dir);
+        std::fs::create_dir_all(&staging).context("create staging dir")?;
+        let mut prompt = new_passphrase();
+        match new_locked.key_provider {
+            KeyProviderKind::Keychain => {
+                // Keychain entry is keyed on fingerprint so it doesn't
+                // clash with the old one — store directly.
+                KeychainProvider::new()
+                    .store(&staging, &new_fingerprint, &new_key_secret, &mut prompt)
+                    .context("store new key in OS keychain")?;
+            }
+            KeyProviderKind::EncryptedFile => {
+                AgeFileProvider::new()
+                    .store(&staging, &new_fingerprint, &new_key_secret, &mut prompt)
+                    .context("store new key in encrypted file")?;
+            }
+        }
+
+        // Step 3: publish the new record.
+        let created_at = OffsetDateTime::now_utc()
+            .format(&Rfc3339)
+            .context("format created_at")?;
+        let new_record = SigningKeyRecord {
+            created_at,
+            fingerprint: new_fingerprint.clone(),
+            algorithm: new_locked.algorithm.clone(),
+            label: args.label.clone(),
+            valid_from: None,
+            valid_until: None,
+            superseded_by: None,
+        };
+        let new_uri = match writer.publish_signing_key(&new_record).await {
+            Ok(uri) => uri,
+            Err(e) => {
+                eprintln!(
+                    "publish of the new key failed — rolling back. The old \
+                     identity at {} is untouched and remains the active one.",
+                    dir.display()
+                );
+                let _ = std::fs::remove_dir_all(&staging);
+                return Err(anyhow::anyhow!("atproto publish_signing_key: {e}"));
+            }
+        };
+
+        // Step 4: promote staging → primary. The old data dir gets
+        // moved aside to keys-rotated-<old-fp-prefix>/.
+        let backup_dir = rotated_path_for(&dir, &old.fingerprint);
+        std::fs::rename(&dir, &backup_dir).with_context(|| {
+            format!(
+                "move old identity {} → {} (manual cleanup may be required; \
+                 the new record at {new_uri} is on atproto but the local \
+                 identity is still the old one)",
+                dir.display(),
+                backup_dir.display()
+            )
+        })?;
+        std::fs::rename(&staging, &dir).with_context(|| {
+            format!(
+                "move staging {} → {} (rollback: rename {} back to {} \
+                 to restore the old identity)",
+                staging.display(),
+                dir.display(),
+                backup_dir.display(),
+                dir.display(),
+            )
+        })?;
+        save_public_artefacts(&dir, &new_locked).context("save new identity.json")?;
+
+        // Step 5: revoke the old record with supersededBy →
+        // new_uri. Non-fatal — the user can run
+        // `kit revoke <old-fp> --superseded-by <new-uri>` later.
+        if let Some((old_uri, mut old_record)) = old_entry {
+            let old_rkey = old_uri.rkey().unwrap_or_default().to_string();
+            old_record.valid_until = Some(
+                OffsetDateTime::now_utc()
+                    .format(&Rfc3339)
+                    .context("format validUntil")?,
+            );
+            old_record.superseded_by = Some(new_uri.as_str().to_string());
+            match writer.update_signing_key(&old_rkey, &old_record).await {
+                Ok(()) => {
+                    eprintln!("✓ Old record revoked & linked.");
+                }
+                Err(e) => {
+                    eprintln!(
+                        "warning: failed to revoke the old record at {} ({e}). \
+                         Run `kit revoke {} --superseded-by {}` to finish.",
+                        old_uri, old.fingerprint, new_uri
+                    );
+                }
+            }
+        } else {
+            eprintln!(
+                "note: no active record for the old fingerprint {} was found \
+                 on atproto, so nothing to revoke server-side.",
+                old.fingerprint
+            );
+        }
+
+        let _ = client.save_session(&dir).await;
+
+        eprintln!();
+        eprintln!("✓ Rotation complete.");
+        eprintln!("  Old fingerprint: {}", old.fingerprint);
+        eprintln!("  New fingerprint: {}", new_fingerprint);
+        eprintln!("  New at-uri:      {}", new_uri);
+        eprintln!("  Old data dir:    {} (kept; safe to archive)", backup_dir.display());
+        Ok(())
+    }
+
+    fn staging_path_for(dir: &std::path::Path) -> PathBuf {
+        let parent = dir.parent().unwrap_or(std::path::Path::new("."));
+        let leaf = dir
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("provcheck-kit");
+        parent.join(format!("{leaf}-staging"))
+    }
+
+    fn rotated_path_for(dir: &std::path::Path, old_fingerprint: &str) -> PathBuf {
+        // Strip the `sha256:` prefix for the dir name; take a
+        // first-8-char slice so the path stays short.
+        let fp = old_fingerprint
+            .strip_prefix("sha256:")
+            .unwrap_or(old_fingerprint);
+        let short = &fp[..8.min(fp.len())];
+        let parent = dir.parent().unwrap_or(std::path::Path::new("."));
+        let leaf = dir
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("provcheck-kit");
+        // Best-effort uniqueness via the fingerprint shard — multiple
+        // rotations on the same day are rare, but if one collides
+        // the user gets a clear error from std::fs::rename rather
+        // than a silent overwrite.
+        parent.join(format!("{leaf}-rotated-{short}"))
+    }
+
+    // No tests here yet — rotate needs an atproto mock to drive
+    // end-to-end. The path-arithmetic helpers (staging_path_for,
+    // rotated_path_for) are pure functions and can grow direct
+    // unit tests in a follow-up.
+}
+
+pub mod verify {
+    //! Convenience shortcut: invoke `provcheck` against the file
+    //! rather than the user typing the verifier's name. Useful in
+    //! workflows where the kit binary is on PATH but `provcheck`
+    //! might not be (or might be at a non-default path the user
+    //! resolves via `--provcheck-bin`).
+
+    use std::path::PathBuf;
+    use std::process::Command;
+
+    use anyhow::{Context, Result, bail};
+    use clap::Args;
+
+    #[derive(Debug, Args)]
+    pub struct CliArgs {
+        /// Asset to verify.
+        pub file: PathBuf,
+
+        /// Override the provcheck binary to invoke. Defaults to
+        /// `provcheck` looked up on PATH.
+        #[arg(long, default_value = "provcheck", value_name = "PATH")]
+        pub provcheck_bin: PathBuf,
+
+        /// Extra args passed through to provcheck. Use `--`
+        /// before them to split them from kit's own flags:
+        /// `kit verify foo.wav -- --bsky-handle creator.bsky.social`.
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        pub passthrough: Vec<String>,
+    }
+
+    pub async fn run(args: CliArgs) -> Result<()> {
+        // Use spawn_blocking so the synchronous Command call doesn't
+        // park the runtime's only thread (the binary uses
+        // current_thread flavor).
+        let provcheck_bin = args.provcheck_bin.clone();
+        let file = args.file.clone();
+        let passthrough = args.passthrough.clone();
+        let status = tokio::task::spawn_blocking(move || {
+            Command::new(&provcheck_bin)
+                .arg(&file)
+                .args(&passthrough)
+                .status()
+        })
+        .await
+        .context("join blocking provcheck task")?
+        .with_context(|| {
+            format!(
+                "execute `{}` — is provcheck on PATH? Pass --provcheck-bin to override",
+                args.provcheck_bin.display()
+            )
+        })?;
+        if !status.success() {
+            bail!(
+                "provcheck exited with code {}",
+                status.code().map(|c| c.to_string()).unwrap_or_else(|| "<signal>".into())
+            );
+        }
+        Ok(())
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -1109,18 +1734,57 @@ mod tests {
         assert!(Cli::try_parse_from(["provcheck-kit", "sign"]).is_err());
     }
 
-    #[tokio::test]
-    async fn stub_run_returns_not_implemented() {
-        // Locks in that scaffold stubs return the typed
-        // NotImplemented error so main.rs's exit-code routing
-        // works without parsing strings. Uses `login` (still a
-        // scaffold stub in this sub-pass); update to another
-        // stubbed command if login becomes real.
-        let args = login::CliArgs {
-            data_dir: DataDirOpt { data_dir: None },
-        };
-        let err = login::run(args).await.expect_err("not implemented");
-        let kit_err = err.downcast_ref::<KitError>().expect("downcast");
-        assert!(matches!(kit_err, KitError::NotImplemented(_)));
+    #[test]
+    fn parse_revoke_requires_fingerprint() {
+        // revoke takes a positional fingerprint and an optional
+        // --superseded-by at-uri; without the fingerprint the
+        // parse fails.
+        assert!(Cli::try_parse_from(["provcheck-kit", "revoke"]).is_err());
+        let ok = Cli::try_parse_from([
+            "provcheck-kit",
+            "revoke",
+            "sha256:abc",
+            "--superseded-by",
+            "at://did:plc:x/app.provcheck.signingKey/abc",
+        ])
+        .expect("parse");
+        match ok.command {
+            Command::Revoke(args) => {
+                assert_eq!(args.fingerprint, "sha256:abc");
+                assert_eq!(
+                    args.superseded_by.as_deref(),
+                    Some("at://did:plc:x/app.provcheck.signingKey/abc")
+                );
+            }
+            _ => panic!("wrong subcommand"),
+        }
+    }
+
+    #[test]
+    fn parse_verify_passes_args_through() {
+        // verify's positional file + trailing passthrough args
+        // need to parse without clap eating the `--bsky-handle`.
+        let cli = Cli::try_parse_from([
+            "provcheck-kit",
+            "verify",
+            "foo.wav",
+            "--",
+            "--bsky-handle",
+            "creator.bsky.social",
+        ])
+        .expect("parse");
+        match cli.command {
+            Command::Verify(args) => {
+                assert_eq!(args.file, std::path::Path::new("foo.wav"));
+                assert_eq!(
+                    args.passthrough,
+                    vec![
+                        "--bsky-handle".to_string(),
+                        "creator.bsky.social".to_string()
+                    ]
+                );
+            }
+            _ => panic!("wrong subcommand"),
+        }
     }
 }
