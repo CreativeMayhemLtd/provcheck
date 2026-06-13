@@ -3307,7 +3307,9 @@ name = "provcheck-sign"
 version = "0.3.0"
 dependencies = [
  "age",
+ "c2pa",
  "dirs",
+ "hound",
  "keyring",
  "pem",
  "provcheck-attestation-spec",

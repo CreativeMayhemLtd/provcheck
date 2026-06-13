@@ -16,6 +16,10 @@ name = "provcheck_sign"
 [dependencies]
 provcheck-attestation-spec = { path = "../provcheck-attestation-spec" }
 
+# C2PA signing primitive. Pulls from workspace pin (rust_native_crypto,
+# no OpenSSL build dep).
+c2pa.workspace = true
+
 # Workspace-pinned
 serde.workspace = true
 serde_json.workspace = true
@@ -75,3 +79,6 @@ x509-parser = "0.16"
 pem = "3"
 # Filesystem isolation for the persist-layer tests.
 tempfile = "3"
+# Synthetic silent WAVs for the c2pa signing tests. No copyrighted
+# audio needed, and the format is recognised by c2pa's signer.
+hound = "3"

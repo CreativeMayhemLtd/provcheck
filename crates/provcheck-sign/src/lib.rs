@@ -32,12 +32,14 @@ pub mod cache;
 pub mod cert;
 pub mod persist;
 pub mod providers;
+pub mod sign;
 pub mod types;
 
 pub use backup::{BackupBundle, BackupSummary};
 pub use cache::{Clock, DEFAULT_TTL, SecretCache, SystemClock};
 pub use cert::{GeneratedKeypair, SubjectInfo};
 pub use providers::{AgeFileProvider, KeyProvider, KeychainProvider};
+pub use sign::{SignResult, sign_asset};
 pub use types::{KeyProviderKind, LockedIdentity, RecoveryRecipient, UnlockedIdentity};
 
 /// Top-level errors from the crate. Each module surfaces its own
@@ -53,4 +55,6 @@ pub enum Error {
     Provider(#[from] providers::ProviderError),
     #[error("backup: {0}")]
     Backup(#[from] backup::BackupError),
+    #[error("c2pa signing: {0}")]
+    Sign(#[from] sign::SignError),
 }
