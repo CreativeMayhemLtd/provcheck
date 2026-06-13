@@ -153,6 +153,211 @@ pub struct DataDirOpt {
 // surface.
 // ----------------------------------------------------------------
 
+// ----------------------------------------------------------------
+// `init` — Generate a fresh identity.
+// ----------------------------------------------------------------
+
+pub mod init {
+    use anyhow::{Context, Result, bail};
+    use clap::Args;
+    use secrecy::SecretString;
+    use time::OffsetDateTime;
+    use time::format_description::well_known::Rfc3339;
+
+    use provcheck_sign::cert::{SubjectInfo, generate};
+    use provcheck_sign::persist::{default_dir, load_locked, save_public_artefacts};
+    use provcheck_sign::providers::{AgeFileProvider, KeyProvider, KeychainProvider};
+    use provcheck_sign::types::{KeyProviderKind, LockedIdentity, RecoveryRecipient};
+
+    use crate::prompts::new_passphrase;
+
+    use super::DataDirOpt;
+
+    #[derive(Debug, Args)]
+    pub struct CliArgs {
+        #[command(flatten)]
+        pub data_dir: DataDirOpt,
+
+        /// Force the encrypted-file backend instead of the OS
+        /// keychain. Used on headless CI hosts or when the user
+        /// explicitly opts out of OS keychain involvement.
+        #[arg(long)]
+        pub age_file: bool,
+
+        /// Register an X25519 recovery recipient (`age1...` format).
+        /// Repeatable. Affects backup operations only — the at-rest
+        /// file is passphrase-only by age format constraint.
+        #[arg(long = "recovery-recipient", value_name = "AGE_PUBKEY")]
+        pub recovery_recipients: Vec<String>,
+
+        /// Regenerate even if an identity already exists at this
+        /// data directory. **WARNING:** orphans any previously-
+        /// published atproto records pointing at the old fingerprint.
+        #[arg(long)]
+        pub force: bool,
+    }
+
+    pub async fn run(args: CliArgs) -> Result<()> {
+        let dir = args
+            .data_dir
+            .data_dir
+            .clone()
+            .map(Ok)
+            .unwrap_or_else(|| default_dir().context("resolve default data directory"))?;
+
+        if !args.force && load_locked(&dir).is_ok() {
+            bail!(
+                "identity already exists at {}. \
+                 Re-run with `--force` to regenerate (warning: \
+                 orphans any previously-published atproto records).",
+                dir.display()
+            );
+        }
+
+        eprintln!("Generating ES256 keypair…");
+        let kp = generate(&SubjectInfo::default()).context("cert generation")?;
+
+        let now_str = OffsetDateTime::now_utc()
+            .format(&Rfc3339)
+            .context("format created_at")?;
+        let recovery_recipients: Vec<RecoveryRecipient> = args
+            .recovery_recipients
+            .iter()
+            .map(|r| RecoveryRecipient {
+                pubkey: r.clone(),
+                label: None,
+                added_at: now_str.clone(),
+            })
+            .collect();
+
+        let backend = if args.age_file {
+            KeyProviderKind::EncryptedFile
+        } else {
+            KeyProviderKind::Keychain
+        };
+
+        let locked = LockedIdentity {
+            chain_pem: kp.chain_pem.clone(),
+            fingerprint: kp.fingerprint.clone(),
+            algorithm: kp.algorithm.clone(),
+            did: None,
+            handle: None,
+            created_at: OffsetDateTime::now_utc(),
+            key_provider: backend,
+            recovery_recipients,
+        };
+
+        let key_pem = SecretString::from(kp.key_pem.clone());
+        let mut prompt = new_passphrase();
+        match backend {
+            KeyProviderKind::Keychain => {
+                KeychainProvider::new()
+                    .store(&dir, &kp.fingerprint, &key_pem, &mut prompt)
+                    .context("store key in OS keychain")?;
+            }
+            KeyProviderKind::EncryptedFile => {
+                AgeFileProvider::new()
+                    .store(&dir, &kp.fingerprint, &key_pem, &mut prompt)
+                    .context("store key in encrypted file")?;
+            }
+        }
+
+        save_public_artefacts(&dir, &locked).context("save chain + identity.json")?;
+
+        eprintln!();
+        eprintln!("✓ Identity created.");
+        eprintln!("  Fingerprint: {}", kp.fingerprint);
+        eprintln!("  Storage:     {}", dir.display());
+        eprintln!(
+            "  Backend:     {}",
+            match backend {
+                KeyProviderKind::Keychain => "OS keychain",
+                KeyProviderKind::EncryptedFile => "encrypted file (signing.key.age)",
+            }
+        );
+        if !args.recovery_recipients.is_empty() {
+            eprintln!("  Recovery recipients: {}", args.recovery_recipients.len());
+        }
+        eprintln!();
+        eprintln!("Next step: `kit login` to attach an atproto identity.");
+
+        Ok(())
+    }
+}
+
+// ----------------------------------------------------------------
+// `status` — Report the current local + atproto state.
+// ----------------------------------------------------------------
+
+pub mod status {
+    use anyhow::{Context, Result};
+    use clap::Args;
+
+    use provcheck_sign::persist::{default_dir, load_locked};
+
+    use super::DataDirOpt;
+
+    #[derive(Debug, Args)]
+    pub struct CliArgs {
+        #[command(flatten)]
+        pub data_dir: DataDirOpt,
+    }
+
+    pub async fn run(args: CliArgs) -> Result<()> {
+        let dir = args
+            .data_dir
+            .data_dir
+            .clone()
+            .map(Ok)
+            .unwrap_or_else(|| default_dir().context("resolve default data directory"))?;
+
+        match load_locked(&dir) {
+            Ok(locked) => {
+                println!("[identity]");
+                println!("  fingerprint: {}", locked.fingerprint);
+                println!("  algorithm:   {}", locked.algorithm);
+                println!("  created:     {}", locked.created_at);
+                println!(
+                    "  backend:     {}",
+                    match locked.key_provider {
+                        provcheck_sign::types::KeyProviderKind::Keychain => "keychain",
+                        provcheck_sign::types::KeyProviderKind::EncryptedFile =>
+                            "encrypted-file",
+                    }
+                );
+                println!("  storage:     {}", dir.display());
+                if let Some(did) = &locked.did {
+                    println!("  did:         {}", did);
+                }
+                if let Some(handle) = &locked.handle {
+                    println!("  handle:      @{}", handle);
+                }
+                if !locked.recovery_recipients.is_empty() {
+                    println!();
+                    println!("[recovery recipients]");
+                    for r in &locked.recovery_recipients {
+                        let label = r.label.as_deref().unwrap_or("(no label)");
+                        let prefix_len = 28.min(r.pubkey.len());
+                        let prefix = &r.pubkey[..prefix_len];
+                        println!("  - {prefix}… [{label}] added {}", r.added_at);
+                    }
+                }
+            }
+            Err(_) => {
+                println!("[identity]");
+                println!("  none — run `kit init` to create one");
+                println!("  storage would be: {}", dir.display());
+            }
+        }
+        // Session state is reported in sub-pass 4d when login/logout
+        // become real.
+        println!();
+        println!("[atproto session]");
+        println!("  (status not implemented yet — sub-pass 4d)");
+        Ok(())
+    }
+}
+
 macro_rules! stub_command {
     ($modname:ident, $struct_name:ident, $err_label:literal $(, $field:ident: $ty:ty $(= $attr:meta)?)* $(,)?) => {
         pub mod $modname {
@@ -175,8 +380,6 @@ macro_rules! stub_command {
     };
 }
 
-stub_command!(init, CliArgs, "init");
-stub_command!(status, CliArgs, "status");
 stub_command!(login, CliArgs, "login");
 stub_command!(logout, CliArgs, "logout");
 stub_command!(sign, CliArgs, "sign");
@@ -260,13 +463,15 @@ mod tests {
 
     #[tokio::test]
     async fn stub_run_returns_not_implemented() {
-        // Locks in that the scaffold's stub returns the typed
+        // Locks in that scaffold stubs return the typed
         // NotImplemented error so main.rs's exit-code routing
-        // works without parsing strings.
-        let args = init::CliArgs {
+        // works without parsing strings. Uses `login` (still a
+        // scaffold stub in this sub-pass); update to another
+        // stubbed command if login becomes real.
+        let args = login::CliArgs {
             data_dir: DataDirOpt { data_dir: None },
         };
-        let err = init::run(args).await.expect_err("not implemented");
+        let err = login::run(args).await.expect_err("not implemented");
         let kit_err = err.downcast_ref::<KitError>().expect("downcast");
         assert!(matches!(kit_err, KitError::NotImplemented(_)));
     }
