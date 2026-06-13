@@ -45,6 +45,7 @@ const $attestationSub   = document.getElementById("attestation-sub");
 const $attestationFp    = document.getElementById("attestation-fingerprint");
 const $idHandle       = document.getElementById("identity-handle");
 const $idRequire      = document.getElementById("identity-require-attested");
+const $idAutofillHint = document.getElementById("identity-autofill-hint");
 const $chooseBtn      = document.getElementById("choose-btn");
 const $verifyAgain    = document.getElementById("verify-another");
 const $copyJson       = document.getElementById("copy-json");
@@ -123,6 +124,7 @@ function renderReport(report, path) {
 
   renderAttestation(report.did_attestation);
   renderWatermarks(report.watermarks);
+  applyIdentityAutofill(report.identity);
 
   $kvMain.innerHTML = "";
   const rows = [
@@ -335,18 +337,25 @@ function formatBrand(brand) {
 
 async function verifyPath(path) {
   showLoading(prettyPath(path));
-  const id = loadIdentity();
+  // Read from the live input rather than localStorage so an
+  // auto-filled value (which we deliberately don't persist) is
+  // picked up by this run. localStorage and the live input agree
+  // for typed values; they diverge only when applyIdentityAutofill
+  // has populated the input from a prior file's identity
+  // assertion.
+  const rawHandle = $idHandle ? ($idHandle.value || "").trim() : "";
+  const requireAttested = !!($idRequire && $idRequire.checked);
   // Single text input for both bsky handle and DID — sniff
   // the `did:` prefix to route correctly into the two
   // Tauri command args. Tauri auto-camelCases `require_attested`
   // → `requireAttested` on the JS side.
-  const raw = (id.handle || "").trim();
+  const raw = rawHandle;
   const isDid = raw.startsWith("did:");
   const args = {
     path,
     handle: isDid ? null : (raw || null),
     did: isDid ? raw : null,
-    requireAttested: !!id.requireAttested,
+    requireAttested,
   };
   try {
     const resp = await invoke("verify_file", args);
@@ -397,6 +406,36 @@ function hydrateIdentityInputs() {
   const id = loadIdentity();
   if ($idHandle) $idHandle.value = id.handle || "";
   if ($idRequire) $idRequire.checked = !!id.requireAttested;
+}
+
+// Pre-fill the identity input from a file's app.provcheck.identity
+// assertion, when the field is empty. Never persists to
+// localStorage: the next session opens with whatever the user
+// typed last, not a value sourced from a file that may not be
+// around anymore. The user can override by typing — the input
+// listener clears the autofill hint when they do.
+function applyIdentityAutofill(claim) {
+  if (!$idHandle || !$idAutofillHint) return;
+  if (!claim || typeof claim !== "object") {
+    $idAutofillHint.hidden = true;
+    $idAutofillHint.textContent = "";
+    return;
+  }
+  // Only populate when the field is genuinely empty — never
+  // overwrite the user's input.
+  const liveValue = ($idHandle.value || "").trim();
+  if (liveValue !== "") {
+    $idAutofillHint.hidden = true;
+    return;
+  }
+  const filled = (claim.handle && claim.handle.trim()) || claim.did || "";
+  if (!filled) {
+    $idAutofillHint.hidden = true;
+    return;
+  }
+  $idHandle.value = filled;
+  $idAutofillHint.textContent = "auto-filled from file";
+  $idAutofillHint.hidden = false;
 }
 
 function errorReport(msg) {
@@ -516,7 +555,15 @@ $sampleDoomscroll.addEventListener("keydown", (e) => {
 
 // Identity inputs — hydrate from localStorage, persist on every change.
 if ($idHandle) {
-  $idHandle.addEventListener("input", saveIdentity);
+  $idHandle.addEventListener("input", () => {
+    // User typing clears the "auto-filled from file" annotation —
+    // the value is now their own.
+    if ($idAutofillHint) {
+      $idAutofillHint.hidden = true;
+      $idAutofillHint.textContent = "";
+    }
+    saveIdentity();
+  });
   $idHandle.addEventListener("change", saveIdentity);
 }
 if ($idRequire) {

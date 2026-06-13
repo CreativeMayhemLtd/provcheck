@@ -31,6 +31,10 @@
       <input type="text" id="identity-handle"
              placeholder="optional · e.g. creator.bsky.social or did:plc:…"
              autocomplete="off" spellcheck="false" />
+      <!-- Shown after a file's app.provcheck.identity assertion
+           pre-fills the input. Cleared when the user types or
+           when the next file has no embedded claim. -->
+      <span id="identity-autofill-hint" class="identity-autofill-hint" hidden></span>
     </label>
     <label class="identity-toggle">
       <input type="checkbox" id="identity-require-attested" />

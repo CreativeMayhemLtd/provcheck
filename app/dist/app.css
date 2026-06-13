@@ -167,6 +167,17 @@ body {
 .identity-bar input[type="text"]::placeholder {
   color: var(--text-muted);
 }
+/* Shown when the input was populated by an app.provcheck.identity
+   assertion on a verified file. Visually distinct from a typed
+   value (smaller, dimmer, slightly italic) so the user knows the
+   value didn't come from them and is free to override. */
+.identity-autofill-hint {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  font-style: italic;
+  letter-spacing: 0.2px;
+  margin-top: 1px;
+}
 .identity-toggle {
   display: flex;
   align-items: center;
