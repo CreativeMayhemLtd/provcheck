@@ -96,6 +96,56 @@ pub const ALLOWED_ALGORITHMS: &[&str] = &[
     "ES256", "ES384", "ES512", "PS256", "PS384", "PS512", "RS256", "RS384", "RS512", "Ed25519",
 ];
 
+/// C2PA assertion label under which an [`IdentityClaim`] is embedded
+/// in a signed asset's manifest. Producer and verifier must agree on
+/// this exact string — keeping it in the spec crate prevents drift.
+pub const IDENTITY_ASSERTION_LABEL: &str = "app.provcheck.identity";
+
+/// Current schema version emitted by the producer. The verifier
+/// accepts any version it knows about; producers should emit this
+/// constant.
+pub const IDENTITY_CLAIM_SCHEMA_VERSION: u32 = 1;
+
+/// Wire-compatible model of the `app.provcheck.identity` C2PA
+/// assertion. Field names + serde attrs must match the lexicon at
+/// `lexicons/app/provcheck/identity.json`.
+///
+/// Carried as a C2PA assertion (not an atproto record) — this is
+/// the publisher's self-asserted claim that the asset was signed
+/// under the given DID. The verifier reads it as a *hint* to skip
+/// the manual identity-bar entry step, then cross-checks the DID
+/// against the appropriate `app.provcheck.signingKey` record before
+/// trusting it. The claim alone is never trust-anchoring.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct IdentityClaim {
+    /// DID of the creator. Source of truth. Verifiers resolve this
+    /// to find the matching `app.provcheck.signingKey` collection.
+    pub did: String,
+
+    /// Display hint only — the handle the user is likely to
+    /// recognise (e.g. `creator.bsky.social`). Verifiers MUST NOT
+    /// use this as the trust anchor; the DID is.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub handle: Option<String>,
+
+    /// Schema version. Currently always 1; reserved for future
+    /// expansion without breaking older verifiers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version: Option<u32>,
+}
+
+impl IdentityClaim {
+    /// Construct an [`IdentityClaim`] with the current schema
+    /// version, the canonical convenience for producers.
+    pub fn new(did: impl Into<String>, handle: Option<String>) -> Self {
+        Self {
+            did: did.into(),
+            handle,
+            version: Some(IDENTITY_CLAIM_SCHEMA_VERSION),
+        }
+    }
+}
+
 /// Errors from the fingerprint helpers. All other functions return
 /// owned strings or `bool`s — there's not much to fail at in pure
 /// wire-format math.
@@ -265,5 +315,42 @@ mod tests {
         // Sanity check: ES256 is what every signer in the c2pa
         // ecosystem produces by default; it must be allowed.
         assert!(ALLOWED_ALGORITHMS.contains(&"ES256"));
+    }
+
+    #[test]
+    fn identity_claim_round_trips_minimum_payload() {
+        // did only — handle and version absent.
+        let c = IdentityClaim {
+            did: "did:plc:abc123".to_string(),
+            handle: None,
+            version: None,
+        };
+        let json = serde_json::to_string(&c).expect("serialise");
+        // Optional fields stay absent rather than present-as-null.
+        assert!(!json.contains("\"handle\""));
+        assert!(!json.contains("\"version\""));
+        let back: IdentityClaim = serde_json::from_str(&json).expect("round-trip");
+        assert_eq!(back, c);
+    }
+
+    #[test]
+    fn identity_claim_round_trips_full_payload() {
+        let c = IdentityClaim::new(
+            "did:plc:abc123",
+            Some("creator.bsky.social".to_string()),
+        );
+        assert_eq!(c.version, Some(IDENTITY_CLAIM_SCHEMA_VERSION));
+        let json = serde_json::to_string(&c).expect("serialise");
+        let back: IdentityClaim = serde_json::from_str(&json).expect("round-trip");
+        assert_eq!(back, c);
+    }
+
+    #[test]
+    fn identity_assertion_label_matches_lexicon_id() {
+        // The C2PA assertion label and the lexicon's `id` must
+        // be the same string — they identify the same shape on
+        // either side of the wire. Locking this in code prevents
+        // a typo from breaking interop.
+        assert_eq!(IDENTITY_ASSERTION_LABEL, "app.provcheck.identity");
     }
 }

@@ -1,0 +1,28 @@
+{
+  "lexicon": 1,
+  "id": "app.provcheck.identity",
+  "description": "Embedded identity claim. Carried as a C2PA assertion in a signed asset, this is a self-asserted statement by the signer that the content was created under the atproto identity at the given DID. A verifier should not trust this claim on its own — it MUST be cross-checked against an active app.provcheck.signingKey record under the same DID whose fingerprint matches the C2PA signing certificate. When that cross-check holds, the verifier may auto-populate its identity-bar UI from this claim instead of asking the user to type it.",
+  "defs": {
+    "main": {
+      "type": "object",
+      "required": ["did"],
+      "properties": {
+        "did": {
+          "type": "string",
+          "format": "did",
+          "description": "DID of the creator. Source of truth. Verifiers resolve this DID to find the matching app.provcheck.signingKey collection."
+        },
+        "handle": {
+          "type": "string",
+          "format": "handle",
+          "description": "Display hint only. The handle a user is likely to recognise (e.g. 'creator.bsky.social'); useful for the verifier UI to render before the DID resolution completes. Verifiers MUST NOT use this as the trust anchor — the DID is."
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Schema version of this claim. Currently always 1. Reserved for future expansion of the claim's fields without breaking older verifiers."
+        }
+      }
+    }
+  }
+}
