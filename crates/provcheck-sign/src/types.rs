@@ -30,6 +30,35 @@ use time::OffsetDateTime;
 /// `persist::load_locked` when the version increments.
 pub const IDENTITY_SCHEMA_VERSION: u8 = 1;
 
+/// A registered recovery recipient. X25519 public key in age's
+/// canonical text form (`age1...`), plus an optional human-
+/// readable label and a timestamp recording when it was added.
+///
+/// Registration happens via `kit add-recovery-recipient`. The
+/// recipient is **not** added to the at-rest file
+/// (`signing.key.age` is passphrase-only by age format constraint
+/// — see architectural decision #5 in the plan). It's consumed by
+/// `kit export-backup --use-recovery-recipients` when the user
+/// produces a recovery-recipient-encrypted backup file.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RecoveryRecipient {
+    /// Age public key in the canonical `age1...` text form. The
+    /// publisher / verifier parses this back into an
+    /// `age::x25519::Recipient` at backup-write time.
+    pub pubkey: String,
+
+    /// Optional human-readable label ("studio yubikey", "alice
+    /// escrow", "offline backup safe"). Surfaced by
+    /// `kit list-recovery-recipients`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+
+    /// RFC 3339 timestamp at which the recipient was registered.
+    /// Useful audit signal: "this recipient has been able to
+    /// decrypt every backup produced since 2026-06-14."
+    pub added_at: String,
+}
+
 /// Everything publicly observable about a creator's identity.
 ///
 /// Holds the cert chain (public), the canonical fingerprint that
@@ -72,6 +101,12 @@ pub struct LockedIdentity {
     /// `identity.json` so subsequent loads route through the right
     /// `KeyProvider` impl.
     pub key_provider: KeyProviderKind,
+
+    /// Registered X25519 recovery recipients. Empty for a fresh
+    /// identity; grown via `kit add-recovery-recipient`. Only
+    /// consumed by backup operations — the at-rest file is
+    /// passphrase-only regardless of what's here.
+    pub recovery_recipients: Vec<RecoveryRecipient>,
 }
 
 /// A [`LockedIdentity`] plus the private key in memory.
@@ -157,6 +192,11 @@ pub(crate) struct IdentityFile {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub handle: Option<String>,
     pub key_provider: KeyProviderKind,
+    /// Registered X25519 recovery recipients. `#[serde(default)]`
+    /// so identity.json files written by older builds load
+    /// cleanly into newer ones (the field reads as empty Vec).
+    #[serde(default)]
+    pub recovery_recipients: Vec<RecoveryRecipient>,
 }
 
 #[cfg(test)]
@@ -174,6 +214,7 @@ mod tests {
             handle: None,
             created_at: OffsetDateTime::UNIX_EPOCH,
             key_provider: KeyProviderKind::EncryptedFile,
+            recovery_recipients: vec![],
         };
         let unlocked = UnlockedIdentity::new(
             locked,
@@ -200,6 +241,7 @@ mod tests {
             handle: None,
             created_at: OffsetDateTime::UNIX_EPOCH,
             key_provider: KeyProviderKind::Keychain,
+            recovery_recipients: vec![],
         };
         let unlocked =
             UnlockedIdentity::new(locked.clone(), SecretString::new("secret".into()));
@@ -229,6 +271,7 @@ mod tests {
             did: Some("did:plc:abc".into()),
             handle: Some("creator.bsky.social".into()),
             key_provider: KeyProviderKind::EncryptedFile,
+            recovery_recipients: vec![],
         };
         let json = serde_json::to_string(&full).expect("ser");
         let back: IdentityFile = serde_json::from_str(&json).expect("de");
@@ -245,6 +288,7 @@ mod tests {
             did: None,
             handle: None,
             key_provider: KeyProviderKind::Keychain,
+            recovery_recipients: vec![],
         };
         let json = serde_json::to_string(&minimal).expect("ser");
         assert!(!json.contains("\"did\""));
@@ -264,6 +308,7 @@ mod tests {
                 handle: None,
                 created_at: OffsetDateTime::UNIX_EPOCH,
                 key_provider: KeyProviderKind::Keychain,
+                recovery_recipients: vec![],
             },
             SecretString::new("the-key-bytes".into()),
         );

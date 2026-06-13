@@ -27,16 +27,18 @@
 //! See `C:\Users\Administrator\.claude\plans\ok-its-been-a-replicated-wadler.md`
 //! Phase 2 for the full design.
 
+pub mod backup;
 pub mod cache;
 pub mod cert;
 pub mod persist;
 pub mod providers;
 pub mod types;
 
+pub use backup::{BackupBundle, BackupSummary};
 pub use cache::{Clock, DEFAULT_TTL, SecretCache, SystemClock};
 pub use cert::{GeneratedKeypair, SubjectInfo};
 pub use providers::{AgeFileProvider, KeyProvider, KeychainProvider};
-pub use types::{KeyProviderKind, LockedIdentity, UnlockedIdentity};
+pub use types::{KeyProviderKind, LockedIdentity, RecoveryRecipient, UnlockedIdentity};
 
 /// Top-level errors from the crate. Each module surfaces its own
 /// typed variant; this enum aggregates them for callers that want
@@ -49,4 +51,6 @@ pub enum Error {
     Persist(#[from] persist::PersistError),
     #[error("key provider: {0}")]
     Provider(#[from] providers::ProviderError),
+    #[error("backup: {0}")]
+    Backup(#[from] backup::BackupError),
 }

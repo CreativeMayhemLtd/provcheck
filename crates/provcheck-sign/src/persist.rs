@@ -147,6 +147,7 @@ pub fn save_public_artefacts(dir: &Path, locked: &LockedIdentity) -> Result<(), 
         did: locked.did.clone(),
         handle: locked.handle.clone(),
         key_provider: locked.key_provider,
+        recovery_recipients: locked.recovery_recipients.clone(),
     };
     let json = serde_json::to_string_pretty(&file)
         .map_err(|e| PersistError::IdentityJson(format!("serialize: {e}")))?;
@@ -228,6 +229,7 @@ pub fn load_locked(dir: &Path) -> Result<LockedIdentity, PersistError> {
         handle: file.handle,
         created_at,
         key_provider: file.key_provider,
+        recovery_recipients: file.recovery_recipients,
     })
 }
 
@@ -247,6 +249,7 @@ mod tests {
             handle: Some("test.bsky.social".to_string()),
             created_at: OffsetDateTime::UNIX_EPOCH,
             key_provider: kind,
+            recovery_recipients: vec![],
         }
     }
 
