@@ -41,6 +41,21 @@ time = { version = "0.3", features = ["parsing", "formatting", "serde", "macros"
 # Key custody — common to all backends.
 secrecy = "0.10"
 zeroize = { version = "1.8", features = ["derive"] }
+# OS keychain abstraction: macOS Keychain Services, Windows
+# Credential Manager, Linux Secret Service.
+#
+# keyring 3 ships zero default features — platform-native backends
+# are opt-in. We enable all three per-OS native paths so the same
+# Cargo.toml works on every target; the per-target cfg in
+# keyring's own Cargo.toml means only the right deps get pulled in
+# for each build. `crypto-rust` keeps the Linux secret-service path
+# off of system OpenSSL (we want pure-Rust everywhere).
+keyring = { version = "3", features = [
+    "apple-native",
+    "windows-native",
+    "linux-native-sync-persistent",
+    "crypto-rust",
+] }
 
 # AgeFileProvider: at-rest encryption via the age format. age does
 # the actual crypto (scrypt for the passphrase recipient stanza,

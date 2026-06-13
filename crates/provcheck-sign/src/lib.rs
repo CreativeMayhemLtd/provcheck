@@ -33,7 +33,7 @@ pub mod providers;
 pub mod types;
 
 pub use cert::{GeneratedKeypair, SubjectInfo};
-pub use providers::{AgeFileProvider, KeyProvider};
+pub use providers::{AgeFileProvider, KeyProvider, KeychainProvider};
 pub use types::{KeyProviderKind, LockedIdentity, UnlockedIdentity};
 
 /// Top-level errors from the crate. Each module surfaces its own

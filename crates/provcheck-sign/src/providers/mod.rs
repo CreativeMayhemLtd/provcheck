@@ -27,8 +27,10 @@
 //! the trait implementation-agnostic.
 
 pub mod age_file;
+pub mod keychain;
 
 pub use age_file::AgeFileProvider;
+pub use keychain::KeychainProvider;
 
 use std::path::Path;
 
@@ -84,6 +86,15 @@ pub enum ProviderError {
     #[error("age format: {0}")]
     AgeFormat(String),
 
+    /// Operational failure inside the OS keychain backend —
+    /// keychain unavailable, ambiguous match, encoding issue,
+    /// platform-specific error. The inner string carries the
+    /// keyring crate's structured detail. `NoEntry` is handled
+    /// separately in the keychain provider (it maps to `Io` with
+    /// `NotFound` kind to match the file backend's semantics).
+    #[error("keychain backend: {0}")]
+    Keychain(String),
+
     /// Filesystem error reading or writing the stored material.
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
@@ -111,22 +122,37 @@ pub trait KeyProvider {
     fn kind(&self) -> KeyProviderKind;
 
     /// Persist `key_pem` somewhere durable. Called once at
-    /// identity-creation time. The `new_passphrase` callback is
-    /// invoked for backends that need a passphrase to wrap the key
-    /// (the file backend does; the keychain backend doesn't —
-    /// implementations are free to ignore the closure).
+    /// identity-creation time.
+    ///
+    /// `fingerprint` is the canonical `sha256:<hex>` of the leaf
+    /// certificate. Backends like [`KeychainProvider`] use it as
+    /// the credential's account identifier so a single keychain
+    /// can hold multiple provcheck-kit identities side-by-side;
+    /// the file backend ignores it (the path under `dir` is
+    /// enough). Including it on every call removes a chicken-and-
+    /// egg with identity.json — the keychain entry has to be
+    /// writeable before the on-disk metadata exists.
+    ///
+    /// The `new_passphrase` callback is invoked for backends that
+    /// need a passphrase to wrap the key (the file backend does;
+    /// the keychain backend doesn't — implementations are free to
+    /// ignore the closure).
     fn store(
         &self,
         dir: &Path,
+        fingerprint: &str,
         key_pem: &SecretString,
         new_passphrase: &mut dyn FnMut(NewPassphrasePrompt) -> PassphraseResult,
     ) -> Result<(), ProviderError>;
 
     /// Retrieve the previously-stored `key_pem`. Called whenever a
-    /// sign / export / rotate operation needs the secret. The
-    /// `passphrase` callback is invoked for backends that need a
-    /// passphrase to unwrap; backends that don't (the keychain)
-    /// leave the closure unused.
+    /// sign / export / rotate operation needs the secret.
+    ///
+    /// `fingerprint` selects which credential to fetch from
+    /// backends that hold multiple. The `passphrase` callback is
+    /// invoked for backends that need a passphrase to unwrap;
+    /// backends that don't (the keychain) leave the closure
+    /// unused.
     ///
     /// Retry policy lives at the *caller* level, not here: this
     /// method prompts once. The CLI wraps it in a small loop that
@@ -134,6 +160,7 @@ pub trait KeyProvider {
     fn fetch(
         &self,
         dir: &Path,
+        fingerprint: &str,
         passphrase: &mut dyn FnMut(UnlockPrompt) -> PassphraseResult,
     ) -> Result<SecretString, ProviderError>;
 
@@ -141,5 +168,5 @@ pub trait KeyProvider {
     /// already-absent key is `Ok(())`, not an error. Called by
     /// `rotate` (after the new key has been persisted) and by an
     /// explicit `kit wipe` command.
-    fn delete(&self, dir: &Path) -> Result<(), ProviderError>;
+    fn delete(&self, dir: &Path, fingerprint: &str) -> Result<(), ProviderError>;
 }

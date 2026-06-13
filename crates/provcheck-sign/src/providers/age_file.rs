@@ -56,6 +56,7 @@ impl KeyProvider for AgeFileProvider {
     fn store(
         &self,
         dir: &Path,
+        _fingerprint: &str,
         key_pem: &SecretString,
         new_passphrase: &mut dyn FnMut(NewPassphrasePrompt) -> PassphraseResult,
     ) -> Result<(), ProviderError> {
@@ -103,6 +104,7 @@ impl KeyProvider for AgeFileProvider {
     fn fetch(
         &self,
         dir: &Path,
+        _fingerprint: &str,
         passphrase: &mut dyn FnMut(UnlockPrompt) -> PassphraseResult,
     ) -> Result<SecretString, ProviderError> {
         let path = age_key_path(dir);
@@ -136,7 +138,7 @@ impl KeyProvider for AgeFileProvider {
         }
     }
 
-    fn delete(&self, dir: &Path) -> Result<(), ProviderError> {
+    fn delete(&self, dir: &Path, _fingerprint: &str) -> Result<(), ProviderError> {
         let path = age_key_path(dir);
         match fs::remove_file(&path) {
             Ok(()) => Ok(()),
@@ -155,17 +157,22 @@ mod tests {
     /// Build a `new_passphrase` callback that returns a fixed
     /// passphrase. Useful for tests; the real CLI binary uses
     /// rpassword behind a similar closure.
-    fn fixed_new(pass: &'static str) -> impl FnMut(NewPassphrasePrompt) -> PassphraseResult + '_ {
+    fn fixed_new(pass: &'static str) -> impl FnMut(NewPassphrasePrompt) -> PassphraseResult + 'static {
         move |_| Ok(SecretString::from(pass.to_string()))
     }
 
-    fn fixed_unlock(pass: &'static str) -> impl FnMut(UnlockPrompt) -> PassphraseResult + '_ {
+    fn fixed_unlock(pass: &'static str) -> impl FnMut(UnlockPrompt) -> PassphraseResult + 'static {
         move |_| Ok(SecretString::from(pass.to_string()))
     }
 
     /// Sample key PEM used as the plaintext. Content doesn't matter
     /// for the round-trip — only that the bytes survive intact.
     const SAMPLE_KEY: &str = "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg\n-----END PRIVATE KEY-----\n";
+
+    /// Dummy fingerprint for tests. The AgeFileProvider ignores it
+    /// (only the keychain backend cares); pass the same value
+    /// through every call.
+    const FP: &str = "sha256:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
 
     #[test]
     fn kind_reports_encrypted_file() {
@@ -180,7 +187,7 @@ mod tests {
         let plaintext = SecretString::from(SAMPLE_KEY.to_string());
 
         provider
-            .store(dir.path(), &plaintext, &mut fixed_new("correct horse battery staple"))
+            .store(dir.path(), FP, &plaintext, &mut fixed_new("correct horse battery staple"))
             .expect("store succeeds");
 
         // The file exists on disk and is non-trivially-sized.
@@ -191,7 +198,7 @@ mod tests {
 
         // The fetch path returns exactly the original plaintext.
         let recovered = provider
-            .fetch(dir.path(), &mut fixed_unlock("correct horse battery staple"))
+            .fetch(dir.path(), FP, &mut fixed_unlock("correct horse battery staple"))
             .expect("fetch succeeds");
         assert_eq!(recovered.expose_secret(), SAMPLE_KEY);
     }
@@ -203,11 +210,11 @@ mod tests {
         let plaintext = SecretString::from(SAMPLE_KEY.to_string());
 
         provider
-            .store(dir.path(), &plaintext, &mut fixed_new("right one"))
+            .store(dir.path(), FP, &plaintext, &mut fixed_new("right one"))
             .expect("store succeeds");
 
         let err = provider
-            .fetch(dir.path(), &mut fixed_unlock("wrong one"))
+            .fetch(dir.path(), FP, &mut fixed_unlock("wrong one"))
             .expect_err("fetch should fail with wrong passphrase");
         assert!(
             matches!(err, ProviderError::AuthenticationFailed),
@@ -224,21 +231,21 @@ mod tests {
         let v2 = SecretString::from("second version".to_string());
 
         provider
-            .store(dir.path(), &v1, &mut fixed_new("pass1"))
+            .store(dir.path(), FP, &v1, &mut fixed_new("pass1"))
             .expect("store v1");
         provider
-            .store(dir.path(), &v2, &mut fixed_new("pass2"))
+            .store(dir.path(), FP, &v2, &mut fixed_new("pass2"))
             .expect("store v2 (overwrites)");
 
         // v1's passphrase should no longer work.
         let err = provider
-            .fetch(dir.path(), &mut fixed_unlock("pass1"))
+            .fetch(dir.path(), FP, &mut fixed_unlock("pass1"))
             .expect_err("v1 passphrase rejected after overwrite");
         assert!(matches!(err, ProviderError::AuthenticationFailed));
 
         // v2's does.
         let recovered = provider
-            .fetch(dir.path(), &mut fixed_unlock("pass2"))
+            .fetch(dir.path(), FP, &mut fixed_unlock("pass2"))
             .expect("v2 passphrase unlocks");
         assert_eq!(recovered.expose_secret(), "second version");
     }
@@ -248,7 +255,7 @@ mod tests {
         let dir = TempDir::new().expect("tempdir");
         let provider = AgeFileProvider::new();
         let err = provider
-            .fetch(dir.path(), &mut fixed_unlock("anything"))
+            .fetch(dir.path(), FP, &mut fixed_unlock("anything"))
             .expect_err("no file to fetch");
         match err {
             ProviderError::Io(io) => assert_eq!(io.kind(), std::io::ErrorKind::NotFound),
@@ -263,13 +270,14 @@ mod tests {
         provider
             .store(
                 dir.path(),
+                FP,
                 &SecretString::from(SAMPLE_KEY.to_string()),
                 &mut fixed_new("pass"),
             )
             .expect("store");
 
         assert!(age_key_path(dir.path()).exists());
-        provider.delete(dir.path()).expect("delete");
+        provider.delete(dir.path(), FP).expect("delete");
         assert!(!age_key_path(dir.path()).exists());
     }
 
@@ -277,7 +285,9 @@ mod tests {
     fn delete_is_idempotent_when_file_absent() {
         let dir = TempDir::new().expect("tempdir");
         let provider = AgeFileProvider::new();
-        provider.delete(dir.path()).expect("delete on missing file is Ok");
+        provider
+            .delete(dir.path(), FP)
+            .expect("delete on missing file is Ok");
     }
 
     #[test]
@@ -290,6 +300,7 @@ mod tests {
         provider
             .store(
                 dir.path(),
+                FP,
                 &SecretString::from(SAMPLE_KEY.to_string()),
                 &mut fixed_new("pass"),
             )
@@ -307,6 +318,7 @@ mod tests {
         provider
             .store(
                 dir.path(),
+                FP,
                 &SecretString::from(SAMPLE_KEY.to_string()),
                 &mut fixed_new("pass"),
             )
@@ -326,6 +338,7 @@ mod tests {
         let err = provider
             .store(
                 dir.path(),
+                FP,
                 &SecretString::from(SAMPLE_KEY.to_string()),
                 &mut canceller,
             )
@@ -344,13 +357,14 @@ mod tests {
         provider
             .store(
                 dir.path(),
+                FP,
                 &SecretString::from(SAMPLE_KEY.to_string()),
                 &mut fixed_new("the right one"),
             )
             .expect("store");
         let mut canceller = |_: UnlockPrompt| Err(ProviderError::UserCancelled);
         let err = provider
-            .fetch(dir.path(), &mut canceller)
+            .fetch(dir.path(), FP, &mut canceller)
             .expect_err("cancellation propagates");
         assert!(matches!(err, ProviderError::UserCancelled));
     }
