@@ -15,6 +15,7 @@ name = "provcheck_platform"
 
 [dependencies]
 provcheck = { path = "../provcheck" }
+provcheck-attestation-spec = { path = "../provcheck-attestation-spec" }
 # Inherit feature set from workspace (no default features,
 # `rust_native_crypto` + `file_io`) so the build doesn't need OpenSSL.
 c2pa.workspace = true

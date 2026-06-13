@@ -23,25 +23,12 @@ const COLLECTION: &str = "app.provcheck.signingKey";
 
 // ---------- typed PDS records -------------------------------------------
 
-/// Schema of an `app.provcheck.signingKey` record. Mirrors the lexicon
-/// at `lexicons/app/provcheck/signingKey.json`. Only fields the
-/// attestation logic consumes are required; others are optional and
-/// ignored when missing.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SigningKeyRecord {
-    #[serde(rename = "createdAt")]
-    pub created_at: String,
-    pub fingerprint: String,
-    pub algorithm: String,
-    #[serde(default)]
-    pub label: Option<String>,
-    #[serde(rename = "validFrom", default)]
-    pub valid_from: Option<String>,
-    #[serde(rename = "validUntil", default)]
-    pub valid_until: Option<String>,
-    #[serde(rename = "supersededBy", default)]
-    pub superseded_by: Option<String>,
-}
+// `SigningKeyRecord` is the shared wire-format type in
+// `provcheck-attestation-spec`. Re-export here so existing
+// `crate::network::SigningKeyRecord` paths inside this crate keep
+// working without churn during the refactor; downstream consumers
+// should prefer the spec crate directly.
+pub use provcheck_attestation_spec::SigningKeyRecord;
 
 // ---------- handle resolution -------------------------------------------
 

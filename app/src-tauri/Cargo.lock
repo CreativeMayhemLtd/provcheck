@@ -3980,7 +3980,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "c2pa",
  "serde",
@@ -3990,7 +3990,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-app"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "provcheck",
  "provcheck-audioseal",
@@ -4004,8 +4004,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "provcheck-attestation-spec"
+version = "0.3.0"
+dependencies = [
+ "pem",
+ "serde",
+ "sha2",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "provcheck-audioseal"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "provcheck",
  "serde",
@@ -4015,12 +4025,13 @@ dependencies = [
 
 [[package]]
 name = "provcheck-platform"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "c2pa",
  "dirs 5.0.1",
  "pem",
  "provcheck",
+ "provcheck-attestation-spec",
  "serde",
  "serde_json",
  "sha2",
@@ -4031,7 +4042,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-watermark"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "provcheck",
  "realfft",
@@ -4045,7 +4056,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-wavmark"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "provcheck",
  "serde",

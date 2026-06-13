@@ -2347,7 +2347,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "c2pa",
  "hound",
@@ -2359,8 +2359,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "provcheck-attestation-spec"
+version = "0.3.0"
+dependencies = [
+ "pem",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "provcheck-audioseal"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "provcheck",
  "serde",
@@ -2371,7 +2382,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-cli"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -2385,7 +2396,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-examples"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "c2pa",
@@ -2395,13 +2406,14 @@ dependencies = [
 
 [[package]]
 name = "provcheck-platform"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "c2pa",
  "dirs",
  "hound",
  "pem",
  "provcheck",
+ "provcheck-attestation-spec",
  "rcgen",
  "serde",
  "serde_json",
@@ -2414,7 +2426,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-watermark"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "hound",
  "provcheck",
@@ -2430,7 +2442,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-wavmark"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "provcheck",
  "serde",

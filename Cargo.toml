@@ -2,6 +2,7 @@
 members = [
     "crates/provcheck",
     "crates/provcheck-platform",
+    "crates/provcheck-attestation-spec",
     "crates/provcheck-watermark",
     "crates/provcheck-audioseal",
     "crates/provcheck-wavmark",
@@ -11,7 +12,7 @@ members = [
 resolver = "3"
 
 [workspace.package]
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 rust-version = "1.85"
 license = "Apache-2.0"

@@ -19,13 +19,18 @@
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use sha2::{Digest, Sha256};
-
 use provcheck::Error;
 use provcheck::report::{AttestationStatus, DidAttestation, Report};
 use provcheck::verification::{VerifyOptions, verify_with_options};
 
 use crate::network::{SigningKeyRecord, list_signing_keys, resolve_handle, resolve_pds_endpoint};
+
+// Re-export the canonical fingerprint computation from the shared
+// spec crate under the original name so existing public API consumers
+// (and the integration tests below) keep compiling without rename
+// churn. New code should reach for `provcheck_attestation_spec::
+// fingerprint_pem_chain` directly.
+pub use provcheck_attestation_spec::fingerprint_pem_chain as fingerprint_leaf_cert;
 
 /// Per-call attestation transport configuration. Tests use the
 /// `*_override` fields to redirect HTTP at a localhost mock; production
@@ -69,30 +74,6 @@ impl From<&AttestationOptions> for AttestationConfig {
             ..Default::default()
         }
     }
-}
-
-/// Compute the canonical SHA-256 fingerprint of the leaf certificate
-/// from a PEM-encoded chain (as exposed by
-/// `c2pa::SignatureInfo::cert_chain`). Returns `sha256:<lowercase-hex>`.
-pub fn fingerprint_leaf_cert(pem_chain: &str) -> Result<String, String> {
-    let parsed = pem::parse_many(pem_chain).map_err(|e| format!("PEM parse failed: {e}"))?;
-    let leaf = parsed
-        .iter()
-        .find(|p| p.tag() == "CERTIFICATE")
-        .ok_or_else(|| "no CERTIFICATE block found in cert chain".to_string())?;
-    let mut hasher = Sha256::new();
-    hasher.update(leaf.contents());
-    let digest = hasher.finalize();
-    Ok(format!("sha256:{}", hex_lower(&digest[..])))
-}
-
-fn hex_lower(bytes: &[u8]) -> String {
-    use std::fmt::Write;
-    let mut s = String::with_capacity(bytes.len() * 2);
-    for b in bytes {
-        let _ = write!(s, "{:02x}", b);
-    }
-    s
 }
 
 /// Run the attestation check. Best-effort: never panics, never returns

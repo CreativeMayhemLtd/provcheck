@@ -1,0 +1,23 @@
+[package]
+name = "provcheck-attestation-spec"
+description = "Wire-format types for app.provcheck.signingKey records: shared between provcheck-platform (verifier) and provcheck-publish (artist tool) so the two sides cannot drift on the on-the-wire contract."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+
+[lib]
+name = "provcheck_attestation_spec"
+
+[dependencies]
+serde.workspace = true
+thiserror.workspace = true
+sha2 = "0.10"
+pem = "3"
+
+[dev-dependencies]
+serde_json.workspace = true
