@@ -368,9 +368,10 @@ pub mod sign {
     use anyhow::{Context, Result};
     use clap::Args;
 
+    use provcheck_attestation_spec::IdentityClaim;
     use provcheck_sign::persist::{default_dir, load_locked};
     use provcheck_sign::providers::{AgeFileProvider, KeyProvider, KeychainProvider};
-    use provcheck_sign::sign::sign_asset;
+    use provcheck_sign::sign::{embed_identity_assertion, sign_asset};
     use provcheck_sign::types::{KeyProviderKind, UnlockedIdentity};
 
     use crate::prompts::unlock_passphrase;
@@ -425,25 +426,37 @@ pub mod sign {
         };
         let unlocked = UnlockedIdentity::new(locked, key_pem);
 
-        let manifest_json = match &args.manifest {
+        let base_manifest = match &args.manifest {
             Some(p) => std::fs::read_to_string(p)
                 .with_context(|| format!("read manifest from {}", p.display()))?,
             None => default_manifest(&args.file)?,
+        };
+
+        let manifest_json = if args.embed_identity {
+            let did = unlocked.locked.did.clone().ok_or_else(|| {
+                anyhow::anyhow!(
+                    "--embed-identity requires a DID on the local identity. \
+                     Run `kit login` first so the identity has its did + handle \
+                     stamped on identity.json."
+                )
+            })?;
+            let claim = IdentityClaim::new(did, unlocked.locked.handle.clone());
+            embed_identity_assertion(&base_manifest, &claim)
+                .context("splice app.provcheck.identity assertion into manifest")?
+        } else {
+            base_manifest
         };
 
         let dst = args.out.clone().unwrap_or_else(|| args.file.clone());
         let result = sign_asset(&unlocked, &args.file, &dst, &manifest_json)
             .context("c2pa sign_asset")?;
 
-        if args.embed_identity {
-            eprintln!(
-                "note: --embed-identity is a no-op until the app.provcheck.identity \
-                 lexicon and verifier extraction land (Phase 5)."
-            );
-        }
-
         eprintln!("✓ Signed {} → {}", args.file.display(), result.output_path.display());
         eprintln!("  manifest bytes: {}", result.manifest_bytes.len());
+        if args.embed_identity {
+            eprintln!("  identity assertion: embedded ({})",
+                unlocked.locked.did.as_deref().unwrap_or("?"));
+        }
         Ok(())
     }
 

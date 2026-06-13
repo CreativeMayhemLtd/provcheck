@@ -18,6 +18,7 @@
 
 use std::path::{Path, PathBuf};
 
+use provcheck_attestation_spec::{IDENTITY_ASSERTION_LABEL, IdentityClaim};
 use secrecy::ExposeSecret;
 
 use crate::types::UnlockedIdentity;
@@ -109,6 +110,54 @@ pub fn sign_asset(
         output_path: dst.to_path_buf(),
         manifest_bytes,
     })
+}
+
+/// Splice the `app.provcheck.identity` assertion into the
+/// `assertions` array of a Builder manifest JSON. Idempotent: if an
+/// assertion with the same label is already present, it gets
+/// replaced (the new claim wins). The returned string is a fresh
+/// JSON document ready to hand to [`sign_asset`].
+///
+/// Failure modes:
+/// - manifest doesn't parse as JSON → [`SignError::ManifestJson`].
+/// - manifest's top-level shape isn't a JSON object → likewise.
+/// - manifest's `assertions` key is present but isn't an array
+///   → likewise. Missing `assertions` is fine; it gets added.
+///
+/// Use this from the producer-side CLI (provcheck-kit) when the
+/// user passes `--embed-identity`. A library consumer calling
+/// `sign_asset` directly can use it the same way.
+pub fn embed_identity_assertion(
+    manifest_json: &str,
+    claim: &IdentityClaim,
+) -> Result<String, SignError> {
+    let mut value: serde_json::Value = serde_json::from_str(manifest_json)
+        .map_err(|e| SignError::ManifestJson(e.to_string()))?;
+    let obj = value
+        .as_object_mut()
+        .ok_or_else(|| SignError::ManifestJson("manifest top-level is not an object".into()))?;
+
+    let entry = serde_json::json!({
+        "label": IDENTITY_ASSERTION_LABEL,
+        "data": claim,
+    });
+
+    let assertions = obj
+        .entry("assertions".to_string())
+        .or_insert_with(|| serde_json::Value::Array(Vec::new()));
+    let arr = assertions.as_array_mut().ok_or_else(|| {
+        SignError::ManifestJson("manifest 'assertions' is present but not an array".into())
+    })?;
+
+    // Replace any pre-existing assertion with the same label so
+    // re-running embed is idempotent (calling it twice doesn't
+    // produce two identity assertions).
+    arr.retain(|a| {
+        a.get("label").and_then(|l| l.as_str()) != Some(IDENTITY_ASSERTION_LABEL)
+    });
+    arr.push(entry);
+
+    serde_json::to_string(&value).map_err(|e| SignError::ManifestJson(e.to_string()))
 }
 
 #[cfg(test)]
@@ -249,6 +298,112 @@ mod tests {
 
         let err = sign_asset(&identity, &src, &dst, &minimal_wav_manifest()).expect_err("");
         assert!(matches!(err, SignError::UnknownAlgorithm(_)), "got {err:?}");
+    }
+
+    #[test]
+    fn embed_identity_assertion_adds_to_empty_assertions() {
+        let manifest = serde_json::json!({
+            "claim_generator": "test/0",
+            "format": "audio/wav",
+            "title": "x",
+        })
+        .to_string();
+        let claim = IdentityClaim::new("did:plc:abc", Some("creator.bsky.social".into()));
+        let out = embed_identity_assertion(&manifest, &claim).expect("embed");
+        let v: serde_json::Value = serde_json::from_str(&out).expect("parse");
+        let arr = v["assertions"].as_array().expect("assertions present");
+        assert_eq!(arr.len(), 1);
+        assert_eq!(arr[0]["label"], IDENTITY_ASSERTION_LABEL);
+        assert_eq!(arr[0]["data"]["did"], "did:plc:abc");
+        assert_eq!(arr[0]["data"]["handle"], "creator.bsky.social");
+    }
+
+    #[test]
+    fn embed_identity_assertion_appends_to_existing_assertions() {
+        let manifest = serde_json::json!({
+            "format": "audio/wav",
+            "assertions": [{"label": "c2pa.actions.v2", "data": {"actions": []}}],
+        })
+        .to_string();
+        let claim = IdentityClaim::new("did:plc:abc", None);
+        let out = embed_identity_assertion(&manifest, &claim).expect("embed");
+        let v: serde_json::Value = serde_json::from_str(&out).expect("parse");
+        let arr = v["assertions"].as_array().expect("assertions present");
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0]["label"], "c2pa.actions.v2");
+        assert_eq!(arr[1]["label"], IDENTITY_ASSERTION_LABEL);
+    }
+
+    #[test]
+    fn embed_identity_assertion_is_idempotent() {
+        let manifest = serde_json::json!({"format": "audio/wav"}).to_string();
+        let claim1 = IdentityClaim::new("did:plc:abc", None);
+        let once = embed_identity_assertion(&manifest, &claim1).expect("embed 1");
+        let twice = embed_identity_assertion(&once, &claim1).expect("embed 2");
+        let v: serde_json::Value = serde_json::from_str(&twice).expect("parse");
+        let arr = v["assertions"].as_array().expect("assertions present");
+        assert_eq!(arr.len(), 1, "second embed replaces rather than duplicates");
+    }
+
+    #[test]
+    fn embed_identity_assertion_replaces_stale_did() {
+        let manifest = serde_json::json!({"format": "audio/wav"}).to_string();
+        let old = IdentityClaim::new("did:plc:OLD", None);
+        let new = IdentityClaim::new("did:plc:NEW", None);
+        let stage1 = embed_identity_assertion(&manifest, &old).expect("embed 1");
+        let stage2 = embed_identity_assertion(&stage1, &new).expect("embed 2");
+        let v: serde_json::Value = serde_json::from_str(&stage2).expect("parse");
+        let arr = v["assertions"].as_array().expect("assertions present");
+        assert_eq!(arr.len(), 1);
+        assert_eq!(arr[0]["data"]["did"], "did:plc:NEW");
+    }
+
+    #[test]
+    fn embed_identity_assertion_rejects_non_object_manifest() {
+        let err = embed_identity_assertion("[]", &IdentityClaim::new("did:plc:abc", None))
+            .expect_err("rejected");
+        assert!(matches!(err, SignError::ManifestJson(_)));
+    }
+
+    #[test]
+    fn embed_identity_assertion_rejects_invalid_assertions_shape() {
+        let manifest = serde_json::json!({
+            "format": "audio/wav",
+            "assertions": "not an array",
+        })
+        .to_string();
+        let err =
+            embed_identity_assertion(&manifest, &IdentityClaim::new("did:plc:abc", None))
+                .expect_err("rejected");
+        assert!(matches!(err, SignError::ManifestJson(_)));
+    }
+
+    #[test]
+    fn sign_with_identity_assertion_round_trips() {
+        // End-to-end: build manifest, embed identity, sign, read back,
+        // and assert the assertion is present in the signed file's
+        // active manifest with the right did + handle.
+        let dir = TempDir::new().expect("tempdir");
+        let src = dir.path().join("src.wav");
+        let dst = dir.path().join("signed.wav");
+        write_silent_wav(&src);
+        let identity = fresh_identity();
+
+        let claim = IdentityClaim::new("did:plc:roundtrip", Some("rt.bsky.social".into()));
+        let manifest = embed_identity_assertion(&minimal_wav_manifest(), &claim).expect("embed");
+        sign_asset(&identity, &src, &dst, &manifest).expect("sign");
+
+        let reader = c2pa::Reader::from_file(&dst).expect("reader");
+        let active = reader.active_manifest().expect("active manifest");
+        let labels: Vec<String> = active
+            .assertions()
+            .iter()
+            .map(|a| a.label().to_string())
+            .collect();
+        assert!(
+            labels.iter().any(|l| l == IDENTITY_ASSERTION_LABEL || l.starts_with(&format!("{IDENTITY_ASSERTION_LABEL}.")) || l.starts_with(&format!("{IDENTITY_ASSERTION_LABEL}__"))),
+            "identity assertion present in signed file: {labels:?}"
+        );
     }
 
     #[test]
