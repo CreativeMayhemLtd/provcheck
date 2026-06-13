@@ -1,44 +1,54 @@
-//! atproto session management — login, load/save, refresh.
+//! atproto session management — login, load/save, logout.
 //!
-//! **Scaffold only in this commit.** The function bodies return
-//! `SessionError::NotImplemented` placeholders so the public API
-//! compiles. The wire-up to `atrium-api`'s session APIs lands in
-//! Phase 3 sub-pass 2.
+//! Built on `atrium_api::agent::atp_agent::AtpAgent` with a
+//! `MemorySessionStore` for the live session and our own
+//! `session.json` on disk for cross-process persistence. The
+//! agent handles JWT refresh internally on 401 responses; we
+//! just rewrite `session.json` from the agent's current state on
+//! every `save_session`.
 //!
-//! Implementation notes for sub-pass 2:
+//! ## What's on disk
 //!
-//! - Use `atrium_xrpc_client::reqwest::ReqwestClient` as the
-//!   transport.
-//! - `com.atproto.server.create_session` for login (app password
-//!   in the password field, handle in the identifier field).
-//! - `com.atproto.server.refresh_session` for refresh when the
-//!   access JWT expires. Refresh JWTs are single-use per the
-//!   atproto spec — serialise refresh writes via a Mutex.
-//! - Persist `session.json` with owner-only perms on Unix (0o600)
-//!   under `{dir}/session.json`.
-//! - If both JWTs are expired, surface `SessionError::SessionExpired`
-//!   so the CLI binary can prompt the user for a fresh login.
+//! `{dir}/session.json` — owner-only file perms on Unix (0o600).
+//! Holds the four fields needed to resume a session via
+//! `AtpAgent::resume_session`:
+//!
+//! - `did` — the user's atproto identifier
+//! - `handle` — the user's bsky handle (display hint)
+//! - `pds` — the PDS host the session was created against
+//! - `access_jwt` / `refresh_jwt` — the auth tokens
+//!
+//! Atrium tracks JWT expiry itself; we don't duplicate that
+//! state. When both JWTs are expired, `resume_session` /
+//! `refresh_session` fail and we surface
+//! `SessionError::SessionExpired` — the CLI binary maps that to
+//! exit code 3 (user must `kit login` again).
 
 use std::path::{Path, PathBuf};
 
+use atrium_api::agent::atp_agent::{AtpAgent, AtpSession};
+use atrium_api::agent::atp_agent::store::MemorySessionStore;
+use atrium_api::com::atproto::server::create_session::OutputData as SessionOutputData;
+use atrium_api::types::Object;
+use atrium_api::types::string::{Did, Handle};
+use atrium_xrpc_client::reqwest::ReqwestClient;
 use serde::{Deserialize, Serialize};
 
 /// Errors from the session layer.
 #[derive(Debug, thiserror::Error)]
 pub enum SessionError {
-    /// Sub-pass 2 placeholder. Function body isn't implemented yet.
-    /// Locks in the compile-time surface without pretending we have
-    /// a working session flow.
-    #[error("not implemented: {0} — lands in Phase 3 sub-pass 2")]
-    NotImplemented(&'static str),
-
     /// The access JWT was rejected and the refresh JWT was either
     /// missing, expired, or refused. The CLI binary maps this to
-    /// exit code 3 (session expired, needs `kit login`).
+    /// exit code 3.
     #[error("atproto session expired — re-run `kit login`")]
     SessionExpired,
 
-    /// Network or HTTP-level failure from the atproto transport.
+    /// Login was rejected by the PDS — typically wrong handle or
+    /// app password, or the account is taken down.
+    #[error("login rejected: {0}")]
+    LoginRejected(String),
+
+    /// Network or transport-level failure from atrium / reqwest.
     #[error("http: {0}")]
     Http(String),
 
@@ -49,65 +59,164 @@ pub enum SessionError {
     /// JSON shape failure parsing the persisted session file.
     #[error("session.json shape: {0}")]
     Format(String),
+
+    /// The DID or handle in `session.json` doesn't parse as a valid
+    /// atproto identifier. Indicates the file was hand-edited or
+    /// written by a different tool.
+    #[error("session.json invalid identifier: {0}")]
+    InvalidIdentifier(String),
 }
 
-/// Wire-format of `session.json` on disk. Public so tests can
-/// construct it directly; mutable through the live
-/// [`AtprotoClient`] in normal flows.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Wire-format of `session.json` on disk. Four fields, no expiry
+/// tracking (atrium does that itself). Public so tests can
+/// construct it directly.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SessionFile {
     pub did: String,
     pub handle: String,
-    /// PDS host the session was created against (`bsky.social` for
-    /// the typical user; could be a custom PDS).
+    /// PDS the session was created against, e.g.
+    /// `https://bsky.social`. Stored so `load_session` knows
+    /// which `ReqwestClient` base URI to construct.
     pub pds: String,
     pub access_jwt: String,
     pub refresh_jwt: String,
-    /// RFC 3339 timestamp at which the access JWT expires. The
-    /// refresh JWT's expiry isn't recorded on the session itself
-    /// (the atproto spec is mute on its lifetime; ~2 months is the
-    /// observed bsky.social default but isn't guaranteed).
-    pub access_expires_at: String,
 }
 
-/// Live atproto session. Holds the JWTs + the resolved DID. The
-/// concrete type wraps an atrium `AtpAgent`-equivalent in sub-pass
-/// 2; for now it's a placeholder.
-#[derive(Debug)]
+/// Live atproto session. Wraps an `AtpAgent` and the persisted
+/// `SessionFile`. The agent is the source of truth for live JWT
+/// state; the `SessionFile` field reflects the last value
+/// committed to disk and gets refreshed on every `save_session`.
 pub struct AtprotoClient {
+    /// The underlying atrium agent. Made `pub` so the records
+    /// layer in this crate can reach `client.agent.api.*` to
+    /// call lexicon-typed methods without going through a
+    /// wrapper.
+    pub agent: AtpAgent<MemorySessionStore, ReqwestClient>,
+    /// PDS host the session was created against — used to
+    /// reconstruct the `SessionFile` for persistence.
+    pub pds: String,
+    /// Snapshot of the session as it was last written to disk.
+    /// May lag the agent's live state between `save_session`
+    /// calls (atrium can refresh the JWTs in the background).
     pub session: SessionFile,
-    _private: (),
+}
+
+impl std::fmt::Debug for AtprotoClient {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AtprotoClient")
+            .field("pds", &self.pds)
+            .field("did", &self.session.did)
+            .field("handle", &self.session.handle)
+            .field("access_jwt", &"<redacted>")
+            .field("refresh_jwt", &"<redacted>")
+            .finish()
+    }
 }
 
 impl AtprotoClient {
-    /// App-password login. Constructs a session against `pds_host`
-    /// for `handle` using `app_password`. The atproto spec
-    /// requires app passwords (never the account password) for
-    /// programmatic access.
+    /// App-password login. `pds_host` is the PDS base URL
+    /// (`https://bsky.social` for the typical user); `handle` is
+    /// the bsky handle or DID; `app_password` is an atproto app
+    /// password — **never** the account's main password.
+    ///
+    /// Returns `SessionError::LoginRejected` on bad credentials
+    /// and `SessionError::Http` on transport failure.
     pub async fn login(
-        _pds_host: &str,
-        _handle: &str,
-        _app_password: &str,
+        pds_host: &str,
+        handle: &str,
+        app_password: &str,
     ) -> Result<Self, SessionError> {
-        Err(SessionError::NotImplemented("login"))
+        let pds = normalise_pds_url(pds_host);
+        let xrpc = ReqwestClient::new(&pds);
+        let store = MemorySessionStore::default();
+        let agent = AtpAgent::new(xrpc, store);
+
+        let session_output = agent
+            .login(handle, app_password)
+            .await
+            .map_err(|e| {
+                // atrium's Error<E> formats with the lexicon's
+                // specific error variant + an HTTP detail. The
+                // distinction between "login rejected" and "the
+                // network is broken" is in the message body; for
+                // v1 we keep one error path.
+                let msg = e.to_string();
+                if msg.to_lowercase().contains("invalid") || msg.to_lowercase().contains("auth")
+                {
+                    SessionError::LoginRejected(msg)
+                } else {
+                    SessionError::Http(msg)
+                }
+            })?;
+
+        let session = atp_session_to_file(&session_output, &pds);
+        Ok(Self { agent, pds, session })
     }
 
-    /// Load a previously-persisted session. Auto-refreshes the
-    /// access JWT if it's past `access_expires_at`.
-    pub async fn load_session(_dir: &Path) -> Result<Self, SessionError> {
-        Err(SessionError::NotImplemented("load_session"))
+    /// Load a previously-persisted session and re-attach the
+    /// agent to it. Atrium will auto-refresh the access JWT on
+    /// the next authenticated call if it's expired.
+    pub async fn load_session(dir: &Path) -> Result<Self, SessionError> {
+        let path = session_path(dir);
+        let bytes = std::fs::read(&path)?;
+        let file: SessionFile = serde_json::from_slice(&bytes)
+            .map_err(|e| SessionError::Format(e.to_string()))?;
+
+        let xrpc = ReqwestClient::new(&file.pds);
+        let store = MemorySessionStore::default();
+        let agent = AtpAgent::new(xrpc, store);
+
+        let session_output = file_to_atp_session(&file)?;
+        agent.resume_session(session_output).await.map_err(|e| {
+            let msg = e.to_string();
+            if msg.to_lowercase().contains("expired")
+                || msg.to_lowercase().contains("invalid_token")
+            {
+                SessionError::SessionExpired
+            } else {
+                SessionError::Http(msg)
+            }
+        })?;
+
+        Ok(Self {
+            agent,
+            pds: file.pds.clone(),
+            session: file,
+        })
     }
 
-    /// Persist this session to `{dir}/session.json`. Owner-only
-    /// file perms on Unix.
-    pub fn save_session(&self, _dir: &Path) -> Result<(), SessionError> {
-        Err(SessionError::NotImplemented("save_session"))
+    /// Persist the agent's current session to disk. Call this
+    /// after operations that might have triggered an atrium-side
+    /// JWT refresh so the new tokens survive across processes.
+    pub async fn save_session(&self, dir: &Path) -> Result<(), SessionError> {
+        let current = self
+            .agent
+            .get_session()
+            .await
+            .ok_or(SessionError::SessionExpired)?;
+        let file = atp_session_to_file(&current, &self.pds);
+        write_session_file(dir, &file)
     }
 
-    /// Delete the persisted session file. Idempotent — deleting an
-    /// absent file is success.
-    pub fn logout(_dir: &Path) -> Result<(), SessionError> {
-        Err(SessionError::NotImplemented("logout"))
+    /// Snapshot of the session as last written. Useful for `kit
+    /// status` to report did + handle without an async call.
+    pub fn snapshot(&self) -> &SessionFile {
+        &self.session
+    }
+
+    /// Delete the persisted session file. Idempotent — deleting
+    /// an already-absent file is success. Does NOT log out
+    /// server-side (atproto sessions don't have a server-side
+    /// revoke endpoint for app-password sessions); the local
+    /// tokens are simply discarded. Anyone who has the refresh
+    /// JWT can still use it until it expires server-side.
+    pub fn logout(dir: &Path) -> Result<(), SessionError> {
+        let path = session_path(dir);
+        match std::fs::remove_file(&path) {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(e) => Err(SessionError::Io(e)),
+        }
     }
 }
 
@@ -116,29 +225,111 @@ pub fn session_path(dir: &Path) -> PathBuf {
     dir.join("session.json")
 }
 
+/// Ensure the PDS host string is a full URL with scheme. Accept
+/// `bsky.social`, `https://bsky.social`, and `https://bsky.social/`
+/// alike. Default scheme is `https://`.
+fn normalise_pds_url(host: &str) -> String {
+    let trimmed = host.trim().trim_end_matches('/');
+    if trimmed.starts_with("http://") || trimmed.starts_with("https://") {
+        trimmed.to_string()
+    } else {
+        format!("https://{trimmed}")
+    }
+}
+
+/// Project an atrium `AtpSession` (`Output` of `create_session`)
+/// onto our compact `SessionFile`.
+fn atp_session_to_file(s: &AtpSession, pds: &str) -> SessionFile {
+    SessionFile {
+        did: s.did.as_str().to_string(),
+        handle: s.handle.as_str().to_string(),
+        pds: pds.to_string(),
+        access_jwt: s.access_jwt.clone(),
+        refresh_jwt: s.refresh_jwt.clone(),
+    }
+}
+
+/// Construct an `AtpSession` from a `SessionFile` so we can hand
+/// it to `agent.resume_session`. The optional fields atrium
+/// expects (`active`, `email`, `did_doc`, …) all default to
+/// `None` — they aren't load-bearing for the resume path.
+fn file_to_atp_session(f: &SessionFile) -> Result<AtpSession, SessionError> {
+    let did = Did::new(f.did.clone())
+        .map_err(|e| SessionError::InvalidIdentifier(format!("did: {e}")))?;
+    let handle = Handle::new(f.handle.clone())
+        .map_err(|e| SessionError::InvalidIdentifier(format!("handle: {e}")))?;
+    Ok(Object::from(SessionOutputData {
+        access_jwt: f.access_jwt.clone(),
+        active: None,
+        did,
+        did_doc: None,
+        email: None,
+        email_auth_factor: None,
+        email_confirmed: None,
+        handle,
+        refresh_jwt: f.refresh_jwt.clone(),
+        status: None,
+    }))
+}
+
+/// Atomic write of a `SessionFile` to disk under
+/// `{dir}/session.json`. Same tmp-then-rename pattern as the
+/// other persistence layers, with owner-only perms on Unix.
+fn write_session_file(dir: &Path, file: &SessionFile) -> Result<(), SessionError> {
+    let path = session_path(dir);
+    if let Some(parent) = path.parent() {
+        if !parent.as_os_str().is_empty() {
+            std::fs::create_dir_all(parent)?;
+        }
+    }
+    let tmp = path.with_extension("json.tmp");
+    let json = serde_json::to_vec_pretty(file).map_err(|e| SessionError::Format(e.to_string()))?;
+    std::fs::write(&tmp, json)?;
+    std::fs::rename(&tmp, &path)?;
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use tempfile::TempDir;
 
-    #[test]
-    fn session_file_round_trips_through_json() {
-        // Wire-format check — locks the camelCase field names in
-        // case future implementation work fiddles with serde
-        // attributes.
-        let f = SessionFile {
-            did: "did:plc:abc".into(),
+    fn fake_session_file() -> SessionFile {
+        SessionFile {
+            did: "did:plc:abcdefghijklmnopqrstuvwx".into(),
             handle: "creator.bsky.social".into(),
             pds: "https://bsky.social".into(),
-            access_jwt: "eyJ...".into(),
-            refresh_jwt: "eyJ...".into(),
-            access_expires_at: "2026-06-14T12:30:00Z".into(),
-        };
+            access_jwt: "eyJhbGc.access".into(),
+            refresh_jwt: "eyJhbGc.refresh".into(),
+        }
+    }
+
+    #[test]
+    fn session_file_round_trips_through_json() {
+        let f = fake_session_file();
         let json = serde_json::to_string(&f).expect("ser");
         let back: SessionFile = serde_json::from_str(&json).expect("de");
-        assert_eq!(back.did, f.did);
-        assert_eq!(back.handle, f.handle);
-        assert_eq!(back.access_jwt, f.access_jwt);
+        assert_eq!(back, f);
+    }
+
+    #[test]
+    fn session_file_uses_snake_case_field_names_on_wire() {
+        // Locks in the format. atproto itself uses camelCase, but
+        // *our* session.json is internal — we use snake_case so
+        // Serde defaults Just Work. If anyone is tempted to switch
+        // to camelCase to "match atproto," that's a breaking
+        // change to existing session.json files.
+        let f = fake_session_file();
+        let json = serde_json::to_string(&f).expect("ser");
+        assert!(json.contains("\"access_jwt\""));
+        assert!(json.contains("\"refresh_jwt\""));
+        assert!(!json.contains("accessJwt"));
     }
 
     #[test]
@@ -149,15 +340,106 @@ mod tests {
         assert_eq!(p.file_name().and_then(|s| s.to_str()), Some("session.json"));
     }
 
+    #[test]
+    fn normalise_pds_url_adds_scheme_when_missing() {
+        assert_eq!(normalise_pds_url("bsky.social"), "https://bsky.social");
+        assert_eq!(normalise_pds_url("bsky.social/"), "https://bsky.social");
+    }
+
+    #[test]
+    fn normalise_pds_url_preserves_existing_scheme() {
+        assert_eq!(normalise_pds_url("https://bsky.social"), "https://bsky.social");
+        assert_eq!(normalise_pds_url("http://localhost:3000/"), "http://localhost:3000");
+    }
+
+    #[test]
+    fn write_then_read_round_trips_through_disk() {
+        let dir = TempDir::new().unwrap();
+        let f = fake_session_file();
+        write_session_file(dir.path(), &f).expect("write");
+        let path = session_path(dir.path());
+        assert!(path.is_file());
+
+        let bytes = std::fs::read(&path).expect("read");
+        let back: SessionFile = serde_json::from_slice(&bytes).expect("de");
+        assert_eq!(back, f);
+    }
+
+    #[test]
+    fn write_session_creates_parent_dir_if_missing() {
+        let parent = TempDir::new().unwrap();
+        let nested = parent.path().join("a").join("b");
+        let f = fake_session_file();
+        write_session_file(&nested, &f).expect("write");
+        assert!(session_path(&nested).is_file());
+    }
+
+    #[test]
+    fn logout_is_idempotent() {
+        let dir = TempDir::new().unwrap();
+        AtprotoClient::logout(dir.path()).expect("logout on empty dir");
+        let f = fake_session_file();
+        write_session_file(dir.path(), &f).unwrap();
+        AtprotoClient::logout(dir.path()).expect("logout removes file");
+        assert!(!session_path(dir.path()).exists());
+        AtprotoClient::logout(dir.path()).expect("logout on already-empty is fine");
+    }
+
+    #[test]
+    fn file_to_atp_session_rejects_garbage_did() {
+        let f = SessionFile {
+            did: "not-a-did".into(),
+            handle: "creator.bsky.social".into(),
+            pds: "https://bsky.social".into(),
+            access_jwt: "x".into(),
+            refresh_jwt: "y".into(),
+        };
+        let err = file_to_atp_session(&f).expect_err("invalid did");
+        assert!(matches!(err, SessionError::InvalidIdentifier(_)), "got {err:?}");
+    }
+
+    #[test]
+    fn file_to_atp_session_rejects_garbage_handle() {
+        let f = SessionFile {
+            did: "did:plc:abcdefghijklmnopqrstuvwx".into(),
+            handle: "this is not a valid handle".into(),
+            pds: "https://bsky.social".into(),
+            access_jwt: "x".into(),
+            refresh_jwt: "y".into(),
+        };
+        let err = file_to_atp_session(&f).expect_err("invalid handle");
+        assert!(matches!(err, SessionError::InvalidIdentifier(_)), "got {err:?}");
+    }
+
+    #[test]
+    fn file_to_atp_session_round_trips() {
+        let f = fake_session_file();
+        let session = file_to_atp_session(&f).expect("ok");
+        assert_eq!(session.did.as_str(), f.did);
+        assert_eq!(session.handle.as_str(), f.handle);
+        assert_eq!(session.access_jwt, f.access_jwt);
+        assert_eq!(session.refresh_jwt, f.refresh_jwt);
+    }
+
     #[tokio::test]
-    async fn login_stub_returns_not_implemented() {
-        // Sub-pass 1's contract: the surface compiles, the body
-        // returns NotImplemented. Catches any accidental "I forgot
-        // to actually wire this up before claiming sub-pass 2 was
-        // done" commit.
-        let err = AtprotoClient::login("bsky.social", "h", "p")
+    async fn load_session_surfaces_io_not_found_when_no_file() {
+        let dir = TempDir::new().unwrap();
+        let err = AtprotoClient::load_session(dir.path())
             .await
-            .expect_err("scaffold not implemented");
-        assert!(matches!(err, SessionError::NotImplemented(_)));
+            .expect_err("no session file");
+        match err {
+            SessionError::Io(io) => assert_eq!(io.kind(), std::io::ErrorKind::NotFound),
+            other => panic!("expected Io(NotFound), got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn load_session_surfaces_format_error_on_garbled_json() {
+        let dir = TempDir::new().unwrap();
+        std::fs::write(session_path(dir.path()), "{not valid json").unwrap();
+        let err = AtprotoClient::load_session(dir.path())
+            .await
+            .expect_err("garbled");
+        assert!(matches!(err, SessionError::Format(_)), "got {err:?}");
     }
 }
