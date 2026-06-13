@@ -1,0 +1,56 @@
+[package]
+name = "provcheck-sign"
+description = "Cert generation, key custody, and C2PA signing for provcheck-kit. Pure-Rust, sync. Owns every secret a creator has on disk."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+
+[lib]
+name = "provcheck_sign"
+
+[dependencies]
+provcheck-attestation-spec = { path = "../provcheck-attestation-spec" }
+
+# Workspace-pinned
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+# Cert generation — same rcgen pin as rAIdio.bot ships
+# (the lifted code in src/cert.rs was tested against this exact
+# version). x509-parser feature unlocks Issuer::from_ca_cert_der.
+rcgen = { version = "0.14", features = ["pem", "x509-parser"] }
+
+# Fingerprint computation lives in the spec crate; the sha2 dep here
+# is for any future cert-internal hashing we add (e.g. SPKI hashes).
+# Keep the pin in sync with the spec crate.
+sha2 = "0.10"
+
+# Platform-aware data-directory resolution. XDG_DATA_HOME on
+# Linux/macOS; %APPDATA% on Windows.
+dirs = "5"
+
+# Timestamp handling for identity.json's created_at field.
+time = { version = "0.3", features = ["parsing", "formatting", "serde", "macros"] }
+
+# Key custody — these are pulled in here so the public KeyProvider
+# trait can be defined in this crate's lib.rs, even though the
+# concrete encrypted-file and keychain providers ship in follow-up
+# work. The deps don't add to the binary until the providers'
+# modules ship.
+secrecy = "0.10"
+zeroize = { version = "1.8", features = ["derive"] }
+
+[dev-dependencies]
+# Round-trip tests: re-read the rcgen output via x509-parser to
+# confirm the cert chain decodes cleanly and contains what we set.
+x509-parser = "0.16"
+# Extracting DER bytes out of the PEM chain in tests. Production
+# code uses the spec crate's fingerprint helpers and doesn't need
+# to touch the pem crate directly.
+pem = "3"
