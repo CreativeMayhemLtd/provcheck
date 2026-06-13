@@ -70,10 +70,21 @@ struct Args {
     #[arg(long, value_name = "DID")]
     did: Option<String>,
 
+    /// Use the DID embedded in the asset's `app.provcheck.identity`
+    /// assertion as the second-factor identity. Removes the need to
+    /// type `--bsky-handle` / `--did` for files signed by
+    /// provcheck-kit with `--embed-identity`. Mutually exclusive
+    /// with `--bsky-handle` and `--did`. If the asset carries no
+    /// identity assertion, the run exits 1 with a clear error
+    /// (use plain `provcheck <file>` if you only want the offline
+    /// signature check).
+    #[arg(long, conflicts_with_all = ["bsky_handle", "did"])]
+    auto_identity: bool,
+
     /// Require an attestation match. A file whose signing certificate
     /// is not attested by the supplied handle/DID will exit 1, even if
-    /// the cryptographic signature itself is valid. Requires either
-    /// `--bsky-handle` or `--did`.
+    /// the cryptographic signature itself is valid. Requires
+    /// `--bsky-handle`, `--did`, or `--auto-identity`.
     #[arg(long)]
     require_attested: bool,
 
@@ -102,11 +113,17 @@ struct Args {
 fn main() -> ExitCode {
     let args = Args::parse();
 
-    // require_attested needs either --bsky-handle or --did. clap's
-    // `requires` only takes a single arg name, so enforce the OR here.
-    if args.require_attested && args.bsky_handle.is_none() && args.did.is_none() {
+    // require_attested needs an identity input. clap's `requires`
+    // only takes a single arg name, so enforce the OR here.
+    if args.require_attested
+        && args.bsky_handle.is_none()
+        && args.did.is_none()
+        && !args.auto_identity
+    {
         if !args.quiet {
-            eprintln!("provcheck: --require-attested needs either --bsky-handle or --did");
+            eprintln!(
+                "provcheck: --require-attested needs --bsky-handle, --did, or --auto-identity"
+            );
         }
         return ExitCode::from(2);
     }
@@ -133,15 +150,48 @@ fn main() -> ExitCode {
         require_trusted: args.require_trusted,
     };
 
+    // Resolve --auto-identity by peeking at the offline report's
+    // embedded identity assertion before dispatching. Failing here
+    // means the user asked for attestation but the file carries no
+    // claim to attest against — exit 1 with the cause spelled out.
+    let resolved_did = if args.auto_identity {
+        match verify_with_options(&args.file, &verify_opts) {
+            Ok(r) => match r.identity {
+                Some(claim) => Some(claim.did),
+                None => {
+                    if !args.quiet {
+                        eprintln!(
+                            "provcheck: --auto-identity was requested but the file carries no \
+                             app.provcheck.identity assertion. Sign with `provcheck-kit sign \
+                             --embed-identity` first, or pass --bsky-handle / --did directly."
+                        );
+                    }
+                    return ExitCode::from(1);
+                }
+            },
+            Err(e) => {
+                if !args.quiet {
+                    eprintln!("provcheck: {}", e);
+                }
+                return ExitCode::from(2);
+            }
+        }
+    } else {
+        None
+    };
+
     // Dispatch: route through the platform wrapper iff the user asked
     // for attestation. Keeps the offline path completely free of any
     // platform-crate code paths when nobody's asked for networking.
-    let want_attestation = args.bsky_handle.is_some() || args.did.is_some();
+    let want_attestation =
+        args.bsky_handle.is_some() || args.did.is_some() || resolved_did.is_some();
 
     let mut report = if want_attestation {
         let attest_opts = AttestationOptions {
             bsky_handle: args.bsky_handle.clone(),
-            did: args.did.clone(),
+            // resolved_did (auto-identity) wins; clap's conflicts_with
+            // guarantees the user didn't also pass --did.
+            did: resolved_did.clone().or_else(|| args.did.clone()),
             require_attested: args.require_attested,
             cache_dir: None,
             no_cache: args.no_attestation_cache,
@@ -205,6 +255,26 @@ fn main() -> ExitCode {
             }
         } else {
             print!("{}", report);
+            // Hint: when the file embeds an identity claim but the
+            // user did NOT ask for any attestation, suggest the
+            // shortcut. Only emit when nothing else surfaces the
+            // claim (the human-readable Display already renders
+            // "claims identity: ..." inline; we just want to nudge
+            // about --auto-identity in this specific no-attestation
+            // case).
+            if !want_attestation
+                && let Some(claim) = &report.identity
+            {
+                let who = match &claim.handle {
+                    Some(h) => format!("@{} ({})", h, claim.did),
+                    None => claim.did.clone(),
+                };
+                eprintln!(
+                    "[hint] file claims identity {who}. \
+                     Re-run with --auto-identity to verify against \
+                     their published signing-key records."
+                );
+            }
         }
     }
 
