@@ -406,7 +406,9 @@ pub mod sign {
     use provcheck_attestation_spec::IdentityClaim;
     use provcheck_sign::persist::{default_dir, load_locked};
     use provcheck_sign::providers::{AgeFileProvider, KeyProvider, KeychainProvider};
-    use provcheck_sign::sign::{embed_identity_assertion, sign_asset};
+    use provcheck_sign::sign::{
+        SignAction, default_action_for, embed_identity_assertion, inspect_source, sign_asset,
+    };
     use provcheck_sign::types::{KeyProviderKind, UnlockedIdentity};
 
     use crate::prompts::unlock_passphrase;
@@ -452,6 +454,16 @@ pub mod sign {
         /// to trust the claim.
         #[arg(long)]
         pub embed_identity: bool,
+
+        /// C2PA action label for the new signature. Accepts the
+        /// short form (`created` / `opened` / `edited` /
+        /// `published`) or the canonical (`c2pa.created` etc.).
+        /// When omitted the kit picks: `published` if the source
+        /// already has a C2PA manifest (the publisher-attestation
+        /// case — your signature joins the existing chain as a
+        /// derivative), `created` otherwise.
+        #[arg(long, value_name = "ACTION")]
+        pub action: Option<String>,
     }
 
     pub async fn run(args: CliArgs) -> Result<()> {
@@ -476,10 +488,38 @@ pub mod sign {
         };
         let unlocked = UnlockedIdentity::new(locked, key_pem);
 
+        // Inspect the source for existing C2PA provenance so we can
+        // (a) pick the right default action, (b) tell the user what
+        // they're chaining into. provcheck-sign auto-adds the
+        // parent ingredient regardless of action — this only
+        // controls the claim verb on the new manifest.
+        let provenance = inspect_source(&args.file);
+        if let Some(prov) = &provenance {
+            eprintln!("source has existing C2PA provenance:");
+            if let Some(signer) = &prov.signer {
+                eprintln!("  signer:    {signer}");
+            }
+            if let Some(generator) = &prov.claim_generator {
+                eprintln!("  tool:      {generator}");
+            }
+            eprintln!("  manifest:  {}", prov.label);
+            eprintln!("Your signature will join the chain as a derivative.");
+        }
+
+        let action = match args.action.as_deref() {
+            Some(s) => SignAction::parse(s).ok_or_else(|| {
+                anyhow::anyhow!(
+                    "--action {s:?}: expected one of created/opened/edited/published \
+                     (or c2pa.created/opened/edited/published)"
+                )
+            })?,
+            None => default_action_for(provenance.as_ref()),
+        };
+
         let base_manifest = match &args.manifest {
             Some(p) => std::fs::read_to_string(p)
                 .with_context(|| format!("read manifest from {}", p.display()))?,
-            None => default_manifest(&args.file)?,
+            None => default_manifest(&args.file, action)?,
         };
 
         let manifest_json = if args.embed_identity {
@@ -572,8 +612,9 @@ pub mod sign {
 
     /// Construct a minimal-but-valid C2PA manifest for the given
     /// asset. The CLI uses this when the user doesn't supply a
-    /// manifest JSON file.
-    fn default_manifest(asset: &std::path::Path) -> Result<String> {
+    /// manifest JSON file. `action` controls the c2pa.actions.v2
+    /// verb on the new claim.
+    fn default_manifest(asset: &std::path::Path, action: SignAction) -> Result<String> {
         let format = format_from_extension(asset)
             .context("infer asset format from extension — pass --manifest for unrecognised types")?;
         let title = asset
@@ -582,14 +623,14 @@ pub mod sign {
             .unwrap_or("untitled");
 
         let v = serde_json::json!({
-            "claim_generator": "provcheck-kit/0.3.0",
-            "claim_generator_info": [{"name": "provcheck-kit", "version": "0.3.0"}],
+            "claim_generator": "provcheck-kit/0.3.1",
+            "claim_generator_info": [{"name": "provcheck-kit", "version": "0.3.1"}],
             "format": format,
             "title": title,
             "assertions": [
                 {
                     "label": "c2pa.actions.v2",
-                    "data": {"actions": [{"action": "c2pa.created"}]}
+                    "data": {"actions": [{"action": action.as_c2pa_label()}]}
                 }
             ]
         });

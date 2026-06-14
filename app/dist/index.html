@@ -238,15 +238,58 @@
       <!-- Preview: file dropped, awaiting Sign click -->
       <div class="sign-preview" id="sign-preview" hidden>
         <div class="sign-preview-card">
-          <h2>Ready to sign</h2>
+          <h2 id="sign-preview-heading">Ready to sign</h2>
+
+          <!-- Chain notice: shown when the dropped file already has
+               C2PA provenance. The user is then adding their
+               signature as a derivative, not as a fresh creation. -->
+          <div class="sign-chain-notice" id="sign-chain-notice" hidden>
+            <div class="sign-chain-icon" aria-hidden="true">⛓</div>
+            <div class="sign-chain-body">
+              <p class="sign-chain-title">This file is already signed.</p>
+              <dl class="sign-chain-meta">
+                <dt>By</dt>
+                <dd id="sign-chain-signer">—</dd>
+                <dt id="sign-chain-tool-label" hidden>Tool</dt>
+                <dd id="sign-chain-tool" hidden>—</dd>
+              </dl>
+              <p class="sign-chain-sub">Your signature will join the chain as a derivative — the original signature stays intact.</p>
+            </div>
+          </div>
+
           <dl class="kv">
             <dt>File</dt>
             <dd class="mono" id="sign-preview-path">—</dd>
-            <dt>Identity</dt>
+            <dt>Your identity</dt>
             <dd class="mono" id="sign-preview-identity">—</dd>
             <dt>Output</dt>
             <dd class="mono" id="sign-preview-output">—</dd>
           </dl>
+
+          <!-- Action selector — which C2PA verb to stamp on the new
+               claim. Defaults are auto-picked from the source's
+               provenance: "Published" when the source is signed,
+               "Created" when it isn't. -->
+          <fieldset class="sign-action-picker">
+            <legend>What's your relationship to this file?</legend>
+            <label>
+              <input type="radio" name="sign-action" value="created" id="sign-action-created" />
+              <span><strong>Created</strong> — I made this from scratch.</span>
+            </label>
+            <label>
+              <input type="radio" name="sign-action" value="opened" id="sign-action-opened" />
+              <span><strong>Opened</strong> — I received this as-is and am vouching for it unchanged.</span>
+            </label>
+            <label>
+              <input type="radio" name="sign-action" value="edited" id="sign-action-edited" />
+              <span><strong>Edited</strong> — I modified the source.</span>
+            </label>
+            <label>
+              <input type="radio" name="sign-action" value="published" id="sign-action-published" />
+              <span><strong>Published</strong> — I'm publishing this to a feed / platform.</span>
+            </label>
+          </fieldset>
+
           <label class="sign-form-remember">
             <input type="checkbox" id="sign-embed-identity" checked />
             <span>Embed identity assertion (recommended — lets verifiers skip the handle entry step)</span>

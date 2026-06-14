@@ -750,6 +750,32 @@ function renderAboutCard(report, cardEl) {
     });
   }
 
+  // Parent chain — when the file is a derivative (publisher
+  // attestation, edit, etc.), surface the upstream creator. The
+  // first parent is the direct upstream; if there are more, they're
+  // deeper ancestors but still worth listing.
+  if (Array.isArray(report.parents) && report.parents.length > 0) {
+    for (let i = 0; i < report.parents.length; i++) {
+      const p = report.parents[i];
+      const label = i === 0 ? "Originally from" : "Earlier source";
+      const bits = [];
+      if (p.identity && p.identity.handle) {
+        bits.push("@" + p.identity.handle);
+      } else if (p.identity && p.identity.did) {
+        bits.push(p.identity.did);
+      }
+      if (p.signer) bits.push(p.signer);
+      if (p.claim_generator && !bits.includes(p.claim_generator)) {
+        bits.push(p.claim_generator);
+      }
+      if (p.title && !bits.includes(p.title)) {
+        bits.push(p.title);
+      }
+      const value = bits.length > 0 ? bits.join(" · ") : "(parent manifest, source unknown)";
+      rows.push({ label, value });
+    }
+  }
+
   // Render.
   gridEl.innerHTML = "";
   for (const row of rows) {
@@ -846,9 +872,14 @@ const $sReadyEmpty = document.getElementById("sign-ready-empty");
 const $sPreview = document.getElementById("sign-preview");
 const $sSigning = document.getElementById("sign-signing");
 const $sDone = document.getElementById("sign-done");
+const $sPreviewHeading = document.getElementById("sign-preview-heading");
 const $sPreviewPath = document.getElementById("sign-preview-path");
 const $sPreviewIdentity = document.getElementById("sign-preview-identity");
 const $sPreviewOutput = document.getElementById("sign-preview-output");
+const $sChainNotice = document.getElementById("sign-chain-notice");
+const $sChainSigner = document.getElementById("sign-chain-signer");
+const $sChainToolLabel = document.getElementById("sign-chain-tool-label");
+const $sChainTool = document.getElementById("sign-chain-tool");
 const $sEmbedIdentity = document.getElementById("sign-embed-identity");
 const $sReplaceOriginal = document.getElementById("sign-replace-original");
 const $sGoBtn = document.getElementById("sign-go-btn");
@@ -1086,7 +1117,7 @@ $sSkipPublishBtn.addEventListener("click", () => {
 
 // ---- Sign flow -------------------------------------------------------------
 
-window.signOnDrop = function (path) {
+window.signOnDrop = async function (path) {
   // Drag-drop dispatcher routes here when Sign tab is active.
   if (!signStatus || !signStatus.identity) {
     alert("Set up an identity first before signing.");
@@ -1101,6 +1132,8 @@ window.signOnDrop = function (path) {
     path,
     replaceOriginal: $sReplaceOriginal.checked,
     embed: $sEmbedIdentity.checked,
+    action: null,        // resolved after inspect_source returns
+    provenance: null,    // SourceProvenanceDto when source is signed
   };
   const out = signStaged.replaceOriginal ? path : sidecarPath(path);
   $sPreviewPath.textContent = path;
@@ -1109,8 +1142,67 @@ window.signOnDrop = function (path) {
     : signStatus.identity.fingerprint;
   $sPreviewOutput.textContent = out;
   $sGoError.hidden = true;
+
+  // Reset chain notice + action radios. Default both to the
+  // unsigned-source state; we'll flip them based on inspect_source
+  // when the call completes (a few hundred ms typically).
+  $sChainNotice.hidden = true;
+  $sPreviewHeading.textContent = "Ready to sign";
+  setActionRadio("created");
+  signStaged.action = "created";
+
   showReadySubstate("preview");
+
+  // Inspect the source for prior provenance. Default action
+  // changes based on whether the file already carries C2PA data.
+  const inspect = await invoke("kit_inspect_source", { path });
+  if (!inspect.ok || !inspect.data) {
+    // Unsigned or unrecognised source — keep the "created"
+    // default. Action picker stays available if the user
+    // wants to override.
+    return;
+  }
+  const prov = inspect.data;
+  signStaged.provenance = prov;
+  // Render the chain notice.
+  $sChainSigner.textContent = prov.signer || prov.claim_generator || "(unknown signer)";
+  if (prov.claim_generator) {
+    $sChainTool.textContent = prov.claim_generator;
+    $sChainToolLabel.hidden = false;
+    $sChainTool.hidden = false;
+  } else {
+    $sChainToolLabel.hidden = true;
+    $sChainTool.hidden = true;
+  }
+  $sChainNotice.hidden = false;
+  $sPreviewHeading.textContent = "Ready to publish";
+  // Default to "published" — the publisher-attestation case.
+  setActionRadio("published");
+  signStaged.action = "published";
 };
+
+function setActionRadio(value) {
+  const radios = document.getElementsByName("sign-action");
+  for (const r of radios) {
+    r.checked = r.value === value;
+  }
+}
+
+function getActionRadio() {
+  const radios = document.getElementsByName("sign-action");
+  for (const r of radios) {
+    if (r.checked) return r.value;
+  }
+  return "created";
+}
+
+// Wire the action radios to update the staged action whenever
+// the user picks one.
+for (const r of document.getElementsByName("sign-action")) {
+  r.addEventListener("change", () => {
+    if (signStaged) signStaged.action = getActionRadio();
+  });
+}
 
 function sidecarPath(p) {
   // Mirror the Rust-side sidecar_signed_path logic in display.
@@ -1151,6 +1243,7 @@ $sGoBtn.addEventListener("click", async () => {
       file: signStaged.path,
       out,
       embedIdentity: signStaged.embed,
+      action: signStaged.action || null,
       dataDir: null,
     },
   });

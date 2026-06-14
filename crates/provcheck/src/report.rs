@@ -88,6 +88,23 @@ pub struct Report {
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub identity: Option<IdentityClaim>,
 
+    /// Provenance chain — parent manifests (relationship: parentOf)
+    /// of the active manifest. Populated when the signed file
+    /// declares prior provenance via C2PA ingredients. The first
+    /// entry is the direct parent; deeper entries (if any) are
+    /// grandparents.
+    ///
+    /// The publisher-attestation flow produces files with a parent
+    /// chain: e.g. a doomscroll.fm video signed by doomscroll
+    /// (creator), then re-signed by a publisher (active manifest
+    /// → action c2pa.published, parentOf → doomscroll's manifest).
+    /// Verifiers render this chain so the audience sees "published
+    /// by X, originally created by Y."
+    ///
+    /// Omitted from JSON when empty.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub parents: Vec<ParentManifest>,
+
     /// Neural-watermark detection results. Always empty from
     /// the core `verify_with_options` path — populated only by
     /// callers that invoked one or more detectors (the
@@ -108,6 +125,38 @@ pub struct Report {
     /// indistinguishable output.
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub watermarks: Vec<WatermarkResult>,
+}
+
+/// A single parent manifest in the active manifest's chain. Each
+/// entry is one level deeper in the lineage — index 0 is the
+/// direct parent of the active manifest, index 1 is its parent,
+/// and so on (if multiple levels are present in the manifest
+/// store).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ParentManifest {
+    /// Manifest label (e.g. `urn:c2pa:fa479510-…`). Used by
+    /// renderers as a stable identifier.
+    pub label: String,
+
+    /// Signer name (certificate subject CN or issuer) of the
+    /// parent manifest, when available.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub signer: Option<String>,
+
+    /// `claim_generator` of the parent (e.g. `Doomscroll.fm/0.1.0`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub claim_generator: Option<String>,
+
+    /// `title` claim of the parent manifest.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+
+    /// Self-asserted identity claim from the parent manifest's
+    /// `app.provcheck.identity` assertion, if present. Lets a
+    /// renderer show "originally created by @creator.bsky.social"
+    /// for files whose parent was signed through provcheck-kit.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub identity: Option<IdentityClaim>,
 }
 
 /// Outcome of a DID-anchored second-factor check, populated on

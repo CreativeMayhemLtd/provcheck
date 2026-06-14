@@ -1,0 +1,34 @@
+# Files staged for the v0.3.1 commit. publish_dc.sh reads this
+# list and runs `git add` on each. Blank lines and lines starting
+# with # are ignored.
+
+# Workspace version bump
+Cargo.toml
+Cargo.lock
+
+# Producer (provcheck-sign + provcheck-kit)
+crates/provcheck-sign/src/sign.rs
+crates/provcheck-kit/src/commands/mod.rs
+
+# Verifier (provcheck core)
+crates/provcheck/src/lib.rs
+crates/provcheck/src/report.rs
+crates/provcheck/src/verification.rs
+crates/provcheck/tests/integration.rs
+
+# GUI: Tauri Rust + frontend
+app/src-tauri/Cargo.toml
+app/src-tauri/Cargo.lock
+app/src-tauri/src/main.rs
+app/src-tauri/tauri.conf.json
+app/package.json
+app/dist/index.html
+app/dist/app.css
+app/dist/app.js
+
+# Release tooling (this commit also ships publish_dc.sh + the
+# release-notes/ directory infrastructure)
+scripts/publish_dc.sh
+release-notes/v0.3.1/commit.md
+release-notes/v0.3.1/tag.md
+release-notes/v0.3.1/files.txt

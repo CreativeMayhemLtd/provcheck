@@ -26,8 +26,8 @@ pub mod verification;
 pub mod prelude {
     pub use super::Error;
     pub use crate::report::{
-        AttestationStatus, DidAttestation, IdentityClaim, Report, WatermarkBrand, WatermarkKind,
-        WatermarkResult, WatermarkStatus,
+        AttestationStatus, DidAttestation, IdentityClaim, ParentManifest, Report, WatermarkBrand,
+        WatermarkKind, WatermarkResult, WatermarkStatus,
     };
     pub use crate::verification::{VerifyOptions, verify, verify_with_options};
 }
@@ -116,6 +116,7 @@ fn unsigned_report(reason: Option<String>) -> prelude::Report {
         validation_errors: 0,
         did_attestation: None,
         identity: None,
+        parents: Vec::new(),
         watermarks: Vec::new(),
     }
 }

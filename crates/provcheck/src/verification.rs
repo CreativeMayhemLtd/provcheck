@@ -108,6 +108,7 @@ pub fn verify_with_options(path: &Path, opts: &VerifyOptions) -> Result<Report, 
                 validation_errors: 1,
                 did_attestation: None,
                 identity: None,
+                parents: Vec::new(),
                 watermarks: Vec::new(),
             });
         }
@@ -246,6 +247,8 @@ pub fn verify_with_options(path: &Path, opts: &VerifyOptions) -> Result<Report, 
         ))
     };
 
+    let parents = walk_parent_chain(&reader);
+
     Ok(Report {
         verified,
         unsigned: false,
@@ -261,8 +264,64 @@ pub fn verify_with_options(path: &Path, opts: &VerifyOptions) -> Result<Report, 
         validation_errors,
         did_attestation: None,
         identity,
+        parents,
         watermarks: Vec::new(),
     })
+}
+
+/// Walk the active manifest's parentOf ingredients, resolving each
+/// to the corresponding manifest in the store and extracting its
+/// signer + identity-claim info. Returns the chain in
+/// direct-parent-first order; entries deeper than the immediate
+/// parent (grandparents and beyond) are followed via the matched
+/// manifests' own parentOf ingredients.
+///
+/// The walk is best-effort — any failure to resolve a label or
+/// extract a field just truncates the chain at that point. A
+/// genuinely linear lineage (one parent per generation) produces
+/// the cleanest output; branching is observable but the renderer
+/// only sees the parentOf chain.
+fn walk_parent_chain(reader: &c2pa::Reader) -> Vec<crate::report::ParentManifest> {
+    let Some(active) = reader.active_manifest() else {
+        return Vec::new();
+    };
+    let mut chain = Vec::new();
+    let mut current = active;
+    // Bound the loop so a pathological store with a cycle can't
+    // hang the verifier. Real chains are typically 1-2 deep.
+    for _ in 0..8 {
+        let Some(parent_label) = current
+            .ingredients()
+            .iter()
+            .find(|i| matches!(i.relationship(), c2pa::Relationship::ParentOf))
+            .and_then(|i| i.active_manifest())
+        else {
+            break;
+        };
+        let Some(parent_manifest) = reader.get_manifest(parent_label) else {
+            break;
+        };
+        let sig = parent_manifest.signature_info();
+        let signer = sig.and_then(|s| s.common_name.clone().or_else(|| s.issuer.clone()));
+        // Try to extract the parent's app.provcheck.identity claim.
+        let identity = parent_manifest
+            .assertions()
+            .iter()
+            .find(|a| is_identity_label(a.label()))
+            .and_then(|a| a.value().ok())
+            .and_then(|v| {
+                serde_json::from_value::<crate::report::IdentityClaim>(v.clone()).ok()
+            });
+        chain.push(crate::report::ParentManifest {
+            label: parent_label.to_string(),
+            signer,
+            claim_generator: parent_manifest.claim_generator().map(|s| s.to_string()),
+            title: parent_manifest.title().map(|s| s.to_string()),
+            identity,
+        });
+        current = parent_manifest;
+    }
+    chain
 }
 
 /// Match the bare `app.provcheck.identity` assertion label and any

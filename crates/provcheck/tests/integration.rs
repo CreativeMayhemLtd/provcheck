@@ -469,6 +469,108 @@ fn no_identity_assertion_leaves_field_none() {
 }
 
 #[test]
+fn publisher_attestation_chain_surfaces_parent_in_report() {
+    // Two-cert scenario mirroring the publisher-attestation flow:
+    // cert A signs a fresh file (the "doomscroll" role), cert B
+    // re-signs it as the publisher. The verifier should populate
+    // Report.parents with the doomscroll manifest's info.
+    use std::fs::File;
+    use std::io::Read;
+
+    let tmp = tempfile::tempdir().expect("tmp");
+    let unsigned = tmp.path().join("raw.wav");
+    let by_a = tmp.path().join("by-a.wav");
+    let by_b = tmp.path().join("by-b.wav");
+    write_silent_wav(&unsigned);
+
+    // Stage 1: cert A signs as Doomscroll-like producer.
+    let (cert_pem_a, key_pem_a, _ca_a) = generate_test_chain();
+    let signer_a =
+        c2pa::create_signer::from_keys(&cert_pem_a, &key_pem_a, c2pa::SigningAlg::Es256, None)
+            .expect("signer A");
+    let manifest_a = serde_json::json!({
+        "claim_generator": "Doomscroll.fm/0.1.0",
+        "title": "raw.wav",
+        "assertions": [
+            {"label": "c2pa.actions", "data": {"actions": [{"action": "c2pa.created"}]}}
+        ]
+    })
+    .to_string();
+    let mut builder_a = c2pa::Builder::from_json(&manifest_a).expect("builder A");
+    builder_a
+        .sign_file(signer_a.as_ref(), &unsigned, &by_a)
+        .expect("sign A");
+
+    // Stage 2: cert B re-signs with action c2pa.published, adding A
+    // as a parent ingredient via add_ingredient_from_stream.
+    let (cert_pem_b, key_pem_b, _ca_b) = generate_test_chain();
+    let signer_b =
+        c2pa::create_signer::from_keys(&cert_pem_b, &key_pem_b, c2pa::SigningAlg::Es256, None)
+            .expect("signer B");
+    let manifest_b = serde_json::json!({
+        "claim_generator": "provcheck-kit/0.3.1",
+        "title": "by-b.wav",
+        "assertions": [
+            {"label": "c2pa.actions", "data": {"actions": [{"action": "c2pa.published"}]}}
+        ]
+    })
+    .to_string();
+    let mut builder_b = c2pa::Builder::from_json(&manifest_b).expect("builder B");
+    let ingredient_json = serde_json::json!({
+        "title": "by-a.wav",
+        "format": "audio/wav",
+        "relationship": "parentOf"
+    })
+    .to_string();
+    {
+        let mut file_a = File::open(&by_a).expect("open by-a");
+        // Confirm the file is readable (catches a tempdir cleanup race).
+        let mut sniff = [0u8; 4];
+        file_a.read_exact(&mut sniff).expect("read by-a");
+        // Re-open for the ingredient call (which seeks from 0).
+        let mut file_a = File::open(&by_a).expect("re-open by-a");
+        builder_b
+            .add_ingredient_from_stream(&ingredient_json, "audio/wav", &mut file_a)
+            .expect("add parent ingredient");
+    }
+    builder_b
+        .sign_file(signer_b.as_ref(), &by_a, &by_b)
+        .expect("sign B");
+
+    // Verify the final file. The Report should carry one parent
+    // (the by_a manifest). We don't require `verified == true`
+    // here because the test uses two distinct self-signed CAs;
+    // c2pa-rs's default trust evaluation can flag that as
+    // "structurally suspect" even though both signatures are
+    // cryptographically valid. The load-bearing assertion is
+    // that the parent chain extraction works regardless of trust
+    // status.
+    let report = verify(&by_b).expect("verify");
+    assert!(
+        !report.parents.is_empty(),
+        "parent chain populated — got {} entries (verified={}, failure_reason={:?})",
+        report.parents.len(),
+        report.verified,
+        report.failure_reason,
+    );
+    let parent = &report.parents[0];
+    // Parent label is a stable manifest urn.
+    assert!(
+        !parent.label.is_empty(),
+        "parent label populated for chain rendering"
+    );
+    // At least one of (signer, claim_generator, title) populated — a
+    // chain with none would be useless to a renderer. The specific
+    // field is c2pa-rs implementation detail.
+    assert!(
+        parent.signer.is_some()
+            || parent.claim_generator.is_some()
+            || parent.title.is_some(),
+        "at least one identifying field on the parent: got {parent:?}"
+    );
+}
+
+#[test]
 fn unsupported_format_reports_unsigned_not_error() {
     let tmp = tempfile::tempdir().expect("tmp");
     let txt = tmp.path().join("not-media.txt");

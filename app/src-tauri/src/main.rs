@@ -13,7 +13,9 @@ use provcheck_sign::persist::{default_dir, load_locked, save_public_artefacts};
 use provcheck_sign::providers::{
     KeyProvider, KeychainProvider, NewPassphrasePrompt, ProviderError, UnlockPrompt,
 };
-use provcheck_sign::sign::{embed_identity_assertion, sign_asset};
+use provcheck_sign::sign::{
+    SignAction, default_action_for, embed_identity_assertion, inspect_source, sign_asset,
+};
 use provcheck_sign::types::{KeyProviderKind, LockedIdentity, UnlockedIdentity};
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
@@ -467,6 +469,11 @@ struct SignArgs {
     /// When Some → write to this path (must differ from `file` AND share extension).
     out: Option<String>,
     embed_identity: Option<bool>,
+    /// One of "created" / "opened" / "edited" / "published" (or
+    /// the canonical "c2pa." prefixed form). When None, the
+    /// kit defaults to "published" if the source already has a
+    /// C2PA manifest, "created" otherwise.
+    action: Option<String>,
     data_dir: Option<String>,
 }
 
@@ -475,6 +482,47 @@ struct SignResultDto {
     output_path: String,
     manifest_bytes: usize,
     identity_embedded: Option<String>,
+    /// The action label that ended up on the new manifest, e.g.
+    /// "c2pa.published". Returned so the GUI can confirm it back
+    /// to the user without re-deriving.
+    action: String,
+    /// Provenance of the source file, if it had any. Lets the GUI
+    /// show "you just signed a derivative of …" in the done state.
+    chained_from: Option<SourceProvenanceDto>,
+}
+
+/// Wire-friendly view of a source file's C2PA provenance. Mirrors
+/// provcheck_sign::sign::SourceProvenance with explicit field
+/// renames so the JS side has consistent camelCase.
+#[derive(Serialize)]
+struct SourceProvenanceDto {
+    claim_generator: Option<String>,
+    signer: Option<String>,
+    title: Option<String>,
+    label: String,
+    format: Option<String>,
+}
+
+impl From<provcheck_sign::sign::SourceProvenance> for SourceProvenanceDto {
+    fn from(s: provcheck_sign::sign::SourceProvenance) -> Self {
+        Self {
+            claim_generator: s.claim_generator,
+            signer: s.signer,
+            title: s.title,
+            label: s.label,
+            format: s.format,
+        }
+    }
+}
+
+/// Inspect a file for existing C2PA provenance. The GUI calls this
+/// in the sign preview state to decide whether to show the "you'll
+/// be adding to an existing chain" notice and to default the
+/// action selector to Published.
+#[tauri::command]
+async fn kit_inspect_source(path: String) -> ApiResult<Option<SourceProvenanceDto>> {
+    let p = PathBuf::from(path);
+    ApiResult::ok(inspect_source(&p).map(Into::into))
 }
 
 #[tauri::command]
@@ -519,7 +567,23 @@ async fn kit_sign(args: SignArgs) -> ApiResult<SignResultDto> {
         None => sidecar_signed_path(&src),
     };
 
-    let base_manifest = match default_manifest(&src) {
+    // Inspect the source for prior provenance so we can pick the
+    // right default action AND echo the chain into the returned
+    // SignResultDto for the GUI's done card.
+    let provenance = inspect_source(&src);
+    let action = match args.action.as_deref() {
+        Some(s) => match SignAction::parse(s) {
+            Some(a) => a,
+            None => {
+                return ApiResult::err(format!(
+                    "action {s:?}: expected one of created/opened/edited/published"
+                ));
+            }
+        },
+        None => default_action_for(provenance.as_ref()),
+    };
+
+    let base_manifest = match default_manifest(&src, action) {
         Ok(m) => m,
         Err(e) => return ApiResult::err(e),
     };
@@ -554,6 +618,8 @@ async fn kit_sign(args: SignArgs) -> ApiResult<SignResultDto> {
         output_path: result.output_path.to_string_lossy().into_owned(),
         manifest_bytes: result.manifest_bytes.len(),
         identity_embedded: embedded_did,
+        action: action.as_c2pa_label().to_string(),
+        chained_from: provenance.map(Into::into),
     })
 }
 
@@ -576,7 +642,7 @@ fn sidecar_signed_path(src: &Path) -> PathBuf {
     }
 }
 
-fn default_manifest(asset: &Path) -> Result<String, String> {
+fn default_manifest(asset: &Path, action: SignAction) -> Result<String, String> {
     let format = format_from_extension(asset)
         .ok_or_else(|| "unrecognised file extension — custom manifest needed".to_string())?;
     let title = asset
@@ -584,14 +650,14 @@ fn default_manifest(asset: &Path) -> Result<String, String> {
         .and_then(|s| s.to_str())
         .unwrap_or("untitled");
     let v = serde_json::json!({
-        "claim_generator": "provcheck-app/0.3.0",
-        "claim_generator_info": [{"name": "provcheck-app", "version": "0.3.0"}],
+        "claim_generator": "provcheck-app/0.3.1",
+        "claim_generator_info": [{"name": "provcheck-app", "version": "0.3.1"}],
         "format": format,
         "title": title,
         "assertions": [
             {
                 "label": "c2pa.actions.v2",
-                "data": {"actions": [{"action": "c2pa.created"}]}
+                "data": {"actions": [{"action": action.as_c2pa_label()}]}
             }
         ]
     });
@@ -637,6 +703,7 @@ fn main() {
             kit_publish,
             kit_list,
             kit_sign,
+            kit_inspect_source,
         ])
         .run(tauri::generate_context!())
         .expect("error while running provcheck-app");

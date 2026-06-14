@@ -956,6 +956,109 @@ body {
   padding: 24px;
 }
 
+/* Chain notice block shown above the file info when the dropped
+ * file already has C2PA provenance. Same dark-card visual language
+ * as the existing attestation badge so the two read as related. */
+.sign-chain-notice {
+  display: flex;
+  gap: 14px;
+  padding: 14px 16px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: var(--radius-md);
+}
+.sign-chain-icon {
+  font-size: 22px;
+  color: var(--status-warning);
+  line-height: 1;
+  flex-shrink: 0;
+}
+.sign-chain-body { flex: 1; }
+.sign-chain-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+.sign-chain-meta {
+  display: grid;
+  grid-template-columns: 50px 1fr;
+  gap: 2px 12px;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.sign-chain-meta dt {
+  color: var(--text-muted);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  align-self: center;
+}
+.sign-chain-meta dd {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+.sign-chain-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Action picker — four radio choices for the C2PA verb. */
+.sign-action-picker {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sign-action-picker legend {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 0 4px;
+}
+.sign-action-picker label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  padding: 4px 0;
+}
+.sign-action-picker input[type="radio"] {
+  margin-top: 4px;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--bg-darkest);
+  flex-shrink: 0;
+  position: relative;
+  cursor: pointer;
+}
+.sign-action-picker input[type="radio"]:checked {
+  border-color: var(--accent);
+}
+.sign-action-picker input[type="radio"]:checked::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  background: var(--accent);
+  border-radius: 50%;
+}
+.sign-action-picker label > span {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+.sign-action-picker label > span > strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
 /* ============================================================================
  * "About this file" card — rich verify display
  * ============================================================================ */
