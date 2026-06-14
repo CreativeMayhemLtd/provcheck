@@ -54,9 +54,6 @@ const $sampleDoomscroll = document.getElementById("sample-doomscroll");
 const $footerHint     = document.getElementById("footer-hint");
 const $footerActions  = document.getElementById("footer-actions");
 const $aboutCard      = document.getElementById("about-card");
-const $aboutGrid      = document.getElementById("about-grid");
-const $aboutLinks     = document.getElementById("about-links");
-const $aboutLinksList = document.getElementById("about-links-list");
 
 let lastReport = null;
 let lastFilePath = null;
@@ -128,7 +125,7 @@ function renderReport(report, path) {
 
   renderAttestation(report.did_attestation);
   renderWatermarks(report.watermarks);
-  renderAboutCard(report);
+  renderAboutCard(report, $aboutCard);
   applyIdentityAutofill(report.identity);
 
   $kvMain.innerHTML = "";
@@ -684,8 +681,13 @@ function walkAssertions(assertions) {
   return out;
 }
 
-function renderAboutCard(report) {
-  if (!$aboutCard) return;
+function renderAboutCard(report, cardEl) {
+  if (!cardEl) return;
+  const gridEl = cardEl.querySelector('[data-role="about-grid"]');
+  const linksEl = cardEl.querySelector('[data-role="about-links"]');
+  const linksListEl = cardEl.querySelector('[data-role="about-links-list"]');
+  if (!gridEl || !linksEl || !linksListEl) return;
+
   // Hide outright on unsigned / failed-parse manifests — no assertions
   // to summarise.
   if (
@@ -695,7 +697,7 @@ function renderAboutCard(report) {
     Array.isArray(report.assertions) ||
     Object.keys(report.assertions).length === 0
   ) {
-    $aboutCard.hidden = true;
+    cardEl.hidden = true;
     return;
   }
   const facts = walkAssertions(report.assertions);
@@ -749,7 +751,7 @@ function renderAboutCard(report) {
   }
 
   // Render.
-  $aboutGrid.innerHTML = "";
+  gridEl.innerHTML = "";
   for (const row of rows) {
     const k = document.createElement("div");
     k.className = "about-key";
@@ -764,14 +766,14 @@ function renderAboutCard(report) {
       badge.textContent = "AI-generated";
       v.appendChild(badge);
     }
-    $aboutGrid.appendChild(k);
-    $aboutGrid.appendChild(v);
+    gridEl.appendChild(k);
+    gridEl.appendChild(v);
   }
 
   // Links list — every URL found anywhere in the assertions, deduped.
   const urls = [...facts.urls].sort();
   if (urls.length > 0) {
-    $aboutLinksList.innerHTML = "";
+    linksListEl.innerHTML = "";
     for (const u of urls) {
       const li = document.createElement("li");
       const a = document.createElement("a");
@@ -780,16 +782,16 @@ function renderAboutCard(report) {
       a.target = "_blank";
       a.rel = "noopener noreferrer";
       li.appendChild(a);
-      $aboutLinksList.appendChild(li);
+      linksListEl.appendChild(li);
     }
-    $aboutLinks.hidden = false;
+    linksEl.hidden = false;
   } else {
-    $aboutLinks.hidden = true;
+    linksEl.hidden = true;
   }
 
   // If we found nothing at all, stay hidden so the card doesn't render
   // empty. Headline-rows alone is enough to show.
-  $aboutCard.hidden = rows.length === 0 && urls.length === 0;
+  cardEl.hidden = rows.length === 0 && urls.length === 0;
 }
 
 // Initial state.
@@ -853,9 +855,7 @@ const $sGoBtn = document.getElementById("sign-go-btn");
 const $sCancelBtn = document.getElementById("sign-cancel-btn");
 const $sGoError = document.getElementById("sign-go-error");
 const $sDonePath = document.getElementById("sign-done-path");
-const $sDoneManifest = document.getElementById("sign-done-manifest");
-const $sDoneIdentityLabel = document.getElementById("sign-done-identity-label");
-const $sDoneIdentity = document.getElementById("sign-done-identity");
+const $sAboutCard = document.getElementById("sign-about-card");
 const $sAnotherBtn = document.getElementById("sign-another-btn");
 const $sVerifyBtn = document.getElementById("sign-verify-btn");
 
@@ -1163,16 +1163,24 @@ $sGoBtn.addEventListener("click", async () => {
   }
 
   $sDonePath.textContent = res.data.output_path;
-  $sDoneManifest.textContent = res.data.manifest_bytes + " bytes";
-  if (res.data.identity_embedded) {
-    $sDoneIdentityLabel.hidden = false;
-    $sDoneIdentity.hidden = false;
-    $sDoneIdentity.textContent = res.data.identity_embedded;
-  } else {
-    $sDoneIdentityLabel.hidden = true;
-    $sDoneIdentity.hidden = true;
-  }
   signStaged = { ...signStaged, lastOutput: res.data.output_path };
+
+  // Verify the just-signed file in-process so we can render the
+  // same "About this file" card the audience will see. Pure read,
+  // no network (the local cert chain is self-signed; no attestation
+  // unless the user asks).
+  const verifyRes = await invoke("verify_file", {
+    path: res.data.output_path,
+    handle: null,
+    did: null,
+    requireAttested: false,
+  });
+  if (verifyRes.ok && verifyRes.report) {
+    renderAboutCard(verifyRes.report, $sAboutCard);
+  } else {
+    $sAboutCard.hidden = true;
+  }
+
   showReadySubstate("done");
 });
 

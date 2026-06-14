@@ -105,12 +105,13 @@
            type, license / compliance text, and every URL found into
            a user-friendly summary. Hidden when nothing interesting
            shows up. The raw assertion KV block below stays for the
-           full engineer view. -->
+           full engineer view. Same shape is reused on the Sign tab's
+           done state via `data-role` hooks. -->
       <div class="about-card" id="about-card" hidden>
-        <div class="about-grid" id="about-grid"></div>
-        <div class="about-links" id="about-links" hidden>
+        <div class="about-grid" data-role="about-grid"></div>
+        <div class="about-links" data-role="about-links" hidden>
           <h4>Links</h4>
-          <ul id="about-links-list"></ul>
+          <ul data-role="about-links-list"></ul>
         </div>
       </div>
 
@@ -277,12 +278,16 @@
             <p id="sign-done-path" class="mono">—</p>
           </div>
         </div>
-        <dl class="kv">
-          <dt>Manifest size</dt>
-          <dd id="sign-done-manifest">—</dd>
-          <dt id="sign-done-identity-label" hidden>Embedded identity</dt>
-          <dd id="sign-done-identity" class="mono" hidden>—</dd>
-        </dl>
+        <!-- The same "About this file" card the Verify tab renders.
+             Closes the loop visually: here's what's in the file you
+             just signed, exactly as your audience will see it. -->
+        <div class="about-card" id="sign-about-card" hidden>
+          <div class="about-grid" data-role="about-grid"></div>
+          <div class="about-links" data-role="about-links" hidden>
+            <h4>Links</h4>
+            <ul data-role="about-links-list"></ul>
+          </div>
+        </div>
         <div class="sign-done-actions">
           <button class="btn btn-primary" id="sign-another-btn">Sign another</button>
           <button class="btn btn-ghost" id="sign-verify-btn">Verify it</button>
