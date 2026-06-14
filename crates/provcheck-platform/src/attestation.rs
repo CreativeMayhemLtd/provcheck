@@ -82,7 +82,51 @@ impl From<&AttestationOptions> for AttestationConfig {
 ///
 /// `cert_fingerprint` should be the canonical `sha256:<hex>` form
 /// from [`fingerprint_leaf_cert`].
+///
+/// ## Auto-bust on stale-cache miss
+///
+/// When the call uses cache (`config.bypass_cache == false`) and the
+/// inner check returns [`AttestationStatus::Mismatch`] or
+/// [`AttestationStatus::NotPublished`], the function transparently
+/// retries once with caching bypassed and returns the fresh result.
+///
+/// This closes the post-rotation footgun: a creator who rotates
+/// their signing key gets a fresh `signingKey` record published, but
+/// any verifier whose `listRecords` cache hasn't expired still sees
+/// the pre-rotation set and reports MISMATCH. Auto-bust forces a
+/// fresh fetch on that specific failure mode, so the user doesn't
+/// have to know about `--no-attestation-cache`.
+///
+/// Costs: one extra HTTP round trip per failed-from-cache check
+/// (handle resolve + DID doc + listRecords). On a genuine Mismatch
+/// or NotPublished those calls are still wasted, but those outcomes
+/// are rare in steady state. Match and ResolutionFailed never pay
+/// the cost.
 pub fn check_attestation(
+    cert_fingerprint: &str,
+    handle: Option<&str>,
+    did: Option<&str>,
+    config: &AttestationConfig,
+) -> DidAttestation {
+    let initial = check_attestation_inner(cert_fingerprint, handle, did, config);
+
+    if !config.bypass_cache
+        && matches!(
+            initial.status,
+            AttestationStatus::Mismatch | AttestationStatus::NotPublished
+        )
+    {
+        let fresh = AttestationConfig {
+            bypass_cache: true,
+            ..config.clone()
+        };
+        return check_attestation_inner(cert_fingerprint, handle, did, &fresh);
+    }
+
+    initial
+}
+
+fn check_attestation_inner(
     cert_fingerprint: &str,
     handle: Option<&str>,
     did: Option<&str>,

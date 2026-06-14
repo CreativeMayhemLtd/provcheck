@@ -322,6 +322,171 @@ fn future_record_ignored() {
 }
 
 #[test]
+fn auto_bust_on_stale_cache_promotes_mismatch_to_match() {
+    // Models the post-rotation footgun the 5060 smoke test surfaced:
+    // first verify caches the pre-rotation record set; a re-verify
+    // after the creator rotates and re-signs would, with naive
+    // caching, report MISMATCH because the cached records still list
+    // the OLD fingerprint. Auto-bust re-fetches once on Mismatch and
+    // catches the new active record.
+
+    let (_tmp, _signed, new_fingerprint, _chain) = signed_with_known_fingerprint();
+    let server = MockServer::start();
+    let did = make_did_for_mock(&server);
+    let stale_fingerprint =
+        "sha256:0000000000000000000000000000000000000000000000000000000000000000";
+
+    server.route_json(
+        "/.well-known/did.json",
+        make_did_doc(&did, &server.base_url()),
+    );
+    // Stage 1: cache the stale "old fingerprint = active" view.
+    server.route_json(
+        "/xrpc/com.atproto.repo.listRecords",
+        make_list_records(vec![make_record(stale_fingerprint, None, None)]),
+    );
+    let cache = tempfile::tempdir().expect("cache tmp");
+    let config = mock_config(&server, cache.path().to_path_buf(), false);
+    let prime = check_attestation(stale_fingerprint, None, Some(&did), &config);
+    assert_eq!(prime.status, AttestationStatus::Match, "warm cache");
+
+    // Stage 2: atproto state has changed (the creator rotated). The
+    // mock now serves the NEW fingerprint. With a naive cache the
+    // next call against new_fingerprint would still see stale
+    // records and report Mismatch.
+    server.route_json(
+        "/xrpc/com.atproto.repo.listRecords",
+        make_list_records(vec![make_record(&new_fingerprint, None, None)]),
+    );
+
+    let before_bust = server.request_count();
+    let result = check_attestation(&new_fingerprint, None, Some(&did), &config);
+    let after_bust = server.request_count();
+    assert_eq!(
+        result.status,
+        AttestationStatus::Match,
+        "auto-bust should promote the cached Mismatch to a fresh Match — got {result:?}"
+    );
+    assert_eq!(
+        result.matched_fingerprint.as_deref(),
+        Some(new_fingerprint.as_str()),
+    );
+    // The auto-bust pays one extra round trip (records listRecords)
+    // beyond the initial cache hit. The handle resolve + DID doc
+    // stay cached.
+    assert!(
+        after_bust > before_bust,
+        "auto-bust should have triggered a fresh fetch (req count {before_bust} → {after_bust})"
+    );
+}
+
+#[test]
+fn auto_bust_on_cached_not_published_finds_newly_published_record() {
+    // Cached state: zero records under the DID. New record published.
+    // Naive cache returns NotPublished; auto-bust catches the new
+    // record and returns Match.
+    let (_tmp, _signed, fingerprint, _chain) = signed_with_known_fingerprint();
+    let server = MockServer::start();
+    let did = make_did_for_mock(&server);
+
+    server.route_json(
+        "/.well-known/did.json",
+        make_did_doc(&did, &server.base_url()),
+    );
+    server.route_json(
+        "/xrpc/com.atproto.repo.listRecords",
+        make_list_records(vec![]),
+    );
+    let cache = tempfile::tempdir().expect("cache tmp");
+    let config = mock_config(&server, cache.path().to_path_buf(), false);
+    let prime = check_attestation(&fingerprint, None, Some(&did), &config);
+    assert_eq!(prime.status, AttestationStatus::NotPublished, "warm cache");
+
+    server.route_json(
+        "/xrpc/com.atproto.repo.listRecords",
+        make_list_records(vec![make_record(&fingerprint, None, None)]),
+    );
+    let result = check_attestation(&fingerprint, None, Some(&did), &config);
+    assert_eq!(
+        result.status,
+        AttestationStatus::Match,
+        "auto-bust should catch the newly-published record — got {result:?}"
+    );
+}
+
+#[test]
+fn auto_bust_writes_back_to_cache_so_next_call_is_fresh() {
+    // The auto-bust path runs with bypass_cache=true at READ time,
+    // but cache_write fires unconditionally inside the network call
+    // — so the fresh data overwrites the stale cache. A third call
+    // afterwards should hit the (now-fresh) cache and add ZERO
+    // extra round trips.
+    let (_tmp, _signed, new_fingerprint, _chain) = signed_with_known_fingerprint();
+    let server = MockServer::start();
+    let did = make_did_for_mock(&server);
+    let stale_fingerprint =
+        "sha256:0000000000000000000000000000000000000000000000000000000000000000";
+
+    server.route_json(
+        "/.well-known/did.json",
+        make_did_doc(&did, &server.base_url()),
+    );
+    server.route_json(
+        "/xrpc/com.atproto.repo.listRecords",
+        make_list_records(vec![make_record(stale_fingerprint, None, None)]),
+    );
+    let cache = tempfile::tempdir().expect("cache tmp");
+    let config = mock_config(&server, cache.path().to_path_buf(), false);
+    let _ = check_attestation(stale_fingerprint, None, Some(&did), &config); // warm cache
+
+    server.route_json(
+        "/xrpc/com.atproto.repo.listRecords",
+        make_list_records(vec![make_record(&new_fingerprint, None, None)]),
+    );
+    let _ = check_attestation(&new_fingerprint, None, Some(&did), &config); // auto-bust + writes back
+
+    let count_before_third = server.request_count();
+    let third = check_attestation(&new_fingerprint, None, Some(&did), &config);
+    let count_after_third = server.request_count();
+    assert_eq!(third.status, AttestationStatus::Match);
+    assert_eq!(
+        count_after_third, count_before_third,
+        "third call should be a pure cache hit (the auto-bust refreshed it); \
+         observed {} extra requests",
+        count_after_third - count_before_third
+    );
+}
+
+#[test]
+fn auto_bust_does_not_fire_on_match() {
+    // Match is conclusive — no extra round trip should happen.
+    let (_tmp, _signed, fingerprint, _chain) = signed_with_known_fingerprint();
+    let server = MockServer::start();
+    let did = make_did_for_mock(&server);
+
+    server.route_json(
+        "/.well-known/did.json",
+        make_did_doc(&did, &server.base_url()),
+    );
+    server.route_json(
+        "/xrpc/com.atproto.repo.listRecords",
+        make_list_records(vec![make_record(&fingerprint, None, None)]),
+    );
+    let cache = tempfile::tempdir().expect("cache tmp");
+    let config = mock_config(&server, cache.path().to_path_buf(), false);
+    let _ = check_attestation(&fingerprint, None, Some(&did), &config); // warm cache
+
+    let before = server.request_count();
+    let result = check_attestation(&fingerprint, None, Some(&did), &config);
+    let after = server.request_count();
+    assert_eq!(result.status, AttestationStatus::Match);
+    assert_eq!(
+        after, before,
+        "Match must not auto-bust (would waste a round trip every cache hit)"
+    );
+}
+
+#[test]
 fn cache_hits_avoid_second_round_trip() {
     let (_tmp, _signed, fingerprint, _chain) = signed_with_known_fingerprint();
     let server = MockServer::start();

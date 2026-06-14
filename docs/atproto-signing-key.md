@@ -127,6 +127,41 @@ Reference implementation:
 [crates/provcheck-attestation-spec/src/lib.rs](../crates/provcheck-attestation-spec/src/lib.rs)
 (`fingerprint_pem_chain`, `fingerprint_leaf_der`).
 
+## 3a. Verifier caching and the stale-cache footgun
+
+Verifiers SHOULD cache the DID document and the `listRecords`
+response to avoid hammering PDSes on every check. The provcheck
+reference implementation caches with a 24-hour TTL.
+
+This creates a footgun around rotation: a verifier that warmed its
+cache before a creator rotated will see the pre-rotation record set
+on the next check, and report `Mismatch` for files signed with the
+post-rotation key — even though atproto's live state would match.
+
+Implementations MUST mitigate this. Two acceptable strategies:
+
+1. **Auto-bust on miss.** When a cached check returns `Mismatch` or
+   `NotPublished`, re-fetch records (and only records, ideally) with
+   caching bypassed, then use the fresh result. Costs one extra
+   round trip per miss; rare in steady state. The provcheck
+   reference verifier does this. The auto-bust also writes the
+   fresh result back to cache, so subsequent calls within the TTL
+   become normal cache hits again.
+
+2. **Shorter TTL on the records cache.** E.g. 5 minutes instead of
+   24 hours. Cheaper per-call but pays the network cost more often.
+   Acceptable when the verifier is a high-traffic service where
+   even rare auto-bust round trips would aggregate.
+
+Naive caching (24-hour TTL, no auto-bust) is non-conformant — users
+WILL hit the post-rotation footgun and report it as a bug.
+
+The user-facing escape hatch — `--no-attestation-cache` in the
+reference CLI, `cache=False` for library callers — must remain
+available regardless. Auto-bust handles the unaware-user case;
+explicit bypass handles the "I just rotated and want to verify
+immediately" case.
+
 ## 4. Verification flow
 
 Given a signed file and (optionally) a creator identity:
@@ -194,6 +229,11 @@ The old record stays in the repo as a tombstone — important for
 audit ("when did this key fall out of use? what replaced it?").
 Verifiers continue to see the old record but treat it as inactive
 because of `validUntil`.
+
+Note for verifier implementers: the post-rotation window is when
+the stale-cache footgun bites. See §3a for the mitigation
+requirement (auto-bust on Mismatch / NotPublished, or a short
+records-cache TTL).
 
 If step 2 fails after step 1 succeeded, the publisher's atproto
 state is briefly inconsistent: new record published, old record
