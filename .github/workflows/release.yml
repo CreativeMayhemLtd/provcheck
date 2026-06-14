@@ -75,13 +75,28 @@ jobs:
             echo "value=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
           fi
 
+      # keyring's Linux backend talks to Secret Service over libdbus.
+      # No-op on every other OS. The CLI build job needs this; the
+      # build-gui job has its own apt install step with webkit + dbus
+      # already included via libayatana-appindicator's transitive deps.
+      - name: Install Linux build deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libdbus-1-dev pkg-config
+
       # Build both CLI binaries in a single cargo invocation so the
       # workspace is compiled once. provcheck (verifier) and
       # provcheck-kit (creator-side toolkit) ship as separate
       # archives so a user grabs only the binary they need —
       # verifiers don't carry the atrium/tokio surface, signers
       # don't carry watermark detectors.
+      #
+      # `shell: bash` so the line-continuation backslash parses on
+      # every OS. Windows defaults to PowerShell, where `\` is an
+      # unknown arg and trips before cargo ever starts.
       - name: cargo build --release (provcheck + provcheck-kit)
+        shell: bash
         run: |
           cargo build --release --target ${{ matrix.target }} \
             -p provcheck-cli -p provcheck-kit
