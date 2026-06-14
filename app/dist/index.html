@@ -100,10 +100,27 @@
 
       <div class="watermarks" id="watermarks" hidden></div>
 
+      <!-- "About this file" card. Populated from a walk over the
+           manifest's assertions: pulls product/tool info, AI-source
+           type, license / compliance text, and every URL found into
+           a user-friendly summary. Hidden when nothing interesting
+           shows up. The raw assertion KV block below stays for the
+           full engineer view. -->
+      <div class="about-card" id="about-card" hidden>
+        <div class="about-grid" id="about-grid"></div>
+        <div class="about-links" id="about-links" hidden>
+          <h4>Links</h4>
+          <ul id="about-links-list"></ul>
+        </div>
+      </div>
+
       <div class="details" id="details">
-        <dl class="kv" id="kv-main"></dl>
-        <h3 id="claims-heading" hidden>Claims</h3>
-        <dl class="kv claims" id="kv-claims"></dl>
+        <details class="raw-details">
+          <summary>Show raw manifest details</summary>
+          <dl class="kv" id="kv-main"></dl>
+          <h3 id="claims-heading" hidden>Claims</h3>
+          <dl class="kv claims" id="kv-claims"></dl>
+        </details>
       </div>
     </section>
   </main>

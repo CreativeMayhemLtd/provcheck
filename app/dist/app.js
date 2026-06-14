@@ -53,6 +53,10 @@ const $sampleRaidio     = document.getElementById("sample-raidio");
 const $sampleDoomscroll = document.getElementById("sample-doomscroll");
 const $footerHint     = document.getElementById("footer-hint");
 const $footerActions  = document.getElementById("footer-actions");
+const $aboutCard      = document.getElementById("about-card");
+const $aboutGrid      = document.getElementById("about-grid");
+const $aboutLinks     = document.getElementById("about-links");
+const $aboutLinksList = document.getElementById("about-links-list");
 
 let lastReport = null;
 let lastFilePath = null;
@@ -124,6 +128,7 @@ function renderReport(report, path) {
 
   renderAttestation(report.did_attestation);
   renderWatermarks(report.watermarks);
+  renderAboutCard(report);
   applyIdentityAutofill(report.identity);
 
   $kvMain.innerHTML = "";
@@ -596,6 +601,196 @@ if ($idRequire) {
   $idRequire.addEventListener("change", saveIdentity);
 }
 hydrateIdentityInputs();
+
+// ============================================================================
+// "About this file" card — friendly verify summary
+// ============================================================================
+//
+// Walks report.assertions looking for user-relevant fields (URLs,
+// product names, AI source type, license / compliance text) and
+// renders them as a card above the raw KV details. The raw details
+// stay reachable via the disclosure so engineers can still see the
+// full manifest.
+
+// Field-name aliases for the four scalar slots we surface.
+const ABOUT_KEYS = {
+  productName: ["productName", "product_name", "name", "title"],
+  productType: ["productType", "product_type", "description", "summary"],
+  modelName: ["modelName", "model_name", "modelFamily", "model_family", "model"],
+  license: ["license", "modelLicense", "model_license", "licenseUrl", "license_url"],
+  compliance: [
+    "compliance",
+    "euAiActCompliance",
+    "eu_ai_act_compliance",
+    "transparency",
+    "transparencyNotice",
+  ],
+};
+
+// AI source-type discriminators from c2pa.actions assertions. Per the
+// C2PA spec these live in actions[].digitalSourceType.
+const AI_SOURCE_TYPES = new Set([
+  "trainedAlgorithmicMedia",
+  "compositeTrainedAlgorithmicMedia",
+  "algorithmicMedia",
+  "compositeAlgorithmicMedia",
+]);
+
+function isUrl(s) {
+  return typeof s === "string" && /^https?:\/\//i.test(s.trim());
+}
+
+function walkAssertions(assertions) {
+  const out = {
+    urls: new Set(),
+    productName: null,
+    productType: null,
+    modelName: null,
+    license: null,
+    compliance: null,
+    aiSource: null,
+  };
+
+  const visit = (val) => {
+    if (val == null) return;
+    if (typeof val === "string") {
+      const trimmed = val.trim();
+      if (isUrl(trimmed)) out.urls.add(trimmed);
+      return;
+    }
+    if (Array.isArray(val)) {
+      for (const v of val) visit(v);
+      return;
+    }
+    if (typeof val !== "object") return;
+    for (const [k, v] of Object.entries(val)) {
+      // digitalSourceType is a C2PA standard field — surface its value
+      // when it's one of the AI codes.
+      if (k === "digitalSourceType" && typeof v === "string") {
+        const cleaned = v.split("/").pop() || v;
+        if (AI_SOURCE_TYPES.has(cleaned)) out.aiSource = cleaned;
+      }
+      // Scalar slots: first hit wins so the topmost / most prominent
+      // assertion takes precedence.
+      for (const [slot, aliases] of Object.entries(ABOUT_KEYS)) {
+        if (!out[slot] && aliases.includes(k) && typeof v === "string" && v) {
+          out[slot] = v;
+        }
+      }
+      visit(v);
+    }
+  };
+  visit(assertions);
+  return out;
+}
+
+function renderAboutCard(report) {
+  if (!$aboutCard) return;
+  // Hide outright on unsigned / failed-parse manifests — no assertions
+  // to summarise.
+  if (
+    !report ||
+    !report.assertions ||
+    typeof report.assertions !== "object" ||
+    Array.isArray(report.assertions) ||
+    Object.keys(report.assertions).length === 0
+  ) {
+    $aboutCard.hidden = true;
+    return;
+  }
+  const facts = walkAssertions(report.assertions);
+
+  // Build the grid rows in display order. Pull a few signals from the
+  // top-level report fields too (signer, tool from claim_generator) so
+  // the card stands on its own without the raw KV.
+  const rows = [];
+  if (facts.productName) {
+    rows.push({ label: "Made by", value: facts.productName, large: true });
+  } else if (report.signer) {
+    rows.push({ label: "Made by", value: report.signer, large: true });
+  }
+  if (facts.productType) {
+    rows.push({ label: "About", value: facts.productType });
+  }
+  if (report.claim_generator || facts.modelName) {
+    const bits = [];
+    if (report.claim_generator) bits.push(report.claim_generator);
+    if (facts.modelName) bits.push(facts.modelName);
+    rows.push({
+      label: "Made with",
+      value: bits.join(" · "),
+      ai: !!facts.aiSource,
+    });
+  } else if (facts.aiSource) {
+    rows.push({ label: "Made with", value: "AI-generated", ai: true });
+  }
+  if (facts.license) {
+    rows.push({ label: "License", value: facts.license });
+  }
+  if (facts.compliance) {
+    rows.push({ label: "Compliance", value: facts.compliance });
+  }
+
+  // Identity claim (from app.provcheck.identity) — already shown by the
+  // attestation badge when the cross-check ran, but the card surfaces
+  // it standalone too when only the claim was found (no --auto-identity).
+  if (
+    report.identity &&
+    typeof report.identity === "object" &&
+    !report.did_attestation
+  ) {
+    const handle = report.identity.handle
+      ? "@" + report.identity.handle
+      : report.identity.did;
+    rows.push({
+      label: "Identity claim",
+      value: handle + " (unverified — re-run with --auto-identity to attest)",
+    });
+  }
+
+  // Render.
+  $aboutGrid.innerHTML = "";
+  for (const row of rows) {
+    const k = document.createElement("div");
+    k.className = "about-key";
+    k.textContent = row.label;
+    const v = document.createElement("div");
+    v.className = "about-val";
+    if (row.large) v.classList.add("is-large");
+    v.textContent = row.value;
+    if (row.ai) {
+      const badge = document.createElement("span");
+      badge.className = "badge-ai";
+      badge.textContent = "AI-generated";
+      v.appendChild(badge);
+    }
+    $aboutGrid.appendChild(k);
+    $aboutGrid.appendChild(v);
+  }
+
+  // Links list — every URL found anywhere in the assertions, deduped.
+  const urls = [...facts.urls].sort();
+  if (urls.length > 0) {
+    $aboutLinksList.innerHTML = "";
+    for (const u of urls) {
+      const li = document.createElement("li");
+      const a = document.createElement("a");
+      a.href = u;
+      a.textContent = u;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      li.appendChild(a);
+      $aboutLinksList.appendChild(li);
+    }
+    $aboutLinks.hidden = false;
+  } else {
+    $aboutLinks.hidden = true;
+  }
+
+  // If we found nothing at all, stay hidden so the card doesn't render
+  // empty. Headline-rows alone is enough to show.
+  $aboutCard.hidden = rows.length === 0 && urls.length === 0;
+}
 
 // Initial state.
 showEmpty();

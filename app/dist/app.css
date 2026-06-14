@@ -956,3 +956,99 @@ body {
   padding: 24px;
 }
 
+/* ============================================================================
+ * "About this file" card — rich verify display
+ * ============================================================================ */
+
+.about-card {
+  background: var(--bg-dark);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  margin: 12px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.about-grid {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 10px 18px;
+}
+.about-grid .about-key {
+  color: var(--text-muted);
+  font-size: 10.5px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  align-self: center;
+}
+.about-grid .about-val {
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.45;
+  word-break: break-word;
+}
+.about-grid .about-val.is-large {
+  font-size: 17px;
+  font-weight: 600;
+}
+.about-grid .about-val .badge-ai {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 10px;
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--status-warning);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  padding: 2px 9px;
+}
+.about-links {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 12px;
+}
+.about-links h4 {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.about-links ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.about-links a {
+  color: var(--accent-dim);
+  text-decoration: none;
+  font-size: 12.5px;
+  word-break: break-all;
+}
+.about-links a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.raw-details {
+  margin: 8px 24px 24px 24px;
+}
+.raw-details > summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 12px;
+  letter-spacing: 0.3px;
+  padding: 6px 0;
+  user-select: none;
+}
+.raw-details > summary:hover { color: var(--text-secondary); }
+.raw-details[open] > summary { color: var(--text-secondary); }
+
