@@ -5,10 +5,20 @@
 //! function that does the work. `main.rs` dispatches based on the
 //! [`Command`] enum.
 //!
-//! All command bodies are stubs in this commit — the scaffold pass
-//! gets the clap structure compiling so subsequent passes can fill
-//! in the actual implementations without re-shaping the CLI
-//! surface.
+//! Two commands intentionally print a "no-op for v0.3.0" line and
+//! exit 0: `lock` and `unlock`. They exist on the CLI surface for
+//! forward-compatibility with a future kit-agent daemon that would
+//! own cross-process passphrase caching; until that daemon ships,
+//! each `kit` invocation drops its in-process [`SecretCache`] at
+//! exit, so there's nothing for these commands to act on.
+//!
+//! `export-backup --use-recovery-recipients` writes X25519-
+//! encrypted bundles, but `import-backup` currently only handles
+//! passphrase-encrypted ones (X25519 identity-file input is the
+//! follow-up); the bundle round-trip with the passphrase path is
+//! covered end-to-end. PKCS#12 export is also follow-up — see
+//! [`provcheck_sign::backup::export_pkcs12_deferred`] for the
+//! explicit deferral rationale.
 
 use clap::{Args, Parser, Subcommand};
 use std::path::PathBuf;
@@ -349,11 +359,27 @@ pub mod status {
                 println!("  storage would be: {}", dir.display());
             }
         }
-        // Session state is reported in sub-pass 4d when login/logout
-        // become real.
         println!();
         println!("[atproto session]");
-        println!("  (status not implemented yet — sub-pass 4d)");
+        match provcheck_publish::AtprotoClient::load_session(&dir).await {
+            Ok(client) => {
+                let snap = client.snapshot();
+                println!("  did:    {}", snap.did);
+                println!("  handle: @{}", snap.handle);
+                println!("  pds:    {}", snap.pds);
+            }
+            Err(provcheck_publish::session::SessionError::SessionExpired) => {
+                println!("  session expired — run `kit login` to refresh");
+            }
+            Err(provcheck_publish::session::SessionError::Io(e))
+                if e.kind() == std::io::ErrorKind::NotFound =>
+            {
+                println!("  none — run `kit login <handle>` to attach an atproto identity");
+            }
+            Err(e) => {
+                println!("  unavailable — {e}");
+            }
+        }
         Ok(())
     }
 }
@@ -397,9 +423,16 @@ pub mod sign {
         #[arg(long, value_name = "PATH")]
         pub manifest: Option<PathBuf>,
 
-        /// Embed the `app.provcheck.identity` assertion (Phase 5
-        /// auto-suggest hook). Currently a no-op until that lexicon
-        /// + verifier extraction lands.
+        /// Embed an `app.provcheck.identity` C2PA assertion carrying
+        /// the local identity's DID (and handle, if known) into the
+        /// signed file's manifest. The verifier reads this as a
+        /// "verify against this DID" hint when the user passes
+        /// `--auto-identity` (and the GUI auto-fills its identity
+        /// bar from it). Requires a DID on the local identity —
+        /// run `kit login` first. The DID is the load-bearing
+        /// trust anchor; the cross-check against the published
+        /// `signingKey` records still has to pass for the verifier
+        /// to trust the claim.
         #[arg(long)]
         pub embed_identity: bool,
     }

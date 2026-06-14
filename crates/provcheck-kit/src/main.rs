@@ -26,13 +26,11 @@
 //!
 //! ## Status
 //!
-//! **Phase 4 sub-pass 1 (this commit): scaffold.** The clap
-//! structure parses every subcommand; each command's body is a
-//! stub that prints "TODO" and exits 0. Subsequent sub-passes
-//! fill in the bodies — identity-side first (init, status, sign,
-//! lock/unlock, change-passphrase, backup, recovery recipients),
-//! then atproto-side (login, logout, publish, list, revoke,
-//! rotate), then `verify` as the cross-cutting shortcut.
+//! All eighteen subcommands have real bodies. Two are intentional
+//! no-ops awaiting a future kit-agent daemon (`lock`, `unlock`);
+//! see the [`commands`] module docs. PKCS#12 export is the only
+//! piece deferred to a follow-up — the age-format primary backup
+//! covers the typical case.
 
 use std::process::ExitCode;
 

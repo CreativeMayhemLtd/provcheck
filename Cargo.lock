@@ -3691,6 +3691,7 @@ version = "0.3.0"
 dependencies = [
  "c2pa",
  "hound",
+ "provcheck-attestation-spec",
  "rcgen",
  "serde",
  "serde_json",

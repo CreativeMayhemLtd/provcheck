@@ -7,22 +7,14 @@
 //!
 //! ## Status
 //!
-//! **Phase 3 sub-pass 1: scaffold only.** This commit lands the
-//! crate skeleton, the dependency wiring (atrium-rs + tokio), and
-//! the public-API surface stubs. The actual session management
-//! and record CRUD implementations land in subsequent sub-passes:
-//!
-//! - **sub-pass 2 (task #49 cont):** `session::login` /
-//!   `session::load_session` / `session::save_session` —
-//!   App-password authentication and on-disk session persistence
-//!   with auto-refresh.
-//! - **sub-pass 3 (task #50):** `records::publish_signing_key`,
-//!   `list_signing_keys`, `update_signing_key`,
-//!   `delete_signing_key`, `revoke_signing_key`. Mock-PDS
-//!   integration tests using the same pattern
-//!   `provcheck-platform/tests/common/mod.rs` ships.
-//!
-//! See the plan file (Phase 3) for the full design.
+//! Session management (`AtprotoClient::{login, load_session,
+//! save_session, logout}`) and record CRUD
+//! (`RecordWriter::{publish_signing_key, list_signing_keys,
+//! update_signing_key, delete_signing_key}`) are fully implemented
+//! and have unit + integration test coverage. Mock-PDS round-trips
+//! cover the happy paths; the live end-to-end run against bsky.app
+//! is part of the v0.3.0 release acceptance plan rather than the
+//! automated suite (it would need a test account + network).
 //!
 //! ## Architectural notes
 //!

@@ -16,6 +16,12 @@
 # serves those files verbatim, no build step — so `app/dist/` IS
 # the source tree and must be tracked.
 
+# Release-staging directory. `dist/` is where local copies of release
+# archives land before `scripts/publish-release.sh` mirrors them to
+# the public repo. The authoritative copies live on GitHub Releases,
+# not in git.
+/dist/
+
 # Editor / OS
 .vscode/
 .idea/
