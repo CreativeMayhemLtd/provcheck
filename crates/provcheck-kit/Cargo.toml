@@ -38,3 +38,15 @@ secrecy = "0.10"
 # Time formatting for recovery-recipient `added_at` stamping and
 # the `validUntil = now()` revocation flow.
 time = { version = "0.3", features = ["parsing", "formatting"] }
+
+[dev-dependencies]
+# End-to-end smoke test exercises the full producer→verifier loop
+# using the in-process library APIs (bypassing rpassword prompts
+# that can't be driven from a test). Pulls in provcheck for the
+# verifier side and tempfile/hound for fixture generation.
+provcheck = { path = "../provcheck" }
+provcheck-sign = { path = "../provcheck-sign" }
+provcheck-attestation-spec = { path = "../provcheck-attestation-spec" }
+secrecy = "0.10"
+tempfile = "3"
+hound = "3"
