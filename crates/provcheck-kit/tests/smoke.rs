@@ -229,6 +229,68 @@ fn end_to_end_identity_assertion_round_trip() {
 }
 
 #[test]
+fn in_place_sign_round_trip_uses_sibling_tempfile() {
+    // Regression test for the 5060 smoke-test bug: `kit sign foo.wav`
+    // with no --out claimed "in-place" but c2pa-rs refuses src == dst.
+    // The fix uses a sidecar temp file and atomic-renames over the
+    // source on success. This test drives the library functions
+    // directly (provcheck-sign + provcheck) with hard-coded
+    // passphrases so it runs without a TTY.
+
+    let tmp = tempfile::tempdir().expect("tmp");
+    let src = tmp.path().join("in-place.wav");
+    // Matches the path the production sign command would compute
+    // via sidecar_tmp_path: stem.signed-tmp.ext (extension preserved
+    // so c2pa-rs's source/dest format check passes).
+    let temp_sidecar = tmp.path().join("in-place.signed-tmp.wav");
+    write_silent_wav(&src);
+    let original_size = std::fs::metadata(&src).expect("stat").len();
+
+    // Generate identity inline (same shape as the round-trip test).
+    let kp = generate(&SubjectInfo::default()).expect("kp");
+    let locked = LockedIdentity {
+        chain_pem: kp.chain_pem.clone(),
+        fingerprint: kp.fingerprint.clone(),
+        algorithm: kp.algorithm.clone(),
+        did: None,
+        handle: None,
+        created_at: OffsetDateTime::UNIX_EPOCH,
+        key_provider: KeyProviderKind::EncryptedFile,
+        recovery_recipients: vec![],
+    };
+    let unlocked = UnlockedIdentity::new(locked, SecretString::from(kp.key_pem.clone()));
+
+    // Simulate the in-place flow: write to the sidecar, rename over.
+    // This is the exact path commands::sign::run takes when --out is
+    // None, only without the interactive unlock.
+    let manifest = serde_json::json!({
+        "claim_generator": "smoke/0",
+        "format": "audio/wav",
+        "title": "in-place.wav",
+        "assertions": [
+            {"label": "c2pa.actions.v2", "data": {"actions": [{"action": "c2pa.created"}]}}
+        ]
+    })
+    .to_string();
+    sign_asset(&unlocked, &src, &temp_sidecar, &manifest).expect("sign");
+    assert!(temp_sidecar.exists(), "temp written");
+    assert!(src.exists(), "source untouched until rename");
+
+    // Atomic rename — the load-bearing primitive for this fix.
+    std::fs::rename(&temp_sidecar, &src).expect("rename");
+    assert!(!temp_sidecar.exists(), "temp gone after rename");
+    let new_size = std::fs::metadata(&src).expect("stat").len();
+    assert!(
+        new_size > original_size,
+        "signed file is larger than original (manifest embedded): {original_size} → {new_size}"
+    );
+
+    // And it verifies.
+    let report = verify(&src).expect("verify");
+    assert!(report.verified, "{:?}", report.failure_reason);
+}
+
+#[test]
 fn kit_binary_verify_shells_out_to_provcheck() {
     // The verify shortcut spawns the configured provcheck binary.
     // We point it at the workspace's `provcheck` binary (built by

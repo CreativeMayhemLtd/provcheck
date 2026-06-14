@@ -304,6 +304,7 @@ pub mod status {
     use clap::Args;
 
     use provcheck_sign::persist::{default_dir, load_locked};
+    use time::format_description::well_known::Rfc3339;
 
     use super::DataDirOpt;
 
@@ -323,10 +324,18 @@ pub mod status {
 
         match load_locked(&dir) {
             Ok(locked) => {
+                // RFC 3339 (e.g. "2026-06-14T08:28:05.199Z") instead
+                // of OffsetDateTime's verbose Display ("2026-06-14
+                // 8:28:05.1994507 +00:00:00"). Matches the wire
+                // format used everywhere else in the codebase.
+                let created = locked
+                    .created_at
+                    .format(&Rfc3339)
+                    .unwrap_or_else(|_| locked.created_at.to_string());
                 println!("[identity]");
                 println!("  fingerprint: {}", locked.fingerprint);
                 println!("  algorithm:   {}", locked.algorithm);
-                println!("  created:     {}", locked.created_at);
+                println!("  created:     {created}");
                 println!(
                     "  backend:     {}",
                     match locked.key_provider {
@@ -412,7 +421,15 @@ pub mod sign {
         /// Asset to sign.
         pub file: PathBuf,
 
-        /// Destination path. Defaults to in-place (same as input).
+        /// Destination path. When omitted, the kit signs in place:
+        /// writes to a sibling temp file
+        /// (`<stem>.signed-tmp.<ext>`, e.g. `foo.signed-tmp.wav`)
+        /// and atomically renames over the source on success.
+        /// c2pa-rs itself doesn't support in-place (source and
+        /// destination must differ AND share an extension), so the
+        /// temp-file dance hides that limit from the caller. If
+        /// signing fails the temp file is removed and the source
+        /// is left untouched.
         #[arg(long, short = 'o', value_name = "PATH")]
         pub out: Option<PathBuf>,
 
@@ -480,17 +497,77 @@ pub mod sign {
             base_manifest
         };
 
-        let dst = args.out.clone().unwrap_or_else(|| args.file.clone());
-        let result = sign_asset(&unlocked, &args.file, &dst, &manifest_json)
-            .context("c2pa sign_asset")?;
+        // c2pa-rs refuses src == dst. When the user wants in-place
+        // (no --out), write to a sibling temp file and atomic-rename
+        // over the source on success. The temp file lives in the
+        // same directory as the source so std::fs::rename stays
+        // atomic on every platform (cross-volume rename isn't).
+        let (effective_dst, in_place) = match &args.out {
+            Some(p) => (p.clone(), false),
+            None => (sidecar_tmp_path(&args.file), true),
+        };
 
-        eprintln!("✓ Signed {} → {}", args.file.display(), result.output_path.display());
+        let result = match sign_asset(&unlocked, &args.file, &effective_dst, &manifest_json) {
+            Ok(r) => r,
+            Err(e) => {
+                // Clean up the temp file so a failed in-place sign
+                // doesn't leave a half-written sidecar lying around.
+                if in_place {
+                    let _ = std::fs::remove_file(&effective_dst);
+                }
+                return Err(anyhow::Error::from(e).context("c2pa sign_asset"));
+            }
+        };
+
+        let final_path = if in_place {
+            std::fs::rename(&effective_dst, &args.file).with_context(|| {
+                // Best-effort temp cleanup before returning.
+                let _ = std::fs::remove_file(&effective_dst);
+                format!(
+                    "promote temp file {} → {} (signed file is at the temp \
+                     path if it still exists)",
+                    effective_dst.display(),
+                    args.file.display()
+                )
+            })?;
+            args.file.clone()
+        } else {
+            result.output_path.clone()
+        };
+
+        eprintln!("✓ Signed {} → {}", args.file.display(), final_path.display());
         eprintln!("  manifest bytes: {}", result.manifest_bytes.len());
         if args.embed_identity {
             eprintln!("  identity assertion: embedded ({})",
                 unlocked.locked.did.as_deref().unwrap_or("?"));
         }
         Ok(())
+    }
+
+    /// Compute the temp-file path used for an in-place sign. Lives
+    /// in the same directory as the source so the eventual rename
+    /// is atomic. Slots `.signed-tmp` into the file stem rather
+    /// than appending it to the full name — c2pa-rs validates that
+    /// source and destination extensions match, so the temp must
+    /// keep the original extension. `foo.wav` → `foo.signed-tmp.wav`;
+    /// `foo` (no extension) → `foo.signed-tmp`.
+    pub(crate) fn sidecar_tmp_path(src: &std::path::Path) -> PathBuf {
+        let parent = src.parent();
+        let stem = src
+            .file_stem()
+            .map(|s| s.to_owned())
+            .unwrap_or_else(|| std::ffi::OsString::from("unnamed"));
+        let ext = src.extension();
+        let mut name = stem;
+        name.push(".signed-tmp");
+        if let Some(e) = ext {
+            name.push(".");
+            name.push(e);
+        }
+        match parent {
+            Some(p) if !p.as_os_str().is_empty() => p.join(name),
+            _ => PathBuf::from(name),
+        }
     }
 
     /// Construct a minimal-but-valid C2PA manifest for the given
@@ -1086,6 +1163,29 @@ async fn load_or_explain_session(
     }
 }
 
+/// Normalise a user-supplied fingerprint string into a comparable
+/// lowercase hex slice (no `sha256:` prefix). Accepts:
+/// - `sha256:<hex>` — strips the prefix.
+/// - `<hex>` (bare) — passes through after lowercasing.
+/// - Short prefixes (≥8 hex chars) — passes through; caller does
+///   the prefix match against equally-normalised stored values.
+///
+/// Returns `Err` for inputs that don't decode as hex or are shorter
+/// than 8 chars (too ambiguous to be a useful needle).
+pub fn normalise_fingerprint(s: &str) -> Result<String, &'static str> {
+    let stripped = s.strip_prefix("sha256:").unwrap_or(s).to_ascii_lowercase();
+    if stripped.len() < 8 {
+        return Err("fingerprint too short — need at least 8 hex characters");
+    }
+    if stripped.len() > 64 {
+        return Err("fingerprint too long — sha256 produces 64 hex characters");
+    }
+    if !stripped.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Err("fingerprint must be hex characters only (0-9, a-f)");
+    }
+    Ok(stripped)
+}
+
 /// Walk an [`anyhow::Error`]'s chain looking for anything that
 /// indicates a session-expired condition: a direct
 /// [`KitError::SessionExpired`], a [`provcheck_publish::session::SessionError::SessionExpired`]
@@ -1412,8 +1512,11 @@ pub mod revoke {
         #[command(flatten)]
         pub data_dir: DataDirOpt,
 
-        /// Fingerprint of the record to revoke (full
-        /// `sha256:<hex>` form).
+        /// Fingerprint of the record to revoke. Accepts any of:
+        /// the canonical `sha256:<64-hex>` form, the bare 64-char
+        /// hex, or a short prefix (≥8 hex chars) when it
+        /// uniquely identifies one record. The match is
+        /// case-insensitive.
         pub fingerprint: String,
 
         /// at-uri of a replacement record (set on the revoked
@@ -1433,15 +1536,36 @@ pub mod revoke {
         let client = super::load_or_explain_session(&dir).await?;
         let writer = RecordWriter::new(&client);
         let records = writer.list_signing_keys().await.context("atproto list")?;
-        let (uri, mut record) = records
-            .into_iter()
-            .find(|(_, r)| r.fingerprint == args.fingerprint)
-            .ok_or_else(|| {
-                anyhow::anyhow!(
-                    "no record with fingerprint {} in your repo",
-                    args.fingerprint
-                )
-            })?;
+        let needle = super::normalise_fingerprint(&args.fingerprint).map_err(|e| {
+            anyhow::anyhow!("--fingerprint {:?}: {e}", args.fingerprint)
+        })?;
+        let matches: Vec<_> = records
+            .iter()
+            .filter(|(_, r)| {
+                super::normalise_fingerprint(&r.fingerprint)
+                    .map(|stored| stored.starts_with(&needle))
+                    .unwrap_or(false)
+            })
+            .collect();
+        let (uri, mut record) = match matches.as_slice() {
+            [] => bail!(
+                "no record with fingerprint matching {} in your repo. \
+                 Run `kit list` to see active fingerprints.",
+                args.fingerprint
+            ),
+            [single] => (single.0.clone(), single.1.clone()),
+            many => {
+                eprintln!(
+                    "ambiguous: fingerprint prefix {:?} matches {} records:",
+                    args.fingerprint,
+                    many.len()
+                );
+                for (uri, r) in many {
+                    eprintln!("  - {} → {}", r.fingerprint, uri);
+                }
+                bail!("rerun with more characters of the fingerprint");
+            }
+        };
         let rkey = uri
             .rkey()
             .ok_or_else(|| anyhow::anyhow!("matched record has malformed at-uri: {}", uri))?;
@@ -2032,6 +2156,94 @@ mod tests {
     fn is_session_expired_ignores_unrelated_errors() {
         let err = anyhow::anyhow!("file not found");
         assert!(!super::is_session_expired(&err));
+    }
+
+    #[test]
+    fn normalise_fingerprint_strips_sha256_prefix() {
+        let got =
+            super::normalise_fingerprint("sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+                .expect("ok");
+        assert_eq!(
+            got,
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+        );
+    }
+
+    #[test]
+    fn normalise_fingerprint_accepts_bare_hex() {
+        let got =
+            super::normalise_fingerprint("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+                .expect("ok");
+        assert_eq!(got.len(), 64);
+    }
+
+    #[test]
+    fn normalise_fingerprint_lowercases_input() {
+        let got =
+            super::normalise_fingerprint("SHA256:0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF");
+        // The prefix-strip is case-sensitive on "sha256:" — uppercase
+        // SHA256: doesn't strip, which means the whole string fails
+        // hex validation. This is intentional; the wire format uses
+        // lowercase exclusively.
+        assert!(got.is_err(), "uppercase SHA256: prefix not stripped");
+        // The hex chars themselves DO normalise to lowercase though.
+        let got2 = super::normalise_fingerprint(
+            "sha256:0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF",
+        )
+        .expect("ok");
+        assert!(got2.chars().all(|c| !c.is_uppercase()), "lowercased: {got2}");
+    }
+
+    #[test]
+    fn normalise_fingerprint_accepts_short_prefix() {
+        let got = super::normalise_fingerprint("bce94497").expect("ok");
+        assert_eq!(got, "bce94497");
+    }
+
+    #[test]
+    fn normalise_fingerprint_rejects_too_short() {
+        let err = super::normalise_fingerprint("bce9449").expect_err("rejected");
+        assert!(err.contains("too short"), "{err}");
+    }
+
+    #[test]
+    fn normalise_fingerprint_rejects_non_hex() {
+        let err = super::normalise_fingerprint("zzzzzzzz").expect_err("rejected");
+        assert!(err.contains("hex"), "{err}");
+    }
+
+    #[test]
+    fn normalise_fingerprint_rejects_too_long() {
+        let err = super::normalise_fingerprint(&"a".repeat(65)).expect_err("rejected");
+        assert!(err.contains("too long"), "{err}");
+    }
+
+    #[test]
+    fn sidecar_tmp_path_preserves_extension() {
+        let p = super::sign::sidecar_tmp_path(std::path::Path::new("foo.mp3"));
+        assert_eq!(
+            p.file_name().and_then(|s| s.to_str()),
+            Some("foo.signed-tmp.mp3")
+        );
+    }
+
+    #[test]
+    fn sidecar_tmp_path_handles_no_extension() {
+        let p = super::sign::sidecar_tmp_path(std::path::Path::new("foo"));
+        assert_eq!(
+            p.file_name().and_then(|s| s.to_str()),
+            Some("foo.signed-tmp")
+        );
+    }
+
+    #[test]
+    fn sidecar_tmp_path_lives_in_source_dir() {
+        let p = super::sign::sidecar_tmp_path(std::path::Path::new("/var/data/foo.wav"));
+        assert_eq!(
+            p.file_name().and_then(|s| s.to_str()),
+            Some("foo.signed-tmp.wav")
+        );
+        assert_eq!(p.parent(), std::path::Path::new("/var/data").parent().map(|_| std::path::Path::new("/var/data")));
     }
 
     #[test]
