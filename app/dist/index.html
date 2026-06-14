@@ -12,7 +12,7 @@
       <img src="cm-logo.png" alt="Creative Mayhem" class="cm-logo" />
       <div class="brand-text">
         <h1>provcheck</h1>
-        <p>C2PA Content Credentials verifier</p>
+        <p>Sign &amp; verify C2PA Content Credentials</p>
       </div>
     </div>
     <div class="attribution">
@@ -22,18 +22,29 @@
     </div>
   </header>
 
+  <!-- Tab bar — switches the main pane between Verify and Sign. The
+       Verify pane is the offline read-only flow that has always shipped;
+       the Sign pane is Phase 9 (provcheck-kit wrapped in webview UI). -->
+  <nav class="tabs" id="tabs" role="tablist">
+    <button class="tab is-active" id="tab-verify-btn" role="tab" aria-selected="true" aria-controls="tab-verify">Verify</button>
+    <button class="tab" id="tab-sign-btn" role="tab" aria-selected="false" aria-controls="tab-sign">Sign</button>
+  </nav>
+
+  <!-- =====================================================================
+       VERIFY TAB
+       ===================================================================== -->
+  <div class="tab-pane is-active" id="tab-verify" role="tabpanel" aria-labelledby="tab-verify-btn">
+
   <!-- Identity bar: optional bsky handle / DID for DID-anchored
-       attestation (Phase 1 second-factor). Empty = pure offline
-       verify, exactly as before. Values persist to localStorage. -->
+       attestation. Empty = pure offline verify. Values persist to
+       localStorage. Lives inside the Verify tab — has no meaning when
+       signing. -->
   <section class="identity-bar" id="identity-bar">
     <label class="identity-field">
       <span class="identity-label">Bsky handle</span>
       <input type="text" id="identity-handle"
              placeholder="optional · e.g. creator.bsky.social or did:plc:…"
              autocomplete="off" spellcheck="false" />
-      <!-- Shown after a file's app.provcheck.identity assertion
-           pre-fills the input. Cleared when the user types or
-           when the next file has no embedded claim. -->
       <span id="identity-autofill-hint" class="identity-autofill-hint" hidden></span>
     </label>
     <label class="identity-toggle">
@@ -94,11 +105,10 @@
         <h3 id="claims-heading" hidden>Claims</h3>
         <dl class="kv claims" id="kv-claims"></dl>
       </div>
-
     </section>
   </main>
 
-  <footer class="footer">
+  <footer class="footer" id="verify-footer">
     <div class="footer-hint" id="footer-hint">
       Signed outputs from <strong>rAIdio.bot</strong> and <strong>Doomscroll.fm</strong> verify here out of the box &mdash; try <code id="sample-raidio" role="button" tabindex="0">example: rAIdio.bot</code> or <code id="sample-doomscroll" role="button" tabindex="0">example: Doomscroll.fm</code>.
     </div>
@@ -107,6 +117,170 @@
       <button class="btn btn-ghost" id="copy-json">Copy as JSON</button>
     </div>
   </footer>
+
+  </div> <!-- /tab-verify -->
+
+  <!-- =====================================================================
+       SIGN TAB
+       ===================================================================== -->
+  <div class="tab-pane" id="tab-sign" role="tabpanel" aria-labelledby="tab-sign-btn" hidden>
+
+  <!-- Identity status strip: always visible on the Sign tab. Shows
+       current identity fingerprint + handle when set up, "no identity"
+       otherwise. Click to manage. -->
+  <section class="sign-strip" id="sign-strip">
+    <div class="sign-strip-left">
+      <span class="sign-strip-label" id="sign-strip-id-label">Identity:</span>
+      <span class="sign-strip-id" id="sign-strip-id">not set up</span>
+    </div>
+    <div class="sign-strip-right">
+      <span class="sign-strip-label" id="sign-strip-session-label">Session:</span>
+      <span class="sign-strip-session" id="sign-strip-session">disconnected</span>
+      <button class="btn btn-ghost btn-small" id="sign-logout-btn" hidden>Log out</button>
+    </div>
+  </section>
+
+  <main class="stage stage-sign">
+    <!-- State 1: no identity → setup prompt -->
+    <section class="sign-state" id="sign-state-setup" hidden>
+      <div class="sign-state-inner">
+        <h2>Set up your signing identity</h2>
+        <p>This generates a cryptographic key on this machine and stores it in your OS keychain. You'll only need to do this once.</p>
+        <button class="btn btn-primary" id="sign-init-btn">Generate signing key</button>
+        <p class="hint">The key never leaves your machine. Your OS handles access prompts.</p>
+      </div>
+    </section>
+
+    <!-- State 2: identity, no session → bsky connect -->
+    <section class="sign-state" id="sign-state-connect" hidden>
+      <div class="sign-state-inner">
+        <h2>Connect your bsky identity</h2>
+        <p>Attach your signing key to your atproto handle so verifiers know it's yours.</p>
+        <form class="sign-form" id="sign-login-form" autocomplete="off">
+          <label class="sign-form-field">
+            <span>Bsky handle</span>
+            <input type="text" id="sign-login-handle" placeholder="creator.bsky.social"
+                   autocomplete="username" spellcheck="false" required />
+          </label>
+          <label class="sign-form-field">
+            <span>App password</span>
+            <input type="password" id="sign-login-password" placeholder="••••-••••-••••-••••"
+                   autocomplete="current-password" required />
+          </label>
+          <p class="sign-form-help">
+            App passwords are scoped tokens — generate one at
+            <a href="https://bsky.app/settings/app-passwords" target="_blank" rel="noopener">bsky.app → Settings → App Passwords</a>.
+            <strong>Never paste your account password here.</strong>
+          </p>
+          <label class="sign-form-remember">
+            <input type="checkbox" id="sign-login-remember" />
+            <span>Remember me on this device</span>
+          </label>
+          <button type="submit" class="btn btn-primary" id="sign-login-btn">Connect</button>
+          <p class="sign-form-error" id="sign-login-error" hidden></p>
+        </form>
+      </div>
+    </section>
+
+    <!-- State 3: connected, no published record → publish prompt -->
+    <section class="sign-state" id="sign-state-publish" hidden>
+      <div class="sign-state-inner">
+        <h2>Publish your signing key</h2>
+        <p>One last step — publishing your key's fingerprint to atproto lets verifiers cross-check that you signed your work. Without this they only see "valid signature by unknown."</p>
+        <form class="sign-form" id="sign-publish-form" autocomplete="off">
+          <label class="sign-form-field">
+            <span>Label (optional)</span>
+            <input type="text" id="sign-publish-label" placeholder="e.g. studio mac" maxlength="256" />
+          </label>
+          <button type="submit" class="btn btn-primary" id="sign-publish-btn">Publish key</button>
+          <p class="sign-form-error" id="sign-publish-error" hidden></p>
+        </form>
+        <p class="hint">Or <button type="button" class="link-btn" id="sign-skip-publish-btn">skip and sign locally</button> — works, but no atproto attestation.</p>
+      </div>
+    </section>
+
+    <!-- State 4: ready → drop zone for signing -->
+    <section class="sign-state" id="sign-state-ready" hidden>
+      <!-- Empty: drop zone -->
+      <div class="sign-ready-empty" id="sign-ready-empty">
+        <div class="dropzone dropzone-sign" id="sign-dropzone">
+          <div class="dropzone-inner">
+            <svg class="dropzone-icon" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+              <rect x="8" y="8" width="48" height="48" rx="8" stroke="currentColor" stroke-width="2" stroke-dasharray="6 4"/>
+              <path d="M32 44V26M24 34l8 10 8-10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <line x1="22" y1="20" x2="42" y2="20" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+            </svg>
+            <h2>Drop a file here to sign</h2>
+            <p>Audio · Image · Video — anything c2pa-rs supports.</p>
+            <p class="hint">Output goes next to the source as <code>&lt;name&gt;.signed.&lt;ext&gt;</code>.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Preview: file dropped, awaiting Sign click -->
+      <div class="sign-preview" id="sign-preview" hidden>
+        <div class="sign-preview-card">
+          <h2>Ready to sign</h2>
+          <dl class="kv">
+            <dt>File</dt>
+            <dd class="mono" id="sign-preview-path">—</dd>
+            <dt>Identity</dt>
+            <dd class="mono" id="sign-preview-identity">—</dd>
+            <dt>Output</dt>
+            <dd class="mono" id="sign-preview-output">—</dd>
+          </dl>
+          <label class="sign-form-remember">
+            <input type="checkbox" id="sign-embed-identity" checked />
+            <span>Embed identity assertion (recommended — lets verifiers skip the handle entry step)</span>
+          </label>
+          <label class="sign-form-remember">
+            <input type="checkbox" id="sign-replace-original" />
+            <span>Replace the original (instead of writing a sidecar)</span>
+          </label>
+          <div class="sign-preview-actions">
+            <button class="btn btn-primary" id="sign-go-btn">Sign</button>
+            <button class="btn btn-ghost" id="sign-cancel-btn">Pick a different file</button>
+          </div>
+          <p class="sign-form-error" id="sign-go-error" hidden></p>
+        </div>
+      </div>
+
+      <!-- Signing: spinner -->
+      <div class="sign-signing" id="sign-signing" hidden>
+        <div class="spinner"></div>
+        <p>Signing…</p>
+      </div>
+
+      <!-- Done: report card -->
+      <div class="sign-done" id="sign-done" hidden>
+        <div class="verdict is-verified">
+          <div class="verdict-icon">✓</div>
+          <div class="verdict-text">
+            <h2>Signed</h2>
+            <p id="sign-done-path" class="mono">—</p>
+          </div>
+        </div>
+        <dl class="kv">
+          <dt>Manifest size</dt>
+          <dd id="sign-done-manifest">—</dd>
+          <dt id="sign-done-identity-label" hidden>Embedded identity</dt>
+          <dd id="sign-done-identity" class="mono" hidden>—</dd>
+        </dl>
+        <div class="sign-done-actions">
+          <button class="btn btn-primary" id="sign-another-btn">Sign another</button>
+          <button class="btn btn-ghost" id="sign-verify-btn">Verify it</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Loading state for kit_status / kit_login / kit_publish -->
+    <section class="loading" id="sign-loading" hidden>
+      <div class="spinner"></div>
+      <p class="loading-file" id="sign-loading-msg">Loading…</p>
+    </section>
+  </main>
+
+  </div> <!-- /tab-sign -->
 
   <script src="app.js"></script>
 </body>

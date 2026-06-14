@@ -506,16 +506,42 @@ $copyJson.addEventListener("click", async () => {
 // webview-bound helper (the helper requires an ESM import that our
 // no-build-step setup can't provide). The payload shape is
 //   { type: "enter"|"over"|"drop"|"leave", paths: [...], position }
+//
+// Dispatches based on which tab is active — Verify tab → verifyPath,
+// Sign tab → showSignPreview. The two flows are independent.
 TAURI.event.listen("tauri://drag-drop", (event) => {
   const p = event.payload;
   $dropzone.classList.remove("drag-over");
-  if (p && Array.isArray(p.paths) && p.paths.length > 0) {
+  const $signDz = document.getElementById("sign-dropzone");
+  if ($signDz) $signDz.classList.remove("drag-over");
+  if (!p || !Array.isArray(p.paths) || p.paths.length === 0) return;
+  if (activeTab() === "sign") {
+    if (typeof window.signOnDrop === "function") window.signOnDrop(p.paths[0]);
+  } else {
     verifyPath(p.paths[0]);
   }
 });
-TAURI.event.listen("tauri://drag-enter", () => $dropzone.classList.add("drag-over"));
-TAURI.event.listen("tauri://drag-over", () => $dropzone.classList.add("drag-over"));
-TAURI.event.listen("tauri://drag-leave", () => $dropzone.classList.remove("drag-over"));
+TAURI.event.listen("tauri://drag-enter", () => {
+  $dropzone.classList.add("drag-over");
+  const $signDz = document.getElementById("sign-dropzone");
+  if ($signDz) $signDz.classList.add("drag-over");
+});
+TAURI.event.listen("tauri://drag-over", () => {
+  $dropzone.classList.add("drag-over");
+  const $signDz = document.getElementById("sign-dropzone");
+  if ($signDz) $signDz.classList.add("drag-over");
+});
+TAURI.event.listen("tauri://drag-leave", () => {
+  $dropzone.classList.remove("drag-over");
+  const $signDz = document.getElementById("sign-dropzone");
+  if ($signDz) $signDz.classList.remove("drag-over");
+});
+
+function activeTab() {
+  return document.getElementById("tab-sign").classList.contains("is-active")
+    ? "sign"
+    : "verify";
+}
 
 // Footer example links — low-cost stub that explains where to grab
 // the sample files. Proper bundled-resource wiring can land later.
@@ -573,3 +599,399 @@ hydrateIdentityInputs();
 
 // Initial state.
 showEmpty();
+
+// ============================================================================
+// SIGN TAB
+// ============================================================================
+//
+// State machine, driven by `kit_status`:
+//   no identity        → setup screen
+//   identity, no sess  → connect screen
+//   sess, no record    → publish screen
+//   ready              → drop zone → preview → signing → done
+//
+// All backend calls go through Tauri `invoke`. No persistent state in JS
+// beyond the last-known status snapshot and the currently-staged file
+// path (when previewing a sign).
+
+const SIGN_HANDLE_KEY = "provcheck.sign.handle";
+
+const $tabVerifyBtn = document.getElementById("tab-verify-btn");
+const $tabSignBtn = document.getElementById("tab-sign-btn");
+const $paneVerify = document.getElementById("tab-verify");
+const $paneSign = document.getElementById("tab-sign");
+
+const $signStripId = document.getElementById("sign-strip-id");
+const $signStripSession = document.getElementById("sign-strip-session");
+const $signLogoutBtn = document.getElementById("sign-logout-btn");
+
+const $sLoading = document.getElementById("sign-loading");
+const $sLoadingMsg = document.getElementById("sign-loading-msg");
+const $sSetup = document.getElementById("sign-state-setup");
+const $sConnect = document.getElementById("sign-state-connect");
+const $sPublish = document.getElementById("sign-state-publish");
+const $sReady = document.getElementById("sign-state-ready");
+
+const $sInitBtn = document.getElementById("sign-init-btn");
+
+const $sLoginForm = document.getElementById("sign-login-form");
+const $sLoginHandle = document.getElementById("sign-login-handle");
+const $sLoginPassword = document.getElementById("sign-login-password");
+const $sLoginRemember = document.getElementById("sign-login-remember");
+const $sLoginError = document.getElementById("sign-login-error");
+
+const $sPublishForm = document.getElementById("sign-publish-form");
+const $sPublishLabel = document.getElementById("sign-publish-label");
+const $sPublishError = document.getElementById("sign-publish-error");
+const $sSkipPublishBtn = document.getElementById("sign-skip-publish-btn");
+
+const $sReadyEmpty = document.getElementById("sign-ready-empty");
+const $sPreview = document.getElementById("sign-preview");
+const $sSigning = document.getElementById("sign-signing");
+const $sDone = document.getElementById("sign-done");
+const $sPreviewPath = document.getElementById("sign-preview-path");
+const $sPreviewIdentity = document.getElementById("sign-preview-identity");
+const $sPreviewOutput = document.getElementById("sign-preview-output");
+const $sEmbedIdentity = document.getElementById("sign-embed-identity");
+const $sReplaceOriginal = document.getElementById("sign-replace-original");
+const $sGoBtn = document.getElementById("sign-go-btn");
+const $sCancelBtn = document.getElementById("sign-cancel-btn");
+const $sGoError = document.getElementById("sign-go-error");
+const $sDonePath = document.getElementById("sign-done-path");
+const $sDoneManifest = document.getElementById("sign-done-manifest");
+const $sDoneIdentityLabel = document.getElementById("sign-done-identity-label");
+const $sDoneIdentity = document.getElementById("sign-done-identity");
+const $sAnotherBtn = document.getElementById("sign-another-btn");
+const $sVerifyBtn = document.getElementById("sign-verify-btn");
+
+let signStatus = null;          // last KitStatus snapshot
+let signStaged = null;          // { path, replaceOriginal, embed } when previewing
+let signSkipPublish = false;    // user clicked "skip and sign locally"
+
+// ---- Tab switching ---------------------------------------------------------
+
+function activateTab(name) {
+  const isSign = name === "sign";
+  $tabVerifyBtn.classList.toggle("is-active", !isSign);
+  $tabSignBtn.classList.toggle("is-active", isSign);
+  $tabVerifyBtn.setAttribute("aria-selected", String(!isSign));
+  $tabSignBtn.setAttribute("aria-selected", String(isSign));
+  $paneVerify.classList.toggle("is-active", !isSign);
+  $paneSign.classList.toggle("is-active", isSign);
+  $paneVerify.hidden = isSign;
+  $paneSign.hidden = !isSign;
+  if (isSign) refreshSignTab();
+}
+
+$tabVerifyBtn.addEventListener("click", () => activateTab("verify"));
+$tabSignBtn.addEventListener("click", () => activateTab("sign"));
+
+// ---- State dispatch --------------------------------------------------------
+
+function showSignState(name) {
+  for (const el of [$sLoading, $sSetup, $sConnect, $sPublish, $sReady]) {
+    el.hidden = true;
+  }
+  if (name === "loading") $sLoading.hidden = false;
+  else if (name === "setup") $sSetup.hidden = false;
+  else if (name === "connect") $sConnect.hidden = false;
+  else if (name === "publish") $sPublish.hidden = false;
+  else if (name === "ready") {
+    $sReady.hidden = false;
+    resetReadySubstate();
+  }
+}
+
+function resetReadySubstate() {
+  $sReadyEmpty.hidden = false;
+  $sPreview.hidden = true;
+  $sSigning.hidden = true;
+  $sDone.hidden = true;
+}
+
+function showReadySubstate(name) {
+  $sReadyEmpty.hidden = name !== "empty";
+  $sPreview.hidden = name !== "preview";
+  $sSigning.hidden = name !== "signing";
+  $sDone.hidden = name !== "done";
+}
+
+async function refreshSignTab() {
+  showSignState("loading");
+  $sLoadingMsg.textContent = "Loading…";
+  const res = await invoke("kit_status", { dataDir: null });
+  if (!res.ok) {
+    signStatus = null;
+    paintStrip(null, null);
+    // Show setup as a graceful default; the real error is reported on
+    // any subsequent action.
+    showSignState("setup");
+    return;
+  }
+  signStatus = res.data;
+  paintStrip(signStatus.identity, signStatus.session);
+
+  if (!signStatus.identity) {
+    signSkipPublish = false;
+    showSignState("setup");
+    return;
+  }
+  if (!signStatus.session) {
+    signSkipPublish = false;
+    const remembered = localStorage.getItem(SIGN_HANDLE_KEY);
+    if (remembered && !$sLoginHandle.value) {
+      $sLoginHandle.value = remembered;
+    }
+    showSignState("connect");
+    return;
+  }
+
+  // Session present. Check whether the local fingerprint is already an
+  // active record in the user's repo.
+  if (signSkipPublish) {
+    showSignState("ready");
+    return;
+  }
+  $sLoadingMsg.textContent = "Checking published keys…";
+  showSignState("loading");
+  const listRes = await invoke("kit_list", { dataDir: null });
+  if (!listRes.ok) {
+    // Couldn't reach atproto — degrade to "ready" so the user can at
+    // least sign locally. The error is visible on the strip via
+    // session presence.
+    showSignState("ready");
+    return;
+  }
+  const fp = signStatus.identity.fingerprint;
+  const active = (listRes.data || []).some(
+    (r) => r.fingerprint === fp && r.status === "active",
+  );
+  if (!active) {
+    showSignState("publish");
+  } else {
+    showSignState("ready");
+  }
+}
+
+function paintStrip(identity, session) {
+  if (identity) {
+    const shortFp = identity.fingerprint.startsWith("sha256:")
+      ? identity.fingerprint.slice(7, 7 + 8) + "…"
+      : identity.fingerprint.slice(0, 8) + "…";
+    const handle = identity.handle ? "@" + identity.handle : "(no bsky handle)";
+    $signStripId.textContent = handle + " · " + shortFp;
+    $signStripId.classList.remove("is-empty");
+  } else {
+    $signStripId.textContent = "not set up";
+    $signStripId.classList.add("is-empty");
+  }
+  if (session) {
+    $signStripSession.textContent = "@" + session.handle;
+    $signStripSession.classList.remove("is-empty");
+    $signLogoutBtn.hidden = false;
+  } else {
+    $signStripSession.textContent = "disconnected";
+    $signStripSession.classList.add("is-empty");
+    $signLogoutBtn.hidden = true;
+  }
+}
+
+// ---- Init flow -------------------------------------------------------------
+
+$sInitBtn.addEventListener("click", async () => {
+  $sInitBtn.disabled = true;
+  $sInitBtn.textContent = "Generating…";
+  const res = await invoke("kit_init", { dataDir: null, force: false });
+  $sInitBtn.disabled = false;
+  $sInitBtn.textContent = "Generate signing key";
+  if (!res.ok) {
+    alert("Failed to generate identity:\n" + (res.error || "unknown error"));
+    return;
+  }
+  await refreshSignTab();
+});
+
+// ---- Login flow ------------------------------------------------------------
+
+$sLoginForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  $sLoginError.hidden = true;
+  const handle = $sLoginHandle.value.trim().replace(/^@/, "");
+  const password = $sLoginPassword.value;
+  if (!handle || !password) return;
+
+  const btn = document.getElementById("sign-login-btn");
+  btn.disabled = true;
+  btn.textContent = "Connecting…";
+
+  const res = await invoke("kit_login", {
+    args: {
+      handle,
+      appPassword: password,
+      pds: null,
+      dataDir: null,
+    },
+  });
+
+  btn.disabled = false;
+  btn.textContent = "Connect";
+
+  if (!res.ok) {
+    $sLoginError.textContent = res.error || "Login failed.";
+    $sLoginError.hidden = false;
+    return;
+  }
+
+  localStorage.setItem(SIGN_HANDLE_KEY, handle);
+  $sLoginPassword.value = "";
+  if ($sLoginRemember.checked) {
+    // Phase 9 pass 2 will wire the keychain stash; for now the
+    // checkbox is a no-op so the UI element is in place.
+  }
+  await refreshSignTab();
+});
+
+$signLogoutBtn.addEventListener("click", async () => {
+  if (!confirm("Disconnect this device's atproto session?")) return;
+  await invoke("kit_logout", { dataDir: null });
+  await refreshSignTab();
+});
+
+// ---- Publish flow ----------------------------------------------------------
+
+$sPublishForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  $sPublishError.hidden = true;
+  const label = $sPublishLabel.value.trim();
+  const btn = document.getElementById("sign-publish-btn");
+  btn.disabled = true;
+  btn.textContent = "Publishing…";
+
+  const res = await invoke("kit_publish", {
+    args: { label: label || null, dataDir: null },
+  });
+
+  btn.disabled = false;
+  btn.textContent = "Publish key";
+
+  if (!res.ok) {
+    $sPublishError.textContent = res.error || "Publish failed.";
+    $sPublishError.hidden = false;
+    return;
+  }
+
+  $sPublishLabel.value = "";
+  await refreshSignTab();
+});
+
+$sSkipPublishBtn.addEventListener("click", () => {
+  signSkipPublish = true;
+  showSignState("ready");
+});
+
+// ---- Sign flow -------------------------------------------------------------
+
+window.signOnDrop = function (path) {
+  // Drag-drop dispatcher routes here when Sign tab is active.
+  if (!signStatus || !signStatus.identity) {
+    alert("Set up an identity first before signing.");
+    return;
+  }
+  if ($sReady.hidden) {
+    // The user dropped while the ready screen isn't visible (e.g.
+    // they're on the publish screen). Switch to ready first.
+    showSignState("ready");
+  }
+  signStaged = {
+    path,
+    replaceOriginal: $sReplaceOriginal.checked,
+    embed: $sEmbedIdentity.checked,
+  };
+  const out = signStaged.replaceOriginal ? path : sidecarPath(path);
+  $sPreviewPath.textContent = path;
+  $sPreviewIdentity.textContent = signStatus.identity.handle
+    ? "@" + signStatus.identity.handle
+    : signStatus.identity.fingerprint;
+  $sPreviewOutput.textContent = out;
+  $sGoError.hidden = true;
+  showReadySubstate("preview");
+};
+
+function sidecarPath(p) {
+  // Mirror the Rust-side sidecar_signed_path logic in display.
+  const norm = p.replace(/\\/g, "/");
+  const slash = norm.lastIndexOf("/");
+  const dir = slash >= 0 ? p.slice(0, slash + 1) : "";
+  const name = slash >= 0 ? p.slice(slash + 1) : p;
+  const dot = name.lastIndexOf(".");
+  if (dot < 0) return dir + name + ".signed";
+  return dir + name.slice(0, dot) + ".signed" + name.slice(dot);
+}
+
+$sReplaceOriginal.addEventListener("change", () => {
+  if (!signStaged) return;
+  signStaged.replaceOriginal = $sReplaceOriginal.checked;
+  $sPreviewOutput.textContent = signStaged.replaceOriginal
+    ? signStaged.path
+    : sidecarPath(signStaged.path);
+});
+$sEmbedIdentity.addEventListener("change", () => {
+  if (!signStaged) return;
+  signStaged.embed = $sEmbedIdentity.checked;
+});
+
+$sCancelBtn.addEventListener("click", () => {
+  signStaged = null;
+  showReadySubstate("empty");
+});
+
+$sGoBtn.addEventListener("click", async () => {
+  if (!signStaged) return;
+  $sGoError.hidden = true;
+  showReadySubstate("signing");
+
+  const out = signStaged.replaceOriginal ? null : sidecarPath(signStaged.path);
+  const res = await invoke("kit_sign", {
+    args: {
+      file: signStaged.path,
+      out,
+      embedIdentity: signStaged.embed,
+      dataDir: null,
+    },
+  });
+
+  if (!res.ok) {
+    $sGoError.textContent = res.error || "Sign failed.";
+    $sGoError.hidden = false;
+    showReadySubstate("preview");
+    return;
+  }
+
+  $sDonePath.textContent = res.data.output_path;
+  $sDoneManifest.textContent = res.data.manifest_bytes + " bytes";
+  if (res.data.identity_embedded) {
+    $sDoneIdentityLabel.hidden = false;
+    $sDoneIdentity.hidden = false;
+    $sDoneIdentity.textContent = res.data.identity_embedded;
+  } else {
+    $sDoneIdentityLabel.hidden = true;
+    $sDoneIdentity.hidden = true;
+  }
+  signStaged = { ...signStaged, lastOutput: res.data.output_path };
+  showReadySubstate("done");
+});
+
+$sAnotherBtn.addEventListener("click", () => {
+  signStaged = null;
+  showReadySubstate("empty");
+});
+
+$sVerifyBtn.addEventListener("click", () => {
+  // Switch to the Verify tab and queue a verify of the just-signed file.
+  if (signStaged && signStaged.lastOutput) {
+    const out = signStaged.lastOutput;
+    activateTab("verify");
+    verifyPath(out);
+  }
+});
+

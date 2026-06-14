@@ -20,7 +20,7 @@ tauri-build = { version = "2.5", features = [] }
 
 [dependencies]
 # No feature flags — we don't serve file:// assets directly; the app
-# invokes `verify_file` via IPC and the backend reads the path.
+# invokes commands via IPC and the backend reads the path.
 tauri = { version = "2.10", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -29,6 +29,17 @@ provcheck-platform = { path = "../../crates/provcheck-platform" }
 provcheck-watermark = { path = "../../crates/provcheck-watermark" }
 provcheck-audioseal = { path = "../../crates/provcheck-audioseal" }
 provcheck-wavmark = { path = "../../crates/provcheck-wavmark" }
+
+# Phase 9 — Sign tab. The GUI composes the same crates the kit
+# binary does. We don't depend on provcheck-kit itself because
+# it's a bin crate; the library layer is provcheck-sign +
+# provcheck-publish + provcheck-attestation-spec.
+provcheck-sign = { path = "../../crates/provcheck-sign" }
+provcheck-publish = { path = "../../crates/provcheck-publish" }
+provcheck-attestation-spec = { path = "../../crates/provcheck-attestation-spec" }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+secrecy = "0.10"
+time = { version = "0.3", features = ["formatting"] }
 
 [[bin]]
 name = "provcheck-app"
