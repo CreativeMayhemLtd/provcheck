@@ -47,6 +47,14 @@ TAG="$1"
 PREP_DIR="release-notes/$TAG"
 REPO="CreativeMayhemLtd/provcheck-dev"
 WORKFLOW="Build release binaries"
+LOG_FILE="publish_dc-${TAG}.log"
+
+# Mirror stdout + stderr to a log file from this point forward so a
+# postmortem after an abort doesn't depend on scrollback. The log
+# lands in the repo root and is git-ignored (.gitignore entry
+# `publish_dc-*.log`); replays of the same tag append.
+exec > >(tee -a "$LOG_FILE") 2>&1
+echo "===== publish_dc $TAG starting at $(date -Iseconds) ====="
 
 for f in commit.md tag.md files.txt; do
   if [[ ! -f "$PREP_DIR/$f" ]]; then
@@ -178,7 +186,13 @@ ls dist/ | sed 's/^/    /'
 # ---- 9. Hand off to publish-release.sh ----------------------------------
 
 echo
-echo "[publish_dc] Mirroring to public repo + cutting GitHub Release…"
+echo "============================================================"
+echo "[publish_dc] STEP 9 of 9 — handing off to publish-release.sh"
+echo "============================================================"
+echo "The next prompt is from publish-release.sh and is the FINAL"
+echo "confirmation before anything is pushed to the public repo or"
+echo "the GitHub Release is cut. Answer 'y' to ship."
+echo
 
 shopt -s nullglob globstar
 ARTS=()
@@ -208,7 +222,26 @@ if [[ ${#ARTS[@]} -eq 0 ]]; then
   exit 1
 fi
 
+echo "[publish_dc] ${#ARTS[@]} artefact(s) staged for the release. Invoking publish-release.sh…"
+echo
+
+# Disable set -e for the publish-release.sh call so a user-typed 'n'
+# at its prompt (exit 1, intentional) doesn't get reported as a
+# fatal script abort. We capture the exit code explicitly.
+set +e
 scripts/publish-release.sh "$TAG" "${ARTS[@]}"
+PUB_EXIT=$?
+set -e
+
+if [[ $PUB_EXIT -ne 0 ]]; then
+  echo
+  echo "[publish_dc] publish-release.sh exited with code $PUB_EXIT."
+  echo "             If you answered 'n' at the prompt, that's normal — nothing"
+  echo "             public has been touched. To retry, re-run scripts/publish-release.sh"
+  echo "             with the same args (dist/ is still populated) or re-invoke this script."
+  exit $PUB_EXIT
+fi
 
 echo
 echo "[publish_dc] Done. $TAG is live at https://github.com/CreativeMayhemLtd/provcheck/releases/tag/$TAG"
+echo "===== publish_dc $TAG finished at $(date -Iseconds) ====="

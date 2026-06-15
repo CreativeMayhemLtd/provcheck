@@ -35,52 +35,77 @@ struct VerifyResponse {
 }
 
 /// Verify a file with optional DID-anchored attestation.
+///
+/// `run_watermark` toggles the (potentially slow) neural watermark
+/// detector. Defaults to `true` when unset so the field is
+/// backward-compatible with v0.3.1 callers; the GUI sets it
+/// explicitly from its identity-bar checkbox so the user can opt
+/// out of the silentcipher inference cost.
+///
+/// The body runs inside `spawn_blocking` so the backend message
+/// pump keeps draining during the 10+ second silentcipher
+/// inference. Without this, Windows tags the window "not
+/// responding" — the result still arrives correctly, but the UI
+/// reads as hung to anyone watching.
 #[tauri::command]
-fn verify_file(
+async fn verify_file(
     path: String,
     handle: Option<String>,
     did: Option<String>,
     require_attested: Option<bool>,
+    run_watermark: Option<bool>,
 ) -> VerifyResponse {
     let path = PathBuf::from(path);
-    let want_attestation = handle.is_some() || did.is_some();
+    let run_watermark = run_watermark.unwrap_or(true);
 
-    let verify_result = if want_attestation {
-        let attest_opts = AttestationOptions {
-            bsky_handle: handle,
-            did,
-            require_attested: require_attested.unwrap_or(false),
-            cache_dir: None,
-            no_cache: false,
+    tauri::async_runtime::spawn_blocking(move || {
+        let want_attestation = handle.is_some() || did.is_some();
+
+        let verify_result = if want_attestation {
+            let attest_opts = AttestationOptions {
+                bsky_handle: handle,
+                did,
+                require_attested: require_attested.unwrap_or(false),
+                cache_dir: None,
+                no_cache: false,
+            };
+            verify_with_attestation(&path, &VerifyOptions::default(), &attest_opts)
+        } else {
+            verify(&path)
         };
-        verify_with_attestation(&path, &VerifyOptions::default(), &attest_opts)
-    } else {
-        verify(&path)
-    };
 
-    match verify_result {
-        Ok(mut report) => {
-            if let Ok(w) = provcheck_watermark::detect(&path) {
-                report.watermarks.push(w);
+        match verify_result {
+            Ok(mut report) => {
+                if run_watermark {
+                    if let Ok(w) = provcheck_watermark::detect(&path) {
+                        report.watermarks.push(w);
+                    }
+                    if let Ok(w) = provcheck_audioseal::detect(&path) {
+                        report.watermarks.push(w);
+                    }
+                    if let Ok(w) = provcheck_wavmark::detect(&path) {
+                        report.watermarks.push(w);
+                    }
+                }
+                VerifyResponse {
+                    ok: true,
+                    error: None,
+                    report: Some(report),
+                }
             }
-            if let Ok(w) = provcheck_audioseal::detect(&path) {
-                report.watermarks.push(w);
-            }
-            if let Ok(w) = provcheck_wavmark::detect(&path) {
-                report.watermarks.push(w);
-            }
-            VerifyResponse {
-                ok: true,
-                error: None,
-                report: Some(report),
-            }
+            Err(e) => VerifyResponse {
+                ok: false,
+                error: Some(e.to_string()),
+                report: None,
+            },
         }
-        Err(e) => VerifyResponse {
-            ok: false,
-            error: Some(e.to_string()),
-            report: None,
-        },
-    }
+    })
+    .await
+    .unwrap_or_else(|e| VerifyResponse {
+        ok: false,
+        error: Some(format!("verify task panicked: {e}")),
+        report: None,
+    })
 }
 
 // ============================================================================

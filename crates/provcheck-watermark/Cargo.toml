@@ -24,6 +24,12 @@ thiserror.workspace = true
 # library via include_bytes!() at build time so there's nothing
 # to load at runtime.
 tract-onnx = "0.21"
+# NNEF format support — used to load a pre-optimised version of the
+# silentcipher decoder so tract's graph optimiser doesn't have to
+# run on every cold process start. The model itself is committed
+# at models/silentcipher-decoder.nnef.tgz; see examples/nnef-bake.rs
+# for the one-shot conversion tool.
+tract-nnef = { version = "0.21", features = ["flate2"] }
 
 # Audio container decoding. Default features cover the common
 # containers; we add `mp3` explicitly because it's behind a
@@ -47,3 +53,5 @@ tempfile = "3"
 # fixtures at test time. Avoids committing binary fixtures
 # to the repo and keeps the negative-control deterministic.
 hound = "3"
+# Examples use anyhow's "?" idiom; not pulled in by the lib.
+anyhow = "1"

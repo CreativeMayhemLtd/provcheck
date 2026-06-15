@@ -22,6 +22,11 @@
 # not in git.
 /dist/
 
+# publish_dc.sh writes a per-tag log to the repo root so a
+# postmortem after an aborted release doesn't depend on terminal
+# scrollback.
+publish_dc-*.log
+
 # Editor / OS
 .vscode/
 .idea/

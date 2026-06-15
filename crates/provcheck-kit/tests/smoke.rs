@@ -67,7 +67,14 @@ fn kit_binary_version_dispatches_cleanly() {
     assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(stdout.contains("provcheck-kit"), "version output: {stdout}");
-    assert!(stdout.contains("0.3.0"), "version output: {stdout}");
+    // Track the workspace version dynamically — env!("CARGO_PKG_VERSION")
+    // pulls from this test crate's Cargo.toml, which inherits
+    // version.workspace = true. Hardcoding a literal here caused a
+    // false-positive failure at every version bump.
+    assert!(
+        stdout.contains(env!("CARGO_PKG_VERSION")),
+        "version output: {stdout}",
+    );
 }
 
 #[test]

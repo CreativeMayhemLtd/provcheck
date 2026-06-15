@@ -1,0 +1,43 @@
+# Files staged for the v0.3.2 commit. publish_dc.sh reads this
+# list and runs `git add` on each. Blank lines and lines starting
+# with # are ignored.
+
+# Workspace version bump
+Cargo.toml
+Cargo.lock
+
+# Watermark detector — diagnostic example surface + sub-mod
+# visibility bump. lib.rs's detect() runs on the full carrier
+# again (windowed inference reverted after empirical regression
+# on low-SNR files; see decode_inspect.rs).
+crates/provcheck-watermark/src/lib.rs
+crates/provcheck-watermark/Cargo.toml
+crates/provcheck-watermark/examples/nnef_validation.rs
+crates/provcheck-watermark/examples/detect_profile.rs
+crates/provcheck-watermark/examples/windowed_validate.rs
+crates/provcheck-watermark/examples/decode_inspect.rs
+
+# Tauri / GUI — run_watermark toggle
+app/dist/index.html
+app/dist/app.js
+app/src-tauri/src/main.rs
+app/src-tauri/Cargo.toml
+app/src-tauri/Cargo.lock
+app/src-tauri/tauri.conf.json
+app/package.json
+
+# Release workflow — GUI installer bundle rename
+.github/workflows/release.yml
+
+# Release-tooling polish carried over from the v0.3.1 cleanup
+# session (log-to-file + clearer hand-off + n-isn't-fatal).
+.gitignore
+scripts/publish_dc.sh
+
+# Test fix — version-tracking
+crates/provcheck-kit/tests/smoke.rs
+
+# Release-notes infra (this commit also ships these files)
+release-notes/v0.3.2/commit.md
+release-notes/v0.3.2/tag.md
+release-notes/v0.3.2/files.txt

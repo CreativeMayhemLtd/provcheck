@@ -45,6 +45,7 @@ const $attestationSub   = document.getElementById("attestation-sub");
 const $attestationFp    = document.getElementById("attestation-fingerprint");
 const $idHandle       = document.getElementById("identity-handle");
 const $idRequire      = document.getElementById("identity-require-attested");
+const $idWatermark    = document.getElementById("identity-run-watermark");
 const $idAutofillHint = document.getElementById("identity-autofill-hint");
 const $chooseBtn      = document.getElementById("choose-btn");
 const $verifyAgain    = document.getElementById("verify-another");
@@ -358,6 +359,7 @@ async function verifyPath(path) {
     handle: isDid ? null : (raw || null),
     did: isDid ? raw : null,
     requireAttested,
+    runWatermark: !!($idWatermark && $idWatermark.checked),
   };
   try {
     const resp = await invoke("verify_file", args);
@@ -381,14 +383,18 @@ function loadIdentity() {
   // crosses this boundary.
   try {
     const raw = localStorage.getItem(IDENTITY_STORAGE_KEY);
-    if (!raw) return { handle: "", requireAttested: false };
+    if (!raw) return { handle: "", requireAttested: false, runWatermark: true };
     const parsed = JSON.parse(raw);
     return {
       handle: typeof parsed.handle === "string" ? parsed.handle : "",
       requireAttested: !!parsed.requireAttested,
+      // Default to true when the key isn't present (first-run, or
+      // upgrading from v0.3.1). Users who want to skip the slow
+      // watermark detection uncheck it once and it stays off.
+      runWatermark: parsed.runWatermark !== false,
     };
   } catch {
-    return { handle: "", requireAttested: false };
+    return { handle: "", requireAttested: false, runWatermark: true };
   }
 }
 
@@ -396,6 +402,7 @@ function saveIdentity() {
   const payload = {
     handle: ($idHandle && $idHandle.value || "").trim(),
     requireAttested: !!($idRequire && $idRequire.checked),
+    runWatermark: !!($idWatermark && $idWatermark.checked),
   };
   try {
     localStorage.setItem(IDENTITY_STORAGE_KEY, JSON.stringify(payload));
@@ -408,6 +415,7 @@ function hydrateIdentityInputs() {
   const id = loadIdentity();
   if ($idHandle) $idHandle.value = id.handle || "";
   if ($idRequire) $idRequire.checked = !!id.requireAttested;
+  if ($idWatermark) $idWatermark.checked = id.runWatermark !== false;
 }
 
 // Pre-fill the identity input from a file's app.provcheck.identity
@@ -596,6 +604,9 @@ if ($idHandle) {
 }
 if ($idRequire) {
   $idRequire.addEventListener("change", saveIdentity);
+}
+if ($idWatermark) {
+  $idWatermark.addEventListener("change", saveIdentity);
 }
 hydrateIdentityInputs();
 

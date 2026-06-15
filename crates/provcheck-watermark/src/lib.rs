@@ -71,12 +71,16 @@ pub use provcheck::prelude::{
     WatermarkBrand, WatermarkKind, WatermarkResult, WatermarkStatus,
 };
 
-mod audio;
+#[doc(hidden)]
+pub mod audio;
 mod brand;
-mod decode;
+#[doc(hidden)]
+pub mod decode;
 mod hparams;
-mod model;
-mod stft;
+#[doc(hidden)]
+pub mod model;
+#[doc(hidden)]
+pub mod stft;
 
 /// Errors returned by [`detect`]. All non-fatal outcomes —
 /// "not audio", "decoder error" — are reported on the
@@ -141,6 +145,18 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
     };
 
     // 3. Run the ONNX decoder → logits [1, 1, MESSAGE_DIM, T].
+    //
+    // Run on the full carrier. Windowed inference was tried in
+    // v0.3.2-dev and reverted: silentcipher's per-position mode
+    // vote across tiles is the load-bearing noise-rejection step
+    // for marginal-SNR inputs (e.g. mixed-down voice tracks after
+    // MP3 encoding). Cutting the tile count down trades wall time
+    // for accuracy in exactly the regime users care about. The
+    // empirical evidence is in examples/decode_inspect.rs — same
+    // file scores ~24% terminator-confidence at 17 tiles vs ~10%
+    // at 5, both below the brand-classify threshold. The user-
+    // facing GUI toggle is the right hatch for the "I don't care
+    // about watermarks, just verify the C2PA signature" path.
     let logits = match model::run(&carrier, t_frames) {
         Ok(l) => l,
         Err(e) => {

@@ -255,21 +255,43 @@ jobs:
             echo "value=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
           fi
 
-      # Collect whatever bundle files this platform produced and
-      # emit sha256 sidecars. Upload-artifact's `path` glob handles
+      # Collect whatever bundle files this platform produced, rename
+      # to the canonical "provcheck-gui-<tag>-…" form, and emit
+      # sha256 sidecars. Upload-artifact's `path` glob handles
       # the rest; we just need the dir contents flat.
+      #
+      # The rename is the key bit: Tauri's bundler produces names
+      # like `provcheck_0.3.2_x64-setup.exe`, which on the GitHub
+      # release page sort AFTER everything that starts with
+      # `provcheck-` (underscore > hyphen in ASCII) and end up
+      # below the "Show all N assets" fold. Renaming so they sort
+      # alphabetically with the CLI tarballs puts the installers
+      # above the fold where users expect them.
       - name: Stage bundles
         id: stage
         shell: bash
         run: |
           stage_dir="provcheck-gui-${{ steps.tag.outputs.value }}-${{ matrix.gui_suffix }}"
+          tag="${{ steps.tag.outputs.value }}"
+          # The bundle filenames embed the bare version (no 'v' prefix).
+          ver="${tag#v}"
           mkdir -p "$stage_dir"
 
           # shopt-less glob expansion works everywhere including
           # windows-latest bash.
           shopt -s nullglob globstar || true
-          for f in ${{ matrix.bundle_glob }}; do
-            cp "$f" "$stage_dir/"
+          for src in ${{ matrix.bundle_glob }}; do
+            base="$(basename "$src")"
+            # Strip the leading `provcheck_<ver>_` Tauri prefix and
+            # replace with `provcheck-gui-<tag>-`. Also replace any
+            # remaining underscores in the suffix with hyphens so
+            # the whole name reads consistently (e.g.
+            # `provcheck_0.3.2_x64_en-US.msi` becomes
+            # `provcheck-gui-v0.3.2-x64-en-US.msi`).
+            suffix="${base#provcheck_${ver}_}"
+            suffix="${suffix//_/-}"
+            dest="provcheck-gui-${tag}-${suffix}"
+            cp "$src" "$stage_dir/$dest"
           done
 
           # Fail fast if the build produced nothing — means the bundle
