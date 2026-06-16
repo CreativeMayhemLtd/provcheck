@@ -199,12 +199,6 @@ once at startup primes the in-process passphrase cache (encrypted-file
 backend only — the OS keychain handles batching natively via
 "always allow").
 
-### ComfyUI
-
-A custom node lives outside this repo (search "comfyui-provcheck" on
-GitHub). The node wraps `provcheck-kit sign` so AI-generated assets
-get signed at write time.
-
 ### CI verification gate
 
 ```bash

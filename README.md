@@ -29,14 +29,13 @@ you run `publish` or `verify`.
 
 ## Status
 
-**v0.3.3 shipped 2026-06-16.** Both CLI binaries (`provcheck`,
+**v0.3.6 shipped 2026-06-16.** Both CLI binaries (`provcheck`,
 `provcheck-kit`) and the desktop GUI ship as pre-built downloads for
 Windows / Linux / macOS-aarch64. The creator-side flow (mint identity →
 sign → publish to atproto → verifier cross-checks) is production-ready
 and battle-tested against rAIdio.bot music renders and doomscroll.fm
 voice mixdowns. The silentcipher watermark detector ships live and
-agrees bit-exact with the Python reference on real-world MP3 inputs
-(LAME encoder-delay handling fixed in v0.3.3).
+agrees bit-exact with the Python reference on real-world MP3 inputs.
 
 ## Install
 
@@ -55,8 +54,15 @@ Download from the [Releases page](https://github.com/CreativeMayhemLtd/provcheck
 - `provcheck-gui-v<version>-amd64.AppImage` (any Linux)
 - `provcheck-gui-v<version>-aarch64.dmg` (macOS Apple Silicon)
 
-Each archive carries a `.sha256` sidecar. Bundles are currently
-unsigned — Gatekeeper / SmartScreen will warn on first launch.
+Each archive carries a `.sha256` sidecar. Releases also ship per-binary
+CycloneDX 1.6 + SPDX 2.3 SBOMs (`provcheck-v<version>.{cdx,spdx}.json`
+and `provcheck-kit-v<version>.{cdx,spdx}.json`), consumable by
+Dependency-Track, Trivy, Grype, Snyk, GitHub Advanced Security, and
+other supply-chain scanners — see [`docs/sbom.md`](./docs/sbom.md).
+
+<!-- TODO: remove the next sentence when EV code signing (SSL.com) ships. -->
+Bundles are currently unsigned — Gatekeeper / SmartScreen will warn on
+first launch.
 
 Intel Mac users: run the Apple Silicon binary through Rosetta, or use
 `cargo install` below.
@@ -72,7 +78,7 @@ cargo install --path crates/provcheck-kit   # signing kit (from source clone)
 
 ```dockerfile
 FROM debian:bookworm-slim
-ARG PROVCHECK_VERSION=v0.3.3
+ARG PROVCHECK_VERSION=v0.3.6
 RUN apt-get update && apt-get install -y curl ca-certificates && rm -rf /var/lib/apt/lists/*
 RUN curl -L -o /tmp/kit.tar.gz \
     "https://github.com/CreativeMayhemLtd/provcheck/releases/download/${PROVCHECK_VERSION}/provcheck-kit-${PROVCHECK_VERSION}-linux-x86_64.tar.gz" \
@@ -288,8 +294,8 @@ provcheck fills those gaps. It:
 - runs locally (files never leave your machine),
 - ships as single binaries plus a small GUI,
 - is free, permissively licensed (Apache-2.0),
-- is bundled with [rAIdio.bot](https://store.steampowered.com/app/4600000),
-  the doomscroll.fm pipeline, and (next) a ComfyUI signing node,
+- is bundled with [rAIdio.bot](https://store.steampowered.com/app/4600000)
+  and the doomscroll.fm pipeline,
 - works on ANY C2PA-signed content, not just ours.
 
 ## Release history
