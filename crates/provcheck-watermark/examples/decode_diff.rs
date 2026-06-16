@@ -21,9 +21,9 @@ use serde::Deserialize;
 // arithmetic; FFT accumulates more error proportional to log2(N).
 // For N_FFT=4096, log2(N) ≈ 12, so we'd expect ~1e-6 relative
 // error. Set thresholds generously.
-const TOL_AUDIO:   f32 = 1e-5;  // post-decode samples differ on this scale = different MP3 decoder
-const TOL_CARRIER: f32 = 1e-3;  // STFT magnitudes; depends on N_FFT precision
-const TOL_LOGITS:  f32 = 1e-1;  // model output; neural networks accumulate error
+const TOL_AUDIO: f32 = 1e-5; // post-decode samples differ on this scale = different MP3 decoder
+const TOL_CARRIER: f32 = 1e-3; // STFT magnitudes; depends on N_FFT precision
+const TOL_LOGITS: f32 = 1e-1; // model output; neural networks accumulate error
 
 #[derive(Deserialize)]
 struct Dump {
@@ -55,21 +55,21 @@ fn default_freq_bins() -> usize {
 
 #[derive(Deserialize)]
 struct BinaryOffsets {
-    audio_pre_rescale:  ArraySpec,
+    audio_pre_rescale: ArraySpec,
     audio_post_rescale: ArraySpec,
-    carrier:            ArraySpec,
-    logits:             ArraySpec,
-    argmax:             ArraySpec,
-    mode_per_pos:       ArraySpec,
-    payload_symbols:    ArraySpec,
-    payload_bytes:      ArraySpec,
+    carrier: ArraySpec,
+    logits: ArraySpec,
+    argmax: ArraySpec,
+    mode_per_pos: ArraySpec,
+    payload_symbols: ArraySpec,
+    payload_bytes: ArraySpec,
 }
 
 #[derive(Deserialize)]
 struct ArraySpec {
     offset: u64,
-    dtype:  String,
-    count:  usize,
+    dtype: String,
+    count: usize,
 }
 
 fn read_f32(f: &mut File, spec: &ArraySpec) -> anyhow::Result<Vec<f32>> {
@@ -221,7 +221,10 @@ fn report_u8(name: &str, a: &[u8], b: &[u8]) {
         100.0 * diff as f32 / n as f32
     );
     if let Some(i) = first_div {
-        println!("    first divergence at index {i}: rust={} python={}", a[i], b[i]);
+        println!(
+            "    first divergence at index {i}: rust={} python={}",
+            a[i], b[i]
+        );
     }
 }
 
@@ -269,7 +272,11 @@ fn main() -> anyhow::Result<()> {
     // Carrier layout: bin * T + t. Use the dump that reports
     // n_freq + n_frames; both sides should agree, but if they
     // disagree, prefer the Rust side and report.
-    let n_freq = rust.carrier.n_freq.max(py.carrier.n_freq).max(default_freq_bins());
+    let n_freq = rust
+        .carrier
+        .n_freq
+        .max(py.carrier.n_freq)
+        .max(default_freq_bins());
     let t_frames_rust = rust.carrier.n_frames;
     let t_frames_py = py.carrier.n_frames;
     if t_frames_rust != t_frames_py && t_frames_rust != 0 && t_frames_py != 0 {
@@ -296,12 +303,7 @@ fn main() -> anyhow::Result<()> {
     report("logits (full)", &s, TOL_LOGITS);
     if s.l_inf > TOL_LOGITS {
         // Logits laid out as dim * T + t with MESSAGE_DIM=5 dims.
-        let message_dim = rust
-            .logits
-            .shape
-            .get(2)
-            .copied()
-            .unwrap_or(5);
+        let message_dim = rust.logits.shape.get(2).copied().unwrap_or(5);
         let worst_dims = worst_by_outer(&r_logits, &p_logits, message_dim, t, message_dim);
         let worst_times = worst_by_inner(&r_logits, &p_logits, message_dim, t, 5);
         println!("    (per-dim and worst-frame breakdown)");

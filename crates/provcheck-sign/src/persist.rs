@@ -78,10 +78,10 @@ pub enum PersistError {
     #[error("could not resolve platform data directory")]
     DataDirUnavailable,
 
-    /// An IO operation failed. The `operation` describes which path
-    /// + verb (e.g. `"write keys/signing.pem"`) so the user gets a
-    /// useful error message without us having to thread context
-    /// through every call site.
+    /// An IO operation failed. The `operation` describes the path-and-verb
+    /// pair (e.g. `"write keys/signing.pem"`) so the user gets a useful
+    /// error message without us having to thread context through every
+    /// call site.
     #[error("io {operation}: {source}")]
     Io {
         operation: String,
@@ -100,9 +100,7 @@ pub enum PersistError {
 
     /// `identity.json.schema_version` is from a different (newer)
     /// build than what this version of provcheck-sign understands.
-    #[error(
-        "identity.json reports schema_version {actual}, this build understands {supported}"
-    )]
+    #[error("identity.json reports schema_version {actual}, this build understands {supported}")]
     UnsupportedSchemaVersion { actual: u8, supported: u8 },
 }
 
@@ -198,9 +196,7 @@ pub fn load_locked(dir: &Path) -> Result<LockedIdentity, PersistError> {
         source: e,
     })?;
     if chain_pem.trim().is_empty() {
-        return Err(PersistError::EmptyChain {
-            path: chain_path,
-        });
+        return Err(PersistError::EmptyChain { path: chain_path });
     }
 
     let id_path = identity_json_path(dir);
@@ -324,9 +320,7 @@ mod tests {
         let locked = sample_locked(KeyProviderKind::EncryptedFile);
         save_public_artefacts(dir.path(), &locked).expect("save");
         // Rewrite identity.json with a different schema version.
-        let json = format!(
-            r#"{{"schema_version":99,"fingerprint":"sha256:abc","algorithm":"ES256","created_at":"2026-06-13T12:00:00Z","key_provider":"encrypted_file"}}"#
-        );
+        let json = r#"{"schema_version":99,"fingerprint":"sha256:abc","algorithm":"ES256","created_at":"2026-06-13T12:00:00Z","key_provider":"encrypted_file"}"#;
         fs::write(identity_json_path(dir.path()), json).expect("write");
         let err = load_locked(dir.path()).expect_err("should fail");
         match err {
@@ -348,8 +342,16 @@ mod tests {
         // pattern should not be left behind on success.
         let chain_tmp = keys_dir(dir.path()).join("signing.pem.tmp");
         let id_tmp = keys_dir(dir.path()).join("identity.json.tmp");
-        assert!(!chain_tmp.exists(), "stale chain tmp file: {}", chain_tmp.display());
-        assert!(!id_tmp.exists(), "stale identity tmp file: {}", id_tmp.display());
+        assert!(
+            !chain_tmp.exists(),
+            "stale chain tmp file: {}",
+            chain_tmp.display()
+        );
+        assert!(
+            !id_tmp.exists(),
+            "stale identity tmp file: {}",
+            id_tmp.display()
+        );
     }
 
     #[test]
@@ -358,6 +360,9 @@ mod tests {
         // includes the test runner), default_dir succeeds and
         // names "provcheck-kit" as the leaf.
         let d = default_dir().expect("data dir resolves");
-        assert_eq!(d.file_name().and_then(|s| s.to_str()), Some("provcheck-kit"));
+        assert_eq!(
+            d.file_name().and_then(|s| s.to_str()),
+            Some("provcheck-kit")
+        );
     }
 }

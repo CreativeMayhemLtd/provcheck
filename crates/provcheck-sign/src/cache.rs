@@ -116,11 +116,7 @@ pub struct SecretCache {
 
 impl std::fmt::Debug for SecretCache {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let count = self
-            .inner
-            .read()
-            .map(|m| m.len())
-            .unwrap_or(0);
+        let count = self.inner.read().map(|m| m.len()).unwrap_or(0);
         f.debug_struct("SecretCache")
             .field("ttl", &self.ttl)
             .field("entries", &count)
@@ -305,7 +301,10 @@ mod tests {
     #[test]
     fn debug_redacts_secret_content() {
         let (cache, _) = manual_cache();
-        cache.put(FP.to_string(), SecretString::from("super-secret".to_string()));
+        cache.put(
+            FP.to_string(),
+            SecretString::from("super-secret".to_string()),
+        );
         let debug = format!("{cache:?}");
         assert!(!debug.contains("super-secret"));
         assert!(debug.contains("entries: 1"));

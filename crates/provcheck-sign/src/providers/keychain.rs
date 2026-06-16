@@ -216,7 +216,8 @@ mod tests {
         |_| panic!("keychain backend should not call the unlock prompt")
     }
 
-    const SAMPLE_KEY: &str = "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49\n-----END PRIVATE KEY-----\n";
+    const SAMPLE_KEY: &str =
+        "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49\n-----END PRIVATE KEY-----\n";
 
     #[test]
     fn kind_reports_keychain() {

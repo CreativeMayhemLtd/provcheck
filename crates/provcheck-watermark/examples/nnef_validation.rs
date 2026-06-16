@@ -56,18 +56,13 @@ fn main() -> anyhow::Result<()> {
     // ---- 3. Fast path: NNEF → runnable ----
     let t0 = Instant::now();
     let mut f = File::open(NNEF_PATH)?;
-    let nnef_runnable = tract_nnef::nnef()
-        .model_for_read(&mut f)?
-        .into_runnable()?;
+    let nnef_runnable = tract_nnef::nnef().model_for_read(&mut f)?.into_runnable()?;
     let fast_secs = t0.elapsed().as_secs_f32();
     println!("[3] NNEF -> runnable: {fast_secs:.3}s");
 
     // ---- 4. Output equivalence check ----
     let carrier: Vec<f32> = vec![0.0; FREQ_BINS * T_FRAMES];
-    let input = tract_ndarray::Array4::from_shape_vec(
-        (1, 1, FREQ_BINS, T_FRAMES),
-        carrier,
-    )?;
+    let input = tract_ndarray::Array4::from_shape_vec((1, 1, FREQ_BINS, T_FRAMES), carrier)?;
     let input_tensor: Tensor = input.into();
 
     let out_onnx = onnx_runnable.run(tvec!(input_tensor.clone().into()))?;
@@ -94,8 +89,10 @@ fn main() -> anyhow::Result<()> {
     if fast_secs < baseline_secs * 0.5 {
         println!("VERDICT: Plan A viable.");
         println!("  Baseline:  {baseline_secs:.3}s");
-        println!("  Fast path: {fast_secs:.3}s ({:.1}x speedup)",
-            baseline_secs / fast_secs);
+        println!(
+            "  Fast path: {fast_secs:.3}s ({:.1}x speedup)",
+            baseline_secs / fast_secs
+        );
         if max_diff < 1e-3 {
             println!("  Outputs match within tolerance.");
         } else {

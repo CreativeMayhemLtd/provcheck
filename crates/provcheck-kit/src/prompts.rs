@@ -36,10 +36,8 @@ pub fn new_passphrase() -> impl FnMut(NewPassphrasePrompt) -> PassphraseResult {
             prompt.purpose, MIN_PASSPHRASE_LEN
         );
         eprintln!("(input is hidden)");
-        let pass = rpassword::prompt_password("passphrase: ")
-            .map_err(|e| ProviderError::Io(e))?;
-        let confirm = rpassword::prompt_password("confirm:    ")
-            .map_err(|e| ProviderError::Io(e))?;
+        let pass = rpassword::prompt_password("passphrase: ").map_err(ProviderError::Io)?;
+        let confirm = rpassword::prompt_password("confirm:    ").map_err(ProviderError::Io)?;
         if pass != confirm {
             eprintln!("provcheck-kit: the two entries didn't match.");
             return Err(ProviderError::UserCancelled);
@@ -70,8 +68,7 @@ pub fn unlock_passphrase() -> impl FnMut(UnlockPrompt) -> PassphraseResult {
                 prompt.attempt
             );
         }
-        let pass = rpassword::prompt_password("passphrase: ")
-            .map_err(|e| ProviderError::Io(e))?;
+        let pass = rpassword::prompt_password("passphrase: ").map_err(ProviderError::Io)?;
         Ok(SecretString::from(pass))
     }
 }

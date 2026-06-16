@@ -133,7 +133,9 @@ impl KeyProvider for AgeFileProvider {
             // backend, both map to the same user-facing meaning:
             // the passphrase was wrong.
             Err(age::DecryptError::DecryptionFailed)
-            | Err(age::DecryptError::KeyDecryptionFailed) => Err(ProviderError::AuthenticationFailed),
+            | Err(age::DecryptError::KeyDecryptionFailed) => {
+                Err(ProviderError::AuthenticationFailed)
+            }
             Err(e) => Err(ProviderError::AgeFormat(e.to_string())),
         }
     }
@@ -157,7 +159,9 @@ mod tests {
     /// Build a `new_passphrase` callback that returns a fixed
     /// passphrase. Useful for tests; the real CLI binary uses
     /// rpassword behind a similar closure.
-    fn fixed_new(pass: &'static str) -> impl FnMut(NewPassphrasePrompt) -> PassphraseResult + 'static {
+    fn fixed_new(
+        pass: &'static str,
+    ) -> impl FnMut(NewPassphrasePrompt) -> PassphraseResult + 'static {
         move |_| Ok(SecretString::from(pass.to_string()))
     }
 
@@ -187,7 +191,12 @@ mod tests {
         let plaintext = SecretString::from(SAMPLE_KEY.to_string());
 
         provider
-            .store(dir.path(), FP, &plaintext, &mut fixed_new("correct horse battery staple"))
+            .store(
+                dir.path(),
+                FP,
+                &plaintext,
+                &mut fixed_new("correct horse battery staple"),
+            )
             .expect("store succeeds");
 
         // The file exists on disk and is non-trivially-sized.
@@ -198,7 +207,11 @@ mod tests {
 
         // The fetch path returns exactly the original plaintext.
         let recovered = provider
-            .fetch(dir.path(), FP, &mut fixed_unlock("correct horse battery staple"))
+            .fetch(
+                dir.path(),
+                FP,
+                &mut fixed_unlock("correct horse battery staple"),
+            )
             .expect("fetch succeeds");
         assert_eq!(recovered.expose_secret(), SAMPLE_KEY);
     }

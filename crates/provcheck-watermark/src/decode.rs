@@ -84,9 +84,9 @@ pub fn decode_logits(logits: &[f32], t_frames: usize) -> DecodeResult {
         // by scanning low-to-high and only updating on strict >.
         let mut best = 0u8;
         let mut best_count = counts[0];
-        for v in 1..MESSAGE_DIM {
-            if counts[v] > best_count {
-                best_count = counts[v];
+        for (v, &count) in counts.iter().enumerate().skip(1) {
+            if count > best_count {
+                best_count = count;
                 best = v as u8;
             }
         }
@@ -124,10 +124,7 @@ pub fn decode_logits(logits: &[f32], t_frames: usize) -> DecodeResult {
     //    surviving 20 positions are the payload symbols in
     //    encoder order.
     let mut payload_symbols = [0u8; MESSAGE_LEN - 1]; // 20
-    for (out_idx, in_idx) in (end_char + 1..MESSAGE_LEN)
-        .chain(0..end_char)
-        .enumerate()
-    {
+    for (out_idx, in_idx) in (end_char + 1..MESSAGE_LEN).chain(0..end_char).enumerate() {
         payload_symbols[out_idx] = mode_per_pos[in_idx];
     }
 
@@ -151,13 +148,13 @@ pub fn decode_logits(logits: &[f32], t_frames: usize) -> DecodeResult {
     //    the 2 bits land MSB-first too. So symbol order
     //    [a, b, c, d] → byte = (a<<6) | (b<<4) | (c<<2) | d.
     let mut payload = [0u8; 5];
-    for byte_idx in 0..5 {
+    for (byte_idx, slot) in payload.iter_mut().enumerate() {
         let base = byte_idx * 4;
         let a = payload_symbols[base];
         let b = payload_symbols[base + 1];
         let c = payload_symbols[base + 2];
         let d = payload_symbols[base + 3];
-        payload[byte_idx] = (a << 6) | (b << 4) | (c << 2) | d;
+        *slot = (a << 6) | (b << 4) | (c << 2) | d;
     }
 
     DecodeResult {
@@ -210,9 +207,9 @@ mod tests {
         let t_frames = n_tiles * MESSAGE_LEN;
         let mut logits = vec![-10.0_f32; MESSAGE_DIM * t_frames];
         for tile in 0..n_tiles {
-            for p in 0..MESSAGE_LEN {
+            for (p, &chosen_sym) in rolled.iter().enumerate() {
                 let t = tile * MESSAGE_LEN + p;
-                let chosen = rolled[p] as usize;
+                let chosen = chosen_sym as usize;
                 logits[chosen * t_frames + t] = 10.0;
             }
         }
@@ -259,7 +256,7 @@ mod tests {
         let t_frames = n_tiles * MESSAGE_LEN;
         let mut logits = vec![-10.0_f32; MESSAGE_DIM * t_frames];
         for t in 0..t_frames {
-            logits[1 * t_frames + t] = 10.0;
+            logits[t_frames + t] = 10.0;
         }
         let r = decode_logits(&logits, t_frames);
         assert!(!r.valid);

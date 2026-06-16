@@ -4,6 +4,7 @@
 //! For each given audio file, runs:
 //!   1. Full inference (current behaviour).
 //!   2. Windowed inference on the first N tiles of the carrier.
+//!
 //! Reports timing for both and asserts the verdict + brand agree.
 //!
 //! Run with:
@@ -80,13 +81,21 @@ fn main() -> anyhow::Result<()> {
         "  valid:       full={} / window={}    {}",
         full_decoded.valid,
         win_decoded.valid,
-        if full_decoded.valid == win_decoded.valid { "OK" } else { "DISAGREE" }
+        if full_decoded.valid == win_decoded.valid {
+            "OK"
+        } else {
+            "DISAGREE"
+        }
     );
     println!(
         "  payload:     full={:02x?} / window={:02x?}    {}",
         full_decoded.payload,
         win_decoded.payload,
-        if full_decoded.payload == win_decoded.payload { "OK" } else { "DISAGREE" }
+        if full_decoded.payload == win_decoded.payload {
+            "OK"
+        } else {
+            "DISAGREE"
+        }
     );
 
     Ok(())

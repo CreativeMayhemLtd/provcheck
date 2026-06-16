@@ -60,12 +60,10 @@ fn main() -> anyhow::Result<()> {
     // ---- decode + VCTK rescale ----
     let waveform_pre = audio::decode_to_mono_44k1(&in_path)?;
     let n_audio = waveform_pre.len();
-    let mean_sq_pre: f32 =
-        waveform_pre.iter().map(|s| s * s).sum::<f32>() / n_audio as f32;
+    let mean_sq_pre: f32 = waveform_pre.iter().map(|s| s * s).sum::<f32>() / n_audio as f32;
     let scale = (VCTK_TARGET / mean_sq_pre).sqrt();
     let waveform_post: Vec<f32> = waveform_pre.iter().map(|s| s * scale).collect();
-    let mean_sq_post: f32 =
-        waveform_post.iter().map(|s| s * s).sum::<f32>() / n_audio as f32;
+    let mean_sq_post: f32 = waveform_post.iter().map(|s| s * s).sum::<f32>() / n_audio as f32;
 
     // ---- STFT ----
     // We need the carrier on the POST-RESCALE waveform — that's
@@ -103,9 +101,9 @@ fn main() -> anyhow::Result<()> {
         }
         let mut best = 0u8;
         let mut best_count = counts[0];
-        for v in 1..MESSAGE_DIM {
-            if counts[v] > best_count {
-                best_count = counts[v];
+        for (v, &count) in counts.iter().enumerate().skip(1) {
+            if count > best_count {
+                best_count = count;
                 best = v as u8;
             }
         }
@@ -117,10 +115,8 @@ fn main() -> anyhow::Result<()> {
     let mut payload_bytes = [0u8; 5];
     let mut decode_ok = false;
     if let Some(end_char) = term_pos {
-        let mut roll_idx = 0;
-        for in_idx in (end_char + 1..MESSAGE_LEN).chain(0..end_char) {
+        for (roll_idx, in_idx) in (end_char + 1..MESSAGE_LEN).chain(0..end_char).enumerate() {
             payload_symbols[roll_idx] = mode_per_pos[in_idx];
-            roll_idx += 1;
         }
         let mut any_zero = false;
         for s in payload_symbols.iter_mut() {
@@ -131,13 +127,13 @@ fn main() -> anyhow::Result<()> {
             *s -= 1;
         }
         if !any_zero {
-            for byte_idx in 0..5 {
+            for (byte_idx, slot) in payload_bytes.iter_mut().enumerate() {
                 let base = byte_idx * 4;
                 let a = payload_symbols[base];
                 let b = payload_symbols[base + 1];
                 let c = payload_symbols[base + 2];
                 let d = payload_symbols[base + 3];
-                payload_bytes[byte_idx] = (a << 6) | (b << 4) | (c << 2) | d;
+                *slot = (a << 6) | (b << 4) | (c << 2) | d;
             }
             decode_ok = true;
         }
@@ -253,9 +249,11 @@ fn main() -> anyhow::Result<()> {
     std::fs::write(&json_path, serde_json::to_string_pretty(&json)?)?;
 
     eprintln!("wrote {}", json_path.display());
-    eprintln!("wrote {} ({:.1} MiB)",
+    eprintln!(
+        "wrote {} ({:.1} MiB)",
         bin_path.display(),
-        total_bytes as f64 / (1024.0 * 1024.0));
+        total_bytes as f64 / (1024.0 * 1024.0)
+    );
 
     eprintln!();
     eprintln!("Summary:");
@@ -264,7 +262,10 @@ fn main() -> anyhow::Result<()> {
     eprintln!("  t_frames:      {t_frames} ({n_tiles} tiles)");
     eprintln!(
         "  terminator:    {}",
-        match term_pos { Some(p) => format!("found at {p}"), None => "NOT FOUND".into() }
+        match term_pos {
+            Some(p) => format!("found at {p}"),
+            None => "NOT FOUND".into(),
+        }
     );
     eprintln!("  decode_ok:     {decode_ok}");
     eprintln!("  confidence:    {confidence:.4}");

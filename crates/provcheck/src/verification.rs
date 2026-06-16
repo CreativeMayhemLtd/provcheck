@@ -233,7 +233,16 @@ pub fn verify_with_options(path: &Path, opts: &VerifyOptions) -> Result<Report, 
             identity_claim,
         )
     } else {
-        (None, None, None, None, None, serde_json::Value::Null, 0, None)
+        (
+            None,
+            None,
+            None,
+            None,
+            None,
+            serde_json::Value::Null,
+            0,
+            None,
+        )
     };
 
     let failure_reason = if verified {
@@ -309,9 +318,7 @@ fn walk_parent_chain(reader: &c2pa::Reader) -> Vec<crate::report::ParentManifest
             .iter()
             .find(|a| is_identity_label(a.label()))
             .and_then(|a| a.value().ok())
-            .and_then(|v| {
-                serde_json::from_value::<crate::report::IdentityClaim>(v.clone()).ok()
-            });
+            .and_then(|v| serde_json::from_value::<crate::report::IdentityClaim>(v.clone()).ok());
         chain.push(crate::report::ParentManifest {
             label: parent_label.to_string(),
             signer,

@@ -14,7 +14,9 @@
 use std::fs::File;
 use std::path::Path;
 
-use rubato::{Resampler, SincFixedIn, SincInterpolationParameters, SincInterpolationType, WindowFunction};
+use rubato::{
+    Resampler, SincFixedIn, SincInterpolationParameters, SincInterpolationType, WindowFunction,
+};
 use symphonia::core::audio::{AudioBufferRef, Signal};
 use symphonia::core::codecs::{CODEC_TYPE_NULL, DecoderOptions};
 use symphonia::core::errors::Error as SymphoniaError;
@@ -160,8 +162,9 @@ fn append_mono(buf: &AudioBufferRef<'_>, mono: &mut Vec<f32>) {
         AudioBufferRef::U24(b) => downmix!(b, |s: symphonia::core::sample::u24| {
             (s.0 as f32 - 8_388_608.0) / 8_388_608.0
         }),
-        AudioBufferRef::U32(b) => downmix!(b, |s: u32| (s as f64 / 4_294_967_295.0 * 2.0 - 1.0)
-            as f32),
+        AudioBufferRef::U32(b) => {
+            downmix!(b, |s: u32| (s as f64 / 4_294_967_295.0 * 2.0 - 1.0) as f32)
+        }
         AudioBufferRef::S8(b) => downmix!(b, |s: i8| s as f32 / 128.0),
         AudioBufferRef::S16(b) => downmix!(b, |s: i16| s as f32 / 32_768.0),
         AudioBufferRef::S24(b) => downmix!(b, |s: symphonia::core::sample::i24| {
@@ -191,16 +194,14 @@ fn resample(src: &[f32], src_rate: u32, dst_rate: u32) -> Result<Vec<f32>, Strin
     // size; we pad the tail with zeros so the resampler can
     // flush its internal state without losing the last frames.
     let chunk_size = 4096usize;
-    let mut resampler = SincFixedIn::<f32>::new(ratio, 2.0, params, chunk_size, 1)
-        .map_err(|e| e.to_string())?;
+    let mut resampler =
+        SincFixedIn::<f32>::new(ratio, 2.0, params, chunk_size, 1).map_err(|e| e.to_string())?;
 
     let mut out = Vec::with_capacity((src.len() as f64 * ratio) as usize + chunk_size);
     let mut pos = 0;
     while pos + chunk_size <= src.len() {
         let chunk = vec![src[pos..pos + chunk_size].to_vec()];
-        let resampled = resampler
-            .process(&chunk, None)
-            .map_err(|e| e.to_string())?;
+        let resampled = resampler.process(&chunk, None).map_err(|e| e.to_string())?;
         out.extend_from_slice(&resampled[0]);
         pos += chunk_size;
     }

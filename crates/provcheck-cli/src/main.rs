@@ -262,9 +262,7 @@ fn main() -> ExitCode {
             // "claims identity: ..." inline; we just want to nudge
             // about --auto-identity in this specific no-attestation
             // case).
-            if !want_attestation
-                && let Some(claim) = &report.identity
-            {
+            if !want_attestation && let Some(claim) = &report.identity {
                 let who = match &claim.handle {
                     Some(h) => format!("@{} ({})", h, claim.did),
                     None => claim.did.clone(),

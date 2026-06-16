@@ -61,9 +61,7 @@ async fn main() -> ExitCode {
         Command::Unlock(args) => commands::unlock::run(args).await,
         Command::Lock(args) => commands::lock::run(args).await,
         Command::ChangePassphrase(args) => commands::change_passphrase::run(args).await,
-        Command::AddRecoveryRecipient(args) => {
-            commands::add_recovery_recipient::run(args).await
-        }
+        Command::AddRecoveryRecipient(args) => commands::add_recovery_recipient::run(args).await,
         Command::ListRecoveryRecipients(args) => {
             commands::list_recovery_recipients::run(args).await
         }

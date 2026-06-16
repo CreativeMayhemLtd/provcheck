@@ -62,17 +62,21 @@ fn main() -> anyhow::Result<()> {
     let rust: Dump = serde_json::from_str(&std::fs::read_to_string(&rust_json)?)?;
     let py: Dump = serde_json::from_str(&std::fs::read_to_string(&py_json)?)?;
 
-    let r_audio = read_f32(&rust.binary_dump_path, &rust.binary_offsets.audio_pre_rescale)?;
+    let r_audio = read_f32(
+        &rust.binary_dump_path,
+        &rust.binary_offsets.audio_pre_rescale,
+    )?;
     let p_audio = read_f32(&py.binary_dump_path, &py.binary_offsets.audio_pre_rescale)?;
 
     println!("rust len = {}", r_audio.len());
     println!("py len   = {}", p_audio.len());
-    println!("diff     = {} (rust - py)", r_audio.len() as i64 - p_audio.len() as i64);
+    println!(
+        "diff     = {} (rust - py)",
+        r_audio.len() as i64 - p_audio.len() as i64
+    );
     println!();
 
-    let max_shift = (r_audio.len() as i64 - p_audio.len() as i64)
-        .max(0)
-        .min(8_192) as usize;
+    let max_shift = (r_audio.len() as i64 - p_audio.len() as i64).clamp(0, 8_192) as usize;
     if max_shift == 0 {
         println!("rust is not longer than python — no positive-shift to try.");
         return Ok(());

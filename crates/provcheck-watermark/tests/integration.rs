@@ -5,7 +5,9 @@
 //! until the silentcipher ONNX model lands at
 //! `models/silentcipher-decoder.onnx`.
 
-use provcheck_watermark::{WatermarkBrand, WatermarkKind, WatermarkResult, WatermarkStatus, detect};
+use provcheck_watermark::{
+    WatermarkBrand, WatermarkKind, WatermarkResult, WatermarkStatus, detect,
+};
 use std::io::Write;
 
 fn write_tempfile(suffix: &str, bytes: &[u8]) -> tempfile::NamedTempFile {
@@ -51,7 +53,10 @@ fn fake_wav_decodes_to_not_detected_not_an_error() {
 
 #[test]
 fn missing_file_surfaces_io_error() {
-    let err = detect(std::path::Path::new("definitely_does_not_exist_8675309.mp3")).unwrap_err();
+    let err = detect(std::path::Path::new(
+        "definitely_does_not_exist_8675309.mp3",
+    ))
+    .unwrap_err();
     assert!(matches!(err, provcheck_watermark::Error::Io(_)));
 }
 

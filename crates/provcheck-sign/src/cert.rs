@@ -22,8 +22,8 @@
 
 use provcheck_attestation_spec::fingerprint_leaf_der;
 use rcgen::{
-    BasicConstraints, CertificateParams, DistinguishedName, DnType, ExtendedKeyUsagePurpose,
-    IsCa, KeyPair, KeyUsagePurpose,
+    BasicConstraints, CertificateParams, DistinguishedName, DnType, ExtendedKeyUsagePurpose, IsCa,
+    KeyPair, KeyUsagePurpose,
 };
 
 /// Subject metadata baked into the generated certs.
@@ -218,7 +218,8 @@ mod tests {
         assert_eq!(kp.fingerprint.len(), "sha256:".len() + 64);
         let hex = &kp.fingerprint["sha256:".len()..];
         assert!(
-            hex.chars().all(|c| c.is_ascii_hexdigit() && !c.is_uppercase()),
+            hex.chars()
+                .all(|c| c.is_ascii_hexdigit() && !c.is_uppercase()),
             "lowercase hex per the lexicon pattern ^sha256:[0-9a-f]{{64}}$"
         );
     }
@@ -253,8 +254,8 @@ mod tests {
             .find(|p| p.tag() == "CERTIFICATE")
             .expect("EE cert block present");
 
-        let (_rest, x509) = x509_parser::parse_x509_certificate(ee.contents())
-            .expect("EE cert decodes as X.509");
+        let (_rest, x509) =
+            x509_parser::parse_x509_certificate(ee.contents()).expect("EE cert decodes as X.509");
 
         let subject_str = format!("{}", x509.subject());
         assert!(

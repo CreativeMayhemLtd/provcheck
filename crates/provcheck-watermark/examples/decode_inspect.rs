@@ -38,14 +38,20 @@ fn main() -> anyhow::Result<()> {
     println!("[audio]");
     println!("  samples:       {}", waveform.len());
     println!("  duration:      {:.2}s", waveform.len() as f32 / 44_100.0);
-    println!("  abs-max:       {:.6}", waveform.iter().fold(0.0f32, |a, &s| a.max(s.abs())));
+    println!(
+        "  abs-max:       {:.6}",
+        waveform.iter().fold(0.0f32, |a, &s| a.max(s.abs()))
+    );
 
     // 2. mean(y²) BEFORE rescale — this happens inside
     //    waveform_to_carrier, but we replicate it here so we can
     //    see the input energy independently.
     let mean_sq_pre: f32 = waveform.iter().map(|s| s * s).sum::<f32>() / waveform.len() as f32;
     println!("  mean(y²) pre:  {mean_sq_pre:.10}");
-    println!("  RMS pre:       {:.4} dBFS", 20.0 * mean_sq_pre.sqrt().log10());
+    println!(
+        "  RMS pre:       {:.4} dBFS",
+        20.0 * mean_sq_pre.sqrt().log10()
+    );
 
     // What does the rescale produce?
     let scale = (VCTK_TARGET / mean_sq_pre).sqrt();
@@ -59,7 +65,11 @@ fn main() -> anyhow::Result<()> {
     let energy_ratio = mean_sq_post / VCTK_TARGET;
     println!(
         "  energy ratio:  {energy_ratio:.4}  {}",
-        if (energy_ratio - 1.0).abs() < 1e-3 { "OK" } else { "BAD" }
+        if (energy_ratio - 1.0).abs() < 1e-3 {
+            "OK"
+        } else {
+            "BAD"
+        }
     );
     println!();
 
@@ -75,9 +85,12 @@ fn main() -> anyhow::Result<()> {
     let nonzero = carrier.iter().filter(|&&v| v > 1e-9).count();
     println!("  mean mag:      {carrier_mean:.6}");
     println!("  max mag:       {carrier_max:.4}");
-    println!("  nonzero bins:  {} / {} ({:.1}%)",
-             nonzero, carrier.len(),
-             100.0 * nonzero as f32 / carrier.len() as f32);
+    println!(
+        "  nonzero bins:  {} / {} ({:.1}%)",
+        nonzero,
+        carrier.len(),
+        100.0 * nonzero as f32 / carrier.len() as f32
+    );
     println!();
 
     // 4. Inference
@@ -97,9 +110,7 @@ fn main() -> anyhow::Result<()> {
             sum += v;
         }
         let mean = sum / t_frames as f32;
-        println!(
-            "  dim {d}: min {min:8.3}  mean {mean:8.3}  max {max:8.3}"
-        );
+        println!("  dim {d}: min {min:8.3}  mean {mean:8.3}  max {max:8.3}");
     }
     println!();
 
@@ -143,11 +154,11 @@ fn main() -> anyhow::Result<()> {
     }
     println!();
     println!("[symbol frequency across all {t_frames} time frames]");
-    for d in 0..MESSAGE_DIM {
+    for (d, &count) in overall_counts.iter().enumerate() {
         println!(
             "  symbol {d}: {:6} ({:5.1}%)",
-            overall_counts[d],
-            100.0 * overall_counts[d] as f32 / t_frames as f32
+            count,
+            100.0 * count as f32 / t_frames as f32
         );
     }
 
@@ -176,9 +187,9 @@ fn main() -> anyhow::Result<()> {
         }
         let mut best = 0u8;
         let mut best_count = counts[0];
-        for v in 1..MESSAGE_DIM {
-            if counts[v] > best_count {
-                best_count = counts[v];
+        for (v, &count) in counts.iter().enumerate().skip(1) {
+            if count > best_count {
+                best_count = count;
                 best = v as u8;
             }
         }
@@ -192,7 +203,12 @@ fn main() -> anyhow::Result<()> {
         .collect();
     println!("  symbols: [{}]", mode_row.join(" "));
     let conf_row: Vec<String> = (0..MESSAGE_LEN)
-        .map(|p| format!("{:.0}%", 100.0 * mode_count_per_pos[p] as f32 / n_tiles as f32))
+        .map(|p| {
+            format!(
+                "{:.0}%",
+                100.0 * mode_count_per_pos[p] as f32 / n_tiles as f32
+            )
+        })
         .collect();
     println!("  conf:    [{}]", conf_row.join(" "));
 

@@ -56,11 +56,9 @@ pub fn run(carrier: &[f32], t_frames: usize) -> Result<Vec<f32>, ModelError> {
     // construction via tract_ndarray; we go through that for a
     // tensor of shape [1, 1, FREQ_BINS, t_frames] from our
     // flat row-major carrier.
-    let input = tract_ndarray::Array4::from_shape_vec(
-        (1, 1, FREQ_BINS, t_frames),
-        carrier.to_vec(),
-    )
-    .map_err(|e| ModelError::Inference(format!("input shape: {e}")))?;
+    let input =
+        tract_ndarray::Array4::from_shape_vec((1, 1, FREQ_BINS, t_frames), carrier.to_vec())
+            .map_err(|e| ModelError::Inference(format!("input shape: {e}")))?;
     let input_tensor: Tensor = input.into();
 
     let outputs = model
@@ -78,10 +76,10 @@ pub fn run(carrier: &[f32], t_frames: usize) -> Result<Vec<f32>, ModelError> {
     // differently and the math is identical once the leading
     // singletons are stripped.
     let shape: Vec<usize> = out.shape().to_vec();
-    let leading_singletons_ok = match &shape[..] {
-        [1, 1, m, t] | [1, m, t] | [m, t] if *m == MESSAGE_DIM && *t == t_frames => true,
-        _ => false,
-    };
+    let leading_singletons_ok = matches!(
+        &shape[..],
+        [1, 1, m, t] | [1, m, t] | [m, t] if *m == MESSAGE_DIM && *t == t_frames
+    );
     if !leading_singletons_ok {
         return Err(ModelError::Shape {
             expected: format!("[1, 1, {MESSAGE_DIM}, {t_frames}]"),

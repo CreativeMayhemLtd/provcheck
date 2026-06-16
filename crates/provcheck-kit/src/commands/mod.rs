@@ -340,8 +340,7 @@ pub mod status {
                     "  backend:     {}",
                     match locked.key_provider {
                         provcheck_sign::types::KeyProviderKind::Keychain => "keychain",
-                        provcheck_sign::types::KeyProviderKind::EncryptedFile =>
-                            "encrypted-file",
+                        provcheck_sign::types::KeyProviderKind::EncryptedFile => "encrypted-file",
                     }
                 );
                 println!("  storage:     {}", dir.display());
@@ -575,11 +574,17 @@ pub mod sign {
             result.output_path.clone()
         };
 
-        eprintln!("✓ Signed {} → {}", args.file.display(), final_path.display());
+        eprintln!(
+            "✓ Signed {} → {}",
+            args.file.display(),
+            final_path.display()
+        );
         eprintln!("  manifest bytes: {}", result.manifest_bytes.len());
         if args.embed_identity {
-            eprintln!("  identity assertion: embedded ({})",
-                unlocked.locked.did.as_deref().unwrap_or("?"));
+            eprintln!(
+                "  identity assertion: embedded ({})",
+                unlocked.locked.did.as_deref().unwrap_or("?")
+            );
         }
         Ok(())
     }
@@ -615,8 +620,9 @@ pub mod sign {
     /// manifest JSON file. `action` controls the c2pa.actions.v2
     /// verb on the new claim.
     fn default_manifest(asset: &std::path::Path, action: SignAction) -> Result<String> {
-        let format = format_from_extension(asset)
-            .context("infer asset format from extension — pass --manifest for unrecognised types")?;
+        let format = format_from_extension(asset).context(
+            "infer asset format from extension — pass --manifest for unrecognised types",
+        )?;
         let title = asset
             .file_name()
             .and_then(|s| s.to_str())
@@ -725,10 +731,7 @@ pub mod add_recovery_recipient {
         if let Some(label) = &args.label {
             eprintln!("  Label: {}", label);
         }
-        eprintln!(
-            "  Pubkey: {}…",
-            &args.pubkey[..28.min(args.pubkey.len())]
-        );
+        eprintln!("  Pubkey: {}…", &args.pubkey[..28.min(args.pubkey.len())]);
         eprintln!(
             "  Recipients now registered: {}",
             locked.recovery_recipients.len()
@@ -767,7 +770,10 @@ pub mod list_recovery_recipients {
             );
             return Ok(());
         }
-        println!("Registered recovery recipients ({}):", locked.recovery_recipients.len());
+        println!(
+            "Registered recovery recipients ({}):",
+            locked.recovery_recipients.len()
+        );
         for r in &locked.recovery_recipients {
             let label = r.label.as_deref().unwrap_or("(no label)");
             let prefix = &r.pubkey[..28.min(r.pubkey.len())];
@@ -836,9 +842,9 @@ pub mod remove_recovery_recipient {
         let mut locked = load_locked(&dir).context("load identity")?;
 
         let before = locked.recovery_recipients.len();
-        locked.recovery_recipients.retain(|r| {
-            r.pubkey != args.ident && r.label.as_deref() != Some(args.ident.as_str())
-        });
+        locked
+            .recovery_recipients
+            .retain(|r| r.pubkey != args.ident && r.label.as_deref() != Some(args.ident.as_str()));
         let removed = before - locked.recovery_recipients.len();
         if removed == 0 {
             bail!("no recovery recipient matched {:?}", args.ident);
@@ -871,9 +877,9 @@ pub mod remove_recovery_recipient {
 // hooks.
 
 pub mod lock {
+    use super::DataDirOpt;
     use anyhow::Result;
     use clap::Args;
-    use super::DataDirOpt;
 
     #[derive(Debug, Args)]
     pub struct CliArgs {
@@ -893,9 +899,9 @@ pub mod lock {
 }
 
 pub mod unlock {
+    use super::DataDirOpt;
     use anyhow::Result;
     use clap::Args;
-    use super::DataDirOpt;
 
     #[derive(Debug, Args)]
     pub struct CliArgs {
@@ -1052,9 +1058,9 @@ pub mod export_backup {
             export_with_recipients(&unlocked, &args.out, &recipients)?
         } else {
             let mut new_pp = new_passphrase();
-            let pass: SecretString = match new_pp(
-                provcheck_sign::providers::NewPassphrasePrompt { purpose: "backup" },
-            ) {
+            let pass: SecretString = match new_pp(provcheck_sign::providers::NewPassphrasePrompt {
+                purpose: "backup",
+            }) {
                 Ok(p) => p,
                 Err(e) => return Err(anyhow::anyhow!("{e}")),
             };
@@ -1192,14 +1198,10 @@ async fn load_or_explain_session(
         // main.rs's exit-code mapping returns 3 (CI flows like
         // `kit publish || kit login && kit publish` can distinguish
         // expired-session from network/auth failures).
-        Err(SessionError::SessionExpired) => {
-            Err(anyhow::Error::from(KitError::SessionExpired))
-        }
-        Err(SessionError::Io(e)) if e.kind() == std::io::ErrorKind::NotFound => {
-            Err(anyhow::anyhow!(
-                "no atproto session on disk — run `kit login` first"
-            ))
-        }
+        Err(SessionError::SessionExpired) => Err(anyhow::Error::from(KitError::SessionExpired)),
+        Err(SessionError::Io(e)) if e.kind() == std::io::ErrorKind::NotFound => Err(
+            anyhow::anyhow!("no atproto session on disk — run `kit login` first"),
+        ),
         Err(e) => Err(anyhow::anyhow!("load atproto session: {e}")),
     }
 }
@@ -1394,7 +1396,10 @@ pub mod publish {
         // record per fingerprint). Better to surface the dup loudly.
         if !args.force {
             let existing = writer.list_signing_keys().await.context("atproto list")?;
-            if existing.iter().any(|(_, r)| r.fingerprint == locked.fingerprint) {
+            if existing
+                .iter()
+                .any(|(_, r)| r.fingerprint == locked.fingerprint)
+            {
                 bail!(
                     "a record with fingerprint {} already exists in your repo. \
                      Pass --force to publish anyway (creates a second record); \
@@ -1577,9 +1582,8 @@ pub mod revoke {
         let client = super::load_or_explain_session(&dir).await?;
         let writer = RecordWriter::new(&client);
         let records = writer.list_signing_keys().await.context("atproto list")?;
-        let needle = super::normalise_fingerprint(&args.fingerprint).map_err(|e| {
-            anyhow::anyhow!("--fingerprint {:?}: {e}", args.fingerprint)
-        })?;
+        let needle = super::normalise_fingerprint(&args.fingerprint)
+            .map_err(|e| anyhow::anyhow!("--fingerprint {:?}: {e}", args.fingerprint))?;
         let matches: Vec<_> = records
             .iter()
             .filter(|(_, r)| {
@@ -1635,7 +1639,10 @@ pub mod revoke {
         eprintln!("✓ Revoked.");
         eprintln!("  at-uri:      {}", uri);
         eprintln!("  fingerprint: {}", record.fingerprint);
-        eprintln!("  validUntil:  {}", record.valid_until.as_deref().unwrap_or(""));
+        eprintln!(
+            "  validUntil:  {}",
+            record.valid_until.as_deref().unwrap_or("")
+        );
         if let Some(s) = &record.superseded_by {
             eprintln!("  supersededBy: {}", s);
         }
@@ -1845,7 +1852,10 @@ pub mod rotate {
         eprintln!("  Old fingerprint: {}", old.fingerprint);
         eprintln!("  New fingerprint: {}", new_fingerprint);
         eprintln!("  New at-uri:      {}", new_uri);
-        eprintln!("  Old data dir:    {} (kept; safe to archive)", backup_dir.display());
+        eprintln!(
+            "  Old data dir:    {} (kept; safe to archive)",
+            backup_dir.display()
+        );
         Ok(())
     }
 
@@ -1939,19 +1949,14 @@ pub mod rotate {
         cleanup: Result<(), String>,
     ) -> anyhow::Error {
         let cleanup_msg = match cleanup {
-            Ok(()) => format!(
-                "the orphan record at {new_uri} was deleted from atproto"
-            ),
+            Ok(()) => format!("the orphan record at {new_uri} was deleted from atproto"),
             Err(e) => format!(
                 "atproto cleanup of orphan record at {new_uri} also failed ({e}); \
                  run `kit revoke <new-fingerprint>` once connectivity returns"
             ),
         };
         let restore_msg = match restore_err {
-            None => format!(
-                "the old identity has been restored to {}",
-                to.display()
-            ),
+            None => format!("the old identity has been restored to {}", to.display()),
             Some(e) => format!(
                 "AND the old identity could not be restored to {} either ({e}); \
                  manually rename {} → {} to recover",
@@ -2067,7 +2072,10 @@ pub mod verify {
         if !status.success() {
             bail!(
                 "provcheck exited with code {}",
-                status.code().map(|c| c.to_string()).unwrap_or_else(|| "<signal>".into())
+                status
+                    .code()
+                    .map(|c| c.to_string())
+                    .unwrap_or_else(|| "<signal>".into())
             );
         }
         Ok(())
@@ -2092,10 +2100,7 @@ mod tests {
         // Verify the public surface — anyone who types
         // `kit --help` sees the same 18 commands enumerated.
         let cmd = Cli::command();
-        let names: Vec<&str> = cmd
-            .get_subcommands()
-            .map(|c| c.get_name())
-            .collect();
+        let names: Vec<&str> = cmd.get_subcommands().map(|c| c.get_name()).collect();
         for required in [
             "init",
             "status",
@@ -2179,16 +2184,14 @@ mod tests {
     fn is_session_expired_catches_session_error_chain() {
         // SessionError::SessionExpired wrapped under .context() — the
         // common shape errors travel through publish/list/etc.
-        let inner: anyhow::Error =
-            provcheck_publish::session::SessionError::SessionExpired.into();
+        let inner: anyhow::Error = provcheck_publish::session::SessionError::SessionExpired.into();
         let wrapped = inner.context("atproto session reload");
         assert!(super::is_session_expired(&wrapped));
     }
 
     #[test]
     fn is_session_expired_catches_records_no_session() {
-        let inner: anyhow::Error =
-            provcheck_publish::records::RecordsError::NoSession.into();
+        let inner: anyhow::Error = provcheck_publish::records::RecordsError::NoSession.into();
         let wrapped = inner.context("atproto publish");
         assert!(super::is_session_expired(&wrapped));
     }
@@ -2201,9 +2204,10 @@ mod tests {
 
     #[test]
     fn normalise_fingerprint_strips_sha256_prefix() {
-        let got =
-            super::normalise_fingerprint("sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
-                .expect("ok");
+        let got = super::normalise_fingerprint(
+            "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        )
+        .expect("ok");
         assert_eq!(
             got,
             "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
@@ -2212,16 +2216,18 @@ mod tests {
 
     #[test]
     fn normalise_fingerprint_accepts_bare_hex() {
-        let got =
-            super::normalise_fingerprint("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
-                .expect("ok");
+        let got = super::normalise_fingerprint(
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        )
+        .expect("ok");
         assert_eq!(got.len(), 64);
     }
 
     #[test]
     fn normalise_fingerprint_lowercases_input() {
-        let got =
-            super::normalise_fingerprint("SHA256:0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF");
+        let got = super::normalise_fingerprint(
+            "SHA256:0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF",
+        );
         // The prefix-strip is case-sensitive on "sha256:" — uppercase
         // SHA256: doesn't strip, which means the whole string fails
         // hex validation. This is intentional; the wire format uses
@@ -2232,7 +2238,10 @@ mod tests {
             "sha256:0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF",
         )
         .expect("ok");
-        assert!(got2.chars().all(|c| !c.is_uppercase()), "lowercased: {got2}");
+        assert!(
+            got2.chars().all(|c| !c.is_uppercase()),
+            "lowercased: {got2}"
+        );
     }
 
     #[test]
@@ -2284,7 +2293,12 @@ mod tests {
             p.file_name().and_then(|s| s.to_str()),
             Some("foo.signed-tmp.wav")
         );
-        assert_eq!(p.parent(), std::path::Path::new("/var/data").parent().map(|_| std::path::Path::new("/var/data")));
+        assert_eq!(
+            p.parent(),
+            std::path::Path::new("/var/data")
+                .parent()
+                .map(|_| std::path::Path::new("/var/data"))
+        );
     }
 
     #[test]

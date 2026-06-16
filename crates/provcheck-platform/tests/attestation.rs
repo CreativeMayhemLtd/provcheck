@@ -450,7 +450,8 @@ fn auto_bust_writes_back_to_cache_so_next_call_is_fresh() {
     let count_after_third = server.request_count();
     assert_eq!(third.status, AttestationStatus::Match);
     assert_eq!(
-        count_after_third, count_before_third,
+        count_after_third,
+        count_before_third,
         "third call should be a pure cache hit (the auto-bust refreshed it); \
          observed {} extra requests",
         count_after_third - count_before_third

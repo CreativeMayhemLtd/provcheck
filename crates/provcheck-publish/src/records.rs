@@ -268,7 +268,12 @@ impl<'a> RecordWriter<'a> {
     /// Resolve the authenticated user's DID into the `AtIdentifier`
     /// shape atrium's repo APIs want.
     async fn repo_identifier(&self) -> Result<AtIdentifier, RecordsError> {
-        let did = self.client.agent.did().await.ok_or(RecordsError::NoSession)?;
+        let did = self
+            .client
+            .agent
+            .did()
+            .await
+            .ok_or(RecordsError::NoSession)?;
         // `Did` → `AtIdentifier` is a direct, infallible
         // conversion in atrium 0.25 — both types share the same
         // string-newtype shape.
@@ -308,10 +313,7 @@ fn typed_record(record: &SigningKeyRecord) -> TypedSigningKeyRecord {
 fn map_xrpc_err<E: std::fmt::Display>(e: E) -> RecordsError {
     let msg = e.to_string();
     let lower = msg.to_lowercase();
-    if lower.contains("invalid_token")
-        || lower.contains("session")
-        || lower.contains("expired")
-    {
+    if lower.contains("invalid_token") || lower.contains("session") || lower.contains("expired") {
         RecordsError::Http(format!("session may have expired: {msg}"))
     } else if lower.contains("invalid_request")
         || lower.contains("bad_request")
@@ -331,9 +333,8 @@ mod tests {
     fn fake_record() -> SigningKeyRecord {
         SigningKeyRecord {
             created_at: "2026-06-14T12:00:00Z".into(),
-            fingerprint:
-                "sha256:abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd"
-                    .into(),
+            fingerprint: "sha256:abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd"
+                .into(),
             algorithm: "ES256".into(),
             label: Some("studio mac".into()),
             valid_from: None,

@@ -63,8 +63,15 @@ fn write_silent_wav(p: &Path) {
 
 #[test]
 fn kit_binary_version_dispatches_cleanly() {
-    let out = Command::new(kit_bin()).arg("--version").output().expect("run");
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    let out = Command::new(kit_bin())
+        .arg("--version")
+        .output()
+        .expect("run");
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(stdout.contains("provcheck-kit"), "version output: {stdout}");
     // Track the workspace version dynamically — env!("CARGO_PKG_VERSION")
@@ -85,15 +92,28 @@ fn kit_binary_status_on_empty_dir_reports_both_none() {
         .arg(tmp.path())
         .output()
         .expect("run");
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(stdout.contains("[identity]"), "status output: {stdout}");
-    assert!(stdout.contains("none — run `kit init`"), "status output: {stdout}");
-    assert!(stdout.contains("[atproto session]"), "status output: {stdout}");
+    assert!(
+        stdout.contains("none — run `kit init`"),
+        "status output: {stdout}"
+    );
+    assert!(
+        stdout.contains("[atproto session]"),
+        "status output: {stdout}"
+    );
     // The fixed status command — used to print
     // "(status not implemented yet — sub-pass 4d)". Make sure that
     // regression never comes back.
-    assert!(!stdout.contains("not implemented yet"), "status regression: {stdout}");
+    assert!(
+        !stdout.contains("not implemented yet"),
+        "status regression: {stdout}"
+    );
     assert!(stdout.contains("kit login"), "status output: {stdout}");
 }
 
@@ -198,10 +218,7 @@ fn end_to_end_identity_assertion_round_trip() {
         ]
     })
     .to_string();
-    let claim = IdentityClaim::new(
-        locked.did.clone().unwrap(),
-        locked.handle.clone(),
-    );
+    let claim = IdentityClaim::new(locked.did.clone().unwrap(), locked.handle.clone());
     let with_identity =
         embed_identity_assertion(&manifest, &claim).expect("embed identity assertion");
     let result = sign_asset(&unlocked, &src, &dst, &with_identity).expect("sign_asset");
@@ -304,21 +321,27 @@ fn kit_binary_verify_shells_out_to_provcheck() {
     // the cargo test harness as a sibling target) and the
     // committed signed sample. trailing_var_arg lets us pass
     // --no-watermark through to skip the slow detector.
-    let provcheck_bin = kit_bin().with_file_name(
-        if cfg!(windows) { "provcheck.exe" } else { "provcheck" },
-    );
+    let provcheck_bin = kit_bin().with_file_name(if cfg!(windows) {
+        "provcheck.exe"
+    } else {
+        "provcheck"
+    });
     if !provcheck_bin.exists() {
         // Skip rather than fail when the verifier binary wasn't
         // built (e.g. a `cargo test -p provcheck-kit` that
         // doesn't pull in the sibling binary).
-        eprintln!("skipping kit_binary_verify_shells_out_to_provcheck: {} not present",
-            provcheck_bin.display());
+        eprintln!(
+            "skipping kit_binary_verify_shells_out_to_provcheck: {} not present",
+            provcheck_bin.display()
+        );
         return;
     }
     let sample = std::path::Path::new("../../examples/rAIdio.bot-sample.mp3");
     if !sample.exists() {
-        eprintln!("skipping kit_binary_verify_shells_out_to_provcheck: {} not present",
-            sample.display());
+        eprintln!(
+            "skipping kit_binary_verify_shells_out_to_provcheck: {} not present",
+            sample.display()
+        );
         return;
     }
     let out = Command::new(kit_bin())

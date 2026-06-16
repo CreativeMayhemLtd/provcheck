@@ -58,11 +58,7 @@ pub struct SigningKeyRecord {
 
     /// RFC 3339 timestamp at which this record becomes active.
     /// Defaults to [`created_at`](Self::created_at) when absent.
-    #[serde(
-        rename = "validFrom",
-        default,
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(rename = "validFrom", default, skip_serializing_if = "Option::is_none")]
     pub valid_from: Option<String>,
 
     /// RFC 3339 timestamp at which this record stops being active.
@@ -176,7 +172,8 @@ pub enum FingerprintError {
 /// integration test `fingerprint_matches_provcheck_platform` in
 /// provcheck-sign locks that contract in place.
 pub fn fingerprint_pem_chain(chain_pem: &str) -> Result<String, FingerprintError> {
-    let parsed = pem::parse_many(chain_pem).map_err(|e| FingerprintError::PemParse(e.to_string()))?;
+    let parsed =
+        pem::parse_many(chain_pem).map_err(|e| FingerprintError::PemParse(e.to_string()))?;
     let leaf = parsed
         .iter()
         .find(|p| p.tag() == "CERTIFICATE")
@@ -227,7 +224,9 @@ mod tests {
         assert!(fp.starts_with("sha256:"), "format prefix");
         assert_eq!(fp.len(), "sha256:".len() + 64, "hex length");
         assert!(
-            fp.chars().skip("sha256:".len()).all(|c| c.is_ascii_hexdigit() && !c.is_uppercase()),
+            fp.chars()
+                .skip("sha256:".len())
+                .all(|c| c.is_ascii_hexdigit() && !c.is_uppercase()),
             "lowercase hex only"
         );
     }
@@ -335,10 +334,7 @@ mod tests {
 
     #[test]
     fn identity_claim_round_trips_full_payload() {
-        let c = IdentityClaim::new(
-            "did:plc:abc123",
-            Some("creator.bsky.social".to_string()),
-        );
+        let c = IdentityClaim::new("did:plc:abc123", Some("creator.bsky.social".to_string()));
         assert_eq!(c.version, Some(IDENTITY_CLAIM_SCHEMA_VERSION));
         let json = serde_json::to_string(&c).expect("serialise");
         let back: IdentityClaim = serde_json::from_str(&json).expect("round-trip");

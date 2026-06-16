@@ -99,8 +99,8 @@ pub fn sign_asset(
     )
     .map_err(|e| SignError::SignerSetup(e.to_string()))?;
 
-    let mut builder =
-        c2pa::Builder::from_json(manifest_json).map_err(|e| SignError::ManifestJson(e.to_string()))?;
+    let mut builder = c2pa::Builder::from_json(manifest_json)
+        .map_err(|e| SignError::ManifestJson(e.to_string()))?;
 
     // Auto-chain: if the source already has a C2PA manifest, declare
     // it as a parent ingredient so the new signature explicitly
@@ -281,8 +281,8 @@ pub fn embed_identity_assertion(
     manifest_json: &str,
     claim: &IdentityClaim,
 ) -> Result<String, SignError> {
-    let mut value: serde_json::Value = serde_json::from_str(manifest_json)
-        .map_err(|e| SignError::ManifestJson(e.to_string()))?;
+    let mut value: serde_json::Value =
+        serde_json::from_str(manifest_json).map_err(|e| SignError::ManifestJson(e.to_string()))?;
     let obj = value
         .as_object_mut()
         .ok_or_else(|| SignError::ManifestJson("manifest top-level is not an object".into()))?;
@@ -302,9 +302,7 @@ pub fn embed_identity_assertion(
     // Replace any pre-existing assertion with the same label so
     // re-running embed is idempotent (calling it twice doesn't
     // produce two identity assertions).
-    arr.retain(|a| {
-        a.get("label").and_then(|l| l.as_str()) != Some(IDENTITY_ASSERTION_LABEL)
-    });
+    arr.retain(|a| a.get("label").and_then(|l| l.as_str()) != Some(IDENTITY_ASSERTION_LABEL));
     arr.push(entry);
 
     serde_json::to_string(&value).map_err(|e| SignError::ManifestJson(e.to_string()))
@@ -522,9 +520,8 @@ mod tests {
             "assertions": "not an array",
         })
         .to_string();
-        let err =
-            embed_identity_assertion(&manifest, &IdentityClaim::new("did:plc:abc", None))
-                .expect_err("rejected");
+        let err = embed_identity_assertion(&manifest, &IdentityClaim::new("did:plc:abc", None))
+            .expect_err("rejected");
         assert!(matches!(err, SignError::ManifestJson(_)));
     }
 
@@ -674,7 +671,9 @@ mod tests {
             .map(|a| a.label().to_string())
             .collect();
         assert!(
-            labels.iter().any(|l| l == IDENTITY_ASSERTION_LABEL || l.starts_with(&format!("{IDENTITY_ASSERTION_LABEL}.")) || l.starts_with(&format!("{IDENTITY_ASSERTION_LABEL}__"))),
+            labels.iter().any(|l| l == IDENTITY_ASSERTION_LABEL
+                || l.starts_with(&format!("{IDENTITY_ASSERTION_LABEL}."))
+                || l.starts_with(&format!("{IDENTITY_ASSERTION_LABEL}__"))),
             "identity assertion present in signed file: {labels:?}"
         );
     }

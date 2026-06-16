@@ -216,10 +216,8 @@ mod tests {
             key_provider: KeyProviderKind::EncryptedFile,
             recovery_recipients: vec![],
         };
-        let unlocked = UnlockedIdentity::new(
-            locked,
-            SecretString::new("super-secret-private-key".into()),
-        );
+        let unlocked =
+            UnlockedIdentity::new(locked, SecretString::new("super-secret-private-key".into()));
         let debug = format!("{:?}", unlocked);
         assert!(
             debug.contains("<redacted>"),
@@ -243,8 +241,7 @@ mod tests {
             key_provider: KeyProviderKind::Keychain,
             recovery_recipients: vec![],
         };
-        let unlocked =
-            UnlockedIdentity::new(locked.clone(), SecretString::new("secret".into()));
+        let unlocked = UnlockedIdentity::new(locked.clone(), SecretString::new("secret".into()));
         let relocked = unlocked.lock();
         assert_eq!(relocked, locked);
         // We can't observe the SecretString zeroisation here without

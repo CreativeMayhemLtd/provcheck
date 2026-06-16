@@ -563,9 +563,7 @@ fn publisher_attestation_chain_surfaces_parent_in_report() {
     // chain with none would be useless to a renderer. The specific
     // field is c2pa-rs implementation detail.
     assert!(
-        parent.signer.is_some()
-            || parent.claim_generator.is_some()
-            || parent.title.is_some(),
+        parent.signer.is_some() || parent.claim_generator.is_some() || parent.title.is_some(),
         "at least one identifying field on the parent: got {parent:?}"
     );
 }

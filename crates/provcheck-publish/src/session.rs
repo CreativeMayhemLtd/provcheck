@@ -26,8 +26,8 @@
 
 use std::path::{Path, PathBuf};
 
-use atrium_api::agent::atp_agent::{AtpAgent, AtpSession};
 use atrium_api::agent::atp_agent::store::MemorySessionStore;
+use atrium_api::agent::atp_agent::{AtpAgent, AtpSession};
 use atrium_api::com::atproto::server::create_session::OutputData as SessionOutputData;
 use atrium_api::types::Object;
 use atrium_api::types::string::{Did, Handle};
@@ -131,26 +131,26 @@ impl AtprotoClient {
         let store = MemorySessionStore::default();
         let agent = AtpAgent::new(xrpc, store);
 
-        let session_output = agent
-            .login(handle, app_password)
-            .await
-            .map_err(|e| {
-                // atrium's Error<E> formats with the lexicon's
-                // specific error variant + an HTTP detail. The
-                // distinction between "login rejected" and "the
-                // network is broken" is in the message body; for
-                // v1 we keep one error path.
-                let msg = e.to_string();
-                if msg.to_lowercase().contains("invalid") || msg.to_lowercase().contains("auth")
-                {
-                    SessionError::LoginRejected(msg)
-                } else {
-                    SessionError::Http(msg)
-                }
-            })?;
+        let session_output = agent.login(handle, app_password).await.map_err(|e| {
+            // atrium's Error<E> formats with the lexicon's
+            // specific error variant + an HTTP detail. The
+            // distinction between "login rejected" and "the
+            // network is broken" is in the message body; for
+            // v1 we keep one error path.
+            let msg = e.to_string();
+            if msg.to_lowercase().contains("invalid") || msg.to_lowercase().contains("auth") {
+                SessionError::LoginRejected(msg)
+            } else {
+                SessionError::Http(msg)
+            }
+        })?;
 
         let session = atp_session_to_file(&session_output, &pds);
-        Ok(Self { agent, pds, session })
+        Ok(Self {
+            agent,
+            pds,
+            session,
+        })
     }
 
     /// Load a previously-persisted session and re-attach the
@@ -159,8 +159,8 @@ impl AtprotoClient {
     pub async fn load_session(dir: &Path) -> Result<Self, SessionError> {
         let path = session_path(dir);
         let bytes = std::fs::read(&path)?;
-        let file: SessionFile = serde_json::from_slice(&bytes)
-            .map_err(|e| SessionError::Format(e.to_string()))?;
+        let file: SessionFile =
+            serde_json::from_slice(&bytes).map_err(|e| SessionError::Format(e.to_string()))?;
 
         let xrpc = ReqwestClient::new(&file.pds);
         let store = MemorySessionStore::default();
@@ -348,8 +348,14 @@ mod tests {
 
     #[test]
     fn normalise_pds_url_preserves_existing_scheme() {
-        assert_eq!(normalise_pds_url("https://bsky.social"), "https://bsky.social");
-        assert_eq!(normalise_pds_url("http://localhost:3000/"), "http://localhost:3000");
+        assert_eq!(
+            normalise_pds_url("https://bsky.social"),
+            "https://bsky.social"
+        );
+        assert_eq!(
+            normalise_pds_url("http://localhost:3000/"),
+            "http://localhost:3000"
+        );
     }
 
     #[test]
@@ -395,7 +401,10 @@ mod tests {
             refresh_jwt: "y".into(),
         };
         let err = file_to_atp_session(&f).expect_err("invalid did");
-        assert!(matches!(err, SessionError::InvalidIdentifier(_)), "got {err:?}");
+        assert!(
+            matches!(err, SessionError::InvalidIdentifier(_)),
+            "got {err:?}"
+        );
     }
 
     #[test]
@@ -408,7 +417,10 @@ mod tests {
             refresh_jwt: "y".into(),
         };
         let err = file_to_atp_session(&f).expect_err("invalid handle");
-        assert!(matches!(err, SessionError::InvalidIdentifier(_)), "got {err:?}");
+        assert!(
+            matches!(err, SessionError::InvalidIdentifier(_)),
+            "got {err:?}"
+        );
     }
 
     #[test]

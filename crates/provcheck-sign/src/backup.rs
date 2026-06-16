@@ -107,10 +107,7 @@ impl BackupBundle {
     /// restore the user might want to switch from `EncryptedFile`
     /// to `Keychain` regardless of how the original install was
     /// set up).
-    pub fn into_unlocked(
-        self,
-        override_provider: Option<KeyProviderKind>,
-    ) -> UnlockedIdentity {
+    pub fn into_unlocked(self, override_provider: Option<KeyProviderKind>) -> UnlockedIdentity {
         let key_provider = override_provider.unwrap_or(self.key_provider);
         let locked = LockedIdentity {
             chain_pem: self.chain_pem,
@@ -213,9 +210,8 @@ pub fn export_with_passphrase(
 ) -> Result<BackupSummary, BackupError> {
     let envelope = envelope_from_unlocked(unlocked)?;
     let json = serde_json::to_vec(&envelope)?;
-    let encryptor = age::Encryptor::with_user_passphrase(
-        passphrase.expose_secret().to_string().into(),
-    );
+    let encryptor =
+        age::Encryptor::with_user_passphrase(passphrase.expose_secret().to_string().into());
     let written = write_age(out_path, encryptor, &json)?;
     Ok(BackupSummary {
         out_path: out_path.to_path_buf(),
@@ -422,8 +418,8 @@ fn decrypt_age(
     ciphertext: &[u8],
     identities: &[&dyn age::Identity],
 ) -> Result<Vec<u8>, BackupError> {
-    let decryptor = age::Decryptor::new(ciphertext)
-        .map_err(|e| BackupError::AgeFormat(e.to_string()))?;
+    let decryptor =
+        age::Decryptor::new(ciphertext).map_err(|e| BackupError::AgeFormat(e.to_string()))?;
     match decryptor.decrypt(identities.iter().copied()) {
         Ok(mut reader) => {
             let mut buf = Vec::new();
@@ -464,7 +460,10 @@ mod tests {
         };
         UnlockedIdentity::new(
             locked,
-            SecretString::from("-----BEGIN PRIVATE KEY-----\nthekeyitself\n-----END PRIVATE KEY-----\n".to_string()),
+            SecretString::from(
+                "-----BEGIN PRIVATE KEY-----\nthekeyitself\n-----END PRIVATE KEY-----\n"
+                    .to_string(),
+            ),
         )
     }
 
@@ -540,7 +539,10 @@ mod tests {
         export_with_passphrase(&id, &out, SecretString::from("correct".to_string())).unwrap();
         let err = import_with_passphrase(&out, SecretString::from("wrong".to_string()))
             .expect_err("should fail");
-        assert!(matches!(err, BackupError::AuthenticationFailed), "got {err:?}");
+        assert!(
+            matches!(err, BackupError::AuthenticationFailed),
+            "got {err:?}"
+        );
     }
 
     #[test]
@@ -554,7 +556,10 @@ mod tests {
         export_with_recipients(&id, &out, std::slice::from_ref(&real.to_public())).unwrap();
 
         let err = import_with_x25519_identity(&out, &imposter).expect_err("should fail");
-        assert!(matches!(err, BackupError::AuthenticationFailed), "got {err:?}");
+        assert!(
+            matches!(err, BackupError::AuthenticationFailed),
+            "got {err:?}"
+        );
     }
 
     #[test]

@@ -67,9 +67,7 @@
 
 use std::path::Path;
 
-pub use provcheck::prelude::{
-    WatermarkBrand, WatermarkKind, WatermarkResult, WatermarkStatus,
-};
+pub use provcheck::prelude::{WatermarkBrand, WatermarkKind, WatermarkResult, WatermarkStatus};
 
 #[doc(hidden)]
 pub mod audio;
@@ -278,7 +276,8 @@ mod tests {
         // with a "not audio" / decoder-error message, never
         // panic or surface an I/O error.
         let mut f = tempfile::Builder::new().suffix(".wav").tempfile().unwrap();
-        f.write_all(b"RIFF\0\0\0\0WAVEfmt notrealdataatall").unwrap();
+        f.write_all(b"RIFF\0\0\0\0WAVEfmt notrealdataatall")
+            .unwrap();
         let r = detect(f.path()).unwrap();
         assert!(!r.detected);
         assert!(matches!(r.status, WatermarkStatus::NotDetected));
