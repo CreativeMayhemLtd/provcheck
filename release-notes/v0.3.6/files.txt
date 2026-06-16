@@ -1,0 +1,18 @@
+# Files staged for the v0.3.6 commit.
+
+# Workspace version bump
+Cargo.toml
+Cargo.lock
+
+# GUI files in lockstep
+app/src-tauri/Cargo.toml
+app/src-tauri/tauri.conf.json
+app/package.json
+
+# README: updated release-history table
+README.md
+
+# Release-notes infra (this commit also ships these)
+release-notes/v0.3.6/commit.md
+release-notes/v0.3.6/tag.md
+release-notes/v0.3.6/files.txt
