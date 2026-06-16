@@ -282,13 +282,18 @@ jobs:
           shopt -s nullglob globstar || true
           for src in ${{ matrix.bundle_glob }}; do
             base="$(basename "$src")"
-            # Strip the leading `provcheck_<ver>_` Tauri prefix and
-            # replace with `provcheck-gui-<tag>-`. Also replace any
-            # remaining underscores in the suffix with hyphens so
-            # the whole name reads consistently (e.g.
-            # `provcheck_0.3.2_x64_en-US.msi` becomes
-            # `provcheck-gui-v0.3.2-x64-en-US.msi`).
-            suffix="${base#provcheck_${ver}_}"
+            # Strip the leading `provcheck_<X.Y.Z>_` Tauri prefix and
+            # replace with `provcheck-gui-<tag>-`. We strip ANY version
+            # there, not specifically `${ver}`, so a Tauri-side version
+            # drift (app/src-tauri/Cargo.toml + tauri.conf.json +
+            # app/package.json out of lockstep with the workspace) can't
+            # leak through as an ugly `provcheck-gui-v0.3.4-provcheck-
+            # 0.3.2-…` name. Also replace any remaining underscores in
+            # the suffix with hyphens so the whole name reads consistently
+            # (e.g. `provcheck_0.3.4_x64_en-US.msi` becomes
+            # `provcheck-gui-v0.3.4-x64-en-US.msi`).
+            suffix="${base#provcheck_}"   # drop literal `provcheck_`
+            suffix="${suffix#*_}"          # drop version + trailing underscore
             suffix="${suffix//_/-}"
             dest="provcheck-gui-${tag}-${suffix}"
             cp "$src" "$stage_dir/$dest"

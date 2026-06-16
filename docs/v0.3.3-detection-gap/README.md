@@ -1,10 +1,39 @@
-# v0.3.3 — silentcipher detection accuracy gap
+# Watermark detection — diagnostic harness + v0.3.3 investigation
 
-## What we know
+This directory is both:
 
-provcheck v0.3.2's Rust silentcipher decoder produces lower
-confidence than a Python reference decoder running on the same
-audio file with the same `.onnx` model. Concretely, on a
+1. The **investigation record** for the silentcipher detector accuracy
+   gap that v0.3.3 closed. If you want to know what was wrong, how we
+   diagnosed it, and why the fix is what it is, the original
+   investigation prose is preserved below.
+2. The **regression harness** for any future change that could reopen
+   that gap. A symphonia bump, a tract upgrade, a new model checkpoint,
+   or an algorithmic change to the STFT front-end could each silently
+   shift detection confidence. The harness fingerprints divergence at
+   the stage where it appears, so the next fix is one diff away.
+
+If you're updating the detector, **before merging:** run
+`scripts/v0.3.3-investigate.sh <known-marked-mp3>` and confirm every
+stage either reports OK or is within the documented tolerance. If
+STAGE 1 (audio decode) divergence reappears, see
+[`mp3-decoder-survey.md`](./mp3-decoder-survey.md) for the decision
+tree. The matching examples (`decode_dump`, `decode_diff`,
+`align_check`) live in
+[`crates/provcheck-watermark/examples/`](../../crates/provcheck-watermark/examples/).
+
+The Python reference (`scripts/v0.3.3-python-reference.py`) is the
+load-bearing oracle — it uses `librosa + torch.stft + onnxruntime`
+against our same `.onnx` model, so it carries no dependency on the
+silentcipher source code. Anyone with Python and our model checkpoint
+can reproduce the harness end-to-end.
+
+---
+
+## What we knew at the start
+
+provcheck v0.3.2's Rust silentcipher decoder produced lower
+confidence than the Python reference running on the same audio file
+with the same `.onnx` model. Concretely, on a
 doomscroll.fm voice-mixdown MP3 that's been silentcipher-marked at
 render time, the Python reference reports **0.95 confidence**
 with the correct DFM payload `[0x44, 0x46, 0x4d, 0x01, 0x00]`.

@@ -1,0 +1,26 @@
+# Files staged for the v0.3.4 commit. publish_dc.sh reads this list
+# and runs `git add` on each.
+
+# Workspace version bump
+Cargo.toml
+Cargo.lock
+
+# GUI version files — bumped so the Tauri bundler emits names in
+# lockstep with the workspace (was the v0.3.3 wart)
+app/src-tauri/Cargo.toml
+app/src-tauri/tauri.conf.json
+app/package.json
+
+# Workflow rename step — belts-and-braces fix so any future
+# version drift between workspace and Tauri can't recreate the wart
+.github/workflows/release.yml
+
+# Doc updates
+README.md
+docs/creator-workflow.md
+docs/v0.3.3-detection-gap/README.md
+
+# Release-notes infra (this commit also ships these)
+release-notes/v0.3.4/commit.md
+release-notes/v0.3.4/tag.md
+release-notes/v0.3.4/files.txt
