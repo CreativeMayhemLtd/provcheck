@@ -1,0 +1,12 @@
+# Python dependencies for v0.3.3-python-reference.py.
+# Install with:  pip install -r scripts/v0.3.3-python-reference.requirements.txt
+#
+# Pin to versions that have reproducible numerical behaviour;
+# upgrading these in the future is fine as long as the diff tool
+# still says STAGE 4 (logits) round-trips.
+
+librosa>=0.10,<1           # audio decode + resample (only .load is used; API stable across 0.10/0.11)
+numpy>=1.24,<3             # math
+onnxruntime>=1.16,<2       # ONNX model inference (CPU provider)
+torch>=2.0,<3              # for torch.stft (matches silentcipher training)
+soundfile>=0.12,<1         # librosa's MP3/WAV backend

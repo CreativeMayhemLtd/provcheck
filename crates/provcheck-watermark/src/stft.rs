@@ -47,11 +47,16 @@ pub fn waveform_to_carrier(waveform: &[f32]) -> Result<(Vec<f32>, usize), StftEr
     // 1. VCTK energy rescale (in place into a fresh buffer).
     let mut y = vctk_rescale(waveform);
 
-    // 2. Tail zero-pad to a multiple of WIN.
+    // 2. Tail zero-pad. silentcipher's reference always pads —
+    //    even when `y.len() % WIN == 0`, it appends a full WIN
+    //    zeros (see `pad = win_len - x.shape[1] % win_len` in
+    //    silentcipher/stft.py; remainder 0 → pad = win_len). Our
+    //    v0.3.2 skipped the pad in that exact case, which only
+    //    matters for inputs that are an exact multiple of WIN
+    //    samples but counts as a real precision divergence vs
+    //    the reference.
     let tail = WIN - (y.len() % WIN);
-    if tail != WIN {
-        y.extend(std::iter::repeat_n(0.0_f32, tail));
-    }
+    y.extend(std::iter::repeat_n(0.0_f32, tail));
 
     // 3. Reflect-pad N_FFT/2 on each end (torch center=True).
     let pad = N_FFT / 2;
@@ -164,10 +169,22 @@ fn compute_n_frames(len: usize) -> usize {
     }
 }
 
-/// Standard Hann window of length `n`:
-/// `w[i] = 0.5 * (1 - cos(2π i / (n-1)))`.
+/// Periodic Hann window of length `n`:
+/// `w[i] = 0.5 * (1 - cos(2π i / n))`.
+///
+/// Periodic (not symmetric). silentcipher's training pipeline
+/// uses `torch.stft(..., window=torch.hann_window(n_fft))`, and
+/// `torch.hann_window` defaults to `periodic=True` — which
+/// divides by `n`, not `n - 1`. The two windows differ by a
+/// small amount everywhere, but applied frame-by-frame the
+/// resulting magnitudes shift just enough to push the decoder
+/// into low-confidence territory on real inputs (the model was
+/// trained on periodic-window magnitudes). Empirically caught
+/// via examples/decode_inspect.rs: symmetric Hann gave ~24%
+/// terminator confidence on a file where the Python reference
+/// hits 95%.
 fn hann_window(n: usize) -> Vec<f32> {
-    let denom = (n - 1) as f32;
+    let denom = n as f32;
     (0..n)
         .map(|i| 0.5 * (1.0 - (2.0 * std::f32::consts::PI * i as f32 / denom).cos()))
         .collect()
@@ -178,10 +195,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn hann_window_starts_and_ends_at_zero() {
+    fn hann_window_periodic_shape() {
         let w = hann_window(WIN);
-        assert!(w[0].abs() < 1e-6);
-        assert!(w[WIN - 1].abs() < 1e-6);
+        // Periodic Hann: w[0] is exactly zero. w[n-1] is small but
+        // nonzero (the symmetric variant would force it to exactly
+        // zero). w[n/2] is exactly 1 because cos(π) = -1.
+        assert!(w[0].abs() < 1e-6, "w[0] = {}", w[0]);
+        assert!(
+            w[WIN - 1] > 0.0 && w[WIN - 1] < 1e-4,
+            "w[WIN-1] should be small-but-nonzero (periodic), got {}",
+            w[WIN - 1]
+        );
         assert!((w[WIN / 2] - 1.0).abs() < 1e-6);
     }
 
@@ -223,6 +247,29 @@ mod tests {
         let pad = N_FFT / 2;
         let padded_len = WIN + 2 * pad;
         assert_eq!(compute_n_frames(padded_len), 3);
+    }
+
+    #[test]
+    fn exact_window_multiple_input_still_tail_pads() {
+        // silentcipher's stft.py computes
+        // `pad = win_len - x.shape[1] % win_len`, which evaluates to
+        // a full `win_len` of zeros when the remainder is 0. v0.3.2
+        // skipped the pad in that exact case and quietly shifted
+        // every downstream frame. This test fixes the invariant:
+        // input length WIN must yield 5 frames (with-pad), not 3
+        // (without-pad). The math:
+        //   WIN samples → tail-pad WIN → 2*WIN → reflect-pad
+        //   N_FFT/2 each side → 2*WIN + N_FFT samples →
+        //   1 + (2*WIN + N_FFT - N_FFT) / HOP = 1 + 2*WIN/HOP = 5.
+        let waveform: Vec<f32> = (0..WIN).map(|i| 0.05 * (i as f32 * 0.01).sin()).collect();
+        let (_carrier, n_frames) = waveform_to_carrier(&waveform).unwrap();
+        assert_eq!(
+            n_frames, 5,
+            "always-pad invariant broken: expected 5 frames for \
+             exact-WIN input, got {n_frames}. silentcipher's stft.py \
+             always pads, even when remainder is 0; do not 'optimise' \
+             this away."
+        );
     }
 
     #[test]

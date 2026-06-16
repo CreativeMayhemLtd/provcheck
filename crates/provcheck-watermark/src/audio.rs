@@ -71,6 +71,16 @@ pub fn decode_to_mono_44k1(path: &Path) -> Result<Vec<f32>, AudioError> {
         .codec_params
         .sample_rate
         .ok_or_else(|| AudioError::Decode("track missing sample rate".into()))?;
+    // Encoder-inserted priming + padding samples (LAME tag on MP3,
+    // iTunSMPB on AAC-in-M4A, etc.). symphonia parses these but
+    // does not auto-trim — that's the caller's job. Without this,
+    // an MP3-decoded mono buffer starts 1105 samples earlier and
+    // ends ~1109 samples later than what librosa/ffmpeg yield,
+    // which shifts every downstream STFT frame and breaks the
+    // silentcipher per-position mode vote. See
+    // docs/v0.3.3-detection-gap/ for the empirical alignment proof.
+    let enc_delay = track.codec_params.delay.unwrap_or(0) as usize;
+    let enc_padding = track.codec_params.padding.unwrap_or(0) as usize;
 
     let mut decoder = symphonia::default::get_codecs()
         .make(&track.codec_params, &DecoderOptions::default())
@@ -102,6 +112,19 @@ pub fn decode_to_mono_44k1(path: &Path) -> Result<Vec<f32>, AudioError> {
 
     if mono.is_empty() {
         return Err(AudioError::Decode("decoded zero samples".into()));
+    }
+
+    // Trim encoder priming + end padding. delay/padding are in
+    // source-sample-rate frames, so this must happen before
+    // resample(). Guards against pathological tags that would
+    // empty or invert the buffer — saturate to a no-op rather
+    // than truncate to nothing.
+    if enc_delay > 0 && enc_delay < mono.len() {
+        mono.drain(..enc_delay);
+    }
+    if enc_padding > 0 && enc_padding < mono.len() {
+        let new_len = mono.len() - enc_padding;
+        mono.truncate(new_len);
     }
 
     if src_sample_rate == SAMPLE_RATE {

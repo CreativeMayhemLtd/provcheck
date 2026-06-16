@@ -1,0 +1,45 @@
+# Files staged for the v0.3.3 commit. publish_dc.sh reads this
+# list and runs `git add` on each. Update once the actual detection
+# fix lands — until then this is a placeholder including the
+# diagnostic harness and the two structural corrections (periodic
+# Hann, always-pad) that bring the Rust pipeline closer to
+# silentcipher's reference but don't on their own close the
+# confidence gap.
+
+# Workspace version bump
+Cargo.toml
+Cargo.lock
+
+# THE FIX: honor LAME encoder delay + padding on MP3 decode
+crates/provcheck-watermark/src/audio.rs
+
+# Adjacent pipeline alignments (periodic Hann + always-pad)
+crates/provcheck-watermark/src/stft.rs
+
+# Diagnostic harness — new examples
+crates/provcheck-watermark/examples/decode_dump.rs
+crates/provcheck-watermark/examples/decode_diff.rs
+crates/provcheck-watermark/examples/align_check.rs
+
+# Investigation tooling on the Python side
+scripts/v0.3.3-python-reference.py
+scripts/v0.3.3-python-reference.requirements.txt
+scripts/v0.3.3-investigate.sh
+
+# Docs for the investigation
+docs/v0.3.3-detection-gap/README.md
+docs/v0.3.3-detection-gap/python-dump-protocol.md
+docs/v0.3.3-detection-gap/mp3-decoder-survey.md
+
+# Tauri / GUI version bumps (add only if a GUI change is in this
+# release; if v0.3.3 is detector-only, omit these — bumping
+# version alone gives a confusingly mid-bumped release)
+# app/src-tauri/Cargo.toml
+# app/src-tauri/Cargo.lock
+# app/src-tauri/tauri.conf.json
+# app/package.json
+
+# Release-notes infra (this commit also ships these)
+release-notes/v0.3.3/commit.md
+release-notes/v0.3.3/tag.md
+release-notes/v0.3.3/files.txt
