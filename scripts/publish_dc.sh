@@ -170,7 +170,22 @@ if [[ -z "$RUN_ID" || "$RUN_ID" == "null" ]]; then
 fi
 
 echo "[publish_dc] Watching run $RUN_ID (this typically takes ~26 minutes)…"
-gh run watch "$RUN_ID" --repo "$REPO" --exit-status
+# Poll instead of `gh run watch --exit-status` because that command
+# exits non-zero on any transient GitHub API hiccup mid-stream — a
+# single HTTP 502 from `gh api .../actions/runs/.../jobs` would
+# combine with `set -e` to abort the entire publish ceremony,
+# leaving the workflow running but the script gone. The poll loop
+# survives those: it just retries every 60 s until `conclusion`
+# populates. Same wall-clock as `gh run watch`, far more robust.
+until [[ "$(gh run view "$RUN_ID" --repo "$REPO" --json conclusion --jq '.conclusion' 2>/dev/null)" != "" ]]; do
+  sleep 60
+done
+WORKFLOW_CONCLUSION="$(gh run view "$RUN_ID" --repo "$REPO" --json conclusion --jq '.conclusion')"
+if [[ "$WORKFLOW_CONCLUSION" != "success" ]]; then
+  echo "fatal: workflow $RUN_ID ended with conclusion '$WORKFLOW_CONCLUSION'." >&2
+  echo "       Inspect at https://github.com/$REPO/actions/runs/$RUN_ID" >&2
+  exit 1
+fi
 
 # ---- 8. Download artefacts ----------------------------------------------
 
@@ -208,7 +223,10 @@ for pattern in \
   "dist/provcheck-gui-$TAG-"*/*.deb \
   "dist/provcheck-gui-$TAG-"*/*.AppImage \
   "dist/provcheck-gui-$TAG-"*/*.dmg \
-  "dist/provcheck-gui-$TAG-"*/*.sha256
+  "dist/provcheck-gui-$TAG-"*/*.sha256 \
+  "dist/provcheck-sbom-$TAG/"*.cdx.json \
+  "dist/provcheck-sbom-$TAG/"*.spdx.json \
+  "dist/provcheck-sbom-$TAG/"*.sha256
 do
   for f in $pattern; do
     ARTS+=("$f")

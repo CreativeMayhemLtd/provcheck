@@ -1,0 +1,26 @@
+# Files staged for the v0.3.5 commit.
+
+# Workspace version bump
+Cargo.toml
+Cargo.lock
+
+# GUI files in lockstep
+app/src-tauri/Cargo.toml
+app/src-tauri/tauri.conf.json
+app/package.json
+
+# SBOM tooling — new
+scripts/generate-sbom.sh
+.github/workflows/release.yml
+docs/sbom.md
+
+# Release-script hardening (polling + SBOM glob)
+scripts/publish_dc.sh
+
+# README pointer to SBOM doc
+README.md
+
+# Release-notes infra (this commit also ships these)
+release-notes/v0.3.5/commit.md
+release-notes/v0.3.5/tag.md
+release-notes/v0.3.5/files.txt

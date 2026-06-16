@@ -326,3 +326,49 @@ jobs:
           path: ${{ steps.stage.outputs.stage_dir }}/*
           if-no-files-found: error
           retention-days: 30
+
+  # Software Bill of Materials (SBOM) generation. Produces both
+  # CycloneDX 1.6 (OWASP) and SPDX 2.3 (ISO/IEC 5962:2021) for each
+  # top-level binary. One SBOM per binary, not per (binary × target):
+  # the Cargo.lock-derived dep graph is identical across the three
+  # OSes and target-conditional deps appear with `condition`
+  # annotations in both formats. Downstream supply-chain tools
+  # (Dependency Track, Trivy, Grype, GHAS) resolve target conditions
+  # themselves.
+  #
+  # Runs on a single Linux runner — no need to fan across the matrix.
+  # In parallel with the build / build-gui jobs so it doesn't
+  # extend the critical path.
+  build-sbom:
+    name: build-sbom
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Resolve release tag
+        id: tag
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "value=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install cargo-sbom
+        run: cargo install cargo-sbom --locked
+
+      - name: Generate SBOMs
+        run: ./scripts/generate-sbom.sh "${{ steps.tag.outputs.value }}" sbom-out
+
+      - name: Upload SBOM artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: provcheck-sbom-${{ steps.tag.outputs.value }}
+          path: sbom-out/*
+          if-no-files-found: error
+          retention-days: 30

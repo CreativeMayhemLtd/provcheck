@@ -257,6 +257,18 @@ The crate's format list is authoritative.
 
 Watermark detection currently runs on audio formats only (MP3, WAV).
 
+## SBOMs
+
+Every release ships a CycloneDX 1.6 + SPDX 2.3 SBOM for each binary
+(`provcheck-<tag>.cdx.json`, `provcheck-<tag>.spdx.json`, plus the
+matching pair for `provcheck-kit`). Sidecar files in the release
+assets, with `.sha256` integrity checks. Tooling-ready for
+Dependency Track, Trivy, Grype, Snyk, GitHub Advanced Security, and
+any other supply-chain scanner that speaks either format.
+
+Full SBOM rationale, consumption recipes, and the local-reproduction
+script are in [`docs/sbom.md`](./docs/sbom.md).
+
 ## Why this exists
 
 AI-generated content needs a trustable provenance signal or every
