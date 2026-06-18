@@ -146,30 +146,33 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
     };
 
     // 3. Run the ONNX decoder → logits [1, 1, MESSAGE_DIM, T].
+    //    Parallel-chunked with confidence-based early exit:
+    //      a. process up to PARALLEL_BATCH chunks concurrently;
+    //      b. after each batch, decode the partial logits;
+    //      c. exit early if confidence >= EARLY_EXIT_THRESHOLD.
+    //    Worst case (unmarked file) is the full traversal of the
+    //    carrier — same wall-clock as v0.3.7's sequential chunk
+    //    loop, possibly faster from rayon. Best case (clearly-
+    //    marked file) terminates after 2-3 chunks (~10s of audio),
+    //    which on a 60-minute episode is a 100x+ speedup.
     //
-    // Run on the full carrier. Windowed inference was tried in
-    // v0.3.2-dev and reverted: silentcipher's per-position mode
-    // vote across tiles is the load-bearing noise-rejection step
-    // for marginal-SNR inputs (e.g. mixed-down voice tracks after
-    // MP3 encoding). Cutting the tile count down trades wall time
-    // for accuracy in exactly the regime users care about. The
-    // empirical evidence is in examples/decode_inspect.rs — same
-    // file scores ~24% terminator-confidence at 17 tiles vs ~10%
-    // at 5, both below the brand-classify threshold. The user-
-    // facing GUI toggle is the right hatch for the "I don't care
-    // about watermarks, just verify the C2PA signature" path.
-    let logits = match model::run(&carrier, t_frames) {
-        Ok(l) => l,
+    //    Windowed inference (truncating tile count) was tried in
+    //    v0.3.2-dev and reverted: silentcipher's per-position mode
+    //    vote across tiles is the load-bearing noise-rejection step
+    //    for marginal-SNR inputs (e.g. mixed-down voice tracks after
+    //    MP3 encoding). Early exit is structurally different — we
+    //    process MORE tiles only when needed, never fewer than the
+    //    decoder needs to be confident.
+    let decoded = match detect_chunked(&carrier, t_frames) {
+        Ok(d) => d,
         Err(e) => {
             return Ok(not_detected(&format!("model error: {e}")));
         }
     };
 
-    // 4. Back-end decode → 5 payload bytes + confidence +
-    //    structural-validity bit.
-    let decoded = decode::decode_logits(&logits, t_frames);
-
-    // 5. Schema-aware brand dispatch + tiered status.
+    // 5. Schema-aware brand dispatch + tiered status. detect_chunked
+    //    already ran the per-position mode vote so we just consume
+    //    its output here.
     let status = brand::classify(decoded.valid, decoded.confidence);
     let detected = matches!(
         status,
@@ -195,6 +198,121 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
         brand,
         message: None,
     })
+}
+
+/// Confidence at or above which we trust the partial decode and
+/// stop processing more chunks. Tuned well above the brand-classify
+/// "Detected" threshold (0.70) so the wall-clock-fast path doesn't
+/// risk downgrading a Detected verdict to Degraded as later tiles
+/// come in.
+const EARLY_EXIT_THRESHOLD: f32 = 0.85;
+
+/// Minimum frames consumed before early-exit checks fire. Below
+/// this, the per-position mode-vote doesn't have enough tile
+/// redundancy for the confidence to be meaningful. 4 tiles is the
+/// floor we accept; below that we let the loop run.
+const EARLY_EXIT_MIN_FRAMES: usize = hparams::MESSAGE_LEN * 4;
+
+/// Run the silentcipher decoder on a carrier tensor with chunked
+/// inference, parallel batching, and confidence-based early exit.
+///
+/// Returns the decoded result whichever way the loop terminates —
+/// either we hit the early-exit threshold partway through the
+/// carrier, or we exhaust the whole carrier and decode the final
+/// accumulated logits.
+fn detect_chunked(
+    carrier: &[f32],
+    t_frames: usize,
+) -> Result<decode::DecodeResult, model::ModelError> {
+    use rayon::prelude::*;
+
+    // Fan-out for parallel chunks within a single batch. Each chunk
+    // peaks at ~1.5 GB of tract intermediates, so N chunks in
+    // parallel ≈ N × 1.5 GB peak — we conservatively cap at 4 so
+    // we stay under typical container memory ceilings.
+    let parallel_batch: usize = std::thread::available_parallelism()
+        .map(|n| (n.get() / 2).clamp(1, 4))
+        .unwrap_or(2);
+
+    let mut full_logits = vec![0.0_f32; hparams::MESSAGE_DIM * t_frames];
+    let mut t_consumed: usize = 0;
+
+    while t_consumed < t_frames {
+        // Build this batch's chunk offsets + sizes.
+        let mut batch: Vec<(usize, usize)> = Vec::with_capacity(parallel_batch);
+        let mut t_cursor = t_consumed;
+        for _ in 0..parallel_batch {
+            if t_cursor >= t_frames {
+                break;
+            }
+            let chunk_t = (t_frames - t_cursor).min(model::CHUNK_T_FRAMES);
+            batch.push((t_cursor, chunk_t));
+            t_cursor += chunk_t;
+        }
+
+        // Run the batch concurrently. Each thread independently
+        // extracts its slice, runs tract, returns the chunk_logits.
+        // tract's runnable model is Send+Sync (it's behind &), so
+        // rayon can hand the same OnceLock-cached model to every
+        // worker.
+        let results: Result<Vec<(usize, usize, Vec<f32>)>, model::ModelError> = batch
+            .par_iter()
+            .map(|&(t_start, chunk_t)| {
+                let chunk_carrier = model::extract_chunk(carrier, t_frames, t_start, chunk_t);
+                let chunk_logits = model::run_chunk_owned(&chunk_carrier, chunk_t)?;
+                Ok((t_start, chunk_t, chunk_logits))
+            })
+            .collect();
+        let chunks = results?;
+
+        // Scatter every chunk in this batch into full_logits and
+        // advance the consumed counter to the highest t_start +
+        // chunk_t. (Chunks within a batch are guaranteed
+        // non-overlapping by construction.)
+        for (t_start, chunk_t, chunk_logits) in chunks {
+            model::scatter_chunk_logits(
+                &chunk_logits,
+                chunk_t,
+                &mut full_logits,
+                t_frames,
+                t_start,
+            );
+            t_consumed = t_consumed.max(t_start + chunk_t);
+        }
+
+        // Early-exit check. Decode the partial logits — we need to
+        // re-pack into a `[MESSAGE_DIM, t_consumed]` layout because
+        // decode_logits's indexing depends on t_frames matching the
+        // logits-buffer time axis.
+        if t_consumed >= EARLY_EXIT_MIN_FRAMES && t_consumed < t_frames {
+            let partial = pack_partial_logits(&full_logits, t_frames, t_consumed);
+            let decoded = decode::decode_logits(&partial, t_consumed);
+            if decoded.valid && decoded.confidence >= EARLY_EXIT_THRESHOLD {
+                return Ok(decoded);
+            }
+        }
+    }
+
+    // Full traversal completed (or fast-path threshold never hit).
+    // Decode against the full accumulated logits and return.
+    Ok(decode::decode_logits(&full_logits, t_frames))
+}
+
+/// Extract a `[MESSAGE_DIM, t_consumed]` row-major buffer from the
+/// pre-allocated `[MESSAGE_DIM, t_frames]` full_logits buffer. Only
+/// the first `t_consumed` columns are populated in full_logits at
+/// this point; the rest are zero. decode_logits's indexing requires
+/// the layout's time axis to equal the t_frames argument it
+/// receives, so we have to repack.
+fn pack_partial_logits(full: &[f32], t_frames: usize, t_consumed: usize) -> Vec<f32> {
+    let mut partial = vec![0.0_f32; hparams::MESSAGE_DIM * t_consumed];
+    for dim in 0..hparams::MESSAGE_DIM {
+        let src_off = dim * t_frames;
+        let dst_off = dim * t_consumed;
+        partial[dst_off..dst_off + t_consumed]
+            .copy_from_slice(&full[src_off..src_off + t_consumed]);
+    }
+    partial
 }
 
 /// Build a `WatermarkResult` representing "nothing found, here's

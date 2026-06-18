@@ -1,0 +1,25 @@
+# Files staged for the v0.3.9 commit.
+
+# Workspace version bump
+Cargo.toml
+Cargo.lock
+
+# GUI files in lockstep
+app/src-tauri/Cargo.toml
+app/src-tauri/tauri.conf.json
+app/package.json
+
+# THE FEATURE: detect-side early exit + parallel chunks
+crates/provcheck-watermark/src/lib.rs
+crates/provcheck-watermark/Cargo.toml
+
+# CI fix: encode.rs doc-comment rustdoc trap
+crates/provcheck-watermark/src/encode.rs
+
+# README: release-history table update
+README.md
+
+# Release-notes infra (this commit also ships these)
+release-notes/v0.3.9/commit.md
+release-notes/v0.3.9/tag.md
+release-notes/v0.3.9/files.txt

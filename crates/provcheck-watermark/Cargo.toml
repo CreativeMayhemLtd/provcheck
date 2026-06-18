@@ -52,6 +52,13 @@ realfft = "3"
 # synthesising deterministic fixtures.
 hound = "3"
 
+# Parallel chunk inference for the detector. Each chunk runs tract
+# independently; with ~1.5 GB per chunk and a default fan-out of
+# min(available_parallelism/2, 4) we stay well under typical
+# container memory ceilings while extracting 2-4x speedup on
+# multi-core hosts.
+rayon = "1"
+
 [dev-dependencies]
 tempfile = "3"
 # Examples use anyhow's "?" idiom; not pulled in by the lib.

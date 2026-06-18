@@ -242,8 +242,10 @@ fn extract_carrier_chunk(
 /// `[FREQ_BINS, T]` via the encoder's linear-layer + zero-pad. Mirrors
 /// `silentcipher.model.Encoder.transform_message` (model.py:36-40):
 ///
-///     output = self.linear(msg.transpose(2, 3)).transpose(2, 3)
-///     output = F.pad(output, (0, 0, 0, FREQ_BINS - MESSAGE_BAND_SIZE))
+/// ```python
+/// output = self.linear(msg.transpose(2, 3)).transpose(2, 3)
+/// output = F.pad(output, (0, 0, 0, FREQ_BINS - MESSAGE_BAND_SIZE))
+/// ```
 ///
 /// The linear is `nn.Linear(MESSAGE_DIM=5, MESSAGE_BAND_SIZE=1024)`, so
 /// weight is shape (1024, 5) and bias is shape (1024,).
