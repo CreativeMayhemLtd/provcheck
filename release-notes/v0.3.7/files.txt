@@ -1,0 +1,29 @@
+# Files staged for the v0.3.7 commit.
+
+# Workspace version bump
+Cargo.toml
+Cargo.lock
+
+# GUI files in lockstep
+app/src-tauri/Cargo.toml
+app/src-tauri/tauri.conf.json
+app/package.json
+
+# THE FIX: chunked inference
+crates/provcheck-watermark/src/model.rs
+
+# Regression diagnostic — peak-RSS check for future tract bumps
+crates/provcheck-watermark/examples/memory_check.rs
+
+# .gitignore — keep memory_check's transient log output out of the tree
+.gitignore
+
+# Docs — release-history table update + the product brief that
+# was deferred from the v0.3.6 cycle
+README.md
+docs/about.md
+
+# Release-notes infra (this commit also ships these)
+release-notes/v0.3.7/commit.md
+release-notes/v0.3.7/tag.md
+release-notes/v0.3.7/files.txt

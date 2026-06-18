@@ -27,6 +27,10 @@
 # scrollback.
 publish_dc-*.log
 
+# memory_check example writes peak-RSS measurement output to repo root
+# when run via the PowerShell harness. Transient diagnostic data only.
+memory_check.*.txt
+
 # Editor / OS
 .vscode/
 .idea/
