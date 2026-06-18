@@ -1,0 +1,16 @@
+{
+  "model_type": "44.1k",
+  "sample_rate": 44100,
+  "n_fft": 4096,
+  "hop_length": 2048,
+  "win_length": 4096,
+  "freq_bins": 2049,
+  "message_dim": 5,
+  "message_len": 21,
+  "message_band_size": 1024,
+  "message_sdr_default": 47.0,
+  "average_energy_vctk": 0.002837200844477648,
+  "frame_level_normalization": false,
+  "utterance_level_normalization": true,
+  "ensure_negative_message": true
+}

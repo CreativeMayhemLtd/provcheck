@@ -1,0 +1,416 @@
+//! Watermark embedding — the producer side.
+//!
+//! Mirrors silentcipher's `encode_wav()` (server.py:272-348) end-to-end:
+//!
+//! 1. VCTK-rescale the input waveform.
+//! 2. Forward STFT → (magnitude, phase, n_frames, n_samples_input).
+//! 3. Build the message tensor from the 5-byte payload
+//!    (`letters_encoding`).
+//! 4. Compute the utterance-level normalisation scalar from the full
+//!    carrier magnitude (one global `sqrt(mean(carrier²))`).
+//! 5. Chunk through the encoder ONNX (`enc_c + dec_c` fused),
+//!    capping per-call memory exactly like the decoder path.
+//! 6. Multiply chunk outputs by the utterance scalar, negate
+//!    (`ensure_negative_message`), and ReLU(`+ carrier`) to produce
+//!    the modified magnitude `carrier_reconst`.
+//! 7. Inverse STFT using `carrier_reconst` magnitude and the
+//!    *original* phase.
+//! 8. Undo the VCTK rescale.
+//!
+//! Steps 1, 2, 3, 4, 6, 7, 8 are pure Rust. Step 5 is the tract ONNX
+//! inference. The Rust side carries the entire pipeline so the
+//! caller hands in a `&[f32]` (mono 44.1 kHz PCM) and gets back a
+//! watermarked `Vec<f32>` of the same length.
+//!
+//! License-policy note: the silentcipher encoder ONNX is exported
+//! from Sony's MIT-licensed model at build time (see
+//! `scripts/export-silentcipher-encoder.py`). License survey is in
+//! `WATERMARK_LICENSE_POLICY.md`.
+
+use std::sync::OnceLock;
+
+use tract_onnx::prelude::*;
+
+use crate::hparams::{FREQ_BINS, MESSAGE_DIM, MESSAGE_LEN, VCTK_AVG_ENERGY};
+use crate::model::CHUNK_T_FRAMES;
+use crate::stft::{Spectrum, spectrum_to_waveform, waveform_to_spectrum};
+
+/// Encoder ONNX, embedded at build time. Produced by
+/// `scripts/export-silentcipher-encoder.py`.
+const ENCODER_BYTES: &[u8] = include_bytes!("../models/silentcipher-encoder.onnx");
+
+/// `Encoder.linear` weights — shape `(MESSAGE_BAND_SIZE=1024, MESSAGE_DIM=5)`,
+/// row-major as PyTorch dumps them. Used by [`transform_message`] to project
+/// the 5-channel one-hot message tensor up to 1024 frequency bins; the
+/// remaining 1025 bins are zero-padded. tract 0.21 can't analyse the
+/// torch.nn.functional.pad node, so we do this step in Rust and ship the
+/// weights as a separate binary blob.
+const TRANSFORM_MESSAGE_WEIGHTS: &[u8] =
+    include_bytes!("../models/silentcipher-encoder.transform_message.weights.bin");
+
+/// `Encoder.linear` bias — shape `(MESSAGE_BAND_SIZE=1024,)`.
+const TRANSFORM_MESSAGE_BIAS: &[u8] =
+    include_bytes!("../models/silentcipher-encoder.transform_message.bias.bin");
+
+/// Number of frequency bins the message gets projected into via the
+/// encoder's linear layer before being zero-padded to `FREQ_BINS`.
+const MESSAGE_BAND_SIZE: usize = 1024;
+
+/// Default message SDR in dB. Read from the silentcipher 44.1k
+/// checkpoint's `hparams.yaml` — see the export script's metadata
+/// JSON. Higher = quieter watermark.
+const DEFAULT_MESSAGE_SDR_DB: f32 = 47.0;
+
+type Runnable = TypedRunnableModel<TypedModel>;
+
+#[derive(Debug, thiserror::Error)]
+pub enum EncodeError {
+    #[error("encoder model load failed: {0}")]
+    Load(String),
+    #[error("encoder inference failed: {0}")]
+    Inference(String),
+    #[error("STFT failed: {0}")]
+    Stft(#[from] crate::stft::StftError),
+    #[error("input waveform is too short to embed (need at least one full window)")]
+    TooShort,
+}
+
+/// Embed a 5-byte payload into a mono 44.1 kHz f32 waveform.
+///
+/// Returns a watermarked waveform of the same length as the input.
+///
+/// The payload format is the same 5-byte tagged-union the detector
+/// recovers: typically `[ASCII brand triplet, schema=1, reserved=0]`,
+/// e.g. `[b'D', b'F', b'M', 0x01, 0x00]` for doomscroll.fm.
+///
+/// `message_sdr_db` controls the watermark's audibility ceiling.
+/// Pass `None` for the model's training default (47 dB). Higher
+/// values produce a quieter (more imperceptible) but more easily
+/// damaged mark; lower values are more robust against compression.
+pub fn embed(
+    waveform: &[f32],
+    payload: [u8; 5],
+    message_sdr_db: Option<f32>,
+) -> Result<Vec<f32>, EncodeError> {
+    if waveform.is_empty() {
+        return Err(EncodeError::TooShort);
+    }
+
+    // 1. VCTK rescale. Remember the original power so we can de-rescale
+    //    the watermarked output to the input's loudness.
+    let original_power: f32 = waveform.iter().map(|s| s * s).sum::<f32>() / waveform.len() as f32;
+    let rescale = if original_power > f32::EPSILON {
+        (VCTK_AVG_ENERGY / original_power).sqrt()
+    } else {
+        1.0
+    };
+    let rescaled: Vec<f32> = waveform.iter().map(|s| s * rescale).collect();
+
+    // 2. Forward STFT.
+    let spec = waveform_to_spectrum(&rescaled)?;
+    let n_frames = spec.n_frames;
+
+    // 3. Message tensor — letters_encoding, tiled across t_frames.
+    let msg_enc_5 = letters_encoding(payload, n_frames);
+    // 3b. Apply the encoder's transform_message (linear 5→1024 + zero-pad
+    //     to FREQ_BINS) in Rust. The ONNX skips this step because tract
+    //     0.21 can't analyse the F.pad node; the weights are tiny (20 KB).
+    let msg_enc_padded = transform_message(&msg_enc_5, n_frames);
+
+    // 4. Utterance-level normalisation scalar: sqrt(mean(carrier²))
+    //    over the full magnitude grid. silentcipher applies this AFTER
+    //    the dec_c output, so it must be computed from the full pre-
+    //    inference carrier and applied to chunked outputs.
+    let utterance_norm: f32 = {
+        let mean_sq: f32 = spec.magnitude.iter().map(|m| m * m).sum::<f32>()
+            / (FREQ_BINS as f32 * n_frames as f32);
+        mean_sq.sqrt()
+    };
+
+    let sdr = message_sdr_db.unwrap_or(DEFAULT_MESSAGE_SDR_DB);
+
+    // 5. Chunked ONNX inference, then post-process per chunk into the
+    //    `carrier_reconst` buffer (magnitude after watermark embed).
+    let model = model()?;
+    let mut carrier_reconst = vec![0.0_f32; FREQ_BINS * n_frames];
+    let mut t_start = 0;
+    while t_start < n_frames {
+        let chunk_t = (n_frames - t_start).min(CHUNK_T_FRAMES);
+
+        // Extract the carrier and msg slices for this chunk.
+        let carrier_chunk = extract_carrier_chunk(&spec.magnitude, n_frames, t_start, chunk_t);
+        let msg_chunk = extract_carrier_chunk(&msg_enc_padded, n_frames, t_start, chunk_t);
+
+        // Run encoder ONNX. Output is the raw dec_c output, BEFORE
+        // utterance-level normalisation + negate + relu.
+        let info_raw = run_encoder_chunk(model, &carrier_chunk, &msg_chunk, sdr, chunk_t)?;
+
+        // Apply post-processing per chunk and scatter into the
+        // full carrier_reconst buffer.
+        for bin in 0..FREQ_BINS {
+            for t in 0..chunk_t {
+                let info = info_raw[bin * chunk_t + t] * utterance_norm;
+                // ensure_negative_message + relu(+ carrier).
+                let candidate = -info + carrier_chunk[bin * chunk_t + t];
+                let reconst = if candidate > 0.0 { candidate } else { 0.0 };
+                carrier_reconst[bin * n_frames + (t_start + t)] = reconst;
+            }
+        }
+
+        t_start += chunk_t;
+    }
+
+    // 6. Inverse STFT — magnitude from carrier_reconst, phase from
+    //    the original spectrum.
+    let modified_spec = Spectrum {
+        magnitude: carrier_reconst,
+        phase: spec.phase,
+        n_frames,
+        n_samples_input: spec.n_samples_input,
+    };
+    let mut rescaled_out = spectrum_to_waveform(&modified_spec)?;
+
+    // The iSTFT returns the tail-padded length. Trim back to the
+    // caller's original length before de-rescaling.
+    rescaled_out.truncate(waveform.len());
+
+    // 7. De-rescale by undoing the VCTK rescale.
+    let de_rescale = if original_power > f32::EPSILON {
+        (original_power / VCTK_AVG_ENERGY).sqrt()
+    } else {
+        1.0
+    };
+    for s in rescaled_out.iter_mut() {
+        *s *= de_rescale;
+    }
+
+    Ok(rescaled_out)
+}
+
+/// Build the message tensor that the encoder ONNX expects.
+///
+/// silentcipher's letters_encoding (model.py:62-81) takes a list of
+/// 20 2-bit symbols (`binary_encode`d from the 5-byte payload), adds
+/// 1 to put them in {1,2,3,4}, appends a terminator (0) to make 21,
+/// and tiles that 21-symbol cycle across the full t_frames axis as
+/// one-hot 5-vectors.
+///
+/// Output layout matches the ONNX input shape `[1, 1, 5, T]`,
+/// flattened row-major as `[dim * T + t]` (the leading singleton
+/// axes collapse).
+pub fn letters_encoding(payload: [u8; 5], t_frames: usize) -> Vec<f32> {
+    // 1. payload (5 bytes) → 20 2-bit symbols, MSB first.
+    let mut symbols = [0u8; MESSAGE_LEN];
+    for (byte_idx, byte) in payload.iter().enumerate() {
+        for bit_pair in 0..4 {
+            let shift = 6 - 2 * bit_pair;
+            let sym = (byte >> shift) & 0b11;
+            // +1 offset puts payload symbols in {1,2,3,4}; 0 is
+            // reserved for the terminator at position 20.
+            symbols[byte_idx * 4 + bit_pair] = sym + 1;
+        }
+    }
+    symbols[MESSAGE_LEN - 1] = 0; // terminator
+
+    // 2. One-hot encode + tile across time.
+    let mut out = vec![0.0_f32; MESSAGE_DIM * t_frames];
+    for t in 0..t_frames {
+        let pos = t % MESSAGE_LEN;
+        let sym = symbols[pos] as usize;
+        out[sym * t_frames + t] = 1.0;
+    }
+    out
+}
+
+/// Extract a time-axis chunk from a `[FREQ_BINS, T]` row-major tensor.
+fn extract_carrier_chunk(
+    carrier: &[f32],
+    t_frames: usize,
+    t_start: usize,
+    chunk_t: usize,
+) -> Vec<f32> {
+    let mut chunk = vec![0.0_f32; FREQ_BINS * chunk_t];
+    for bin in 0..FREQ_BINS {
+        let src_off = bin * t_frames + t_start;
+        let dst_off = bin * chunk_t;
+        chunk[dst_off..dst_off + chunk_t].copy_from_slice(&carrier[src_off..src_off + chunk_t]);
+    }
+    chunk
+}
+
+/// Project the `[MESSAGE_DIM, T]` one-hot message tensor up to
+/// `[FREQ_BINS, T]` via the encoder's linear-layer + zero-pad. Mirrors
+/// `silentcipher.model.Encoder.transform_message` (model.py:36-40):
+///
+///     output = self.linear(msg.transpose(2, 3)).transpose(2, 3)
+///     output = F.pad(output, (0, 0, 0, FREQ_BINS - MESSAGE_BAND_SIZE))
+///
+/// The linear is `nn.Linear(MESSAGE_DIM=5, MESSAGE_BAND_SIZE=1024)`, so
+/// weight is shape (1024, 5) and bias is shape (1024,).
+fn transform_message(msg_enc: &[f32], t_frames: usize) -> Vec<f32> {
+    debug_assert_eq!(msg_enc.len(), MESSAGE_DIM * t_frames);
+
+    // Decode the embedded weight + bias. PyTorch stores `Linear` weight
+    // as `(out, in)` row-major — i.e., `weight[k, d] = bytes[(k * MESSAGE_DIM + d) * 4..]`.
+    let weight: &[f32] = bytemuck_cast_f32(TRANSFORM_MESSAGE_WEIGHTS);
+    let bias: &[f32] = bytemuck_cast_f32(TRANSFORM_MESSAGE_BIAS);
+    debug_assert_eq!(weight.len(), MESSAGE_BAND_SIZE * MESSAGE_DIM);
+    debug_assert_eq!(bias.len(), MESSAGE_BAND_SIZE);
+
+    let mut padded = vec![0.0_f32; FREQ_BINS * t_frames];
+    for t in 0..t_frames {
+        for k in 0..MESSAGE_BAND_SIZE {
+            // sum_d weight[k, d] * msg_enc[d, t] + bias[k]
+            let mut acc = bias[k];
+            for d in 0..MESSAGE_DIM {
+                acc += weight[k * MESSAGE_DIM + d] * msg_enc[d * t_frames + t];
+            }
+            // Output layout matches the carrier: row-major `[bin, t]` →
+            // flat index `bin * t_frames + t`. Bins MESSAGE_BAND_SIZE..FREQ_BINS
+            // stay at zero (the F.pad in transform_message).
+            padded[k * t_frames + t] = acc;
+        }
+    }
+    padded
+}
+
+/// Reinterpret a byte slice as an f32 slice without copying. Used to
+/// access the embedded weight/bias blobs as native arrays.
+fn bytemuck_cast_f32(bytes: &[u8]) -> &[f32] {
+    debug_assert_eq!(
+        bytes.len() % 4,
+        0,
+        "byte slice must be 4-byte aligned in length"
+    );
+    debug_assert_eq!(
+        (bytes.as_ptr() as usize) % std::mem::align_of::<f32>(),
+        0,
+        "byte slice must be 4-byte aligned"
+    );
+    // SAFETY: the blob is a sequence of little-endian f32 values produced
+    // by numpy.ndarray.tobytes() on a contiguous float32 array. Length is
+    // a multiple of 4 (checked above) and the pointer alignment is checked
+    // above. On the supported targets (x86_64 + aarch64) f32 has alignment
+    // 4 so the static `include_bytes!` buffer satisfies the alignment.
+    unsafe { std::slice::from_raw_parts(bytes.as_ptr() as *const f32, bytes.len() / 4) }
+}
+
+/// Single tract inference call against the encoder ONNX. Returns
+/// the raw dec_c output `[1, 1, FREQ_BINS, chunk_t]` flattened as
+/// `[bin * chunk_t + t]`.
+fn run_encoder_chunk(
+    model: &Runnable,
+    carrier: &[f32],
+    msg_enc: &[f32],
+    sdr_db: f32,
+    chunk_t: usize,
+) -> Result<Vec<f32>, EncodeError> {
+    let carrier_tensor =
+        tract_ndarray::Array4::from_shape_vec((1, 1, FREQ_BINS, chunk_t), carrier.to_vec())
+            .map_err(|e| EncodeError::Inference(format!("carrier shape: {e}")))?;
+    // msg_enc is already in `[FREQ_BINS, chunk_t]` layout — it's the
+    // output of transform_message (linear 5→1024 + zero-pad to 2049).
+    let msg_tensor =
+        tract_ndarray::Array4::from_shape_vec((1, 1, FREQ_BINS, chunk_t), msg_enc.to_vec())
+            .map_err(|e| EncodeError::Inference(format!("msg_enc shape: {e}")))?;
+    let sdr_tensor = tract_ndarray::arr0(sdr_db);
+
+    let inputs = tvec!(
+        carrier_tensor.into_tvalue(),
+        msg_tensor.into_tvalue(),
+        sdr_tensor.into_tvalue(),
+    );
+    let outputs = model
+        .run(inputs)
+        .map_err(|e: TractError| EncodeError::Inference(e.to_string()))?;
+    let out = outputs
+        .into_iter()
+        .next()
+        .ok_or_else(|| EncodeError::Inference("model returned no outputs".into()))?;
+
+    let shape: Vec<usize> = out.shape().to_vec();
+    let layout_ok = matches!(
+        &shape[..],
+        [1, 1, b, t] if *b == FREQ_BINS && *t == chunk_t
+    );
+    if !layout_ok {
+        return Err(EncodeError::Inference(format!(
+            "expected [1, 1, {FREQ_BINS}, {chunk_t}], got {shape:?}"
+        )));
+    }
+    let view = out
+        .to_array_view::<f32>()
+        .map_err(|e: TractError| EncodeError::Inference(e.to_string()))?;
+    Ok(view.iter().copied().collect())
+}
+
+/// Build the runnable encoder ONNX model once and reuse for every
+/// call. Same OnceLock pattern as the decoder model.
+fn model() -> Result<&'static Runnable, EncodeError> {
+    static MODEL: OnceLock<Runnable> = OnceLock::new();
+    if let Some(m) = MODEL.get() {
+        return Ok(m);
+    }
+    let m = build_model().map_err(|e: TractError| EncodeError::Load(e.to_string()))?;
+    let _ = MODEL.set(m);
+    Ok(MODEL.get().expect("just set"))
+}
+
+fn build_model() -> TractResult<Runnable> {
+    let mut cursor = std::io::Cursor::new(ENCODER_BYTES);
+    let model = tract_onnx::onnx()
+        .model_for_read(&mut cursor)?
+        .into_optimized()?
+        .into_runnable()?;
+    Ok(model)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn letters_encoding_for_dfm_payload_matches_expected_symbols() {
+        // DFM payload: 0x44, 0x46, 0x4d, 0x01, 0x00
+        // Bytes → 2-bit symbols MSB-first:
+        //   0x44 = 01000100 → [1, 0, 1, 0]
+        //   0x46 = 01000110 → [1, 0, 1, 2]
+        //   0x4d = 01001101 → [1, 0, 3, 1]
+        //   0x01 = 00000001 → [0, 0, 0, 1]
+        //   0x00 = 00000000 → [0, 0, 0, 0]
+        // +1 offset: [2,1,2,1, 2,1,2,3, 2,1,4,2, 1,1,1,2, 1,1,1,1]
+        // Terminator at end: [..., 0]
+        let payload = [0x44, 0x46, 0x4d, 0x01, 0x00];
+        let t_frames = MESSAGE_LEN; // exactly one tile so positions map directly
+        let out = letters_encoding(payload, t_frames);
+
+        let expected_symbols: [u8; MESSAGE_LEN] = [
+            2, 1, 2, 1, 2, 1, 2, 3, 2, 1, 4, 2, 1, 1, 1, 2, 1, 1, 1, 1, 0,
+        ];
+        for (t, sym) in expected_symbols.iter().enumerate() {
+            // Confirm one-hot at the expected dimension.
+            for dim in 0..MESSAGE_DIM {
+                let v = out[dim * t_frames + t];
+                if dim == *sym as usize {
+                    assert_eq!(v, 1.0, "expected 1 at dim={dim}, t={t}");
+                } else {
+                    assert_eq!(v, 0.0, "expected 0 at dim={dim}, t={t}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn letters_encoding_tiles_across_longer_t_frames() {
+        // With t_frames = 2*MESSAGE_LEN, position 0 should equal
+        // position MESSAGE_LEN (start of second tile).
+        let payload = [0x44, 0x46, 0x4d, 0x01, 0x00];
+        let t_frames = 2 * MESSAGE_LEN;
+        let out = letters_encoding(payload, t_frames);
+        for dim in 0..MESSAGE_DIM {
+            let a = out[dim * t_frames];
+            let b = out[dim * t_frames + MESSAGE_LEN];
+            assert_eq!(a, b, "tile-start mismatch at dim={dim}");
+        }
+    }
+}

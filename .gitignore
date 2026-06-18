@@ -31,6 +31,10 @@ publish_dc-*.log
 # when run via the PowerShell harness. Transient diagnostic data only.
 memory_check.*.txt
 
+# scripts/diagnose-embed-mismatch.py writes its output WAV to the repo
+# root by default — transient diagnostic, not committed.
+diagnose-python-marked.wav
+
 # Editor / OS
 .vscode/
 .idea/

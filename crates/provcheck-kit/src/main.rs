@@ -56,6 +56,7 @@ async fn main() -> ExitCode {
         Command::Revoke(args) => commands::revoke::run(args).await,
         Command::Rotate(args) => commands::rotate::run(args).await,
         Command::Verify(args) => commands::verify::run(args).await,
+        Command::Watermark(args) => commands::watermark::run(args).await,
         Command::ExportBackup(args) => commands::export_backup::run(args).await,
         Command::ImportBackup(args) => commands::import_backup::run(args).await,
         Command::Unlock(args) => commands::unlock::run(args).await,

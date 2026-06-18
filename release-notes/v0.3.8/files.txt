@@ -1,0 +1,47 @@
+# Files staged for the v0.3.8 commit.
+
+# Workspace version bump
+Cargo.toml
+Cargo.lock
+
+# .gitignore — keep diagnose-python-marked.wav and similar transient
+# scripts output out of the tree
+.gitignore
+
+# GUI files in lockstep
+app/src-tauri/Cargo.toml
+app/src-tauri/tauri.conf.json
+app/package.json
+
+# THE FEATURE: watermark embedding library
+crates/provcheck-watermark/src/encode.rs
+crates/provcheck-watermark/src/stft.rs
+crates/provcheck-watermark/src/lib.rs
+crates/provcheck-watermark/src/model.rs
+crates/provcheck-watermark/Cargo.toml
+
+# Encoder ONNX + sidecar binary blobs (exported by the Python script)
+crates/provcheck-watermark/models/silentcipher-encoder.onnx
+crates/provcheck-watermark/models/silentcipher-encoder.meta.json
+crates/provcheck-watermark/models/silentcipher-encoder.transform_message.weights.bin
+crates/provcheck-watermark/models/silentcipher-encoder.transform_message.bias.bin
+
+# Producer-side example for regression smoke testing
+crates/provcheck-watermark/examples/embed_roundtrip.rs
+
+# THE CLI: provcheck-kit watermark subcommand
+crates/provcheck-kit/Cargo.toml
+crates/provcheck-kit/src/main.rs
+crates/provcheck-kit/src/commands/mod.rs
+
+# Scripts: encoder ONNX export + Python-side diagnostic
+scripts/export-silentcipher-encoder.py
+scripts/diagnose-embed-mismatch.py
+
+# README: release-history table update
+README.md
+
+# Release-notes infra (this commit also ships these)
+release-notes/v0.3.8/commit.md
+release-notes/v0.3.8/tag.md
+release-notes/v0.3.8/files.txt

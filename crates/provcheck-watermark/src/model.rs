@@ -54,7 +54,7 @@ pub enum ModelError {
 /// tile regardless of how chunking divided the input. Chunked
 /// inference produces bit-exact logits vs single-call inference
 /// on the v0.3.3 test fixtures.
-const CHUNK_T_FRAMES: usize = 256;
+pub const CHUNK_T_FRAMES: usize = 256;
 
 /// Run the decoder on a carrier tensor laid out as
 /// `[1, 1, FREQ_BINS, t_frames]` in row-major order
@@ -94,7 +94,7 @@ pub fn run(carrier: &[f32], t_frames: usize) -> Result<Vec<f32>, ModelError> {
 /// from the row-major carrier `[FREQ_BINS, t_frames]`. The slice
 /// isn't contiguous in the source (rows are interleaved with
 /// other-frame data), so we copy per freq bin.
-fn extract_chunk(carrier: &[f32], t_frames: usize, t_start: usize, chunk_t: usize) -> Vec<f32> {
+pub fn extract_chunk(carrier: &[f32], t_frames: usize, t_start: usize, chunk_t: usize) -> Vec<f32> {
     let mut chunk = vec![0.0_f32; FREQ_BINS * chunk_t];
     for bin in 0..FREQ_BINS {
         let src_off = bin * t_frames + t_start;
@@ -106,7 +106,7 @@ fn extract_chunk(carrier: &[f32], t_frames: usize, t_start: usize, chunk_t: usiz
 
 /// Scatter a chunk's logits `[MESSAGE_DIM, chunk_t]` back into the
 /// full logits `[MESSAGE_DIM, t_frames]` at column offset `t_start`.
-fn scatter_chunk_logits(
+pub fn scatter_chunk_logits(
     chunk_logits: &[f32],
     chunk_t: usize,
     full_logits: &mut [f32],
@@ -122,7 +122,17 @@ fn scatter_chunk_logits(
 }
 
 /// Single tract inference call. The chunked public `run` wraps
-/// this and stitches outputs together.
+/// this and stitches outputs together. Exposed publicly so callers
+/// that want to drive their own chunked loop (with early-exit
+/// checks or parallel batching) can do so without re-wrapping the
+/// model's `OnceLock` cache.
+///
+/// The `chunk_t` must match the time-axis dimension of `carrier`
+/// (which must be `FREQ_BINS * chunk_t` long).
+pub fn run_chunk_owned(carrier: &[f32], chunk_t: usize) -> Result<Vec<f32>, ModelError> {
+    run_chunk(model()?, carrier, chunk_t)
+}
+
 fn run_chunk(model: &Runnable, carrier: &[f32], chunk_t: usize) -> Result<Vec<f32>, ModelError> {
     let input = tract_ndarray::Array4::from_shape_vec((1, 1, FREQ_BINS, chunk_t), carrier.to_vec())
         .map_err(|e| ModelError::Inference(format!("input shape: {e}")))?;

@@ -183,6 +183,167 @@ fn compute_n_frames(len: usize) -> usize {
 /// via examples/decode_inspect.rs: symmetric Hann gave ~24%
 /// terminator confidence on a file where the Python reference
 /// hits 95%.
+/// Output of the embedding-side forward STFT. Carries both magnitude
+/// and phase so the iSTFT can reconstruct the time-domain waveform
+/// after the watermark encoder modifies the magnitude.
+///
+/// Layout: `[FREQ_BINS, n_frames]` row-major, same as the carrier
+/// produced by [`waveform_to_carrier`].
+///
+/// `n_samples_input` is the length of the input passed to
+/// [`waveform_to_spectrum`] AFTER the silentcipher tail-pad
+/// (`pad = WIN - (raw_len % WIN)`). [`spectrum_to_waveform`] uses
+/// it to undo the tail-pad on output. Caller is responsible for
+/// remembering the pre-tail-pad length if VCTK de-rescale needs it.
+pub struct Spectrum {
+    pub magnitude: Vec<f32>,
+    pub phase: Vec<f32>,
+    pub n_frames: usize,
+    pub n_samples_input: usize,
+}
+
+/// Forward STFT for the embedding path. Returns magnitude AND phase.
+///
+/// Differs from [`waveform_to_carrier`] in two ways:
+///   1. NO VCTK rescale. Caller is expected to have already done it
+///      (or to skip it deliberately). Embedding does its own VCTK
+///      bookkeeping because it needs to undo the rescale after iSTFT.
+///   2. Returns phase alongside magnitude. The decoder needs only
+///      magnitude; the encoder pipeline needs phase to reconstruct.
+pub fn waveform_to_spectrum(waveform: &[f32]) -> Result<Spectrum, StftError> {
+    if waveform.is_empty() {
+        return Err(StftError::Empty);
+    }
+    // Tail-pad to a multiple of WIN — silentcipher's stft.py:21 does
+    // `F.pad(x, (0, win_len - x.shape[1] % win_len))`, which appends
+    // `win_len` zeros even when remainder is 0.
+    let n_samples_input = waveform.len() + (WIN - (waveform.len() % WIN));
+    let mut y = Vec::with_capacity(n_samples_input);
+    y.extend_from_slice(waveform);
+    y.resize(n_samples_input, 0.0);
+
+    // Reflect-pad N_FFT/2 on each end for torch's `center=True`.
+    let pad = N_FFT / 2;
+    let y_padded = reflect_pad(&y, pad);
+
+    let n_frames = compute_n_frames(y_padded.len());
+    if n_frames == 0 {
+        return Err(StftError::TooShort);
+    }
+
+    let window = hann_window(WIN);
+    let mut planner = RealFftPlanner::<f32>::new();
+    let r2c = planner.plan_fft_forward(N_FFT);
+    let mut in_buf = r2c.make_input_vec();
+    let mut out_buf: Vec<Complex<f32>> = r2c.make_output_vec();
+
+    let mut magnitude = vec![0.0_f32; FREQ_BINS * n_frames];
+    let mut phase = vec![0.0_f32; FREQ_BINS * n_frames];
+
+    for t in 0..n_frames {
+        let start = t * HOP;
+        for (i, w) in window.iter().enumerate().take(WIN) {
+            in_buf[i] = y_padded[start + i] * w;
+        }
+        for slot in in_buf.iter_mut().take(N_FFT).skip(WIN) {
+            *slot = 0.0;
+        }
+        r2c.process(&mut in_buf, &mut out_buf)
+            .expect("realfft sizes fixed by planner");
+
+        for (bin, c) in out_buf.iter().enumerate() {
+            magnitude[bin * n_frames + t] = (c.re * c.re + c.im * c.im).sqrt();
+            phase[bin * n_frames + t] = c.im.atan2(c.re);
+        }
+    }
+
+    Ok(Spectrum {
+        magnitude,
+        phase,
+        n_frames,
+        n_samples_input,
+    })
+}
+
+/// Inverse STFT — overlap-add reconstruction from magnitude + phase.
+///
+/// Under torch's `center=True` Hann + 50% overlap convention the COLA
+/// condition isn't perfectly met for plain overlap-add, so we apply
+/// the standard sum-of-squared-windows normalisation (torch.istft does
+/// the same). The result round-trips a `waveform_to_spectrum` →
+/// modify-mag-only → `spectrum_to_waveform` cycle to within f32
+/// round-off in the interior, with edge artefacts confined to the
+/// first/last few frames (which fall inside the silentcipher tail-pad
+/// we trim). Returns a waveform of the same length the caller
+/// originally fed into `waveform_to_spectrum` (minus the tail-pad).
+/// The reflect-pad head/tail are also trimmed.
+pub fn spectrum_to_waveform(spec: &Spectrum) -> Result<Vec<f32>, StftError> {
+    if spec.n_frames == 0 {
+        return Err(StftError::TooShort);
+    }
+    let window = hann_window(WIN);
+    let mut planner = RealFftPlanner::<f32>::new();
+    let c2r = planner.plan_fft_inverse(N_FFT);
+    let mut in_buf: Vec<Complex<f32>> = c2r.make_input_vec();
+    let mut out_buf = c2r.make_output_vec();
+
+    // Centre-padded buffer size — matches what waveform_to_spectrum
+    // built before framing. iSTFT writes into here, then we trim.
+    let padded_len = (spec.n_frames - 1) * HOP + N_FFT;
+    let mut sum = vec![0.0_f32; padded_len];
+    let mut norm = vec![0.0_f32; padded_len];
+
+    // realfft's inverse is unnormalised — `irfft(X)[n] = sum_k X[k] exp(...)`
+    // — whereas torch.fft.irfft divides by N. Apply the 1/N here so
+    // the round-trip math matches torch.
+    let n_fft_inv = 1.0_f32 / (N_FFT as f32);
+
+    for t in 0..spec.n_frames {
+        for (bin, slot) in in_buf.iter_mut().enumerate().take(FREQ_BINS) {
+            let mag = spec.magnitude[bin * spec.n_frames + t];
+            let ph = spec.phase[bin * spec.n_frames + t];
+            *slot = Complex::new(mag * ph.cos(), mag * ph.sin());
+        }
+        // realfft's inverse asserts the DC and Nyquist bins have zero
+        // imaginary parts (a real signal's spectrum is hermitian-
+        // symmetric). Reconstructing those from atan2-derived phases
+        // leaves a tiny float-noise imaginary part (`sin(π) ≈ 1e-16`)
+        // which trips the assertion. Force them to be real-valued.
+        in_buf[0].im = 0.0;
+        in_buf[FREQ_BINS - 1].im = 0.0;
+        c2r.process(&mut in_buf, &mut out_buf)
+            .expect("realfft sizes fixed by planner");
+
+        let start = t * HOP;
+        // Apply synthesis window + 1/N + accumulate into sum;
+        // also accumulate window² into the norm buffer for the
+        // per-sample COLA correction below.
+        for i in 0..WIN {
+            let w = window[i];
+            sum[start + i] += out_buf[i] * w * n_fft_inv;
+            norm[start + i] += w * w;
+        }
+    }
+
+    // Normalise: divide each sample by the sum of squared windows
+    // that overlapped it. Where no window contributed (shouldn't
+    // happen in the interior, but for safety), pass through unchanged.
+    for i in 0..padded_len {
+        if norm[i] > f32::EPSILON {
+            sum[i] /= norm[i];
+        }
+    }
+
+    // Trim the reflect-pad (N_FFT/2 head + tail) and the
+    // silentcipher tail-pad (WIN extra) to recover the input length
+    // the caller originally fed in.
+    let head_trim = N_FFT / 2;
+    let trimmed_len = padded_len - 2 * head_trim;
+    debug_assert_eq!(trimmed_len, spec.n_samples_input);
+    let body: Vec<f32> = sum[head_trim..head_trim + trimmed_len].to_vec();
+    Ok(body)
+}
+
 fn hann_window(n: usize) -> Vec<f32> {
     let denom = n as f32;
     (0..n)
@@ -269,6 +430,60 @@ mod tests {
              exact-WIN input, got {n_frames}. silentcipher's stft.py \
              always pads, even when remainder is 0; do not 'optimise' \
              this away."
+        );
+    }
+
+    #[test]
+    fn spectrum_round_trips_within_f32_tolerance() {
+        // Synthesise a few seconds of mixed sines; pass through
+        // forward STFT + inverse STFT and confirm the body of the
+        // signal reconstructs to within f32 round-off. Edge artefacts
+        // near the head/tail of the reconstructed buffer are
+        // expected for any windowed STFT — we only check the
+        // interior, which is what the watermark embedder cares about.
+        let n = WIN * 8; // 8 windows worth — plenty for overlap-add to stabilise
+        let waveform: Vec<f32> = (0..n)
+            .map(|i| {
+                let t = i as f32 / 44_100.0;
+                0.3 * (2.0 * std::f32::consts::PI * 440.0 * t).sin()
+                    + 0.2 * (2.0 * std::f32::consts::PI * 1320.0 * t).sin()
+            })
+            .collect();
+
+        let spec = waveform_to_spectrum(&waveform).expect("forward stft");
+        let reconstructed = spectrum_to_waveform(&spec).expect("inverse stft");
+
+        // Reconstructed should at least cover the original input
+        // length; we ignore the silentcipher tail-pad samples.
+        assert!(reconstructed.len() >= n, "reconstructed too short");
+
+        // Interior region — skip first/last WIN samples to dodge
+        // window-edge artefacts.
+        let start = WIN;
+        let end = n - WIN;
+        let mut max_diff = 0.0_f32;
+        let mut sum_sq_diff = 0.0_f64;
+        let mut count = 0;
+        for i in start..end {
+            let d = (reconstructed[i] - waveform[i]).abs();
+            if d > max_diff {
+                max_diff = d;
+            }
+            sum_sq_diff += (d as f64) * (d as f64);
+            count += 1;
+        }
+        let rmsd = (sum_sq_diff / count as f64).sqrt();
+        let in_rms: f64 = (waveform[start..end]
+            .iter()
+            .map(|s| (*s as f64).powi(2))
+            .sum::<f64>()
+            / count as f64)
+            .sqrt();
+        let sdr_db = 20.0 * (in_rms / rmsd).log10();
+        eprintln!("iSTFT round-trip: L∞ = {max_diff:.4e}, RMSD = {rmsd:.4e}, SDR = {sdr_db:.1} dB");
+        assert!(
+            max_diff < 1e-3,
+            "iSTFT round-trip L∞ = {max_diff:.4e} (RMSD = {rmsd:.4e}); expected < 1e-3"
         );
     }
 

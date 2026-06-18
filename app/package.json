@@ -1,7 +1,7 @@
 {
   "name": "provcheck-app",
   "private": true,
-  "version": "0.3.7",
+  "version": "0.3.8",
   "scripts": {
     "tauri": "tauri",
     "tauri:dev": "tauri dev",

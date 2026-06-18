@@ -74,7 +74,10 @@ pub mod audio;
 mod brand;
 #[doc(hidden)]
 pub mod decode;
-mod hparams;
+#[doc(hidden)]
+pub mod encode;
+#[doc(hidden)]
+pub mod hparams;
 #[doc(hidden)]
 pub mod model;
 #[doc(hidden)]

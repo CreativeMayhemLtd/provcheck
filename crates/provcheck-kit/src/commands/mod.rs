@@ -102,6 +102,12 @@ pub enum Command {
     /// typing during dev.
     Verify(verify::CliArgs),
 
+    /// Embed a silentcipher neural watermark into an audio file.
+    /// Use case: re-watermark mixed episodes after ffmpeg loudness
+    /// normalisation strips the original render-time mark. Output
+    /// is a WAV (re-encode externally to MP3/AAC as needed).
+    Watermark(watermark::CliArgs),
+
     /// Write the current identity to an age-format backup file.
     /// Use `--use-recovery-recipients` to encrypt to the
     /// registered X25519 recipient set instead of a passphrase.
@@ -2079,6 +2085,162 @@ pub mod verify {
             );
         }
         Ok(())
+    }
+}
+
+// ----------------------------------------------------------------
+// `watermark` — embed a silentcipher mark into an audio file.
+// ----------------------------------------------------------------
+
+pub mod watermark {
+    //! Stamp a silentcipher neural watermark into an audio file.
+    //!
+    //! Use case: ffmpeg's loudness-normalisation step destroys the
+    //! original render-time silentcipher mark on long mixed episodes;
+    //! re-running this command on the post-normalisation output
+    //! restores a detectable mark. Output is WAV. Re-encode to MP3 /
+    //! AAC externally — provcheck-kit doesn't bundle an MP3 encoder
+    //! to keep the binary small and the supply chain narrow.
+
+    use std::path::PathBuf;
+    use std::time::Instant;
+
+    use anyhow::{Context, Result, bail};
+    use clap::Args;
+
+    use provcheck_watermark::{audio, encode, hparams};
+
+    #[derive(Debug, Args)]
+    pub struct CliArgs {
+        /// Input audio file (any format symphonia decodes — mp3, wav,
+        /// flac, m4a, ogg, opus).
+        pub input: PathBuf,
+
+        /// Output WAV path. Convention: end in `.wav`. The kit will
+        /// refuse to overwrite an existing file unless `--overwrite`
+        /// is passed.
+        #[arg(short = 'o', long, value_name = "PATH")]
+        pub output: PathBuf,
+
+        /// 5-byte payload as 10 hex chars (no separators). Defaults to
+        /// the local identity's brand stamp if known, otherwise to
+        /// the doomscroll.fm brand `DFM\x01\x00` = `44464d0100`.
+        /// Examples: `44464d0100` (doomscroll.fm), `5241490100` (rAIdio).
+        #[arg(long, value_name = "HEX", default_value = "44464d0100")]
+        pub payload: String,
+
+        /// Target message SDR in dB. Higher = quieter watermark.
+        /// silentcipher's training default is 47 dB. Lower values
+        /// produce more robust (more audible) marks; raise if the
+        /// audio is sensitive (mastered music) and lower if you
+        /// expect lossy delivery (low-bitrate MP3 / AAC).
+        #[arg(long, value_name = "DB")]
+        pub sdr_db: Option<f32>,
+
+        /// Overwrite the output file if it already exists.
+        #[arg(long)]
+        pub overwrite: bool,
+    }
+
+    fn parse_payload_hex(s: &str) -> Result<[u8; 5]> {
+        let cleaned: String = s.chars().filter(|c| !c.is_whitespace()).collect();
+        if cleaned.len() != 10 {
+            bail!(
+                "--payload must be exactly 5 bytes (10 hex chars), got {} chars",
+                cleaned.len()
+            );
+        }
+        let mut out = [0u8; 5];
+        for i in 0..5 {
+            out[i] = u8::from_str_radix(&cleaned[i * 2..i * 2 + 2], 16)
+                .with_context(|| format!("parse byte {i}"))?;
+        }
+        Ok(out)
+    }
+
+    pub async fn run(args: CliArgs) -> Result<()> {
+        if !args.overwrite && args.output.exists() {
+            bail!(
+                "output exists: {} (pass --overwrite to replace)",
+                args.output.display()
+            );
+        }
+        let payload = parse_payload_hex(&args.payload)?;
+
+        eprintln!("provcheck-kit: decoding {}", args.input.display());
+        let input = args.input.clone();
+        let waveform = tokio::task::spawn_blocking(move || audio::decode_to_mono_44k1(&input))
+            .await
+            .context("join audio decode task")?
+            .with_context(|| format!("decode {}", args.input.display()))?;
+        let duration_s = waveform.len() as f32 / hparams::SAMPLE_RATE as f32;
+        eprintln!(
+            "provcheck-kit:   {} samples ({:.2} s @ {} Hz mono)",
+            waveform.len(),
+            duration_s,
+            hparams::SAMPLE_RATE
+        );
+
+        eprintln!(
+            "provcheck-kit: embedding {:02x?} (SDR {} dB)",
+            payload,
+            args.sdr_db.unwrap_or(47.0)
+        );
+        let sdr = args.sdr_db;
+        let t0 = Instant::now();
+        let marked = tokio::task::spawn_blocking(move || encode::embed(&waveform, payload, sdr))
+            .await
+            .context("join embed task")?
+            .context("silentcipher embed failed")?;
+        let embed_elapsed = t0.elapsed();
+        eprintln!(
+            "provcheck-kit:   embed wall-clock {:.2?} ({:.2}x real-time)",
+            embed_elapsed,
+            embed_elapsed.as_secs_f32() / duration_s.max(1e-6)
+        );
+
+        eprintln!("provcheck-kit: writing WAV to {}", args.output.display());
+        let output = args.output.clone();
+        tokio::task::spawn_blocking(move || -> Result<()> {
+            let spec = hound::WavSpec {
+                channels: 1,
+                sample_rate: hparams::SAMPLE_RATE,
+                bits_per_sample: 32,
+                sample_format: hound::SampleFormat::Float,
+            };
+            let mut writer = hound::WavWriter::create(&output, spec)
+                .with_context(|| format!("create {}", output.display()))?;
+            for s in &marked {
+                writer.write_sample(*s).context("write sample")?;
+            }
+            writer.finalize().context("finalize WAV")
+        })
+        .await
+        .context("join WAV write task")??;
+
+        eprintln!("provcheck-kit: done.");
+        Ok(())
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::parse_payload_hex;
+
+        #[test]
+        fn parse_dfm_payload() {
+            let p = parse_payload_hex("44464d0100").unwrap();
+            assert_eq!(p, [0x44, 0x46, 0x4d, 0x01, 0x00]);
+        }
+
+        #[test]
+        fn parse_rejects_short_payload() {
+            assert!(parse_payload_hex("44464d01").is_err());
+        }
+
+        #[test]
+        fn parse_rejects_non_hex() {
+            assert!(parse_payload_hex("44464d010g").is_err());
+        }
     }
 }
 

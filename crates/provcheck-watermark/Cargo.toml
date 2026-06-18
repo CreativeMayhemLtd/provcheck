@@ -47,11 +47,12 @@ rubato = "0.16"
 # avoids the complex-input round-trip we don't need.
 realfft = "3"
 
+# Tiny WAV writer + reader. Used in `encode` to emit watermarked WAV
+# output (the producer-side embedding pipeline), and in tests for
+# synthesising deterministic fixtures.
+hound = "3"
+
 [dev-dependencies]
 tempfile = "3"
-# Tiny WAV writer for synthesising unmarked-control test
-# fixtures at test time. Avoids committing binary fixtures
-# to the repo and keeps the negative-control deterministic.
-hound = "3"
 # Examples use anyhow's "?" idiom; not pulled in by the lib.
 anyhow = "1"
