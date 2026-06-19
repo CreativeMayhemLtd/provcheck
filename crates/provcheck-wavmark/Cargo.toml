@@ -15,8 +15,6 @@ name = "provcheck_wavmark"
 
 [dependencies]
 provcheck = { path = "../provcheck" }
-serde.workspace = true
-serde_json.workspace = true
 thiserror.workspace = true
 
 # ONNX inference. WavMark ships as two ONNX models (HiNet forward +
@@ -32,7 +30,6 @@ rubato = "0.16"
 # Hann, center=True) has to live on the Rust side because tract-onnx
 # 0.21 doesn't support PyTorch's `return_complex=True` op signature.
 realfft = "3"
-rustfft = "6"
 
 # Parallel chunk inference.
 rayon = "1"

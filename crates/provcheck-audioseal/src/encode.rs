@@ -29,7 +29,6 @@
 //! 1.0 to 0.0 across the overlap, fade-in the new one from 0.0 to
 //! 1.0, sum.
 
-use crate::audio::SAMPLE_RATE;
 use crate::model::{self, CHUNK_SAMPLES, ModelError, NBITS};
 use crate::registry;
 
@@ -159,14 +158,6 @@ pub fn embed_brand(
     alpha: Option<f32>,
 ) -> Result<Vec<f32>, EncodeError> {
     embed(waveform, brand_id_5bit, alpha)
-}
-
-#[allow(dead_code)]
-fn _sample_rate_assert() {
-    // Force the SAMPLE_RATE re-export to count as a use so the
-    // crate's audio module isn't optimised out from this file's
-    // perspective.
-    let _ = SAMPLE_RATE;
 }
 
 #[cfg(test)]

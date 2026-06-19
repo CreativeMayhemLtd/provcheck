@@ -190,7 +190,7 @@ mod tests {
         let cfg = StftConfig::WAVMARK;
         let n = 16_000;
         let signal: Vec<f32> = (0..n)
-            .map(|i| ((i as f32 * 0.12345).sin() * 0.5 + (i as f32 * 0.7).cos() * 0.3))
+            .map(|i| (i as f32 * 0.12345).sin() * 0.5 + (i as f32 * 0.7).cos() * 0.3)
             .collect();
         let spec = stft(&signal, &cfg);
         let recovered = istft(&spec, n, &cfg);

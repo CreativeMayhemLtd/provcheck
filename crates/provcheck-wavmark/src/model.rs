@@ -227,14 +227,16 @@ pub fn permute_freq_time_to_channel_time_freq(
     freq_bins: usize,
 ) -> Vec<f32> {
     let mut out = vec![0.0_f32; 2 * t_frames * freq_bins];
+    // Output layout: [2, t_frames, freq_bins] row-major. Channel 0
+    // holds reals at offsets [0, t_frames*freq_bins), channel 1
+    // holds imaginaries at offsets [t_frames*freq_bins, 2*t_frames*freq_bins).
+    let chan1_off = t_frames * freq_bins;
     for b in 0..freq_bins {
         for t in 0..t_frames {
             let src = b * t_frames * 2 + t * 2;
-            let re = spec_fbt2[src];
-            let im = spec_fbt2[src + 1];
-            // [2, t_frames, freq_bins] flattened
-            out[0 * t_frames * freq_bins + t * freq_bins + b] = re;
-            out[1 * t_frames * freq_bins + t * freq_bins + b] = im;
+            let dst = t * freq_bins + b;
+            out[dst] = spec_fbt2[src];
+            out[chan1_off + dst] = spec_fbt2[src + 1];
         }
     }
     out
@@ -248,12 +250,13 @@ pub fn permute_channel_time_freq_to_freq_time(
     freq_bins: usize,
 ) -> Vec<f32> {
     let mut out = vec![0.0_f32; freq_bins * t_frames * 2];
+    let chan1_off = t_frames * freq_bins;
     for t in 0..t_frames {
         for b in 0..freq_bins {
-            let re = spec_ctf[0 * t_frames * freq_bins + t * freq_bins + b];
-            let im = spec_ctf[1 * t_frames * freq_bins + t * freq_bins + b];
-            out[b * t_frames * 2 + t * 2] = re;
-            out[b * t_frames * 2 + t * 2 + 1] = im;
+            let src = t * freq_bins + b;
+            let dst = b * t_frames * 2 + t * 2;
+            out[dst] = spec_ctf[src];
+            out[dst + 1] = spec_ctf[chan1_off + src];
         }
     }
     out

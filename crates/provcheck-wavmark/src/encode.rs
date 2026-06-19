@@ -13,7 +13,6 @@
 //! ~38–40 dB SNR (per WavMark's README) which is well within the
 //! intended quality envelope.
 
-use crate::audio::SAMPLE_RATE;
 use crate::model::{self, CHUNK_SAMPLES, FIX_PATTERN_LEN, ModelError, NUM_BITS, WAVMARK_FIX_PATTERN};
 use crate::registry;
 
@@ -59,11 +58,6 @@ pub fn embed(waveform: &[f32], brand_id_5bit: u8) -> Result<Vec<f32>, EncodeErro
     }
 
     Ok(out)
-}
-
-#[allow(dead_code)]
-fn _sample_rate_assert() {
-    let _ = SAMPLE_RATE;
 }
 
 #[cfg(test)]

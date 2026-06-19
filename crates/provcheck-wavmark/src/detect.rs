@@ -141,14 +141,14 @@ fn matches_fix_pattern(bits: &[f32; NUM_BITS]) -> bool {
 fn aggregate_lower_payload(hits: &[(usize, [f32; NUM_BITS])]) -> [u8; 2] {
     let mut sums = [0.0_f32; FIX_PATTERN_LEN];
     for (_, bits) in hits {
-        for i in 0..FIX_PATTERN_LEN {
-            sums[i] += bits[FIX_PATTERN_LEN + i];
+        for (i, slot) in sums.iter_mut().enumerate() {
+            *slot += bits[FIX_PATTERN_LEN + i];
         }
     }
     let n = hits.len() as f32;
     let mut packed = [0u8; 2];
-    for i in 0..FIX_PATTERN_LEN {
-        let avg = sums[i] / n;
+    for (i, &sum) in sums.iter().enumerate() {
+        let avg = sum / n;
         if avg >= 0.5 {
             let byte_idx = i / 8;
             let bit_idx = 7 - (i % 8);

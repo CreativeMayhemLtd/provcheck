@@ -37,7 +37,6 @@ provcheck-wavmark = { path = "../../crates/provcheck-wavmark" }
 provcheck-sign = { path = "../../crates/provcheck-sign" }
 provcheck-publish = { path = "../../crates/provcheck-publish" }
 provcheck-attestation-spec = { path = "../../crates/provcheck-attestation-spec" }
-tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 secrecy = "0.10"
 time = { version = "0.3", features = ["formatting"] }
 

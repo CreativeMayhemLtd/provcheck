@@ -198,17 +198,10 @@ fn fetch_did_document(did: &str, config: &AttestationConfig) -> Result<DidDocume
 #[derive(Debug, Deserialize)]
 struct ListRecordsResponse {
     records: Vec<RecordEntry>,
-    #[serde(default)]
-    #[allow(dead_code)]
-    cursor: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 struct RecordEntry {
-    #[allow(dead_code)]
-    uri: String,
-    #[allow(dead_code)]
-    cid: String,
     value: serde_json::Value,
 }
 
