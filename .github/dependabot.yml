@@ -1,0 +1,85 @@
+# Dependabot version-update config.
+#
+# Security updates run separately and require Dependabot to be enabled
+# in repo settings (Security & analysis tab). Version updates land here
+# as PRs against `main`.
+#
+# Cadence: weekly. Daily creates noise; monthly leaves vulnerabilities
+# open too long. We're not Spectre-hunting in a finance app; weekly is
+# the right beat for this project's release rhythm.
+#
+# Three ecosystems matter:
+#   - cargo: every Rust crate in the workspace + the Tauri app's
+#     separate workspace at app/src-tauri.
+#   - github-actions: workflow action pins (actions/checkout, etc.)
+#     drift fast; bumps usually fix supply-chain advisories.
+#   - We do NOT ship a package.json or npm tree — app/dist/ is hand-
+#     written vanilla JS, no node_modules. Skip npm.
+
+version: 2
+updates:
+  # Main Rust workspace
+  - package-ecosystem: cargo
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: "Europe/Berlin"
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - rust
+    commit-message:
+      prefix: deps
+      include: scope
+    # Group patch + minor bumps into a single weekly PR to cut review
+    # cost. Majors stay separate — they usually break.
+    groups:
+      cargo-patch:
+        update-types:
+          - patch
+      cargo-minor:
+        update-types:
+          - minor
+
+  # Tauri app — separate Cargo workspace (per app/src-tauri/Cargo.toml's
+  # empty [workspace] marker).
+  - package-ecosystem: cargo
+    directory: "/app/src-tauri"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: "Europe/Berlin"
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - rust
+      - tauri
+    commit-message:
+      prefix: deps(tauri)
+      include: scope
+    groups:
+      tauri-patch:
+        update-types:
+          - patch
+      tauri-minor:
+        update-types:
+          - minor
+
+  # CI action pins
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: "Europe/Berlin"
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - ci
+    commit-message:
+      prefix: ci
+      include: scope

@@ -1,0 +1,78 @@
+name: CodeQL
+
+# Static analysis via GitHub's CodeQL. Two languages live in this repo:
+#
+#   - Rust: the workspace + the Tauri app's separate src-tauri tree.
+#   - JavaScript: app/dist/app.js (vanilla, no build step — CodeQL
+#     parses the file directly).
+#
+# Runs on every push to main, every PR, and on a weekly schedule so
+# new CodeQL queries / Rust-pack updates surface findings against
+# stable code even when nothing's landed.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Mondays 04:17 UTC. Off-peak — random-looking minute by design
+    # so we don't add to the top-of-hour load spike on GH Actions.
+    - cron: "17 4 * * 1"
+
+# CodeQL needs to write into the security tab.
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # `actions` covers .github/workflows/*.yml supply-chain risks
+        # (third-party action pin drift). Cheap; runs in seconds.
+        language: [rust, javascript, actions]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # The Rust pack needs the same Linux build deps the regular CI
+      # job installs — keyring's libdbus-sys build.rs runs during the
+      # autobuild step. See .github/workflows/ci.yml for context.
+      - name: Install Linux build deps (rust)
+        if: matrix.language == 'rust'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libdbus-1-dev pkg-config
+
+      - name: Setup Rust
+        if: matrix.language == 'rust'
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          # security-extended adds CWE-coverage queries on top of the
+          # default security-and-quality set. Worth the extra runtime
+          # on a security-adjacent project (we ship signing primitives).
+          queries: security-extended
+
+      - name: Autobuild
+        if: matrix.language == 'rust'
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
