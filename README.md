@@ -29,20 +29,28 @@ you run `publish` or `verify`.
 
 ## Status
 
-**v0.4.2 shipped 2026-06-19.** Both CLI binaries (`provcheck`,
+**v0.5.0 shipped 2026-06-19.** Both CLI binaries (`provcheck`,
 `provcheck-kit`) and the desktop GUI ship as pre-built downloads for
 Windows / Linux / macOS-aarch64. The creator-side flow (mint identity →
 sign → publish to atproto → verifier cross-checks) is production-ready
 and battle-tested against rAIdio.bot music renders and doomscroll.fm
 voice mixdowns.
 
-All three neural-watermark detector families now ship live: the
-silentcipher 40-bit payload at 44.1 kHz, the AudioSeal 16-bit ECC-
-protected brand ID at 16 kHz, and the WavMark 32-bit payload at
-16 kHz. Verifier output gains per-detector time-span localisation
-(`marked_regions`) — both the CLI text report and the GUI timeline
-strip show where inside the audio the mark sits, not just whether
-it's there.
+**v0.5.0 lands hardware-backed identity custody.** `provcheck-kit
+init --yubikey` mints an ES256 keypair on a Yubikey PIV slot 9c. The
+private key is generated on-device and never extractable; every C2PA
+signature gates on the PIV PIN. A new GUI "Keys" tab shows local-vs-
+atproto state side-by-side, surfaces mismatches (superseded local
+key, orphan active record), and offers one-click revoke + rotate
+without dropping to a terminal. See
+[For creators — sign + publish](#for-creators--sign--publish) below.
+
+All three neural-watermark detector families ship live: silentcipher
+40-bit payload at 44.1 kHz, AudioSeal 16-bit ECC-protected brand ID
+at 16 kHz, WavMark 32-bit payload at 16 kHz. Verifier output carries
+per-detector time-span localisation (`marked_regions`) — both the
+CLI text report and the GUI timeline strip show where inside the
+audio the mark sits.
 
 ## Install
 
@@ -85,7 +93,7 @@ cargo install --path crates/provcheck-kit   # signing kit (from source clone)
 
 ```dockerfile
 FROM debian:bookworm-slim
-ARG PROVCHECK_VERSION=v0.4.2
+ARG PROVCHECK_VERSION=v0.5.0
 RUN apt-get update && apt-get install -y curl ca-certificates && rm -rf /var/lib/apt/lists/*
 RUN curl -L -o /tmp/kit.tar.gz \
     "https://github.com/CreativeMayhemLtd/provcheck/releases/download/${PROVCHECK_VERSION}/provcheck-kit-${PROVCHECK_VERSION}-linux-x86_64.tar.gz" \
@@ -193,19 +201,31 @@ atproto identity. Anyone verifying with `provcheck` can then
 cross-check the signature against you.
 
 ```bash
-# One-time setup
+# One-time setup (software backend — default)
 provcheck-kit init                          # mint a fresh ES256 keypair
 provcheck-kit login -u me.bsky.social       # attach an atproto identity
 provcheck-kit publish                       # publish the cert fingerprint
 
-# Sign + verify a file
-provcheck-kit sign mix.wav --embed-identity
+# OR one-time setup (Yubikey backend, v0.5.0+)
+ykman piv access change-pin                 # one-time; refuse factory default
+provcheck-kit init --yubikey                # mint on PIV slot 9c, key non-extractable
+provcheck-kit login -u me.bsky.social
+provcheck-kit publish
+
+# Sign + verify a file (works the same regardless of backend)
+provcheck-kit sign mix.wav --embed-identity # Yubikey: prompts for PIN
 provcheck mix.wav --auto-identity           # verifies + cross-checks the atproto record
 ```
 
 `provcheck-kit --help` shows the full command list. Headlines:
 
-- **`init`** — mint a fresh ES256 keypair + cert.
+- **`init`** — mint a fresh ES256 keypair + cert. Default backend is
+  the OS keychain; pass `--age-file` for an age-encrypted file
+  (headless / CI hosts), or `--yubikey` to generate the key on a
+  YubiKey PIV slot 9c (private key never leaves the device, every
+  signature gates on the PIV PIN). The Yubikey path refuses the
+  factory-default PIN — change it via `ykman piv access change-pin`
+  first.
 - **`login` / `logout`** — manage your atproto session.
 - **`sign`** — sign an asset in place via temp-file + atomic rename.
   `--embed-identity` adds the `app.provcheck.identity` C2PA assertion
@@ -229,8 +249,9 @@ What the kit gives you:
 
 - **Identity custody** — private keys live in your OS keychain
   (Keychain on macOS, Credential Manager on Windows, Secret Service on
-  Linux), or in an age-encrypted file with optional recovery
-  recipients for break-glass restore.
+  Linux), in an age-encrypted file with optional recovery recipients
+  for break-glass restore, or on a YubiKey PIV slot (key never
+  extractable, PIN-gated per signature).
 - **C2PA signing** — wraps the c2pa-rs builder with a sensible default
   manifest; pass `--manifest` for custom JSON.
 - **Publisher-attestation re-sign** — sign a file that already carries
@@ -339,6 +360,7 @@ provcheck fills those gaps. It:
 
 | Version | Date | Highlights |
 |---|---|---|
+| **v0.5.0** | 2026-06-19 | **Yubikey HSM backend + Keys management tab.** New `kit init --yubikey` mints an ES256 keypair on PIV slot 9c — private key never extractable, every signature gates on the PIV PIN. `KeyProvider::signer()` trait method returning `Box<dyn c2pa::Signer>` is the integration seam; software backends inherit the default impl, Yubikey returns a custom signer that delegates to the device. GUI gains a new "Keys" tab between Verify and Sign showing local-vs-atproto state with mismatch detection and one-click revoke + rotate actions. Sign-tab loop bug fixed: superseded / revoked local fingerprints now route to a dedicated stale state with CLI recovery guidance instead of looping into "Publish key" + a conflict error. |
 | **v0.4.2** | 2026-06-19 | **Marked-region localisation across all three detectors.** Silentcipher gains per-tile region derivation from its existing mode-vote match-fraction (no decoder change). CLI text mode prints span lists (`marked: 0:02–0:14, 0:21–0:58`); the GUI renders a horizontal timeline strip per detector with a shared horizontal scale so multi-detector hits line up visually. |
 | **v0.4.1** | 2026-06-19 | **WavMark detect + embed** — third neural-watermark family. 32-bit payload (16-bit fix-pattern + 16-bit ECC-protected brand ID) at 16 kHz, STFT-based HiNet invertible-NN core, sliding-window decode at 50 ms resolution. New `kit watermark --kind wavmark`. STFT/iSTFT live in Rust because PyTorch's `return_complex=True` op rejects opset-17 ONNX export; only the HiNet block ships as ONNX. SDR ~54 dB on the embed roundtrip. |
 | **v0.4.0** | 2026-06-19 | **AudioSeal detect + embed** — second neural-watermark family. 5-bit brand ID with 3-copy ECC (handles AudioSeal's ~6% per-bit error). 16 kHz time-domain pipeline. New `kit watermark --kind audioseal --brand-id 1` for embed. Adds `marked_regions` to verifier output for per-time-span localisation. New shared numeric brand registry. |
