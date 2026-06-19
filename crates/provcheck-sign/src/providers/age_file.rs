@@ -110,10 +110,7 @@ impl KeyProvider for AgeFileProvider {
         let path = age_key_path(dir);
         let ciphertext = fs::read(&path)?;
 
-        let pp = passphrase(UnlockPrompt {
-            purpose: "at-rest",
-            attempt: 1,
-        })?;
+        let pp = passphrase(UnlockPrompt::passphrase("at-rest", 1))?;
 
         let identity = age::scrypt::Identity::new(pp.expose_secret().to_string().into());
 

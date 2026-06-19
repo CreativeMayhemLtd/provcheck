@@ -1176,10 +1176,9 @@ pub mod import_backup {
         // (`kit export-backup` defaults to passphrase-only).
         eprintln!("Decrypting backup at {}…", args.bundle.display());
         let mut unlock = unlock_passphrase();
-        let pass: SecretString = unlock(provcheck_sign::providers::UnlockPrompt {
-            purpose: "backup",
-            attempt: 1,
-        })
+        let pass: SecretString = unlock(provcheck_sign::providers::UnlockPrompt::passphrase(
+            "backup", 1,
+        ))
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
         let bundle =

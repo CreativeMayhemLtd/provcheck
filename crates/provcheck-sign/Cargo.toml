@@ -69,6 +69,25 @@ keyring = { version = "3", features = [
 # decision #5 of the plan.
 age = "0.11"
 
+# YubikeyProvider: PIV-slot key custody. The private key is generated
+# on-device and never extractable; signatures happen on the token.
+# yubikey 0.8 is BSD-2-Clause (FOSS-clean). PC/SC access is provided
+# by the OS on macOS + Windows; Linux hosts need libpcsclite1 at
+# runtime (apt: libpcsclite-dev for build, libpcsclite1 for run).
+yubikey = "0.8"
+
+# p256 is used for the DER → P1363 conversion path inside the
+# Yubikey backend: `piv::sign_data` returns an ECDSA signature in
+# ASN.1 DER `SEQUENCE { r, s }`, but COSE ES256 (what c2pa-rs
+# expects) wants the raw P1363 64-byte concatenation. The p256 crate
+# already speaks both formats. Apache-2.0 / MIT.
+p256 = { version = "0.13", features = ["ecdsa"] }
+
+# pem-parse the persisted chain inside YubikeySigner::certs() so we
+# can hand DER blobs to c2pa. (Was previously a dev-dep only; now a
+# runtime dep on the Yubikey signing path.)
+pem = "3"
+
 [dev-dependencies]
 # Round-trip tests: re-read the rcgen output via x509-parser to
 # confirm the cert chain decodes cleanly and contains what we set.

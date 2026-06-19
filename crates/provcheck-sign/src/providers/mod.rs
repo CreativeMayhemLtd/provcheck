@@ -28,9 +28,11 @@
 
 pub mod age_file;
 pub mod keychain;
+pub mod yubikey;
 
 pub use age_file::AgeFileProvider;
 pub use keychain::KeychainProvider;
+pub use yubikey::{YubikeyProvider, YubikeySigner};
 
 use std::path::Path;
 
@@ -158,6 +160,45 @@ pub struct NewPassphrasePrompt {
 pub struct UnlockPrompt {
     pub purpose: &'static str,
     pub attempt: u32,
+    /// Backend-specific hint about how to render the prompt. When
+    /// `None`, callers prompt for a passphrase with no extra
+    /// guidance (the v0.3.x / v0.4.x behaviour). When `Some`, the
+    /// caller can render device-specific UX — e.g. for Yubikey,
+    /// surface the PIN-tries-remaining counter so the user can
+    /// abort before locking the device.
+    pub hint: Option<UnlockHint>,
+}
+
+impl UnlockPrompt {
+    /// Construct a passphrase-style prompt (no hardware hint).
+    pub fn passphrase(purpose: &'static str, attempt: u32) -> Self {
+        Self {
+            purpose,
+            attempt,
+            hint: None,
+        }
+    }
+
+    /// Construct a Yubikey-PIN prompt with the device's reported
+    /// PIN-tries-remaining counter folded into the hint.
+    pub fn yubikey_pin(attempt: u32, tries_remaining: u8) -> Self {
+        Self {
+            purpose: "yubikey-pin",
+            attempt,
+            hint: Some(UnlockHint::YubikeyPin { tries_remaining }),
+        }
+    }
+}
+
+/// Backend-specific hint surfaced through [`UnlockPrompt::hint`].
+/// Callers can pattern-match to render device-aware UX without
+/// hardcoding the set of backends in every prompt closure.
+#[derive(Debug, Clone)]
+pub enum UnlockHint {
+    /// Yubikey PIV PIN entry. `tries_remaining` is the device's
+    /// reported retry counter — the kit refuses to prompt at all
+    /// when it reaches 0 (the next failure would lock the PIN).
+    YubikeyPin { tries_remaining: u8 },
 }
 
 /// Either a [`SecretString`] from the user or a [`ProviderError`]
