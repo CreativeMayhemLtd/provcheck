@@ -904,8 +904,10 @@ showEmpty();
 const SIGN_HANDLE_KEY = "provcheck.sign.handle";
 
 const $tabVerifyBtn = document.getElementById("tab-verify-btn");
+const $tabKeysBtn = document.getElementById("tab-keys-btn");
 const $tabSignBtn = document.getElementById("tab-sign-btn");
 const $paneVerify = document.getElementById("tab-verify");
+const $paneKeys = document.getElementById("tab-keys");
 const $paneSign = document.getElementById("tab-sign");
 
 const $signStripId = document.getElementById("sign-strip-id");
@@ -963,24 +965,62 @@ const $sVerifyBtn = document.getElementById("sign-verify-btn");
 
 let signStatus = null;          // last KitStatus snapshot
 let signStaged = null;          // { path, replaceOriginal, embed } when previewing
+
+// ---- Keys tab element refs -------------------------------------------------
+const $keysEmpty = document.getElementById("keys-empty-state");
+const $keysKv = document.getElementById("keys-local-kv");
+const $keysFingerprint = document.getElementById("keys-local-fingerprint");
+const $keysAlgorithm = document.getElementById("keys-local-algorithm");
+const $keysBackend = document.getElementById("keys-local-backend");
+const $keysCreated = document.getElementById("keys-local-created");
+const $keysDidLabel = document.getElementById("keys-local-did-label");
+const $keysDid = document.getElementById("keys-local-did");
+const $keysHandleLabel = document.getElementById("keys-local-handle-label");
+const $keysHandle = document.getElementById("keys-local-handle");
+const $keysYkDeviceLabel = document.getElementById("keys-local-yk-device-label");
+const $keysYkDevice = document.getElementById("keys-local-yk-device");
+const $keysYkPinLabel = document.getElementById("keys-local-yk-pin-label");
+const $keysYkPin = document.getElementById("keys-local-yk-pin");
+const $keysMismatch = document.getElementById("keys-mismatch-banner");
+const $keysMismatchTitle = document.getElementById("keys-mismatch-title");
+const $keysMismatchText = document.getElementById("keys-mismatch-text");
+const $keysRotateBtn = document.getElementById("keys-rotate-btn");
+const $keysSwitchYubikeyBtn = document.getElementById("keys-switch-yubikey-btn");
+const $keysActionsError = document.getElementById("keys-actions-error");
+const $keysActionsSuccess = document.getElementById("keys-actions-success");
+const $keysRecordsTable = document.getElementById("keys-records-table");
+const $keysRecordsTbody = document.getElementById("keys-records-tbody");
+const $keysRecordsEmpty = document.getElementById("keys-records-empty");
+const $keysRecordsNoSession = document.getElementById("keys-records-nosession");
+
+let keysStatus = null;          // last KitStatus snapshot for the Keys tab
+let keysRecords = [];           // last kit_list result (raw)
 let signSkipPublish = false;    // user clicked "skip and sign locally"
 
 // ---- Tab switching ---------------------------------------------------------
 
 function activateTab(name) {
+  const isVerify = name === "verify";
+  const isKeys = name === "keys";
   const isSign = name === "sign";
-  $tabVerifyBtn.classList.toggle("is-active", !isSign);
+  $tabVerifyBtn.classList.toggle("is-active", isVerify);
+  $tabKeysBtn.classList.toggle("is-active", isKeys);
   $tabSignBtn.classList.toggle("is-active", isSign);
-  $tabVerifyBtn.setAttribute("aria-selected", String(!isSign));
+  $tabVerifyBtn.setAttribute("aria-selected", String(isVerify));
+  $tabKeysBtn.setAttribute("aria-selected", String(isKeys));
   $tabSignBtn.setAttribute("aria-selected", String(isSign));
-  $paneVerify.classList.toggle("is-active", !isSign);
+  $paneVerify.classList.toggle("is-active", isVerify);
+  $paneKeys.classList.toggle("is-active", isKeys);
   $paneSign.classList.toggle("is-active", isSign);
-  $paneVerify.hidden = isSign;
+  $paneVerify.hidden = !isVerify;
+  $paneKeys.hidden = !isKeys;
   $paneSign.hidden = !isSign;
+  if (isKeys) refreshKeysTab();
   if (isSign) refreshSignTab();
 }
 
 $tabVerifyBtn.addEventListener("click", () => activateTab("verify"));
+$tabKeysBtn.addEventListener("click", () => activateTab("keys"));
 $tabSignBtn.addEventListener("click", () => activateTab("sign"));
 
 // ---- State dispatch --------------------------------------------------------
@@ -1013,6 +1053,345 @@ function showReadySubstate(name) {
   $sSigning.hidden = name !== "signing";
   $sDone.hidden = name !== "done";
 }
+
+/// Refresh the Keys tab from kit_status + kit_list. Renders local
+/// identity card, mismatch banner, and atproto records table.
+async function refreshKeysTab() {
+  $keysActionsError.hidden = true;
+  $keysActionsSuccess.hidden = true;
+
+  const statusRes = await invoke("kit_status", { dataDir: null });
+  keysStatus = statusRes.ok ? statusRes.data : null;
+  renderKeysLocalCard(keysStatus && keysStatus.identity);
+
+  // Records: only fetch if we have a session.
+  if (!keysStatus || !keysStatus.session) {
+    keysRecords = [];
+    $keysRecordsTable.hidden = true;
+    $keysRecordsEmpty.hidden = true;
+    $keysRecordsNoSession.hidden = false;
+    renderKeysMismatchBanner(keysStatus && keysStatus.identity, []);
+    return;
+  }
+  $keysRecordsNoSession.hidden = true;
+
+  const listRes = await invoke("kit_list", { dataDir: null });
+  if (!listRes.ok) {
+    keysRecords = [];
+    $keysRecordsTable.hidden = true;
+    $keysRecordsEmpty.hidden = false;
+    return;
+  }
+  keysRecords = listRes.data || [];
+  if (keysRecords.length === 0) {
+    $keysRecordsTable.hidden = true;
+    $keysRecordsEmpty.hidden = false;
+  } else {
+    $keysRecordsTable.hidden = false;
+    $keysRecordsEmpty.hidden = true;
+    renderKeysRecordsTable(keysStatus.identity, keysRecords);
+  }
+  renderKeysMismatchBanner(keysStatus.identity, keysRecords);
+}
+
+function renderKeysLocalCard(identity) {
+  if (!identity) {
+    $keysEmpty.hidden = false;
+    $keysKv.hidden = true;
+    return;
+  }
+  $keysEmpty.hidden = true;
+  $keysKv.hidden = false;
+
+  $keysFingerprint.textContent = identity.fingerprint || "—";
+  $keysAlgorithm.textContent = identity.algorithm || "—";
+  $keysCreated.textContent = identity.created_at || "—";
+
+  // Backend display + Yubikey-specific extras.
+  const backend = identity.backend || "—";
+  if (backend === "yubikey") {
+    $keysBackend.textContent = "Yubikey (PIV slot 0x" +
+      (identity.yubikey_slot != null ? identity.yubikey_slot.toString(16) : "??") + ")";
+    $keysYkDeviceLabel.hidden = false;
+    $keysYkDevice.hidden = false;
+    if (identity.yubikey_present === true) {
+      $keysYkDevice.textContent = "Present (serial " + (identity.yubikey_serial ?? "?") + ")";
+    } else if (identity.yubikey_present === false) {
+      $keysYkDevice.textContent = "Not reachable (serial " + (identity.yubikey_serial ?? "?") + " — plug it in)";
+    } else {
+      $keysYkDevice.textContent = "—";
+    }
+    if (identity.pin_tries_remaining != null) {
+      $keysYkPinLabel.hidden = false;
+      $keysYkPin.hidden = false;
+      $keysYkPin.textContent = identity.pin_tries_remaining + " of 3 remaining" +
+        (identity.pin_tries_remaining === 1 ? " (one more failed try locks the PIN)" :
+         identity.pin_tries_remaining === 0 ? " — locked, recover via ykman" : "");
+    } else {
+      $keysYkPinLabel.hidden = true;
+      $keysYkPin.hidden = true;
+    }
+  } else {
+    $keysBackend.textContent =
+      backend === "keychain" ? "OS keychain"
+      : backend === "encrypted_file" ? "Encrypted file (age)"
+      : backend;
+    $keysYkDeviceLabel.hidden = true;
+    $keysYkDevice.hidden = true;
+    $keysYkPinLabel.hidden = true;
+    $keysYkPin.hidden = true;
+  }
+
+  if (identity.did) {
+    $keysDidLabel.hidden = false;
+    $keysDid.hidden = false;
+    $keysDid.textContent = identity.did;
+  } else {
+    $keysDidLabel.hidden = true;
+    $keysDid.hidden = true;
+  }
+  if (identity.handle) {
+    $keysHandleLabel.hidden = false;
+    $keysHandle.hidden = false;
+    $keysHandle.textContent = "@" + identity.handle;
+  } else {
+    $keysHandleLabel.hidden = true;
+    $keysHandle.hidden = true;
+  }
+}
+
+function renderKeysMismatchBanner(identity, records) {
+  $keysMismatch.hidden = true;
+  if (!identity) return;
+  const fp = identity.fingerprint;
+  const localRecord = records.find((r) => r.fingerprint === fp);
+  const orphanActive = records.find(
+    (r) => r.status === "active" && r.fingerprint !== fp,
+  );
+
+  if (localRecord && localRecord.status === "active") {
+    // Healthy state — no banner.
+    return;
+  }
+  if (localRecord && localRecord.status === "superseded") {
+    $keysMismatchTitle.textContent = "Your local key is superseded";
+    $keysMismatchText.textContent =
+      "This box's local key is no longer the active record on atproto. " +
+      "Signatures made with it won't attest. Use Mint fresh + publish to " +
+      "rotate, or Switch to Yubikey identity to mint on hardware.";
+    $keysMismatch.hidden = false;
+    return;
+  }
+  if (localRecord && localRecord.status === "revoked") {
+    $keysMismatchTitle.textContent = "Your local key is revoked";
+    $keysMismatchText.textContent =
+      "This local key has been marked revoked on atproto. " +
+      "Mint fresh + publish to recover.";
+    $keysMismatch.hidden = false;
+    return;
+  }
+  if (orphanActive) {
+    $keysMismatchTitle.textContent = "Active record uses a key you don't have";
+    $keysMismatchText.textContent =
+      "An active record exists under your DID but uses a different key " +
+      "than the one on this box. If you don't have that private key on " +
+      "any other machine, revoke it (action below) then mint fresh.";
+    $keysMismatch.hidden = false;
+    return;
+  }
+  // Local fp not in records, no orphan active: first-publish state, no
+  // banner. The Sign tab handles the publish flow.
+}
+
+function renderKeysRecordsTable(identity, records) {
+  $keysRecordsTbody.innerHTML = "";
+  const localFp = identity ? identity.fingerprint : null;
+  for (const r of records) {
+    const tr = document.createElement("tr");
+
+    const statusTd = document.createElement("td");
+    const badge = document.createElement("span");
+    badge.className = "keys-status-badge is-" + r.status;
+    badge.textContent = r.status;
+    statusTd.appendChild(badge);
+    if (r.fingerprint === localFp) {
+      const localTag = document.createElement("span");
+      localTag.style.marginLeft = "8px";
+      localTag.style.fontSize = "10.5px";
+      localTag.style.color = "var(--text-muted)";
+      localTag.textContent = "(this box)";
+      statusTd.appendChild(localTag);
+    }
+    tr.appendChild(statusTd);
+
+    const fpTd = document.createElement("td");
+    fpTd.className = "mono";
+    fpTd.textContent = r.fingerprint;
+    tr.appendChild(fpTd);
+
+    const createdTd = document.createElement("td");
+    createdTd.textContent = (r.created_at || "").slice(0, 10);
+    tr.appendChild(createdTd);
+
+    const labelTd = document.createElement("td");
+    labelTd.textContent = r.label || "—";
+    tr.appendChild(labelTd);
+
+    const actionsTd = document.createElement("td");
+    actionsTd.className = "keys-row-actions";
+    if (r.status === "active") {
+      const revBtn = document.createElement("button");
+      revBtn.type = "button";
+      revBtn.className = "btn btn-ghost";
+      revBtn.textContent = "Revoke";
+      revBtn.addEventListener("click", () => handleRevoke(r));
+      actionsTd.appendChild(revBtn);
+    }
+    tr.appendChild(actionsTd);
+
+    $keysRecordsTbody.appendChild(tr);
+  }
+}
+
+// ---- Keys tab actions (P6) -------------------------------------------------
+
+function setKeysError(msg) {
+  $keysActionsSuccess.hidden = true;
+  if (!msg) {
+    $keysActionsError.hidden = true;
+    return;
+  }
+  $keysActionsError.hidden = false;
+  $keysActionsError.textContent = msg;
+}
+
+function setKeysSuccess(msg) {
+  $keysActionsError.hidden = true;
+  if (!msg) {
+    $keysActionsSuccess.hidden = true;
+    return;
+  }
+  $keysActionsSuccess.hidden = false;
+  $keysActionsSuccess.textContent = msg;
+}
+
+/// Revoke a record on atproto. confirm() prompts the user; on
+/// acceptance we call kit_revoke and refresh the tab.
+async function handleRevoke(record) {
+  const isLocal = keysStatus &&
+    keysStatus.identity &&
+    keysStatus.identity.fingerprint === record.fingerprint;
+  const msg = isLocal
+    ? "Revoke YOUR OWN active key? Anyone you've signed for will see " +
+      "your past signatures as 'signing key not currently attested.' " +
+      "You'll want to mint fresh + publish a replacement immediately " +
+      "after.\n\nFingerprint: " + record.fingerprint
+    : "Revoke this record? " +
+      "atproto will mark validUntil = now, and verifiers will treat " +
+      "any future signatures by this key as not attested. The record " +
+      "stays in atproto history as a tombstone (you can't un-revoke).\n\n" +
+      "Fingerprint: " + record.fingerprint;
+  if (!confirm(msg)) return;
+
+  setKeysError(null);
+  const res = await invoke("kit_revoke", {
+    args: {
+      fingerprint: record.fingerprint,
+      supersededBy: null,
+      dataDir: null,
+    },
+  });
+  if (!res.ok) {
+    setKeysError(res.error || "Revoke failed.");
+    return;
+  }
+  setKeysSuccess("Record revoked (rkey " + res.data.rkey + ").");
+  await refreshKeysTab();
+}
+
+/// Mint a fresh keypair on the current backend, publish it as the new
+/// active record, and revoke the previous record. Software backend
+/// only — Yubikey rotation drops to CLI.
+$keysRotateBtn.addEventListener("click", async () => {
+  if (!keysStatus || !keysStatus.identity) {
+    setKeysError("No local identity to rotate from. Initialize one first.");
+    return;
+  }
+  const backend = keysStatus.identity.backend;
+  if (backend === "yubikey") {
+    setKeysError(
+      "Yubikey rotation needs an in-process PIN prompt the GUI doesn't " +
+      "have yet. Run `provcheck-kit init --yubikey --force` from a terminal, " +
+      "then come back here to revoke the old record.",
+    );
+    return;
+  }
+  if (backend === "encrypted_file") {
+    setKeysError(
+      "Age-file rotation needs an in-process passphrase prompt the GUI " +
+      "doesn't have yet. Run `provcheck-kit rotate` from a terminal.",
+    );
+    return;
+  }
+  const label = prompt(
+    "Optional label for the new record (e.g. \"studio mac\"):",
+    ""
+  );
+  if (label === null) return; // user cancelled
+
+  if (!confirm(
+    "Mint a fresh signing key and publish it?\n\n" +
+    "This orphans the current key for anything signed with it going " +
+    "forward (existing signatures stay valid until the old record's " +
+    "validUntil is honored). The old record gets supersededBy linkage."
+  )) return;
+
+  setKeysError(null);
+  setKeysSuccess("Rotating…");
+  $keysRotateBtn.disabled = true;
+  try {
+    const res = await invoke("kit_rotate", {
+      args: { label: label || null, dataDir: null },
+    });
+    if (!res.ok) {
+      setKeysError(res.error || "Rotate failed.");
+      return;
+    }
+    setKeysSuccess(
+      "Rotated. New fingerprint " + (res.data.new_fingerprint || "").slice(7, 15) +
+      "… published; old record revoked."
+    );
+    await refreshKeysTab();
+  } finally {
+    $keysRotateBtn.disabled = false;
+  }
+});
+
+/// "Switch to Yubikey identity" — opens guidance to drop to CLI for
+/// the actual init (PIN prompt + management-key auth need a terminal).
+$keysSwitchYubikeyBtn.addEventListener("click", async () => {
+  setKeysError(null);
+  setKeysSuccess(null);
+  const listRes = await invoke("kit_list_yubikeys", {});
+  const devices = listRes.ok ? (listRes.data || []) : [];
+  let lines = [];
+  if (devices.length === 0) {
+    lines.push("No Yubikey detected.");
+    lines.push("Plug one into a USB port and try again.");
+  } else {
+    lines.push("Detected " + devices.length + " Yubikey(s) — serials: " +
+      devices.map(d => d.serial).join(", "));
+    lines.push("");
+    lines.push("Switching to a Yubikey-backed identity needs a terminal " +
+      "for the PIV PIN prompt. Run these from a terminal:");
+    lines.push("");
+    lines.push("    ykman piv access change-pin  # if still on factory default");
+    lines.push("    provcheck-kit init --yubikey --force");
+    lines.push("");
+    lines.push("Then return here to publish the new fingerprint.");
+  }
+  alert(lines.join("\n"));
+});
 
 async function refreshSignTab() {
   showSignState("loading");

@@ -22,11 +22,14 @@
     </div>
   </header>
 
-  <!-- Tab bar — switches the main pane between Verify and Sign. The
-       Verify pane is the offline read-only flow that has always shipped;
-       the Sign pane is Phase 9 (provcheck-kit wrapped in webview UI). -->
+  <!-- Tab bar — switches the main pane between Verify, Keys, and Sign.
+       Verify is the offline read-only flow that has always shipped;
+       Keys (v0.5.0) is the key-management pane that shows local-vs-
+       atproto state and surfaces recovery actions; Sign is the
+       producer-side flow added in v0.3.0. -->
   <nav class="tabs" id="tabs" role="tablist">
     <button class="tab is-active" id="tab-verify-btn" role="tab" aria-selected="true" aria-controls="tab-verify">Verify</button>
+    <button class="tab" id="tab-keys-btn" role="tab" aria-selected="false" aria-controls="tab-keys">Keys</button>
     <button class="tab" id="tab-sign-btn" role="tab" aria-selected="false" aria-controls="tab-sign">Sign</button>
   </nav>
 
@@ -141,6 +144,98 @@
   </footer>
 
   </div> <!-- /tab-verify -->
+
+  <!-- =====================================================================
+       KEYS TAB (v0.5.0)
+
+       Local-vs-atproto state side-by-side. Surfaces mismatches that the
+       Sign tab's predicate can detect but can't recover from (lost
+       active key, superseded local key, no published record). Per-row
+       revoke + top-of-tab rotate + switch-backend actions wired via
+       new Tauri commands (kit_revoke, kit_rotate, kit_init).
+       ===================================================================== -->
+  <div class="tab-pane" id="tab-keys" role="tabpanel" aria-labelledby="tab-keys-btn" hidden>
+
+    <!-- Local identity card -->
+    <section class="keys-local-card" id="keys-local-card">
+      <h2>Local identity</h2>
+      <div class="keys-empty-state" id="keys-empty-state">
+        <p>No identity on this machine.</p>
+        <p class="hint">Run <code>provcheck-kit init</code> from a terminal,
+          or use the Sign tab's first-run flow.</p>
+      </div>
+      <dl class="kv keys-local-kv" id="keys-local-kv" hidden>
+        <dt>Fingerprint</dt>
+        <dd class="mono" id="keys-local-fingerprint">—</dd>
+        <dt>Algorithm</dt>
+        <dd id="keys-local-algorithm">—</dd>
+        <dt>Backend</dt>
+        <dd id="keys-local-backend">—</dd>
+        <dt>Created</dt>
+        <dd id="keys-local-created">—</dd>
+        <dt id="keys-local-did-label" hidden>DID</dt>
+        <dd id="keys-local-did" class="mono" hidden>—</dd>
+        <dt id="keys-local-handle-label" hidden>Handle</dt>
+        <dd id="keys-local-handle" hidden>—</dd>
+        <!-- Yubikey-only fields, shown when backend=="yubikey" -->
+        <dt id="keys-local-yk-device-label" hidden>Yubikey</dt>
+        <dd id="keys-local-yk-device" hidden>—</dd>
+        <dt id="keys-local-yk-pin-label" hidden>PIN tries</dt>
+        <dd id="keys-local-yk-pin" hidden>—</dd>
+      </dl>
+    </section>
+
+    <!-- Mismatch banner — fires when local fingerprint isn't the active
+         record. Distinct copies for "superseded", "revoked", "orphan
+         active record under your DID", and "no records at all". -->
+    <section class="keys-mismatch-banner" id="keys-mismatch-banner" hidden>
+      <div class="keys-mismatch-icon" aria-hidden="true">⚠</div>
+      <div class="keys-mismatch-body">
+        <p class="keys-mismatch-title" id="keys-mismatch-title">Identity state mismatch</p>
+        <p class="keys-mismatch-text" id="keys-mismatch-text"></p>
+      </div>
+    </section>
+
+    <!-- Top-of-tab actions -->
+    <section class="keys-actions" id="keys-actions">
+      <button class="btn btn-primary" id="keys-rotate-btn" type="button"
+              title="Mint a fresh signing key and publish it as the new active record">
+        Mint fresh + publish
+      </button>
+      <button class="btn btn-secondary" id="keys-switch-yubikey-btn" type="button"
+              title="Replace the current identity with a Yubikey-backed one">
+        Switch to Yubikey identity…
+      </button>
+      <p class="keys-actions-error" id="keys-actions-error" hidden></p>
+      <p class="keys-actions-success" id="keys-actions-success" hidden></p>
+    </section>
+
+    <!-- atproto records table -->
+    <section class="keys-records" id="keys-records">
+      <h2>Published records (atproto)</h2>
+      <div class="keys-records-empty" id="keys-records-empty" hidden>
+        <p>No <code>app.provcheck.signingKey</code> records under your DID.</p>
+        <p class="hint">Log in on the Sign tab + publish your local fingerprint.</p>
+      </div>
+      <div class="keys-records-nosession" id="keys-records-nosession" hidden>
+        <p>Not logged in to atproto.</p>
+        <p class="hint">Log in on the Sign tab to fetch your published records.</p>
+      </div>
+      <table class="keys-records-table" id="keys-records-table" hidden>
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>Fingerprint</th>
+            <th>Created</th>
+            <th>Label</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="keys-records-tbody"></tbody>
+      </table>
+    </section>
+
+  </div> <!-- /tab-keys -->
 
   <!-- =====================================================================
        SIGN TAB
