@@ -75,15 +75,17 @@ jobs:
             echo "value=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
           fi
 
-      # keyring's Linux backend talks to Secret Service over libdbus.
-      # No-op on every other OS. The CLI build job needs this; the
-      # build-gui job has its own apt install step with webkit + dbus
-      # already included via libayatana-appindicator's transitive deps.
+      # Linux native deps:
+      #   - libdbus-1-dev: keyring crate's Secret-Service backend
+      #   - libpcsclite-dev: yubikey crate's PIV access (v0.5.0+)
+      #   - pkg-config: needed by both for their build.rs probes
+      # macOS + Windows ship PC/SC and keychain APIs natively;
+      # no install needed on those targets.
       - name: Install Linux build deps
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libdbus-1-dev pkg-config
+          sudo apt-get install -y libdbus-1-dev libpcsclite-dev pkg-config
 
       # Build both CLI binaries in a single cargo invocation so the
       # workspace is compiled once. provcheck (verifier) and
@@ -222,12 +224,16 @@ jobs:
 
       # Tauri 2 on Linux needs webkit2gtk-4.1 and friends. The list
       # here matches the official Tauri 2 prerequisites page (2026-Q2).
+      # libpcsclite-dev added in v0.5.0 for the yubikey crate's PIV
+      # backend (the GUI consumes provcheck-sign's Yubikey provider
+      # via the new Keys tab).
       - name: Install Linux build deps
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
             libwebkit2gtk-4.1-dev \
+            libpcsclite-dev \
             build-essential \
             curl \
             wget \
