@@ -2093,22 +2093,37 @@ pub mod verify {
 // ----------------------------------------------------------------
 
 pub mod watermark {
-    //! Stamp a silentcipher neural watermark into an audio file.
+    //! Stamp a neural watermark into an audio file. Two detector
+    //! families supported: `silentcipher` (default; 40-bit ASCII
+    //! payload at 44.1 kHz) and `audioseal` (16-bit ECC-protected
+    //! brand ID at 16 kHz).
     //!
     //! Use case: ffmpeg's loudness-normalisation step destroys the
-    //! original render-time silentcipher mark on long mixed episodes;
-    //! re-running this command on the post-normalisation output
-    //! restores a detectable mark. Output is WAV. Re-encode to MP3 /
-    //! AAC externally — provcheck-kit doesn't bundle an MP3 encoder
-    //! to keep the binary small and the supply chain narrow.
+    //! original render-time mark on long mixed episodes; re-running
+    //! this command on the post-normalisation output restores a
+    //! detectable mark. Output is WAV. Re-encode to MP3 / AAC
+    //! externally — provcheck-kit doesn't bundle an MP3 encoder to
+    //! keep the binary small and the supply chain narrow.
 
     use std::path::PathBuf;
     use std::time::Instant;
 
     use anyhow::{Context, Result, bail};
-    use clap::Args;
+    use clap::{Args, ValueEnum};
 
-    use provcheck_watermark::{audio, encode, hparams};
+    use provcheck_watermark::{audio as sc_audio, encode as sc_encode, hparams as sc_hparams};
+
+    /// Watermark family to embed. Default is silentcipher (the
+    /// existing v0.3.x behaviour).
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Default)]
+    #[clap(rename_all = "lowercase")]
+    pub enum Kind {
+        /// silentcipher 40-bit payload @ 44.1 kHz.
+        #[default]
+        Silentcipher,
+        /// AudioSeal 16-bit ECC-protected brand ID @ 16 kHz.
+        Audioseal,
+    }
 
     #[derive(Debug, Args)]
     pub struct CliArgs {
@@ -2122,20 +2137,44 @@ pub mod watermark {
         #[arg(short = 'o', long, value_name = "PATH")]
         pub output: PathBuf,
 
-        /// 5-byte payload as 10 hex chars (no separators). Defaults to
-        /// the local identity's brand stamp if known, otherwise to
-        /// the doomscroll.fm brand `DFM\x01\x00` = `44464d0100`.
-        /// Examples: `44464d0100` (doomscroll.fm), `5241490100` (rAIdio).
+        /// Watermark family. `silentcipher` (default) uses a 40-bit
+        /// payload @ 44.1 kHz; `audioseal` uses a 16-bit ECC-protected
+        /// brand ID @ 16 kHz. They embed and decode independently —
+        /// for cross-family redundancy run this command twice with
+        /// the output of the first as the input of the second.
+        #[arg(long, value_enum, default_value_t = Kind::Silentcipher)]
+        pub kind: Kind,
+
+        /// (silentcipher) 5-byte payload as 10 hex chars (no
+        /// separators). Defaults to the doomscroll.fm brand
+        /// `DFM\x01\x00` = `44464d0100`. Examples: `44464d0100`
+        /// (doomscroll.fm), `5241490100` (rAIdio). Ignored when
+        /// `--kind audioseal`.
         #[arg(long, value_name = "HEX", default_value = "44464d0100")]
         pub payload: String,
 
-        /// Target message SDR in dB. Higher = quieter watermark.
-        /// silentcipher's training default is 47 dB. Lower values
-        /// produce more robust (more audible) marks; raise if the
-        /// audio is sensitive (mastered music) and lower if you
-        /// expect lossy delivery (low-bitrate MP3 / AAC).
+        /// (AudioSeal) 5-bit brand identifier from the registry:
+        /// `1` = doomscroll, `2` = rAIdio, `3` = vAIdeo. See
+        /// `docs/brand-registry.md`. Ignored when
+        /// `--kind silentcipher`.
+        #[arg(long, value_name = "ID", default_value_t = 1)]
+        pub brand_id: u8,
+
+        /// (silentcipher) Target message SDR in dB. Higher = quieter
+        /// watermark. silentcipher's training default is 47 dB. Lower
+        /// values produce more robust (more audible) marks; raise if
+        /// the audio is sensitive (mastered music) and lower if you
+        /// expect lossy delivery (low-bitrate MP3 / AAC). Ignored
+        /// when `--kind audioseal`.
         #[arg(long, value_name = "DB")]
         pub sdr_db: Option<f32>,
+
+        /// (AudioSeal) Watermark strength multiplier. AudioSeal's
+        /// training default is `1.0`. Higher = more audible + more
+        /// robust; lower = quieter + more fragile. Ignored when
+        /// `--kind silentcipher`.
+        #[arg(long, value_name = "ALPHA")]
+        pub alpha: Option<f32>,
 
         /// Overwrite the output file if it already exists.
         #[arg(long)]
@@ -2165,20 +2204,31 @@ pub mod watermark {
                 args.output.display()
             );
         }
+
+        match args.kind {
+            Kind::Silentcipher => embed_silentcipher(args).await,
+            Kind::Audioseal => embed_audioseal(args).await,
+        }
+    }
+
+    async fn embed_silentcipher(args: CliArgs) -> Result<()> {
         let payload = parse_payload_hex(&args.payload)?;
 
-        eprintln!("provcheck-kit: decoding {}", args.input.display());
+        eprintln!(
+            "provcheck-kit: decoding {} (silentcipher)",
+            args.input.display()
+        );
         let input = args.input.clone();
-        let waveform = tokio::task::spawn_blocking(move || audio::decode_to_mono_44k1(&input))
+        let waveform = tokio::task::spawn_blocking(move || sc_audio::decode_to_mono_44k1(&input))
             .await
             .context("join audio decode task")?
             .with_context(|| format!("decode {}", args.input.display()))?;
-        let duration_s = waveform.len() as f32 / hparams::SAMPLE_RATE as f32;
+        let duration_s = waveform.len() as f32 / sc_hparams::SAMPLE_RATE as f32;
         eprintln!(
             "provcheck-kit:   {} samples ({:.2} s @ {} Hz mono)",
             waveform.len(),
             duration_s,
-            hparams::SAMPLE_RATE
+            sc_hparams::SAMPLE_RATE
         );
 
         eprintln!(
@@ -2188,7 +2238,7 @@ pub mod watermark {
         );
         let sdr = args.sdr_db;
         let t0 = Instant::now();
-        let marked = tokio::task::spawn_blocking(move || encode::embed(&waveform, payload, sdr))
+        let marked = tokio::task::spawn_blocking(move || sc_encode::embed(&waveform, payload, sdr))
             .await
             .context("join embed task")?
             .context("silentcipher embed failed")?;
@@ -2199,26 +2249,86 @@ pub mod watermark {
             embed_elapsed.as_secs_f32() / duration_s.max(1e-6)
         );
 
-        eprintln!("provcheck-kit: writing WAV to {}", args.output.display());
-        let output = args.output.clone();
+        write_wav(&args.output, &marked, sc_hparams::SAMPLE_RATE).await?;
+        eprintln!("provcheck-kit: done.");
+        Ok(())
+    }
+
+    async fn embed_audioseal(args: CliArgs) -> Result<()> {
+        use provcheck_audioseal::{audio as as_audio, encode as as_encode, registry};
+
+        // Validate brand ID before downloading + tract-loading the
+        // generator; cheap and gives a clear error.
+        if args.brand_id > registry::ID_MASK {
+            bail!(
+                "--brand-id {} doesn't fit in 5 bits (max {})",
+                args.brand_id,
+                registry::ID_MASK
+            );
+        }
+
+        eprintln!(
+            "provcheck-kit: decoding {} (audioseal)",
+            args.input.display()
+        );
+        let input = args.input.clone();
+        let waveform = tokio::task::spawn_blocking(move || as_audio::decode_to_mono_16k(&input))
+            .await
+            .context("join audio decode task")?
+            .with_context(|| format!("decode {}", args.input.display()))?;
+        let duration_s = waveform.len() as f32 / as_audio::SAMPLE_RATE as f32;
+        eprintln!(
+            "provcheck-kit:   {} samples ({:.2} s @ {} Hz mono)",
+            waveform.len(),
+            duration_s,
+            as_audio::SAMPLE_RATE
+        );
+
+        eprintln!(
+            "provcheck-kit: embedding brand id 0x{:02x} (alpha {})",
+            args.brand_id,
+            args.alpha.unwrap_or(as_encode::DEFAULT_ALPHA)
+        );
+        let brand_id = args.brand_id;
+        let alpha = args.alpha;
+        let t0 = Instant::now();
+        let marked =
+            tokio::task::spawn_blocking(move || as_encode::embed(&waveform, brand_id, alpha))
+                .await
+                .context("join embed task")?
+                .context("audioseal embed failed")?;
+        let embed_elapsed = t0.elapsed();
+        eprintln!(
+            "provcheck-kit:   embed wall-clock {:.2?} ({:.2}x real-time)",
+            embed_elapsed,
+            embed_elapsed.as_secs_f32() / duration_s.max(1e-6)
+        );
+
+        write_wav(&args.output, &marked, as_audio::SAMPLE_RATE).await?;
+        eprintln!("provcheck-kit: done.");
+        Ok(())
+    }
+
+    async fn write_wav(output: &std::path::Path, marked: &[f32], sample_rate: u32) -> Result<()> {
+        eprintln!("provcheck-kit: writing WAV to {}", output.display());
+        let output_path = output.to_path_buf();
+        let marked_owned = marked.to_vec();
         tokio::task::spawn_blocking(move || -> Result<()> {
             let spec = hound::WavSpec {
                 channels: 1,
-                sample_rate: hparams::SAMPLE_RATE,
+                sample_rate,
                 bits_per_sample: 32,
                 sample_format: hound::SampleFormat::Float,
             };
-            let mut writer = hound::WavWriter::create(&output, spec)
-                .with_context(|| format!("create {}", output.display()))?;
-            for s in &marked {
+            let mut writer = hound::WavWriter::create(&output_path, spec)
+                .with_context(|| format!("create {}", output_path.display()))?;
+            for s in &marked_owned {
                 writer.write_sample(*s).context("write sample")?;
             }
             writer.finalize().context("finalize WAV")
         })
         .await
         .context("join WAV write task")??;
-
-        eprintln!("provcheck-kit: done.");
         Ok(())
     }
 

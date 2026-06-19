@@ -112,6 +112,7 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
         payload: None,
         brand: None,
         message: Some(message.into()),
+        marked_regions: None,
     })
 }
 

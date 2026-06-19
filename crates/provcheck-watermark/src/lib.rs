@@ -197,6 +197,7 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
         payload,
         brand,
         message: None,
+        marked_regions: None,
     })
 }
 
@@ -327,6 +328,7 @@ fn not_detected(reason: &str) -> WatermarkResult {
         payload: None,
         brand: None,
         message: Some(reason.into()),
+        marked_regions: None,
     }
 }
 

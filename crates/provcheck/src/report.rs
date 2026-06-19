@@ -255,6 +255,18 @@ pub struct WatermarkResult {
     /// detection window". Omitted from JSON when `None`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
+
+    /// Optional time-spans (in seconds, `(start, end)`) where the
+    /// watermark is detected. Populated by detectors that emit
+    /// per-sample localisation — currently AudioSeal only.
+    /// silentcipher leaves this as `None` because its mode-vote
+    /// across tiles is aggregated globally and doesn't preserve
+    /// per-sample presence. Omitted from JSON when `None`.
+    ///
+    /// Backward-compatible serde: defaults to `None` on deserialise
+    /// so older verifier outputs without this field still parse.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub marked_regions: Option<Vec<(f32, f32)>>,
 }
 
 /// Identifies which neural-watermark detector family produced
@@ -318,7 +330,8 @@ pub enum WatermarkBrand {
     /// Schema 1 payload with an ASCII brand code that isn't yet
     /// in the registry. The three letters are echoed back so
     /// the renderer can display them verbatim, but no name is
-    /// assigned.
+    /// assigned. This variant is silentcipher-specific (40-bit
+    /// payload + ASCII triplet convention).
     UnknownAscii {
         /// The three ASCII bytes from payload positions 0..3.
         letters: [u8; 3],
@@ -330,6 +343,15 @@ pub enum WatermarkBrand {
     UnknownSchema {
         /// The schema byte read from payload index 3.
         schema: u8,
+    },
+    /// Numeric-registry brand identifier (16-bit big-endian)
+    /// that isn't yet in the registry. Used by short-payload
+    /// detectors like AudioSeal (16 bits) and WavMark (32
+    /// bits — lower 16 used as brand ID) where the ASCII
+    /// convention doesn't fit. See `docs/brand-registry.md`.
+    UnknownNumeric {
+        /// The 16-bit brand identifier read from the payload.
+        id: u16,
     },
 }
 
@@ -539,6 +561,9 @@ fn format_brand_label(brand: &WatermarkBrand) -> String {
         WatermarkBrand::Raidio => "rAIdio.bot".to_string(),
         WatermarkBrand::Doomscroll => "doomscroll.fm".to_string(),
         WatermarkBrand::Vaideo => "vAIdeo.bot".to_string(),
+        WatermarkBrand::UnknownNumeric { id } => {
+            format!("unknown brand (id 0x{id:04x})")
+        }
         WatermarkBrand::UnknownAscii { letters } => {
             // Schema-1 brand triplet whose ASCII isn't in the
             // known registry. Surface the three letters so the

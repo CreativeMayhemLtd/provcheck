@@ -34,6 +34,7 @@ memory_check.*.txt
 # scripts/diagnose-embed-mismatch.py writes its output WAV to the repo
 # root by default — transient diagnostic, not committed.
 diagnose-python-marked.wav
+diagnose-audioseal-marked.wav
 
 # Editor / OS
 .vscode/

@@ -1,0 +1,56 @@
+# Files staged for the v0.4.0 commit.
+
+# Workspace version bump
+Cargo.toml
+Cargo.lock
+.gitignore
+
+# GUI files in lockstep
+app/src-tauri/Cargo.toml
+app/src-tauri/tauri.conf.json
+app/package.json
+
+# Wire-format addition: marked_regions field + UnknownNumeric variant
+crates/provcheck/src/report.rs
+
+# THE FEATURE: provcheck-audioseal full pipeline
+crates/provcheck-audioseal/Cargo.toml
+crates/provcheck-audioseal/src/lib.rs
+crates/provcheck-audioseal/src/audio.rs
+crates/provcheck-audioseal/src/brand.rs
+crates/provcheck-audioseal/src/detect.rs
+crates/provcheck-audioseal/src/encode.rs
+crates/provcheck-audioseal/src/model.rs
+crates/provcheck-audioseal/src/registry.rs
+crates/provcheck-audioseal/examples/tract_probe.rs
+crates/provcheck-audioseal/examples/audioseal_detect_probe.rs
+crates/provcheck-audioseal/examples/audioseal_embed_roundtrip.rs
+
+# Embedded model files — exported by scripts/export-audioseal.py
+crates/provcheck-audioseal/models/audioseal-detector.onnx
+crates/provcheck-audioseal/models/audioseal-generator.onnx
+crates/provcheck-audioseal/models/audioseal.meta.json
+
+# silentcipher path keeps marked_regions: None (was missing field)
+crates/provcheck-watermark/src/lib.rs
+crates/provcheck-watermark/tests/integration.rs
+
+# wavmark scaffold also gets marked_regions: None
+crates/provcheck-wavmark/src/lib.rs
+
+# kit watermark: --kind flag + audioseal dispatch
+crates/provcheck-kit/Cargo.toml
+crates/provcheck-kit/src/commands/mod.rs
+
+# Python: ONNX export + roundtrip fixture
+scripts/export-audioseal.py
+scripts/audioseal-roundtrip-fixture.py
+
+# Docs: brand registry
+docs/brand-registry.md
+README.md
+
+# Release notes
+release-notes/v0.4.0/commit.md
+release-notes/v0.4.0/tag.md
+release-notes/v0.4.0/files.txt

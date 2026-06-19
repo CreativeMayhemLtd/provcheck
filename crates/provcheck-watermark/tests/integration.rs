@@ -70,6 +70,7 @@ fn result_serializes_to_json_with_expected_shape() {
         payload: Some(vec![68, 70, 77, 1, 0]),
         brand: Some(WatermarkBrand::Doomscroll),
         message: None,
+        marked_regions: None,
     };
     let json = serde_json::to_string(&r).expect("serialize");
     assert!(json.contains("\"kind\":\"silent_cipher\""));

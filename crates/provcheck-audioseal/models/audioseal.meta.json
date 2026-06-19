@@ -1,0 +1,16 @@
+{
+  "family": "audioseal",
+  "version": "16bits",
+  "sample_rate": 16000,
+  "nbits": 16,
+  "input_channels": 1,
+  "input_samples": 160000,
+  "chunk_seconds": 10,
+  "hop_length": 320,
+  "latent_dim": 128,
+  "detector_output_dim": 32,
+  "license": "MIT",
+  "model_source": "facebook/audioseal (Hugging Face)",
+  "detector_url": "https://huggingface.co/facebook/audioseal/resolve/main/detector_base.pth",
+  "generator_url": "https://huggingface.co/facebook/audioseal/resolve/main/generator_base.pth"
+}

@@ -302,7 +302,8 @@ provcheck fills those gaps. It:
 
 | Version | Date | Highlights |
 |---|---|---|
-| **v0.3.9** | 2026-06-18 | Detector early-exit + parallel chunks — **4.4× speedup** on a 60s marked file (98s → 22s). Workspace CI fix (rustdoc was choking on indented pseudocode in encode.rs). |
+| **v0.4.0** | 2026-06-19 | **AudioSeal detect + embed** — second neural-watermark family. 5-bit brand ID with 3-copy ECC (handles AudioSeal's ~6% per-bit error). 16 kHz time-domain pipeline. New `kit watermark --kind audioseal --brand-id 1` for embed. Adds `marked_regions` to verifier output for per-time-span localisation. New shared numeric brand registry. |
+| v0.3.9 | 2026-06-18 | Detector early-exit + parallel chunks — **4.4× speedup** on a 60s marked file (98s → 22s). Workspace CI fix (rustdoc was choking on indented pseudocode in encode.rs). |
 | v0.3.8 | 2026-06-18 | **Watermark EMBEDDING capability.** New `provcheck-kit watermark <input> -o <output.wav>` re-stamps silentcipher marks into audio that's had its original mark damaged by ffmpeg loudness normalisation. Embed wall-clock is ~0.8x real-time on a 60s file. |
 | v0.3.7 | 2026-06-18 | Chunked watermark inference — fixes ~25 GB RSS blowup on multi-minute MP3s. Caps peak memory at ~1.5 GB regardless of audio length. Doomscroll-reported OOM closed. |
 | v0.3.6 | 2026-06-16 | SBOMs land — every release now ships CycloneDX 1.6 + SPDX 2.3 for each binary. Release script hardened against transient GitHub API 502s. |
