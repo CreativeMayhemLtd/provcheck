@@ -19,12 +19,27 @@ serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 
-# NOTE: this crate is currently a scaffold. License check is
-# complete (both code and weights are MIT). Detection pipeline
-# is not yet ported. When ported it will take the same
-# dependency set as `provcheck-watermark`: tract-onnx,
-# symphonia, rubato, realfft. See lib.rs for the integration
-# checklist.
+# ONNX inference. WavMark ships as two ONNX models (HiNet forward +
+# reverse passes) embedded via include_bytes!() at build time. Exported
+# from M4869/WavMark's MIT-licensed checkpoint via scripts/export-wavmark.py.
+tract-onnx = "0.21"
+
+# Audio container decoding (16 kHz mono — WavMark's training rate).
+symphonia = { version = "0.5", features = ["mp3", "aac", "flac", "isomp4", "ogg", "vorbis", "wav"] }
+rubato = "0.16"
+
+# Real-input FFT for STFT/iSTFT. WavMark's STFT (n_fft=1000, hop=400,
+# Hann, center=True) has to live on the Rust side because tract-onnx
+# 0.21 doesn't support PyTorch's `return_complex=True` op signature.
+realfft = "3"
+rustfft = "6"
+
+# Parallel chunk inference.
+rayon = "1"
+
+# WAV output for the embed pipeline.
+hound = "3"
 
 [dev-dependencies]
 tempfile = "3"
+anyhow = "1"

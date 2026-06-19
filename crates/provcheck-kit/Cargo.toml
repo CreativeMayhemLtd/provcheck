@@ -24,6 +24,8 @@ provcheck-attestation-spec = { path = "../provcheck-attestation-spec" }
 provcheck-watermark = { path = "../provcheck-watermark" }
 # v0.4.0: second watermark family. Adds `kit watermark --kind audioseal`.
 provcheck-audioseal = { path = "../provcheck-audioseal" }
+# v0.4.1: third watermark family. Adds `kit watermark --kind wavmark`.
+provcheck-wavmark = { path = "../provcheck-wavmark" }
 
 # WAV output for the watermark subcommand. Tiny dep (~150 LOC), no
 # additional MP3/AAC encoder — re-encode the output WAV externally

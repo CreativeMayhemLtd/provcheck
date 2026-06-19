@@ -2093,10 +2093,12 @@ pub mod verify {
 // ----------------------------------------------------------------
 
 pub mod watermark {
-    //! Stamp a neural watermark into an audio file. Two detector
+    //! Stamp a neural watermark into an audio file. Three detector
     //! families supported: `silentcipher` (default; 40-bit ASCII
-    //! payload at 44.1 kHz) and `audioseal` (16-bit ECC-protected
-    //! brand ID at 16 kHz).
+    //! payload at 44.1 kHz), `audioseal` (16-bit ECC-protected brand
+    //! ID at 16 kHz), and `wavmark` (32-bit payload at 16 kHz; first
+    //! 16 bits are a fix-pattern, lower 16 bits carry the same
+    //! ECC-protected brand ID as audioseal).
     //!
     //! Use case: ffmpeg's loudness-normalisation step destroys the
     //! original render-time mark on long mixed episodes; re-running
@@ -2123,6 +2125,8 @@ pub mod watermark {
         Silentcipher,
         /// AudioSeal 16-bit ECC-protected brand ID @ 16 kHz.
         Audioseal,
+        /// WavMark 32-bit payload @ 16 kHz (16-bit fix pattern + 16-bit ECC brand ID).
+        Wavmark,
     }
 
     #[derive(Debug, Args)]
@@ -2208,6 +2212,7 @@ pub mod watermark {
         match args.kind {
             Kind::Silentcipher => embed_silentcipher(args).await,
             Kind::Audioseal => embed_audioseal(args).await,
+            Kind::Wavmark => embed_wavmark(args).await,
         }
     }
 
@@ -2305,6 +2310,56 @@ pub mod watermark {
         );
 
         write_wav(&args.output, &marked, as_audio::SAMPLE_RATE).await?;
+        eprintln!("provcheck-kit: done.");
+        Ok(())
+    }
+
+    async fn embed_wavmark(args: CliArgs) -> Result<()> {
+        use provcheck_wavmark::{audio as wm_audio, encode as wm_encode, registry};
+
+        if args.brand_id > registry::ID_MASK {
+            bail!(
+                "--brand-id {} doesn't fit in 5 bits (max {})",
+                args.brand_id,
+                registry::ID_MASK
+            );
+        }
+
+        eprintln!(
+            "provcheck-kit: decoding {} (wavmark)",
+            args.input.display()
+        );
+        let input = args.input.clone();
+        let waveform = tokio::task::spawn_blocking(move || wm_audio::decode_to_mono_16k(&input))
+            .await
+            .context("join audio decode task")?
+            .with_context(|| format!("decode {}", args.input.display()))?;
+        let duration_s = waveform.len() as f32 / wm_audio::SAMPLE_RATE as f32;
+        eprintln!(
+            "provcheck-kit:   {} samples ({:.2} s @ {} Hz mono)",
+            waveform.len(),
+            duration_s,
+            wm_audio::SAMPLE_RATE
+        );
+
+        eprintln!(
+            "provcheck-kit: embedding brand id 0x{:02x}",
+            args.brand_id
+        );
+        let brand_id = args.brand_id;
+        let t0 = Instant::now();
+        let marked = tokio::task::spawn_blocking(move || wm_encode::embed(&waveform, brand_id))
+            .await
+            .context("join embed task")?
+            .context("wavmark embed failed")?;
+        let embed_elapsed = t0.elapsed();
+        eprintln!(
+            "provcheck-kit:   embed wall-clock {:.2?} ({:.2}x real-time)",
+            embed_elapsed,
+            embed_elapsed.as_secs_f32() / duration_s.max(1e-6)
+        );
+
+        write_wav(&args.output, &marked, wm_audio::SAMPLE_RATE).await?;
         eprintln!("provcheck-kit: done.");
         Ok(())
     }
