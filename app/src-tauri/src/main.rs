@@ -116,20 +116,39 @@ async fn verify_file(
 // `kit_init` but not exposed in the GUI's first pass.
 // ============================================================================
 
-/// Identity panel data for the Sign tab. Mirrors `kit status`'s identity
-/// block, minus the storage-path-display details that the GUI hides.
+/// Identity panel data for the Sign + Keys tabs. Mirrors `kit status`'s
+/// identity block.
 #[derive(Serialize)]
 struct IdentitySnapshot {
     fingerprint: String,
     algorithm: String,
     /// RFC 3339.
     created_at: String,
-    /// "keychain" | "encrypted_file".
+    /// "keychain" | "encrypted_file" | "yubikey".
     backend: String,
     /// Stamped onto identity.json by a successful kit_login. When None
     /// the identity exists but hasn't been attached to atproto yet.
     did: Option<String>,
     handle: Option<String>,
+    /// Yubikey hardware serial — `Some` only for Yubikey-backed
+    /// identities. Used by the Keys tab to render the device strip.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    yubikey_serial: Option<u32>,
+    /// Yubikey PIV slot byte (`0x9c` in v0.5.0). `Some` only for
+    /// Yubikey-backed identities.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    yubikey_slot: Option<u8>,
+    /// Whether the Yubikey identity's hardware is currently plugged
+    /// in + reachable. `Some(true)` device present, `Some(false)`
+    /// device not reachable, `None` for non-Yubikey identities.
+    /// Lets the Keys tab render "Insert Yubikey to sign" without the
+    /// whole tab failing.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    yubikey_present: Option<bool>,
+    /// PIV PIN tries remaining (0–3). `Some` only when the device is
+    /// reachable for a Yubikey-backed identity.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pin_tries_remaining: Option<u8>,
 }
 
 /// Session panel data for the Sign tab. None when no session.json on disk.
@@ -216,20 +235,42 @@ async fn kit_status(data_dir: Option<String>) -> ApiResult<KitStatus> {
         Err(e) => return ApiResult::err(e),
     };
 
-    let identity = load_locked(&dir).ok().map(|locked| IdentitySnapshot {
-        fingerprint: locked.fingerprint.clone(),
-        algorithm: locked.algorithm.clone(),
-        created_at: locked
-            .created_at
-            .format(&Rfc3339)
-            .unwrap_or_else(|_| locked.created_at.to_string()),
-        backend: match locked.key_provider {
-            KeyProviderKind::Keychain => "keychain".into(),
-            KeyProviderKind::EncryptedFile => "encrypted_file".into(),
-            KeyProviderKind::Yubikey { .. } => "yubikey".into(),
-        },
-        did: locked.did.clone(),
-        handle: locked.handle.clone(),
+    let identity = load_locked(&dir).ok().map(|locked| {
+        // For Yubikey identities, query the live device state so the
+        // GUI can render "device present + N PIN tries" without a
+        // separate command round-trip. Soft-failure: an unreachable
+        // device produces yubikey_present = Some(false) so the GUI
+        // shows a clear "Insert Yubikey" affordance rather than
+        // hard-failing the whole status.
+        let (yk_serial, yk_slot, yk_present, pin_tries) = match locked.key_provider {
+            KeyProviderKind::Yubikey { serial, slot } => {
+                let provider = provcheck_sign::providers::YubikeyProvider::new(serial, slot);
+                match provider.pin_tries_remaining() {
+                    Ok(tries) => (Some(serial), Some(slot), Some(true), Some(tries)),
+                    Err(_) => (Some(serial), Some(slot), Some(false), None),
+                }
+            }
+            _ => (None, None, None, None),
+        };
+        IdentitySnapshot {
+            fingerprint: locked.fingerprint.clone(),
+            algorithm: locked.algorithm.clone(),
+            created_at: locked
+                .created_at
+                .format(&Rfc3339)
+                .unwrap_or_else(|_| locked.created_at.to_string()),
+            backend: match locked.key_provider {
+                KeyProviderKind::Keychain => "keychain".into(),
+                KeyProviderKind::EncryptedFile => "encrypted_file".into(),
+                KeyProviderKind::Yubikey { .. } => "yubikey".into(),
+            },
+            did: locked.did.clone(),
+            handle: locked.handle.clone(),
+            yubikey_serial: yk_serial,
+            yubikey_slot: yk_slot,
+            yubikey_present: yk_present,
+            pin_tries_remaining: pin_tries,
+        }
     });
 
     let session = match AtprotoClient::load_session(&dir).await {
@@ -314,6 +355,10 @@ async fn kit_init(
         backend: "keychain".into(),
         did: None,
         handle: None,
+        yubikey_serial: None,
+        yubikey_slot: None,
+        yubikey_present: None,
+        pin_tries_remaining: None,
     })
 }
 
@@ -546,6 +591,252 @@ async fn kit_list(data_dir: Option<String>) -> ApiResult<Vec<RecordSnapshot>> {
         .collect();
 
     ApiResult::ok(snapshots)
+}
+
+// -------- kit_revoke ------------------------------------------------------
+//
+// Stamp `validUntil = now()` on an atproto signing-key record. The kit's
+// CLI surface has this as `kit revoke <fingerprint>`; the GUI wraps it so
+// the Keys-tab "revoke this orphan" action can call it without dropping
+// to a terminal. Only needs the bsky session — no private key required,
+// no Yubikey interaction, so the API surface is intentionally small.
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RevokeArgs {
+    /// Canonical fingerprint of the record to revoke
+    /// (`sha256:<lowercase-hex>`).
+    fingerprint: String,
+    /// Optional successor at-uri to set on the revoked record's
+    /// `supersededBy` field. When `None`, the record is plain
+    /// revoked without a successor pointer (useful when you don't
+    /// have a replacement yet — orphan-cleanup case).
+    superseded_by: Option<String>,
+    data_dir: Option<String>,
+}
+
+#[derive(Serialize)]
+struct RevokeResult {
+    rkey: String,
+}
+
+#[tauri::command]
+async fn kit_revoke(args: RevokeArgs) -> ApiResult<RevokeResult> {
+    let dir = match resolve_dir(args.data_dir) {
+        Ok(d) => d,
+        Err(e) => return ApiResult::err(e),
+    };
+    let client = match AtprotoClient::load_session(&dir).await {
+        Ok(c) => c,
+        Err(e) => return ApiResult::err(format!("load session: {e}")),
+    };
+    let writer = provcheck_publish::RecordWriter::new(&client);
+
+    // Find the record by fingerprint. Walk the user's published
+    // records to pick out the matching rkey.
+    let records = match writer.list_signing_keys().await {
+        Ok(r) => r,
+        Err(e) => return ApiResult::err(format!("list signing keys: {e}")),
+    };
+    let matching = records.iter().find(|(_, rec)| rec.fingerprint == args.fingerprint);
+    let (uri, current) = match matching {
+        Some(pair) => pair,
+        None => {
+            return ApiResult::err(format!(
+                "no record with fingerprint {} found in your atproto repo",
+                args.fingerprint
+            ));
+        }
+    };
+    let rkey = match uri.rkey() {
+        Some(r) => r.to_string(),
+        None => return ApiResult::err(format!("at-uri {} has no rkey", uri.as_str())),
+    };
+
+    // Mutate: set validUntil = now, optionally set supersededBy.
+    let mut updated = current.clone();
+    let now_iso = match OffsetDateTime::now_utc().format(&Rfc3339) {
+        Ok(s) => s,
+        Err(e) => return ApiResult::err(format!("format now(): {e}")),
+    };
+    updated.valid_until = Some(now_iso);
+    if let Some(s) = args.superseded_by {
+        updated.superseded_by = Some(s);
+    }
+
+    if let Err(e) = writer.update_signing_key(&rkey, &updated).await {
+        return ApiResult::err(format!("update record on atproto: {e}"));
+    }
+
+    ApiResult::ok(RevokeResult { rkey })
+}
+
+// -------- kit_rotate ------------------------------------------------------
+//
+// Mint a fresh keypair on the recorded backend, publish it as a new active
+// record, and revoke the previous record with a `supersededBy` link.
+// Software-backend rotation only in v0.5.0 P4 — Yubikey rotation would
+// need a separate `kit_rotate_yubikey` taking a fresh PIN through a
+// callback, which the Keys-tab UI doesn't surface yet.
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RotateArgs {
+    /// Optional label for the new record.
+    label: Option<String>,
+    data_dir: Option<String>,
+}
+
+#[derive(Serialize)]
+struct RotateResult {
+    new_fingerprint: String,
+    new_at_uri: String,
+    old_fingerprint: String,
+}
+
+#[tauri::command]
+async fn kit_rotate(args: RotateArgs) -> ApiResult<RotateResult> {
+    let dir = match resolve_dir(args.data_dir) {
+        Ok(d) => d,
+        Err(e) => return ApiResult::err(e),
+    };
+    let old = match load_locked(&dir) {
+        Ok(l) => l,
+        Err(e) => return ApiResult::err(format!("load current identity: {e}")),
+    };
+
+    // Refuse Yubikey rotation cleanly — the in-process flow can't
+    // collect a fresh PIN through this API surface. Users must run
+    // `provcheck-kit init --yubikey --force` from a terminal.
+    if matches!(old.key_provider, KeyProviderKind::Yubikey { .. }) {
+        return ApiResult::err(
+            "GUI rotation of a Yubikey-backed identity isn't supported yet. \
+             Run `provcheck-kit init --yubikey --force` from a terminal, \
+             then come back here to publish + revoke."
+                .to_string(),
+        );
+    }
+
+    let client = match AtprotoClient::load_session(&dir).await {
+        Ok(c) => c,
+        Err(e) => return ApiResult::err(format!("load session: {e}")),
+    };
+    let writer = provcheck_publish::RecordWriter::new(&client);
+
+    // Mint fresh software keypair.
+    let kp = match provcheck_sign::cert::generate(&provcheck_sign::cert::SubjectInfo::default()) {
+        Ok(kp) => kp,
+        Err(e) => return ApiResult::err(format!("generate keypair: {e}")),
+    };
+    let new_fingerprint = kp.fingerprint.clone();
+    let new_key_secret = SecretString::from(kp.key_pem.clone());
+
+    // Store the new key under the SAME backend the old identity used
+    // (Yubikey case is refused above, so this is keychain or age).
+    let mut store_prompt =
+        |_: provcheck_sign::providers::NewPassphrasePrompt| -> Result<SecretString, ProviderError> {
+            Ok(SecretString::from(String::new()))
+        };
+    let store_result = match old.key_provider {
+        KeyProviderKind::Keychain => provcheck_sign::providers::KeychainProvider::new()
+            .store(&dir, &new_fingerprint, &new_key_secret, &mut store_prompt),
+        KeyProviderKind::EncryptedFile => {
+            return ApiResult::err(
+                "GUI rotation of age-file-backed identities isn't wired yet. \
+                 Use `provcheck-kit rotate` from a terminal."
+                    .to_string(),
+            );
+        }
+        KeyProviderKind::Yubikey { .. } => unreachable!("refused above"),
+    };
+    if let Err(e) = store_result {
+        return ApiResult::err(format!("store new key in backend: {e}"));
+    }
+
+    // Persist the new public artefacts (overwrites identity.json).
+    let now = OffsetDateTime::now_utc();
+    let new_locked = provcheck_sign::types::LockedIdentity {
+        chain_pem: kp.chain_pem,
+        fingerprint: new_fingerprint.clone(),
+        algorithm: kp.algorithm.clone(),
+        did: old.did.clone(),
+        handle: old.handle.clone(),
+        created_at: now,
+        key_provider: old.key_provider,
+        recovery_recipients: old.recovery_recipients.clone(),
+    };
+    if let Err(e) = save_public_artefacts(&dir, &new_locked) {
+        return ApiResult::err(format!("save new identity.json: {e}"));
+    }
+
+    // Publish the new record on atproto.
+    let created_at_iso = match now.format(&Rfc3339) {
+        Ok(s) => s,
+        Err(e) => return ApiResult::err(format!("format created_at: {e}")),
+    };
+    let new_record = SigningKeyRecord {
+        created_at: created_at_iso,
+        fingerprint: new_fingerprint.clone(),
+        algorithm: kp.algorithm,
+        label: args.label,
+        valid_from: None,
+        valid_until: None,
+        superseded_by: None,
+    };
+    let new_uri = match writer.publish_signing_key(&new_record).await {
+        Ok(uri) => uri,
+        Err(e) => return ApiResult::err(format!("publish new record: {e}")),
+    };
+
+    // Revoke the previous record IF it's still active on atproto.
+    let existing_records = writer.list_signing_keys().await.unwrap_or_default();
+    let old_fp = old.fingerprint.clone();
+    if let Some((old_uri, old_rec)) = existing_records
+        .iter()
+        .find(|(_, r)| r.fingerprint == old_fp && r.valid_until.is_none())
+    {
+        if let Some(rkey) = old_uri.rkey() {
+            let mut revoked = old_rec.clone();
+            revoked.valid_until = Some(match OffsetDateTime::now_utc().format(&Rfc3339) {
+                Ok(s) => s,
+                Err(e) => return ApiResult::err(format!("format revoke timestamp: {e}")),
+            });
+            revoked.superseded_by = Some(new_uri.as_str().to_string());
+            // Best-effort: a failure here leaves both records active
+            // on atproto. The user can manually revoke later.
+            let _ = writer.update_signing_key(rkey, &revoked).await;
+        }
+    }
+
+    ApiResult::ok(RotateResult {
+        new_fingerprint,
+        new_at_uri: new_uri.as_str().to_string(),
+        old_fingerprint: old_fp,
+    })
+}
+
+// -------- kit_list_yubikeys -----------------------------------------------
+//
+// Enumerate connected Yubikeys. Used by the Keys-tab "Switch to
+// Yubikey-backed identity" affordance to render the device-selection
+// step (or skip it when only one device is connected).
+
+#[derive(Serialize)]
+struct YubikeyDeviceInfo {
+    serial: u32,
+}
+
+#[tauri::command]
+fn kit_list_yubikeys() -> ApiResult<Vec<YubikeyDeviceInfo>> {
+    match provcheck_sign::providers::yubikey::list_connected() {
+        Ok(serials) => ApiResult::ok(
+            serials
+                .into_iter()
+                .map(|s| YubikeyDeviceInfo { serial: s })
+                .collect(),
+        ),
+        Err(e) => ApiResult::err(format!("enumerate Yubikeys: {e}")),
+    }
 }
 
 // -------- kit_sign --------------------------------------------------------
@@ -826,6 +1117,9 @@ fn main() {
             kit_recall_password,
             kit_forget_password,
             kit_publish,
+            kit_revoke,
+            kit_rotate,
+            kit_list_yubikeys,
             kit_list,
             kit_sign,
             kit_inspect_source,
