@@ -1062,9 +1062,14 @@ fn default_manifest(
             action_obj["softwareAgent"] = serde_json::Value::String(trimmed.to_string());
         }
     }
+    // Bind the claim_generator strings to CARGO_PKG_VERSION so they
+    // stay in sync with the Cargo.toml + tauri.conf.json on every
+    // release. Previously hardcoded to "0.3.1", which drifted four
+    // versions before anyone noticed.
+    const CG: &str = concat!("provcheck-app/", env!("CARGO_PKG_VERSION"));
     let v = serde_json::json!({
-        "claim_generator": "provcheck-app/0.3.1",
-        "claim_generator_info": [{"name": "provcheck-app", "version": "0.3.1"}],
+        "claim_generator": CG,
+        "claim_generator_info": [{"name": "provcheck-app", "version": env!("CARGO_PKG_VERSION")}],
         "format": format,
         "title": title,
         "assertions": [
