@@ -29,13 +29,20 @@ you run `publish` or `verify`.
 
 ## Status
 
-**v0.3.6 shipped 2026-06-16.** Both CLI binaries (`provcheck`,
+**v0.4.2 shipped 2026-06-19.** Both CLI binaries (`provcheck`,
 `provcheck-kit`) and the desktop GUI ship as pre-built downloads for
 Windows / Linux / macOS-aarch64. The creator-side flow (mint identity →
 sign → publish to atproto → verifier cross-checks) is production-ready
 and battle-tested against rAIdio.bot music renders and doomscroll.fm
-voice mixdowns. The silentcipher watermark detector ships live and
-agrees bit-exact with the Python reference on real-world MP3 inputs.
+voice mixdowns.
+
+All three neural-watermark detector families now ship live: the
+silentcipher 40-bit payload at 44.1 kHz, the AudioSeal 16-bit ECC-
+protected brand ID at 16 kHz, and the WavMark 32-bit payload at
+16 kHz. Verifier output gains per-detector time-span localisation
+(`marked_regions`) — both the CLI text report and the GUI timeline
+strip show where inside the audio the mark sits, not just whether
+it's there.
 
 ## Install
 
@@ -78,7 +85,7 @@ cargo install --path crates/provcheck-kit   # signing kit (from source clone)
 
 ```dockerfile
 FROM debian:bookworm-slim
-ARG PROVCHECK_VERSION=v0.3.6
+ARG PROVCHECK_VERSION=v0.4.2
 RUN apt-get update && apt-get install -y curl ca-certificates && rm -rf /var/lib/apt/lists/*
 RUN curl -L -o /tmp/kit.tar.gz \
     "https://github.com/CreativeMayhemLtd/provcheck/releases/download/${PROVCHECK_VERSION}/provcheck-kit-${PROVCHECK_VERSION}-linux-x86_64.tar.gz" \
@@ -146,19 +153,26 @@ fail with exit code 1.
 
 ### Watermark detection
 
-provcheck runs the silentcipher neural watermark detector on every
-audio input by default. The detector returns a payload (the embedded
-brand identifier, e.g. `DFM\x01\x00` for doomscroll.fm) and a
-confidence score; the brand classifier maps known payloads to known
-brands.
+provcheck runs three neural-watermark detectors on every audio input
+by default — silentcipher, AudioSeal, and WavMark, in registration
+order. Each returns a payload, a confidence score, and (for AudioSeal
+and WavMark per-sample / per-window, and for silentcipher per-tile)
+a list of `(start, end)` time spans where the watermark was detected.
+The brand classifier maps known payloads to known brands across all
+three families using a shared numeric registry plus silentcipher's
+legacy ASCII triplet format.
 
 ```bash
-provcheck my-song.mp3                    # detector runs (~few seconds)
-provcheck --no-watermark my-song.mp3     # skip the detector
-provcheck --require-watermark my-song.mp3 # exit 1 if no watermark
+provcheck my-song.mp3                    # all three detectors run
+provcheck --no-watermark my-song.mp3     # skip the detectors
+provcheck --require-watermark my-song.mp3 # exit 1 if no detector hits
 ```
 
-Detector runs only on audio inputs. Image and video paths skip it.
+A `--require-watermark` run passes if at least one of the three
+detectors fires; they're independent and a file marked by one family
+typically won't trigger the others.
+
+Detectors run only on audio inputs. Image and video paths skip them.
 
 ### Exit codes
 
@@ -230,19 +244,42 @@ Full spec: [`docs/atproto-signing-key.md`](docs/atproto-signing-key.md).
 
 ## Watermark detection — what we ship
 
-provcheck ships with one fully-implemented neural-watermark detector
-(silentcipher) and scaffolds for two more (AudioSeal, WavMark) so
-detectors can be added as siblings without reshaping the report.
+provcheck ships three fully-implemented neural-watermark detectors,
+each in its own sibling crate (`provcheck-watermark`,
+`provcheck-audioseal`, `provcheck-wavmark`). The verifier runs all
+three on every audio input and reports each independently.
 
 **silentcipher** is the audio watermark used by doomscroll.fm and the
-rAIdio.bot music pipeline. The detector runs the official silentcipher
-ONNX decoder via tract, applies VCTK energy rescale + periodic-Hann
-STFT, and decodes 21-symbol tiles into 5-byte brand payloads. Known
-payloads are mapped to display names by the brand classifier (e.g.
-`DFM\x01\x00` → "doomscroll.fm").
+rAIdio.bot music pipeline. 40-bit ASCII triplet payload at 44.1 kHz.
+The detector runs the official silentcipher ONNX decoder via tract,
+applies VCTK energy rescale + periodic-Hann STFT, and decodes
+21-symbol tiles into 5-byte brand payloads. Per-tile match fraction
+against the global mode produces the `marked_regions` time-spans.
+
+**AudioSeal** is the Meta FAIR watermark from ICML 2024
+([arXiv:2401.17264](https://arxiv.org/abs/2401.17264)). 16 kHz
+time-domain pipeline using a fully-convolutional SEANet encoder +
+LSTM bottleneck. 16-bit payload carries a 5-bit brand ID with
+3-copy ECC (handles AudioSeal's ~6 % per-bit error). Per-sample
+presence probability drives time-span localisation. New
+`provcheck-kit watermark --kind audioseal --brand-id 1` embeds.
+
+**WavMark** is a 2023 academic release
+([arXiv:2308.12770](https://arxiv.org/abs/2308.12770)). 16 kHz
+STFT-based pipeline using a HiNet invertible neural network.
+32-bit payload split into a 16-bit fix-pattern (the detection
+signal) and a 16-bit ECC-protected brand ID sharing the AudioSeal
+registry. Sliding-window decode at 50 ms steps gives ~50 ms region
+resolution. New `provcheck-kit watermark --kind wavmark --brand-id 1`
+embeds.
+
+All three detectors push results into `Report.watermarks` as
+independent entries; downstream consumers iterate the vec to render
+the timeline strip (CLI text mode, GUI per-detector horizontal bar)
+or aggregate confidence across families.
 
 License posture: only watermark detectors with FOSS-compatible code
-AND model weights are accepted. See
+AND model weights are accepted (all three above are MIT). See
 [`WATERMARK_LICENSE_POLICY.md`](./WATERMARK_LICENSE_POLICY.md) for the
 acceptance criteria and the per-detector survey.
 
@@ -302,6 +339,8 @@ provcheck fills those gaps. It:
 
 | Version | Date | Highlights |
 |---|---|---|
+| **v0.4.2** | 2026-06-19 | **Marked-region localisation across all three detectors.** Silentcipher gains per-tile region derivation from its existing mode-vote match-fraction (no decoder change). CLI text mode prints span lists (`marked: 0:02–0:14, 0:21–0:58`); the GUI renders a horizontal timeline strip per detector with a shared horizontal scale so multi-detector hits line up visually. |
+| **v0.4.1** | 2026-06-19 | **WavMark detect + embed** — third neural-watermark family. 32-bit payload (16-bit fix-pattern + 16-bit ECC-protected brand ID) at 16 kHz, STFT-based HiNet invertible-NN core, sliding-window decode at 50 ms resolution. New `kit watermark --kind wavmark`. STFT/iSTFT live in Rust because PyTorch's `return_complex=True` op rejects opset-17 ONNX export; only the HiNet block ships as ONNX. SDR ~54 dB on the embed roundtrip. |
 | **v0.4.0** | 2026-06-19 | **AudioSeal detect + embed** — second neural-watermark family. 5-bit brand ID with 3-copy ECC (handles AudioSeal's ~6% per-bit error). 16 kHz time-domain pipeline. New `kit watermark --kind audioseal --brand-id 1` for embed. Adds `marked_regions` to verifier output for per-time-span localisation. New shared numeric brand registry. |
 | v0.3.9 | 2026-06-18 | Detector early-exit + parallel chunks — **4.4× speedup** on a 60s marked file (98s → 22s). Workspace CI fix (rustdoc was choking on indented pseudocode in encode.rs). |
 | v0.3.8 | 2026-06-18 | **Watermark EMBEDDING capability.** New `provcheck-kit watermark <input> -o <output.wav>` re-stamps silentcipher marks into audio that's had its original mark damaged by ffmpeg loudness normalisation. Embed wall-clock is ~0.8x real-time on a 60s file. |
