@@ -188,6 +188,12 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
     } else {
         None
     };
+    let marked_regions = if detected {
+        let regs = regions_from_tile_quality(&decoded.tile_quality);
+        if regs.is_empty() { None } else { Some(regs) }
+    } else {
+        None
+    };
 
     Ok(WatermarkResult {
         kind: WatermarkKind::SilentCipher,
@@ -197,8 +203,64 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
         payload,
         brand,
         message: None,
-        marked_regions: None,
+        marked_regions,
     })
+}
+
+/// Per-tile match fraction threshold separating "this tile sits
+/// inside a watermarked stretch" from "this tile is clean audio".
+///
+/// Random arg-max with no signal has expected match fraction
+/// `1 / MESSAGE_DIM = 0.20`. A fully-marked tile rides near 1.0.
+/// 0.55 leaves a comfortable margin above noise without rejecting
+/// realistic mid-quality tiles (e.g. lossy-compressed audio that
+/// still carries the mark at reduced fidelity).
+const TILE_QUALITY_THRESHOLD: f32 = 0.55;
+
+/// Minimum span duration (seconds) for a contiguous-hot-tile run
+/// to be reported in `marked_regions`. Below this, single-tile
+/// spikes are dropped as detection noise. One MESSAGE_LEN tile is
+/// `21 * 2048 / 44_100 ≈ 0.975 s`, so 2 s ≈ 2 tiles.
+const MIN_REGION_SECONDS: f32 = 2.0;
+
+/// Walk per-tile quality and emit `(start_sec, end_sec)` spans
+/// where the quality stays above [`TILE_QUALITY_THRESHOLD`] for at
+/// least [`MIN_REGION_SECONDS`].
+///
+/// Tile-to-time mapping: tile `i` covers STFT frames
+/// `[i * MESSAGE_LEN, (i+1) * MESSAGE_LEN)`. Each STFT frame is
+/// `HOP` samples apart at `SAMPLE_RATE` Hz, so the tile boundaries
+/// land at `i * MESSAGE_LEN * HOP / SAMPLE_RATE` seconds.
+fn regions_from_tile_quality(tile_quality: &[f32]) -> Vec<(f32, f32)> {
+    if tile_quality.is_empty() {
+        return Vec::new();
+    }
+    let secs_per_tile =
+        (hparams::MESSAGE_LEN as f32 * hparams::HOP as f32) / hparams::SAMPLE_RATE as f32;
+    let mut regions = Vec::new();
+    let mut start: Option<usize> = None;
+    for (i, &q) in tile_quality.iter().enumerate() {
+        let hot = q >= TILE_QUALITY_THRESHOLD;
+        match (start, hot) {
+            (None, true) => start = Some(i),
+            (Some(s), false) => {
+                let span_sec = (i - s) as f32 * secs_per_tile;
+                if span_sec >= MIN_REGION_SECONDS {
+                    regions.push((s as f32 * secs_per_tile, i as f32 * secs_per_tile));
+                }
+                start = None;
+            }
+            _ => {}
+        }
+    }
+    if let Some(s) = start {
+        let end = tile_quality.len();
+        let span_sec = (end - s) as f32 * secs_per_tile;
+        if span_sec >= MIN_REGION_SECONDS {
+            regions.push((s as f32 * secs_per_tile, end as f32 * secs_per_tile));
+        }
+    }
+    regions
 }
 
 /// Confidence at or above which we trust the partial decode and

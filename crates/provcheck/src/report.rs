@@ -257,11 +257,13 @@ pub struct WatermarkResult {
     pub message: Option<String>,
 
     /// Optional time-spans (in seconds, `(start, end)`) where the
-    /// watermark is detected. Populated by detectors that emit
-    /// per-sample localisation — currently AudioSeal only.
-    /// silentcipher leaves this as `None` because its mode-vote
-    /// across tiles is aggregated globally and doesn't preserve
-    /// per-sample presence. Omitted from JSON when `None`.
+    /// watermark is detected. Populated by all three detectors
+    /// (silentcipher derives spans from per-tile match-fraction
+    /// against the global mode; AudioSeal and WavMark from
+    /// per-sample / per-window presence). `None` when nothing was
+    /// detected or the audio was too short for any tile/window to
+    /// land cleanly inside a marked stretch. Omitted from JSON
+    /// when `None`.
     ///
     /// Backward-compatible serde: defaults to `None` on deserialise
     /// so older verifier outputs without this field still parse.
@@ -518,6 +520,12 @@ impl Display for Report {
                                 payload.iter().map(|b| format!("{:02x}", b)).collect();
                             let _ = writeln!(f, "    payload: {}", hex);
                         }
+                        if let Some(regions) = &wm.marked_regions
+                            && !regions.is_empty()
+                        {
+                            let _ =
+                                writeln!(f, "    marked: {}", format_regions(regions));
+                        }
                     }
                     WatermarkStatus::NotDetected => {
                         if let Some(msg) = &wm.message {
@@ -553,6 +561,42 @@ impl Display for Report {
         }
 
         Ok(())
+    }
+}
+
+/// Render a list of `(start_sec, end_sec)` spans as a compact
+/// human-readable string: `0:02–0:14, 0:21–0:58`. Times under one
+/// hour use `M:SS`; longer files use `H:MM:SS`. If more than four
+/// regions are present, the rendering truncates with an ellipsis
+/// (`0:02–0:14, …, 1:42–2:01 (7 regions)`) so the line stays
+/// scannable in the text report.
+fn format_regions(regions: &[(f32, f32)]) -> String {
+    fn fmt_time(t: f32) -> String {
+        let total = t.max(0.0) as u64;
+        let h = total / 3600;
+        let m = (total % 3600) / 60;
+        let s = total % 60;
+        if h > 0 {
+            format!("{h}:{m:02}:{s:02}")
+        } else {
+            format!("{m}:{s:02}")
+        }
+    }
+    fn fmt_span((a, b): &(f32, f32)) -> String {
+        format!("{}\u{2013}{}", fmt_time(*a), fmt_time(*b))
+    }
+
+    let n = regions.len();
+    if n <= 4 {
+        regions
+            .iter()
+            .map(fmt_span)
+            .collect::<Vec<_>>()
+            .join(", ")
+    } else {
+        let head = fmt_span(&regions[0]);
+        let tail = fmt_span(&regions[n - 1]);
+        format!("{head}, …, {tail} ({n} regions)")
     }
 }
 
@@ -603,4 +647,39 @@ fn process_assertions(assertions: &serde_json::Value) -> String {
         }
     }
     s
+}
+
+#[cfg(test)]
+mod tests {
+    use super::format_regions;
+
+    #[test]
+    fn format_regions_short_list_inline() {
+        let regs = vec![(2.0, 14.0), (21.0, 58.0)];
+        assert_eq!(format_regions(&regs), "0:02\u{2013}0:14, 0:21\u{2013}0:58");
+    }
+
+    #[test]
+    fn format_regions_uses_hms_past_one_hour() {
+        let regs = vec![(0.0, 3725.0)];
+        assert_eq!(format_regions(&regs), "0:00\u{2013}1:02:05");
+    }
+
+    #[test]
+    fn format_regions_truncates_long_lists() {
+        let regs = vec![
+            (0.0, 5.0),
+            (10.0, 15.0),
+            (20.0, 25.0),
+            (30.0, 35.0),
+            (40.0, 45.0),
+            (50.0, 55.0),
+            (60.0, 65.0),
+        ];
+        let s = format_regions(&regs);
+        assert!(s.starts_with("0:00\u{2013}0:05"));
+        assert!(s.contains("1:00\u{2013}1:05"));
+        assert!(s.contains("(7 regions)"));
+        assert!(s.contains('\u{2026}'), "expected ellipsis: {s}");
+    }
 }

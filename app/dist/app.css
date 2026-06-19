@@ -545,6 +545,30 @@ body {
   margin-top: 1px;
 }
 
+/* Per-detector timeline strip — thin horizontal bar showing the
+ * time-spans where the watermark was detected. Shares a horizontal
+ * extent across all detectors on the same report so spans from
+ * different detectors line up visually. Aria-label on the strip
+ * carries the same info for screen readers. */
+.watermark-timeline {
+  position: relative;
+  margin-top: 6px;
+  height: 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--text-muted) 18%, transparent);
+  overflow: hidden;
+}
+.watermark-timeline-seg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--status-success) 70%, transparent);
+  border-radius: 2px;
+}
+.watermark-badge.is-degraded .watermark-timeline-seg {
+  background: color-mix(in srgb, var(--status-warning) 70%, transparent);
+}
+
 /* Failure reason banner */
 .reason {
   padding: 14px 18px;

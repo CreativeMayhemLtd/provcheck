@@ -253,12 +253,28 @@ function renderWatermarks(list) {
     return;
   }
   $watermarks.hidden = false;
+  // Pick a shared timeline extent across all detectors so the
+  // strips line up visually — if AudioSeal reports a mark at
+  // 0:15–0:45 and WavMark at 0:10–0:50 on the same 60-second file,
+  // both bars should use the same horizontal scale. We don't have
+  // the file's total duration on the report, so we infer extent
+  // from the last marked-region end across detectors and pad ~5%
+  // so the trailing edge isn't flush against the right margin.
+  let maxEnd = 0;
   for (const wm of list) {
-    $watermarks.appendChild(buildWatermarkBadge(wm));
+    const regs = Array.isArray(wm.marked_regions) ? wm.marked_regions : [];
+    for (const r of regs) {
+      const end = Number(Array.isArray(r) ? r[1] : 0);
+      if (end > maxEnd) maxEnd = end;
+    }
+  }
+  const extent = maxEnd > 0 ? maxEnd * 1.05 : 0;
+  for (const wm of list) {
+    $watermarks.appendChild(buildWatermarkBadge(wm, extent));
   }
 }
 
-function buildWatermarkBadge(wm) {
+function buildWatermarkBadge(wm, extent) {
   const detector =
     wm.kind === "silent_cipher" ? "silentcipher" : (wm.kind || "watermark");
   const msg = wm.message || "";
@@ -308,9 +324,46 @@ function buildWatermarkBadge(wm) {
   subEl.className = "watermark-sub";
   subEl.textContent = sub;
   text.appendChild(subEl);
-  badge.appendChild(text);
 
+  const strip = buildMarkedTimeline(wm.marked_regions, extent);
+  if (strip) text.appendChild(strip);
+
+  badge.appendChild(text);
   return badge;
+}
+
+function buildMarkedTimeline(regions, extent) {
+  if (!Array.isArray(regions) || regions.length === 0 || !extent || extent <= 0) {
+    return null;
+  }
+  const strip = document.createElement("div");
+  strip.className = "watermark-timeline";
+  strip.setAttribute(
+    "aria-label",
+    "Watermark presence over time: " +
+      regions.map((r) => formatTimecode(r[0]) + "–" + formatTimecode(r[1])).join(", ")
+  );
+  for (const r of regions) {
+    const start = Math.max(0, Number(r[0]) || 0);
+    const end = Math.max(start, Number(r[1]) || 0);
+    if (end <= start) continue;
+    const seg = document.createElement("div");
+    seg.className = "watermark-timeline-seg";
+    seg.style.left = ((start / extent) * 100).toFixed(2) + "%";
+    seg.style.width = (((end - start) / extent) * 100).toFixed(2) + "%";
+    seg.title = formatTimecode(start) + "–" + formatTimecode(end);
+    strip.appendChild(seg);
+  }
+  return strip;
+}
+
+function formatTimecode(sec) {
+  const s = Math.max(0, Math.floor(Number(sec) || 0));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const ss = s % 60;
+  const pad = (n) => n.toString().padStart(2, "0");
+  return h > 0 ? h + ":" + pad(m) + ":" + pad(ss) : m + ":" + pad(ss);
 }
 
 function formatBrand(brand) {

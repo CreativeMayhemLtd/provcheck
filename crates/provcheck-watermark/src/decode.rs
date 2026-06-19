@@ -29,6 +29,16 @@ pub struct DecodeResult {
     /// its absence means the bits are not a silentcipher
     /// message.
     pub valid: bool,
+    /// Per-tile match fraction in `[0, 1]`. `tile_quality[i]`
+    /// is the fraction of the `i`-th tile's `MESSAGE_LEN`
+    /// positions whose symbol equalled the global per-position
+    /// mode. Used by the localisation pass in `lib::detect` to
+    /// derive `marked_regions`: tiles with a high match
+    /// fraction sit inside a watermarked stretch; tiles near
+    /// chance (~`1 / MESSAGE_DIM`) sit in clean / unmarked
+    /// audio. Empty when `valid == false` or when the input
+    /// produced zero tiles.
+    pub tile_quality: Vec<f32>,
 }
 
 /// Run argmax + per-position mode + terminator-find +
@@ -64,6 +74,7 @@ pub fn decode_logits(logits: &[f32], t_frames: usize) -> DecodeResult {
             payload: [0; 5],
             confidence: 0.0,
             valid: false,
+            tile_quality: Vec::new(),
         };
     }
     let usable = n_tiles * MESSAGE_LEN;
@@ -95,13 +106,21 @@ pub fn decode_logits(logits: &[f32], t_frames: usize) -> DecodeResult {
 
     // 4. Confidence = fraction of (tile, position) pairs where
     //    the tile's symbol equals the per-position mode.
+    //    Also record the per-tile match count so the caller can
+    //    derive marked_regions: a tile fully matching the mode
+    //    sits inside a watermarked stretch, a tile near 1/5
+    //    matches sits in clean audio.
     let mut matches = 0u32;
+    let mut tile_quality = Vec::with_capacity(n_tiles);
     for tile in 0..n_tiles {
+        let mut tile_matches = 0u32;
         for p in 0..MESSAGE_LEN {
             if pred[tile * MESSAGE_LEN + p] == mode_per_pos[p] {
-                matches += 1;
+                tile_matches += 1;
             }
         }
+        matches += tile_matches;
+        tile_quality.push(tile_matches as f32 / MESSAGE_LEN as f32);
     }
     let confidence = matches as f32 / (n_tiles * MESSAGE_LEN) as f32;
 
@@ -116,6 +135,7 @@ pub fn decode_logits(logits: &[f32], t_frames: usize) -> DecodeResult {
                 payload: [0; 5],
                 confidence: 0.0,
                 valid: false,
+                tile_quality: Vec::new(),
             };
         }
     };
@@ -138,6 +158,7 @@ pub fn decode_logits(logits: &[f32], t_frames: usize) -> DecodeResult {
                 payload: [0; 5],
                 confidence: 0.0,
                 valid: false,
+                tile_quality: Vec::new(),
             };
         }
         *s -= 1;
@@ -161,6 +182,7 @@ pub fn decode_logits(logits: &[f32], t_frames: usize) -> DecodeResult {
         payload,
         confidence,
         valid: true,
+        tile_quality,
     }
 }
 
