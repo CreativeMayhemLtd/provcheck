@@ -75,14 +75,11 @@ pub fn sign_asset(
     dst: &Path,
     manifest_json: &str,
 ) -> Result<SignResult, SignError> {
-    // Confirm src exists before reaching into c2pa — keeps the
-    // error semantics clean (one place where "file missing" is
-    // surfaced, c2pa errors are for c2pa concerns).
-    std::fs::metadata(src).map_err(SignError::Source)?;
-
+    // Software-backed convenience entry: build the c2pa signer from
+    // the in-memory PEM, then defer to the signer-only path so the
+    // builder / chain / sign_file plumbing lives in exactly one place.
     let alg = parse_algorithm(&identity.locked.algorithm)
         .ok_or_else(|| SignError::UnknownAlgorithm(identity.locked.algorithm.clone()))?;
-
     let signer = c2pa::create_signer::from_keys(
         identity.locked.chain_pem.as_bytes(),
         identity.key_pem().expose_secret().as_bytes(),
@@ -90,6 +87,26 @@ pub fn sign_asset(
         None, // No TSA URL — Phase 6 followup if anyone needs trusted timestamps
     )
     .map_err(|e| SignError::SignerSetup(e.to_string()))?;
+
+    sign_asset_with_signer(signer.as_ref(), src, dst, manifest_json)
+}
+
+/// Sign an asset using a pre-built [`c2pa::Signer`]. The signer
+/// abstracts over key custody — software-PEM backends produce one
+/// via `c2pa::create_signer::from_keys`, hardware-token backends
+/// (Yubikey, TPM, Secure Enclave) produce one via
+/// [`KeyProvider::signer()`](crate::providers::KeyProvider::signer).
+///
+/// Behaviour is identical to [`sign_asset`] minus the in-memory
+/// PEM lookup — manifest JSON parsing, parent-ingredient chaining,
+/// and `c2pa::Builder::sign_file` are the same.
+pub fn sign_asset_with_signer(
+    signer: &dyn c2pa::Signer,
+    src: &Path,
+    dst: &Path,
+    manifest_json: &str,
+) -> Result<SignResult, SignError> {
+    std::fs::metadata(src).map_err(SignError::Source)?;
 
     let mut builder = c2pa::Builder::from_json(manifest_json)
         .map_err(|e| SignError::ManifestJson(e.to_string()))?;
@@ -126,7 +143,7 @@ pub fn sign_asset(
     }
 
     let manifest_bytes = builder
-        .sign_file(signer.as_ref(), src, dst)
+        .sign_file(signer, src, dst)
         .map_err(|e| SignError::C2pa(e.to_string()))?;
 
     Ok(SignResult {

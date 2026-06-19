@@ -88,6 +88,11 @@ p256 = { version = "0.13", features = ["ecdsa"] }
 # runtime dep on the Yubikey signing path.)
 pem = "3"
 
+# x509-cert is what `yubikey::piv::generate` returns its
+# SubjectPublicKeyInfoOwned through. We re-encode to DER bytes via
+# the `der` feature's Encode trait to hand off to rcgen.
+x509-cert = "0.2"
+
 [dev-dependencies]
 # Round-trip tests: re-read the rcgen output via x509-parser to
 # confirm the cert chain decodes cleanly and contains what we set.

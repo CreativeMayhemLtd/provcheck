@@ -24,6 +24,11 @@ provcheck-attestation-spec = { path = "../provcheck-attestation-spec" }
 provcheck-watermark = { path = "../provcheck-watermark" }
 # v0.4.0: second watermark family. Adds `kit watermark --kind audioseal`.
 provcheck-audioseal = { path = "../provcheck-audioseal" }
+
+# v0.5.0: kit sign now consumes Box<dyn c2pa::Signer> directly via
+# provider.signer() so the HSM-backed Yubikey path skips the
+# PEM-extraction step the software backends still use internally.
+c2pa.workspace = true
 # v0.4.1: third watermark family. Adds `kit watermark --kind wavmark`.
 provcheck-wavmark = { path = "../provcheck-wavmark" }
 

@@ -17,7 +17,7 @@
 //!   can render a "Try again" hint on retries.
 
 use provcheck_sign::providers::{
-    NewPassphrasePrompt, PassphraseResult, ProviderError, UnlockPrompt,
+    NewPassphrasePrompt, PassphraseResult, ProviderError, UnlockHint, UnlockPrompt,
 };
 use secrecy::SecretString;
 
@@ -57,18 +57,34 @@ pub fn new_passphrase() -> impl FnMut(NewPassphrasePrompt) -> PassphraseResult {
 
 /// Construct a closure suitable for
 /// `provcheck_sign::providers::KeyProvider::fetch`'s
-/// unlock-passphrase callback.
+/// unlock-passphrase callback. Backend-agnostic — branches on the
+/// prompt's [`UnlockHint`] so a Yubikey backend gets a PIN prompt
+/// (with tries-remaining surfaced) and software backends get the
+/// usual passphrase prompt.
 pub fn unlock_passphrase() -> impl FnMut(UnlockPrompt) -> PassphraseResult {
-    move |prompt: UnlockPrompt| {
-        if prompt.attempt == 1 {
-            eprintln!("Unlock {} key material.", prompt.purpose);
-        } else {
+    move |prompt: UnlockPrompt| match prompt.hint {
+        Some(UnlockHint::YubikeyPin { tries_remaining }) => {
             eprintln!(
-                "Wrong passphrase. Attempt {} of 3 — try again.",
-                prompt.attempt
+                "Enter Yubikey PIV PIN ({tries_remaining} retries remaining). \
+                 3 wrong tries locks the device until PUK recovery."
             );
+            let pin = rpassword::prompt_password("PIV PIN: ").map_err(ProviderError::Io)?;
+            if pin.is_empty() {
+                return Err(ProviderError::UserCancelled);
+            }
+            Ok(SecretString::from(pin))
         }
-        let pass = rpassword::prompt_password("passphrase: ").map_err(ProviderError::Io)?;
-        Ok(SecretString::from(pass))
+        None => {
+            if prompt.attempt == 1 {
+                eprintln!("Unlock {} key material.", prompt.purpose);
+            } else {
+                eprintln!(
+                    "Wrong passphrase. Attempt {} of 3 — try again.",
+                    prompt.attempt
+                );
+            }
+            let pass = rpassword::prompt_password("passphrase: ").map_err(ProviderError::Io)?;
+            Ok(SecretString::from(pass))
+        }
     }
 }

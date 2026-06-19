@@ -23,7 +23,7 @@
 use provcheck_attestation_spec::fingerprint_leaf_der;
 use rcgen::{
     BasicConstraints, CertificateParams, DistinguishedName, DnType, ExtendedKeyUsagePurpose, IsCa,
-    KeyPair, KeyUsagePurpose,
+    KeyPair, KeyUsagePurpose, SubjectPublicKeyInfo,
 };
 
 /// Subject metadata baked into the generated certs.
@@ -57,6 +57,21 @@ impl Default for SubjectInfo {
             ca_common_name: "Local Install CA".to_string(),
         }
     }
+}
+
+/// A cert chain whose end-entity public key came from an external
+/// signer (e.g. a Yubikey PIV slot). The chain is ready to persist
+/// in `identity.json::chain_pem`; no software private key is
+/// produced because the EE private half lives on the device.
+#[derive(Debug, Clone)]
+pub struct ExternalKeypairChain {
+    /// EE cert PEM followed by CA cert PEM, concatenated.
+    pub chain_pem: String,
+    /// Canonical fingerprint of the leaf cert.
+    pub fingerprint: String,
+    /// JWS algorithm identifier matching the external key — for
+    /// Yubikey PIV slot 9c with EccP256 this is always `"ES256"`.
+    pub algorithm: String,
 }
 
 /// A freshly-generated keypair + cert chain, ready to persist.
@@ -100,6 +115,8 @@ pub enum CertError {
     EeKeypair(String),
     #[error("EE cert signing failed: {0}")]
     EeCert(String),
+    #[error("external public key not parseable as SubjectPublicKeyInfo: {0}")]
+    ExternalPubkey(String),
 }
 
 /// Generate a fresh ES256 keypair + a self-signed CA + an EE cert
@@ -162,6 +179,72 @@ pub fn generate(subject: &SubjectInfo) -> Result<GeneratedKeypair, CertError> {
     Ok(GeneratedKeypair {
         chain_pem,
         key_pem,
+        fingerprint,
+        algorithm: "ES256".to_string(),
+    })
+}
+
+/// Issue a leaf cert whose public key comes from an external signer
+/// (e.g. a Yubikey PIV slot's freshly-generated pubkey). Mints an
+/// ephemeral software CA, signs the leaf with it, and returns the
+/// resulting chain. The CA's private key drops at function return
+/// — only the CA cert + EE cert end up in the persisted chain.
+///
+/// `ee_pubkey_spki_der` is the DER-encoded SubjectPublicKeyInfo
+/// returned by `yubikey::piv::generate(...)?.to_der()`. The
+/// algorithm field must match `subject` semantics — for v0.5.0 this
+/// is always ES256 / P-256.
+///
+/// The resulting [`ExternalKeypairChain::chain_pem`] is structurally
+/// identical to what [`generate`] produces (EE then CA, both as PEM
+/// blocks), so persistence + verifier round-trip code paths are
+/// indifferent to whether the EE private key lives in software or
+/// on a hardware token.
+pub fn issue_ee_cert_with_external_pubkey(
+    subject: &SubjectInfo,
+    ee_pubkey_spki_der: &[u8],
+) -> Result<ExternalKeypairChain, CertError> {
+    // --- Step 1: Self-signed root CA (same shape as `generate`) ---
+    let ca_key = KeyPair::generate().map_err(|e| CertError::CaKeypair(e.to_string()))?;
+
+    let mut ca_params = CertificateParams::default();
+    let mut ca_dn = DistinguishedName::new();
+    ca_dn.push(DnType::CommonName, subject.ca_common_name.clone());
+    ca_dn.push(DnType::OrganizationName, subject.organisation.clone());
+    ca_params.distinguished_name = ca_dn;
+    ca_params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
+    ca_params.key_usages = vec![KeyUsagePurpose::KeyCertSign, KeyUsagePurpose::CrlSign];
+
+    let ca_cert = ca_params
+        .self_signed(&ca_key)
+        .map_err(|e| CertError::CaCert(e.to_string()))?;
+
+    let ca_issuer = rcgen::Issuer::from_ca_cert_der(ca_cert.der(), &ca_key)
+        .map_err(|e| CertError::CaIssuer(e.to_string()))?;
+
+    // --- Step 2: EE params + external public key ---
+    let ee_pubkey = SubjectPublicKeyInfo::from_der(ee_pubkey_spki_der)
+        .map_err(|e| CertError::ExternalPubkey(e.to_string()))?;
+
+    let mut ee_params = CertificateParams::default();
+    let mut ee_dn = DistinguishedName::new();
+    ee_dn.push(DnType::CommonName, subject.common_name.clone());
+    ee_dn.push(DnType::OrganizationName, subject.organisation.clone());
+    ee_params.distinguished_name = ee_dn;
+    ee_params.is_ca = IsCa::ExplicitNoCa;
+    ee_params.key_usages = vec![KeyUsagePurpose::DigitalSignature];
+    ee_params.extended_key_usages = vec![ExtendedKeyUsagePurpose::EmailProtection];
+    ee_params.use_authority_key_identifier_extension = true;
+
+    let ee_cert = ee_params
+        .signed_by(&ee_pubkey, &ca_issuer)
+        .map_err(|e| CertError::EeCert(e.to_string()))?;
+
+    let chain_pem = format!("{}{}", ee_cert.pem(), ca_cert.pem());
+    let fingerprint = fingerprint_leaf_der(ee_cert.der());
+
+    Ok(ExternalKeypairChain {
+        chain_pem,
         fingerprint,
         algorithm: "ES256".to_string(),
     })

@@ -3800,6 +3800,7 @@ name = "provcheck-kit"
 version = "0.4.2"
 dependencies = [
  "anyhow",
+ "c2pa",
  "clap",
  "hound",
  "provcheck",
@@ -3875,6 +3876,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "time",
+ "x509-cert",
  "x509-parser 0.16.0",
  "yubikey",
  "zeroize",

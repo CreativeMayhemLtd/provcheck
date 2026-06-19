@@ -183,6 +183,7 @@ pub mod init {
     use provcheck_sign::cert::{SubjectInfo, generate};
     use provcheck_sign::persist::{default_dir, load_locked, save_public_artefacts};
     use provcheck_sign::providers::{AgeFileProvider, KeyProvider, KeychainProvider};
+    use provcheck_sign::providers::yubikey::{create_on_device, list_connected};
     use provcheck_sign::types::{KeyProviderKind, LockedIdentity, RecoveryRecipient};
 
     use crate::prompts::new_passphrase;
@@ -197,12 +198,35 @@ pub mod init {
         /// Force the encrypted-file backend instead of the OS
         /// keychain. Used on headless CI hosts or when the user
         /// explicitly opts out of OS keychain involvement.
-        #[arg(long)]
+        #[arg(long, conflicts_with = "yubikey")]
         pub age_file: bool,
+
+        /// Mint the identity on a Yubikey PIV slot. The private
+        /// key is generated on-device and never extractable —
+        /// every signature requires the PIV PIN. Slot is fixed
+        /// at `0x9c` (Digital Signature) for v0.5.0.
+        ///
+        /// If multiple Yubikeys are connected, pass `--serial N`
+        /// to disambiguate.
+        ///
+        /// **Pre-requisites**: the Yubikey must have a PIV PIN
+        /// other than the factory default `123456`. Run
+        /// `ykman piv access change-pin` before this command if
+        /// you haven't already.
+        #[arg(long, conflicts_with_all = ["age_file", "recovery_recipients"])]
+        pub yubikey: bool,
+
+        /// Yubikey hardware serial — required when more than one
+        /// Yubikey is plugged in, optional otherwise. Ignored
+        /// without `--yubikey`.
+        #[arg(long, value_name = "N", requires = "yubikey")]
+        pub serial: Option<u32>,
 
         /// Register an X25519 recovery recipient (`age1...` format).
         /// Repeatable. Affects backup operations only — the at-rest
         /// file is passphrase-only by age format constraint.
+        /// Mutually exclusive with `--yubikey` (a Yubikey-backed
+        /// private key has no on-disk material to recipient-encrypt).
         #[arg(long = "recovery-recipient", value_name = "AGE_PUBKEY")]
         pub recovery_recipients: Vec<String>,
 
@@ -228,6 +252,10 @@ pub mod init {
                  orphans any previously-published atproto records).",
                 dir.display()
             );
+        }
+
+        if args.yubikey {
+            return run_yubikey(args, dir).await;
         }
 
         eprintln!("Generating ES256 keypair…");
@@ -314,6 +342,102 @@ pub mod init {
 
         Ok(())
     }
+
+    /// Yubikey-backed `kit init` flow. Generates the keypair
+    /// on-device, builds an ephemeral software CA, issues the leaf
+    /// cert, writes it into slot 9c, and persists the public
+    /// artefacts. The private key never enters host RAM.
+    async fn run_yubikey(args: CliArgs, dir: std::path::PathBuf) -> Result<()> {
+        // Detect connected Yubikeys before prompting the user — gives
+        // a clearer error path when zero devices are present.
+        let serials = list_connected().context("enumerate Yubikeys")?;
+        let serial = match (serials.len(), args.serial) {
+            (0, _) => bail!(
+                "no Yubikey detected. Plug one into a USB port and try again. \
+                 If a device is plugged in but isn't found, run `ykman list` to \
+                 confirm the OS sees it."
+            ),
+            (1, None) => serials[0],
+            (1, Some(req)) if req == serials[0] => serials[0],
+            (1, Some(req)) => bail!(
+                "requested serial {req} but the only connected Yubikey is {}",
+                serials[0]
+            ),
+            (_, None) => bail!(
+                "multiple Yubikeys connected ({:?}). Pass `--serial N` to pick one.",
+                serials
+            ),
+            (_, Some(req)) => {
+                if !serials.contains(&req) {
+                    bail!(
+                        "requested serial {req} not found among connected devices ({:?})",
+                        serials
+                    );
+                }
+                req
+            }
+        };
+
+        eprintln!(
+            "Detected Yubikey serial {serial}. v0.5.0 generates the key on \
+             PIV slot 0x9c (Digital Signature) with PinPolicy::Always."
+        );
+        eprintln!();
+        eprintln!(
+            "  WARNING: slot 0x9c will be OVERWRITTEN. Any prior key in that \
+             slot is destroyed (no recovery)."
+        );
+        eprintln!();
+
+        // Prompt for the PIV PIN. Plain rpassword — no PIN length /
+        // policy check (yubikey enforces 6-8 chars itself on verify).
+        let pin = rpassword::prompt_password("PIV PIN: ").context("read PIN")?;
+        if pin.is_empty() {
+            bail!("PIN required — aborted");
+        }
+        if pin == "123456" {
+            bail!(
+                "refusing to use the factory-default PIN (123456). \
+                 Change it first with `ykman piv access change-pin`."
+            );
+        }
+        let pin = secrecy::SecretString::from(pin);
+
+        eprintln!("Generating ES256 keypair on slot 0x9c…");
+        let created =
+            create_on_device(serial, &pin, None, &SubjectInfo::default()).map_err(|e| {
+                anyhow::anyhow!("create-on-device: {e}").context(
+                    "If management-key auth failed, you've already changed it from \
+                     factory default. v0.5.0's kit init only supports the factory \
+                     management key; use ykman to mint the keypair directly, then \
+                     restore via `kit import-yubikey` (lands in v0.5.1).",
+                )
+            })?;
+
+        let now = OffsetDateTime::now_utc();
+        let locked = LockedIdentity {
+            chain_pem: created.chain_pem,
+            fingerprint: created.fingerprint.clone(),
+            algorithm: created.algorithm,
+            did: None,
+            handle: None,
+            created_at: now,
+            key_provider: created.key_provider,
+            recovery_recipients: vec![],
+        };
+
+        save_public_artefacts(&dir, &locked).context("save chain + identity.json")?;
+
+        eprintln!();
+        eprintln!("✓ Yubikey identity created.");
+        eprintln!("  Fingerprint: {}", created.fingerprint);
+        eprintln!("  Storage:     {}", dir.display());
+        eprintln!("  Backend:     Yubikey (serial {serial}, PIV slot 0x9c)");
+        eprintln!();
+        eprintln!("Next step: `kit login` to attach an atproto identity.");
+
+        Ok(())
+    }
 }
 
 // ----------------------------------------------------------------
@@ -370,6 +494,34 @@ pub mod status {
                         } => format!("yubikey (serial {serial}, slot 0x{slot:02x})"),
                     }
                 );
+                // For Yubikey identities, query the live device state
+                // so the user sees whether the token is plugged in and
+                // how many PIN tries remain. Soft-failure: if the
+                // device isn't reachable, surface that as an
+                // informational line rather than aborting.
+                if let provcheck_sign::types::KeyProviderKind::Yubikey { serial, slot } =
+                    locked.key_provider
+                {
+                    let provider = provcheck_sign::providers::YubikeyProvider::new(serial, slot);
+                    match provider.pin_tries_remaining() {
+                        Ok(tries) => {
+                            println!("  device:      present");
+                            println!("  PIN tries:   {tries} of 3 remaining");
+                            if tries == 0 {
+                                println!(
+                                    "               (locked — run `ykman piv access \
+                                     unblock-pin` to recover)"
+                                );
+                            } else if tries == 1 {
+                                println!("               (one more failed attempt locks the PIN)");
+                            }
+                        }
+                        Err(e) => {
+                            println!("  device:      not reachable ({e})");
+                            println!("               (plug the Yubikey into a USB port)");
+                        }
+                    }
+                }
                 println!("  storage:     {}", dir.display());
                 if let Some(did) = &locked.did {
                     println!("  did:         {}", did);
@@ -426,16 +578,19 @@ pub mod status {
 pub mod sign {
     use std::path::PathBuf;
 
-    use anyhow::{Context, Result, bail};
+    use anyhow::{Context, Result};
     use clap::Args;
 
     use provcheck_attestation_spec::IdentityClaim;
     use provcheck_sign::persist::{default_dir, load_locked};
-    use provcheck_sign::providers::{AgeFileProvider, KeyProvider, KeychainProvider};
-    use provcheck_sign::sign::{
-        SignAction, default_action_for, embed_identity_assertion, inspect_source, sign_asset,
+    use provcheck_sign::providers::{
+        AgeFileProvider, KeyProvider, KeychainProvider, YubikeyProvider,
     };
-    use provcheck_sign::types::{KeyProviderKind, UnlockedIdentity};
+    use provcheck_sign::sign::{
+        SignAction, default_action_for, embed_identity_assertion, inspect_source,
+        sign_asset_with_signer,
+    };
+    use provcheck_sign::types::KeyProviderKind;
 
     use crate::prompts::unlock_passphrase;
 
@@ -502,22 +657,24 @@ pub mod sign {
         let locked = load_locked(&dir)
             .context("load identity — run `kit init` first if you haven't already")?;
 
-        // Unlock via the recorded provider backend.
+        // Construct a c2pa signer via the recorded backend. The
+        // provider's `signer()` method handles passphrase / PIN entry
+        // and (for Yubikey) device interaction. Software backends
+        // wrap a fetched PEM via c2pa's existing builders; the
+        // Yubikey backend returns a custom signer that delegates
+        // every signature to the on-device key.
         let mut prompt = unlock_passphrase();
-        let key_pem = match locked.key_provider {
+        let signer: Box<dyn c2pa::Signer> = match locked.key_provider {
             KeyProviderKind::Keychain => KeychainProvider::new()
-                .fetch(&dir, &locked.fingerprint, &mut prompt)
-                .context("fetch key from OS keychain")?,
+                .signer(&dir, &locked, &mut prompt)
+                .context("build signer from OS keychain")?,
             KeyProviderKind::EncryptedFile => AgeFileProvider::new()
-                .fetch(&dir, &locked.fingerprint, &mut prompt)
-                .context("fetch key from encrypted file")?,
-            KeyProviderKind::Yubikey { .. } => bail!(
-                "Yubikey-backed identities can't sign through this build yet \
-                 (v0.5.0 P1 ships the backend wiring; P2 lands the Yubikey \
-                 signing code). For now, signing requires a software backend."
-            ),
+                .signer(&dir, &locked, &mut prompt)
+                .context("build signer from encrypted file")?,
+            KeyProviderKind::Yubikey { serial, slot } => YubikeyProvider::new(serial, slot)
+                .signer(&dir, &locked, &mut prompt)
+                .context("build signer from Yubikey")?,
         };
-        let unlocked = UnlockedIdentity::new(locked, key_pem);
 
         // Inspect the source for existing C2PA provenance so we can
         // (a) pick the right default action, (b) tell the user what
@@ -554,14 +711,14 @@ pub mod sign {
         };
 
         let manifest_json = if args.embed_identity {
-            let did = unlocked.locked.did.clone().ok_or_else(|| {
+            let did = locked.did.clone().ok_or_else(|| {
                 anyhow::anyhow!(
                     "--embed-identity requires a DID on the local identity. \
                      Run `kit login` first so the identity has its did + handle \
                      stamped on identity.json."
                 )
             })?;
-            let claim = IdentityClaim::new(did, unlocked.locked.handle.clone());
+            let claim = IdentityClaim::new(did, locked.handle.clone());
             embed_identity_assertion(&base_manifest, &claim)
                 .context("splice app.provcheck.identity assertion into manifest")?
         } else {
@@ -578,7 +735,12 @@ pub mod sign {
             None => (sidecar_tmp_path(&args.file), true),
         };
 
-        let result = match sign_asset(&unlocked, &args.file, &effective_dst, &manifest_json) {
+        let result = match sign_asset_with_signer(
+            signer.as_ref(),
+            &args.file,
+            &effective_dst,
+            &manifest_json,
+        ) {
             Ok(r) => r,
             Err(e) => {
                 // Clean up the temp file so a failed in-place sign
@@ -615,7 +777,7 @@ pub mod sign {
         if args.embed_identity {
             eprintln!(
                 "  identity assertion: embedded ({})",
-                unlocked.locked.did.as_deref().unwrap_or("?")
+                locked.did.as_deref().unwrap_or("?")
             );
         }
         Ok(())
