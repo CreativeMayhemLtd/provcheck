@@ -85,25 +85,97 @@ fn result_serializes_to_json_with_expected_shape() {
     assert!(json.contains("\"payload\""));
 }
 
-/// Real silentcipher-watermarked audio is detected with high
-/// confidence. Requires a marked fixture produced by the
-/// silentcipher *encoder*, which lives in the upstream Python
-/// package (not in this Rust workspace). Generate one via
-/// `scripts/embed-silentcipher.py` on a machine with
-/// silentcipher installed; drop the resulting WAV at
-/// `tests/fixtures/silentcipher-marked.wav` and remove the
-/// `#[ignore]` attribute to activate.
+/// Positive control: a freshly silentcipher-embedded waveform
+/// is detected end-to-end through the full pipeline (decode →
+/// encode → WAV writer → symphonia → STFT → tract → decode),
+/// with the payload recovered intact and confidence above the
+/// model's healthy-detection threshold.
+///
+/// Cover signal is `examples/rAIdio.bot-sample.mp3` checked into
+/// the workspace root. silentcipher was trained on speech /
+/// natural audio (VCTK); synthetic broadband noise sits well
+/// outside that distribution and the encoder produces a mark
+/// that the decoder cannot recover even at high SDR. Real audio
+/// avoids that problem entirely and keeps the test honest about
+/// what production callers actually feed the embed path.
+///
+/// Also asserts that `marked_regions` populates — the v0.4.2
+/// per-tile localisation path runs on every detected result.
 #[test]
-#[ignore = "blocked on a marked fixture from the silentcipher encoder; see scripts/embed-silentcipher.py"]
-fn real_watermarked_audio_is_detected() {
-    let fixture = std::path::Path::new("tests/fixtures/silentcipher-marked.wav");
-    let r = detect(fixture).expect("detect succeeds on real fixture");
-    assert!(r.detected, "expected detection on watermarked fixture");
+fn real_silentcipher_embed_roundtrips_to_detection() {
+    use provcheck_watermark::{audio, encode};
+
+    let cover_path = workspace_example("rAIdio.bot-sample.mp3");
+    if !cover_path.exists() {
+        // The workspace sample is checked in, but be defensive
+        // about exotic shallow-clone setups. Skipping is better
+        // than a misleading panic on a missing file.
+        eprintln!(
+            "skipping: cover sample not present at {}",
+            cover_path.display()
+        );
+        return;
+    }
+
+    let cover = audio::decode_to_mono_44k1(&cover_path).expect("decode cover");
+    assert!(
+        cover.len() >= 44_100 * 5,
+        "cover must be ≥ 5 s of audio; got {} samples",
+        cover.len()
+    );
+
+    // doomscroll.fm payload: "DFM" + schema=1 + reserved=0.
+    let payload: [u8; 5] = [0x44, 0x46, 0x4D, 0x01, 0x00];
+
+    let marked = encode::embed(&cover, payload, None).expect("embed succeeds");
+    assert_eq!(marked.len(), cover.len(), "embed must preserve length");
+
+    let tempfile = write_float_wav(&marked, 44_100);
+    let r = detect(tempfile.path()).expect("detect succeeds on roundtrip fixture");
+
+    assert!(
+        r.detected,
+        "embedded silentcipher mark must be detected end-to-end; got {:?}",
+        r
+    );
+    assert!(
+        matches!(r.status, WatermarkStatus::Detected),
+        "expected Detected status, got {:?}",
+        r.status
+    );
     assert!(
         r.confidence > 0.8,
-        "expected confidence > 0.8, got {}",
+        "expected confidence > 0.8 on a clean roundtrip, got {}",
         r.confidence
     );
+    assert_eq!(
+        r.payload.as_deref(),
+        Some(payload.as_slice()),
+        "decoder must recover the embedded payload"
+    );
+    assert!(
+        matches!(r.brand, Some(WatermarkBrand::Doomscroll)),
+        "DFM payload must map to Doomscroll, got {:?}",
+        r.brand
+    );
+    assert!(
+        r.marked_regions.is_some(),
+        "v0.4.2 localisation must populate marked_regions on detected results; got None"
+    );
+}
+
+/// Resolve a path relative to the workspace `examples/` directory
+/// from inside an integration test. `CARGO_MANIFEST_DIR` is set
+/// to the crate root (`crates/provcheck-watermark`); walking up
+/// two levels gets us back to the workspace root.
+fn workspace_example(name: &str) -> std::path::PathBuf {
+    let manifest = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    manifest
+        .parent()
+        .and_then(|p| p.parent())
+        .expect("workspace root above CARGO_MANIFEST_DIR")
+        .join("examples")
+        .join(name)
 }
 
 /// Real unmarked audio is reported as `NotDetected` with the
@@ -135,6 +207,26 @@ fn real_unmarked_audio_is_not_detected() {
         "unmarked content uses the 0.0 sentinel — structural-validity \
          short-circuits before computing the confidence statistic"
     );
+}
+
+/// Write a mono 32-bit float WAV at 44.1 kHz to a tempfile.
+fn write_float_wav(samples: &[f32], sample_rate: u32) -> tempfile::NamedTempFile {
+    let f = tempfile::Builder::new()
+        .suffix(".wav")
+        .tempfile()
+        .expect("tempfile");
+    let spec = hound::WavSpec {
+        channels: 1,
+        sample_rate,
+        bits_per_sample: 32,
+        sample_format: hound::SampleFormat::Float,
+    };
+    let mut writer = hound::WavWriter::create(f.path(), spec).expect("create wav");
+    for s in samples {
+        writer.write_sample(*s).expect("write sample");
+    }
+    writer.finalize().expect("finalize wav");
+    f
 }
 
 /// Synthesise a mono 44.1 kHz WAV with a mix of audible sine

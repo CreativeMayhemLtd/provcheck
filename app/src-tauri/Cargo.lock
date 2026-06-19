@@ -2792,6 +2792,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "hound"
+version = "3.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "62adaabb884c94955b19907d60019f4e145d091c75345379e70d1ee696f7854f"
+
+[[package]]
 name = "html5ever"
 version = "0.29.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5078,7 +5084,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck"
-version = "0.3.2"
+version = "0.4.2"
 dependencies = [
  "c2pa",
  "provcheck-attestation-spec",
@@ -5089,8 +5095,9 @@ dependencies = [
 
 [[package]]
 name = "provcheck-app"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
+ "keyring",
  "provcheck",
  "provcheck-attestation-spec",
  "provcheck-audioseal",
@@ -5110,7 +5117,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-attestation-spec"
-version = "0.3.2"
+version = "0.4.2"
 dependencies = [
  "pem",
  "serde",
@@ -5120,17 +5127,22 @@ dependencies = [
 
 [[package]]
 name = "provcheck-audioseal"
-version = "0.3.2"
+version = "0.4.2"
 dependencies = [
+ "hound",
  "provcheck",
+ "rayon",
+ "rubato",
  "serde",
  "serde_json",
+ "symphonia",
  "thiserror 2.0.18",
+ "tract-onnx",
 ]
 
 [[package]]
 name = "provcheck-platform"
-version = "0.3.2"
+version = "0.4.2"
 dependencies = [
  "c2pa",
  "dirs 5.0.1",
@@ -5147,7 +5159,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-publish"
-version = "0.3.2"
+version = "0.4.2"
 dependencies = [
  "atrium-api",
  "atrium-identity",
@@ -5163,7 +5175,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-sign"
-version = "0.3.2"
+version = "0.4.2"
 dependencies = [
  "age",
  "c2pa",
@@ -5182,9 +5194,11 @@ dependencies = [
 
 [[package]]
 name = "provcheck-watermark"
-version = "0.3.2"
+version = "0.4.2"
 dependencies = [
+ "hound",
  "provcheck",
+ "rayon",
  "realfft",
  "rubato",
  "serde",
@@ -5197,12 +5211,19 @@ dependencies = [
 
 [[package]]
 name = "provcheck-wavmark"
-version = "0.3.2"
+version = "0.4.2"
 dependencies = [
+ "hound",
  "provcheck",
+ "rayon",
+ "realfft",
+ "rubato",
+ "rustfft",
  "serde",
  "serde_json",
+ "symphonia",
  "thiserror 2.0.18",
+ "tract-onnx",
 ]
 
 [[package]]

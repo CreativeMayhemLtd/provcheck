@@ -299,6 +299,14 @@
             <span>Embed identity assertion (recommended — lets verifiers skip the handle entry step)</span>
           </label>
           <label class="sign-form-remember">
+            <input type="checkbox" id="sign-ai-artist" />
+            <span>This is AI-generated (adds <code>digitalSourceType: trainedAlgorithmicMedia</code>)</span>
+          </label>
+          <label class="sign-form-field sign-ai-model-field" id="sign-ai-model-field" hidden>
+            <span>Tool / model name <em>(optional)</em></span>
+            <input type="text" id="sign-ai-model" placeholder="e.g. ACE-Step v1.0" maxlength="256" />
+          </label>
+          <label class="sign-form-remember">
             <input type="checkbox" id="sign-replace-original" />
             <span>Replace the original (instead of writing a sidecar)</span>
           </label>

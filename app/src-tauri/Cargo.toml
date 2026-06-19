@@ -41,6 +41,13 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 secrecy = "0.10"
 time = { version = "0.3", features = ["formatting"] }
 
+# v0.4.2: "Remember me" — stash the bsky app password in the OS
+# keychain so the Sign tab can prefill the password field on
+# subsequent logins. Distinct service namespace from
+# provcheck-sign's "app.provcheck.kit" (signing-key custody) so
+# password material and signing material never collide.
+keyring = "3"
+
 [[bin]]
 name = "provcheck-app"
 path = "src/main.rs"

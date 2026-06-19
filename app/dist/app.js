@@ -945,6 +945,9 @@ const $sChainSigner = document.getElementById("sign-chain-signer");
 const $sChainToolLabel = document.getElementById("sign-chain-tool-label");
 const $sChainTool = document.getElementById("sign-chain-tool");
 const $sEmbedIdentity = document.getElementById("sign-embed-identity");
+const $sAiArtist = document.getElementById("sign-ai-artist");
+const $sAiModel = document.getElementById("sign-ai-model");
+const $sAiModelField = document.getElementById("sign-ai-model-field");
 const $sReplaceOriginal = document.getElementById("sign-replace-original");
 const $sGoBtn = document.getElementById("sign-go-btn");
 const $sCancelBtn = document.getElementById("sign-cancel-btn");
@@ -1031,6 +1034,12 @@ async function refreshSignTab() {
     const remembered = localStorage.getItem(SIGN_HANDLE_KEY);
     if (remembered && !$sLoginHandle.value) {
       $sLoginHandle.value = remembered;
+    }
+    // Fire-and-forget keychain recall — if we previously stashed a
+    // password for this handle, the field pre-fills + the checkbox
+    // flips to remembered. Doesn't block the state transition.
+    if ($sLoginHandle.value) {
+      tryRecallPasswordFor($sLoginHandle.value);
     }
     showSignState("connect");
     return;
@@ -1133,12 +1142,54 @@ $sLoginForm.addEventListener("submit", async (e) => {
   }
 
   localStorage.setItem(SIGN_HANDLE_KEY, handle);
-  $sLoginPassword.value = "";
   if ($sLoginRemember.checked) {
-    // Phase 9 pass 2 will wire the keychain stash; for now the
-    // checkbox is a no-op so the UI element is in place.
+    // Stash the app password in the OS keychain so the next session
+    // can pre-fill it. Soft failure: if the keychain refuses we
+    // silently fall through — the user is logged in either way.
+    try {
+      await invoke("kit_remember_password", {
+        args: { handle, appPassword: password },
+      });
+    } catch (_e) {
+      // No surfacing — login already succeeded.
+    }
+  } else {
+    // Explicit opt-out: if we previously stored a password for this
+    // handle, clear it so the next login won't auto-fill.
+    try {
+      await invoke("kit_forget_password", { handle });
+    } catch (_e) { /* noop */ }
   }
+  $sLoginPassword.value = "";
   await refreshSignTab();
+});
+
+// When the handle field changes (typed or autofilled), try to recall
+// a previously-stored app password from the keychain. Only fires
+// when the password field is empty so we never overwrite a value the
+// user is mid-typing. Setting the password also flips the
+// "Remember me" checkbox on so the just-recalled credential stays
+// stored after the next successful login.
+async function tryRecallPasswordFor(handle) {
+  const cleaned = (handle || "").trim().replace(/^@/, "");
+  if (!cleaned) return;
+  if ($sLoginPassword.value) return;
+  try {
+    const res = await invoke("kit_recall_password", { handle: cleaned });
+    if (res.ok && typeof res.value === "string" && res.value.length > 0) {
+      $sLoginPassword.value = res.value;
+      $sLoginRemember.checked = true;
+    }
+  } catch (_e) {
+    // Soft failure — the user types their password normally.
+  }
+}
+
+$sLoginHandle.addEventListener("change", () => {
+  tryRecallPasswordFor($sLoginHandle.value);
+});
+$sLoginHandle.addEventListener("blur", () => {
+  tryRecallPasswordFor($sLoginHandle.value);
 });
 
 $signLogoutBtn.addEventListener("click", async () => {
@@ -1196,6 +1247,8 @@ window.signOnDrop = async function (path) {
     path,
     replaceOriginal: $sReplaceOriginal.checked,
     embed: $sEmbedIdentity.checked,
+    aiArtist: $sAiArtist.checked,
+    aiModel: $sAiModel.value.trim(),
     action: null,        // resolved after inspect_source returns
     provenance: null,    // SourceProvenanceDto when source is signed
   };
@@ -1290,6 +1343,13 @@ $sEmbedIdentity.addEventListener("change", () => {
   if (!signStaged) return;
   signStaged.embed = $sEmbedIdentity.checked;
 });
+$sAiArtist.addEventListener("change", () => {
+  $sAiModelField.hidden = !$sAiArtist.checked;
+  if (signStaged) signStaged.aiArtist = $sAiArtist.checked;
+});
+$sAiModel.addEventListener("input", () => {
+  if (signStaged) signStaged.aiModel = $sAiModel.value.trim();
+});
 
 $sCancelBtn.addEventListener("click", () => {
   signStaged = null;
@@ -1308,6 +1368,7 @@ $sGoBtn.addEventListener("click", async () => {
       out,
       embedIdentity: signStaged.embed,
       action: signStaged.action || null,
+      aiArtistModel: signStaged.aiArtist ? (signStaged.aiModel || "") : null,
       dataDir: null,
     },
   });

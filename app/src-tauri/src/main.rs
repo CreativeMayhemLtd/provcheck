@@ -376,6 +376,69 @@ async fn kit_logout(data_dir: Option<String>) -> ApiResult<()> {
     }
 }
 
+// -------- kit_remember_password / kit_recall_password / kit_forget_password ------
+//
+// "Remember me" on the Sign tab. The bsky app password is stashed in
+// the OS keychain (Keychain Services on macOS, Credential Manager on
+// Windows, Secret Service on Linux). Service namespace is
+// `app.provcheck.bsky`, distinct from provcheck-sign's
+// `app.provcheck.kit` so password material and signing-key material
+// never share an entry. Account is the bsky handle so multiple
+// accounts can coexist on one device without colliding.
+//
+// Errors here surface as ApiResult::err to the UI, but they should
+// always be soft: prefill that fails simply leaves the field empty
+// and the user types the password. Login flow never depends on
+// successful keychain access.
+
+const KEYCHAIN_SERVICE: &str = "app.provcheck.bsky";
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RememberArgs {
+    handle: String,
+    app_password: String,
+}
+
+#[tauri::command]
+fn kit_remember_password(args: RememberArgs) -> ApiResult<()> {
+    let entry = match keyring::Entry::new(KEYCHAIN_SERVICE, &args.handle) {
+        Ok(e) => e,
+        Err(e) => return ApiResult::err(format!("keychain entry: {e}")),
+    };
+    match entry.set_password(&args.app_password) {
+        Ok(()) => ApiResult::ok(()),
+        Err(e) => ApiResult::err(format!("keychain set: {e}")),
+    }
+}
+
+#[tauri::command]
+fn kit_recall_password(handle: String) -> ApiResult<Option<String>> {
+    let entry = match keyring::Entry::new(KEYCHAIN_SERVICE, &handle) {
+        Ok(e) => e,
+        Err(e) => return ApiResult::err(format!("keychain entry: {e}")),
+    };
+    match entry.get_password() {
+        Ok(p) => ApiResult::ok(Some(p)),
+        // NoEntry is the expected "not stored" outcome — not an error.
+        Err(keyring::Error::NoEntry) => ApiResult::ok(None),
+        Err(e) => ApiResult::err(format!("keychain get: {e}")),
+    }
+}
+
+#[tauri::command]
+fn kit_forget_password(handle: String) -> ApiResult<()> {
+    let entry = match keyring::Entry::new(KEYCHAIN_SERVICE, &handle) {
+        Ok(e) => e,
+        Err(e) => return ApiResult::err(format!("keychain entry: {e}")),
+    };
+    match entry.delete_credential() {
+        Ok(()) => ApiResult::ok(()),
+        Err(keyring::Error::NoEntry) => ApiResult::ok(()),
+        Err(e) => ApiResult::err(format!("keychain delete: {e}")),
+    }
+}
+
 // -------- kit_publish -----------------------------------------------------
 
 #[derive(Deserialize)]
@@ -499,6 +562,13 @@ struct SignArgs {
     /// kit defaults to "published" if the source already has a
     /// C2PA manifest, "created" otherwise.
     action: Option<String>,
+    /// When Some, mark the produced asset as AI-generated. The
+    /// action assertion carries `digitalSourceType` =
+    /// `trainedAlgorithmicMedia` (the IPTC NewsCodes term verifier
+    /// tooling looks for), and the contained string lands on the
+    /// action's `softwareAgent` field as the model/tool that
+    /// produced the asset. None leaves the manifest unchanged.
+    ai_artist_model: Option<String>,
     data_dir: Option<String>,
 }
 
@@ -608,7 +678,7 @@ async fn kit_sign(args: SignArgs) -> ApiResult<SignResultDto> {
         None => default_action_for(provenance.as_ref()),
     };
 
-    let base_manifest = match default_manifest(&src, action) {
+    let base_manifest = match default_manifest(&src, action, args.ai_artist_model.as_deref()) {
         Ok(m) => m,
         Err(e) => return ApiResult::err(e),
     };
@@ -667,13 +737,31 @@ fn sidecar_signed_path(src: &Path) -> PathBuf {
     }
 }
 
-fn default_manifest(asset: &Path, action: SignAction) -> Result<String, String> {
+fn default_manifest(
+    asset: &Path,
+    action: SignAction,
+    ai_artist_model: Option<&str>,
+) -> Result<String, String> {
     let format = format_from_extension(asset)
         .ok_or_else(|| "unrecognised file extension — custom manifest needed".to_string())?;
     let title = asset
         .file_name()
         .and_then(|s| s.to_str())
         .unwrap_or("untitled");
+    let mut action_obj = serde_json::json!({"action": action.as_c2pa_label()});
+    if let Some(model) = ai_artist_model {
+        let trimmed = model.trim();
+        // Mark the action as AI-generated regardless of whether the
+        // model string is empty — the digitalSourceType is the
+        // verifier-readable signal; softwareAgent is decoration that
+        // only appears when the user gave us a name.
+        action_obj["digitalSourceType"] = serde_json::Value::String(
+            "http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia".to_string(),
+        );
+        if !trimmed.is_empty() {
+            action_obj["softwareAgent"] = serde_json::Value::String(trimmed.to_string());
+        }
+    }
     let v = serde_json::json!({
         "claim_generator": "provcheck-app/0.3.1",
         "claim_generator_info": [{"name": "provcheck-app", "version": "0.3.1"}],
@@ -682,7 +770,7 @@ fn default_manifest(asset: &Path, action: SignAction) -> Result<String, String> 
         "assertions": [
             {
                 "label": "c2pa.actions.v2",
-                "data": {"actions": [{"action": action.as_c2pa_label()}]}
+                "data": {"actions": [action_obj]}
             }
         ]
     });
@@ -725,6 +813,9 @@ fn main() {
             kit_init,
             kit_login,
             kit_logout,
+            kit_remember_password,
+            kit_recall_password,
+            kit_forget_password,
             kit_publish,
             kit_list,
             kit_sign,
