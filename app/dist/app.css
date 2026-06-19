@@ -925,6 +925,42 @@ body {
   border-radius: var(--radius-sm);
 }
 
+/* Stale-key recovery panel — surfaced when local fingerprint is
+ * superseded or revoked on atproto. Honest about the situation
+ * (signatures won't attest) and shows a copyable CLI sequence
+ * for recovery. */
+.sign-stale-recovery {
+  margin: 18px 0;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--status-warning) 8%, var(--bg-dark));
+  border: 1px solid color-mix(in srgb, var(--status-warning) 30%, transparent);
+}
+.sign-stale-recovery-heading {
+  margin: 0 0 6px 0;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+.sign-stale-recovery-cmd {
+  margin: 0;
+  padding: 10px 12px;
+  background: var(--bg-darker, var(--bg-dark));
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-all;
+  border: 1px solid var(--border-subtle);
+}
+#sign-stale-status {
+  color: var(--status-warning);
+  font-weight: 600;
+}
+
 /* Sign-ready states (drop / preview / signing / done) */
 .dropzone-sign {
   flex: 1;

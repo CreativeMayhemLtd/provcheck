@@ -917,6 +917,10 @@ const $sLoadingMsg = document.getElementById("sign-loading-msg");
 const $sSetup = document.getElementById("sign-state-setup");
 const $sConnect = document.getElementById("sign-state-connect");
 const $sPublish = document.getElementById("sign-state-publish");
+const $sStale = document.getElementById("sign-state-stale");
+const $sStaleStatus = document.getElementById("sign-stale-status");
+const $sStaleRecoveryCmd = document.getElementById("sign-stale-recovery-cmd");
+const $sStaleSkipBtn = document.getElementById("sign-stale-skip-btn");
 const $sReady = document.getElementById("sign-state-ready");
 
 const $sInitBtn = document.getElementById("sign-init-btn");
@@ -982,13 +986,14 @@ $tabSignBtn.addEventListener("click", () => activateTab("sign"));
 // ---- State dispatch --------------------------------------------------------
 
 function showSignState(name) {
-  for (const el of [$sLoading, $sSetup, $sConnect, $sPublish, $sReady]) {
+  for (const el of [$sLoading, $sSetup, $sConnect, $sPublish, $sStale, $sReady]) {
     el.hidden = true;
   }
   if (name === "loading") $sLoading.hidden = false;
   else if (name === "setup") $sSetup.hidden = false;
   else if (name === "connect") $sConnect.hidden = false;
   else if (name === "publish") $sPublish.hidden = false;
+  else if (name === "stale") $sStale.hidden = false;
   else if (name === "ready") {
     $sReady.hidden = false;
     resetReadySubstate();
@@ -1062,14 +1067,53 @@ async function refreshSignTab() {
     return;
   }
   const fp = signStatus.identity.fingerprint;
-  const active = (listRes.data || []).some(
-    (r) => r.fingerprint === fp && r.status === "active",
-  );
-  if (!active) {
-    showSignState("publish");
-  } else {
+  const records = listRes.data || [];
+  const localRecord = records.find((r) => r.fingerprint === fp);
+  if (localRecord && localRecord.status === "active") {
     showSignState("ready");
+    return;
   }
+  if (localRecord) {
+    // Local fingerprint IS in the user's repo but isn't active any more
+    // — it's been superseded or revoked. Signatures made by this key
+    // won't pass the verifier's `valid_until` check, so this is a
+    // recovery state, not a publish state. Surface explicitly with
+    // CLI guidance instead of looping into "Publish key" + a confusing
+    // conflict error.
+    renderStaleState(localRecord, records);
+    showSignState("stale");
+    return;
+  }
+  // No matching record at all — first publish from this device.
+  showSignState("publish");
+}
+
+/// Populate the stale-state panel with the local record's status and
+/// a copy-pasteable CLI recovery sequence. The exact sequence depends
+/// on whether an "orphan active" record exists (an active record under
+/// the user's DID whose private key the local box doesn't hold) — that
+/// happens when a rotation on another machine produced the active key
+/// and that machine's backup is now lost. The orphan needs revocation
+/// before a clean rotate works.
+function renderStaleState(localRecord, allRecords) {
+  $sStaleStatus.textContent = localRecord.status; // "superseded" | "revoked"
+  const localFp = localRecord.fingerprint;
+  const orphanActive = allRecords.find(
+    (r) => r.status === "active" && r.fingerprint !== localFp,
+  );
+  const lines = [];
+  if (orphanActive) {
+    lines.push("# active atproto record uses a key we don't hold locally —");
+    lines.push("# revoke it first so no leaked copy can sign in your name");
+    lines.push("provcheck-kit revoke " + orphanActive.fingerprint);
+    lines.push("");
+  }
+  lines.push("# mint a fresh signing key on this box");
+  lines.push("provcheck-kit init --force");
+  lines.push("");
+  lines.push("# publish the new fingerprint to atproto");
+  lines.push("provcheck-kit publish");
+  $sStaleRecoveryCmd.textContent = lines.join("\n");
 }
 
 function paintStrip(identity, session) {
@@ -1226,6 +1270,11 @@ $sPublishForm.addEventListener("submit", async (e) => {
 });
 
 $sSkipPublishBtn.addEventListener("click", () => {
+  signSkipPublish = true;
+  showSignState("ready");
+});
+
+$sStaleSkipBtn.addEventListener("click", () => {
   signSkipPublish = true;
   showSignState("ready");
 });

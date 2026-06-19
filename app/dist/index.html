@@ -221,6 +221,36 @@
       </div>
     </section>
 
+    <!-- State 3b: local fingerprint exists on atproto but is superseded
+         or revoked — a rotation happened elsewhere, or the active key
+         on atproto lost its private half. Either way, signatures made
+         with the local key won't attest. -->
+    <section class="sign-state" id="sign-state-stale" hidden>
+      <div class="sign-state-inner">
+        <h2 id="sign-stale-title">Your signing key is out of date</h2>
+        <p id="sign-stale-body">
+          This box's local key is marked
+          <strong id="sign-stale-status">retired</strong> on atproto.
+          Verifiers won't attest signatures from it.
+        </p>
+
+        <div class="sign-stale-recovery">
+          <p class="sign-stale-recovery-heading">Recover from a terminal:</p>
+          <pre class="sign-stale-recovery-cmd" id="sign-stale-recovery-cmd"></pre>
+          <p class="hint">
+            This mints a fresh key, publishes it as the new active record,
+            and (when needed) revokes the orphan record so no one can sign
+            in your name with the lost key.
+          </p>
+        </div>
+
+        <p class="hint">
+          Or <button type="button" class="link-btn" id="sign-stale-skip-btn">sign locally without attestation</button>
+          — signature is valid but verifiers will see "signing key not currently attested."
+        </p>
+      </div>
+    </section>
+
     <!-- State 4: ready → drop zone for signing -->
     <section class="sign-state" id="sign-state-ready" hidden>
       <!-- Empty: drop zone -->
