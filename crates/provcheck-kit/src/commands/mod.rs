@@ -276,6 +276,17 @@ pub mod init {
                     .store(&dir, &kp.fingerprint, &key_pem, &mut prompt)
                     .context("store key in encrypted file")?;
             }
+            KeyProviderKind::Yubikey { .. } => {
+                // Yubikey backend lands in P2; init for a Yubikey
+                // identity goes through a different code path entirely
+                // (no software-keypair generation). This arm exists so
+                // the compiler keeps every match exhaustive.
+                bail!(
+                    "Yubikey-backed identity init is not yet wired in this \
+                     build. Use `kit init --backend keychain` or wait for \
+                     v0.5.0 P2."
+                );
+            }
         }
 
         save_public_artefacts(&dir, &locked).context("save chain + identity.json")?;
@@ -287,8 +298,12 @@ pub mod init {
         eprintln!(
             "  Backend:     {}",
             match backend {
-                KeyProviderKind::Keychain => "OS keychain",
-                KeyProviderKind::EncryptedFile => "encrypted file (signing.key.age)",
+                KeyProviderKind::Keychain => "OS keychain".to_string(),
+                KeyProviderKind::EncryptedFile =>
+                    "encrypted file (signing.key.age)".to_string(),
+                KeyProviderKind::Yubikey { serial, slot } => format!(
+                    "Yubikey (serial {serial}, PIV slot 0x{slot:02x})"
+                ),
             }
         );
         if !args.recovery_recipients.is_empty() {
@@ -345,8 +360,14 @@ pub mod status {
                 println!(
                     "  backend:     {}",
                     match locked.key_provider {
-                        provcheck_sign::types::KeyProviderKind::Keychain => "keychain",
-                        provcheck_sign::types::KeyProviderKind::EncryptedFile => "encrypted-file",
+                        provcheck_sign::types::KeyProviderKind::Keychain =>
+                            "keychain".to_string(),
+                        provcheck_sign::types::KeyProviderKind::EncryptedFile =>
+                            "encrypted-file".to_string(),
+                        provcheck_sign::types::KeyProviderKind::Yubikey {
+                            serial,
+                            slot,
+                        } => format!("yubikey (serial {serial}, slot 0x{slot:02x})"),
                     }
                 );
                 println!("  storage:     {}", dir.display());
@@ -405,7 +426,7 @@ pub mod status {
 pub mod sign {
     use std::path::PathBuf;
 
-    use anyhow::{Context, Result};
+    use anyhow::{Context, Result, bail};
     use clap::Args;
 
     use provcheck_attestation_spec::IdentityClaim;
@@ -490,6 +511,11 @@ pub mod sign {
             KeyProviderKind::EncryptedFile => AgeFileProvider::new()
                 .fetch(&dir, &locked.fingerprint, &mut prompt)
                 .context("fetch key from encrypted file")?,
+            KeyProviderKind::Yubikey { .. } => bail!(
+                "Yubikey-backed identities can't sign through this build yet \
+                 (v0.5.0 P1 ships the backend wiring; P2 lands the Yubikey \
+                 signing code). For now, signing requires a software backend."
+            ),
         };
         let unlocked = UnlockedIdentity::new(locked, key_pem);
 
@@ -963,6 +989,11 @@ pub mod change_passphrase {
                 );
             }
             KeyProviderKind::EncryptedFile => {}
+            KeyProviderKind::Yubikey { .. } => bail!(
+                "this identity is backed by a Yubikey — the PIV PIN is changed \
+                 on the device, not by provcheck-kit. Use `ykman piv access \
+                 change-pin` to rotate it."
+            ),
         }
 
         let provider = AgeFileProvider::new();
@@ -1048,6 +1079,14 @@ pub mod export_backup {
             KeyProviderKind::EncryptedFile => AgeFileProvider::new()
                 .fetch(&dir, &locked.fingerprint, &mut unlock)
                 .context("fetch key from encrypted file")?,
+            KeyProviderKind::Yubikey { .. } => bail!(
+                "Yubikey-backed identities can't be exported — the private \
+                 key never leaves the device. To migrate to a new machine, \
+                 plug the Yubikey into the destination host and run \
+                 `provcheck-kit status` there. To rotate identity, use \
+                 `provcheck-kit rotate` (signs a new key + revokes the \
+                 old atproto record)."
+            ),
         };
         let unlocked = UnlockedIdentity::new(locked.clone(), key_pem);
 
@@ -1175,6 +1214,19 @@ pub mod import_backup {
                         &mut new_pp,
                     )
                     .context("store key in encrypted file")?;
+            }
+            KeyProviderKind::Yubikey { .. } => {
+                // import-backup never targets a Yubikey: a backup file
+                // carries a software-extractable PEM, which can't be
+                // injected into a hardware token. The `backend` arg is
+                // chosen above and never selects Yubikey; this arm
+                // exists for match exhaustiveness.
+                bail!(
+                    "import-backup cannot target a Yubikey backend — \
+                     hardware tokens don't accept imported keys. To \
+                     bootstrap a Yubikey identity from a fresh device, \
+                     use `kit init --backend yubikey`."
+                );
             }
         }
         save_public_artefacts(&dir, &unlocked.locked).context("save identity.json")?;
@@ -1669,7 +1721,7 @@ pub mod rotate {
 
     use std::path::PathBuf;
 
-    use anyhow::{Context, Result};
+    use anyhow::{Context, Result, bail};
     use clap::Args;
     use time::OffsetDateTime;
     use time::format_description::well_known::Rfc3339;
@@ -1750,6 +1802,18 @@ pub mod rotate {
                 AgeFileProvider::new()
                     .store(&staging, &new_fingerprint, &new_key_secret, &mut prompt)
                     .context("store new key in encrypted file")?;
+            }
+            KeyProviderKind::Yubikey { .. } => {
+                // Yubikey rotation requires generating the key on-
+                // device, not in software — the staging path above
+                // generated a software keypair. Yubikey rotation lands
+                // in P3 via `kit rotate --backend yubikey` taking a
+                // different code path. For now, refuse cleanly.
+                bail!(
+                    "Yubikey-backed identities require `kit rotate \
+                     --backend yubikey` (lands in v0.5.0 P3). A plain \
+                     `kit rotate` can't generate a key on-device."
+                );
             }
         }
 

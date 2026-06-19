@@ -226,6 +226,7 @@ async fn kit_status(data_dir: Option<String>) -> ApiResult<KitStatus> {
         backend: match locked.key_provider {
             KeyProviderKind::Keychain => "keychain".into(),
             KeyProviderKind::EncryptedFile => "encrypted_file".into(),
+            KeyProviderKind::Yubikey { .. } => "yubikey".into(),
         },
         did: locked.did.clone(),
         handle: locked.handle.clone(),
@@ -650,6 +651,14 @@ async fn kit_sign(args: SignArgs) -> ApiResult<SignResultDto> {
             return ApiResult::err(
                 "GUI signing currently supports OS-keychain identities only. \
                  Use `provcheck-kit sign` from the CLI for age-file identities."
+                    .to_string(),
+            );
+        }
+        KeyProviderKind::Yubikey { .. } => {
+            return ApiResult::err(
+                "GUI signing of Yubikey-backed identities lands in v0.5.0 P3 + P4. \
+                 For now, sign via `provcheck-kit sign` from a terminal — the kit \
+                 prompts for the PIV PIN on each signature."
                     .to_string(),
             );
         }

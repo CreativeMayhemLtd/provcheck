@@ -160,20 +160,116 @@ impl std::fmt::Debug for UnlockedIdentity {
 /// Which custody backend holds the private key.
 ///
 /// Recorded in `identity.json` so a future `load()` knows which
-/// `KeyProvider` to ask for the key. Adding a variant (e.g.
-/// `HardwareToken`) is a Phase-2-followup item.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+/// `KeyProvider` to ask for the key.
+///
+/// On-disk format (`identity.json::key_provider`):
+///
+/// - `Keychain` and `EncryptedFile` serialize as the bare strings
+///   `"keychain"` / `"encrypted_file"` — the v0.3.x / v0.4.x
+///   schema. Files written by earlier builds continue to load
+///   unchanged.
+/// - `Yubikey { serial, slot }` serializes as a tagged object
+///   `{"kind":"yubikey","serial":N,"slot":S}` because it carries
+///   data the bare-string form can't represent.
+///
+/// The custom Deserialize accepts either form, so any release that
+/// understands `Yubikey` can read every previously-written
+/// `identity.json`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KeyProviderKind {
     /// OS keychain: macOS Keychain, Windows Credential Manager,
     /// or Linux Secret Service. The default when `kit init` runs
     /// in an environment where the backend is available.
     Keychain,
-    /// AES-256-GCM ciphertext on disk under
-    /// `keys/signing.key.enc`. Used as the fallback on headless
+    /// `age`-encrypted ciphertext on disk under
+    /// `keys/signing.key.age`. Used as the fallback on headless
     /// hosts and when the user explicitly opts in via
-    /// `--encrypted-file`.
+    /// `--age-file`.
     EncryptedFile,
+    /// Yubikey PIV slot. Private key generated on-device and
+    /// never extractable; signatures happen on the token.
+    ///
+    /// `serial` pins the identity to a specific physical
+    /// Yubikey — two different devices with the same PIV-init
+    /// data are NOT interchangeable from the kit's perspective.
+    /// `slot` is the PIV slot ID (currently always `0x9c`,
+    /// PIV Digital Signature); stored as a u8 so future
+    /// slot-flexibility work can land cheaply.
+    Yubikey {
+        /// Yubikey hardware serial number — distinct per device.
+        serial: u32,
+        /// PIV slot ID. `0x9c` (PIV Digital Signature) is the
+        /// only supported value as of v0.5.0.
+        slot: u8,
+    },
+}
+
+impl Serialize for KeyProviderKind {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            Self::Keychain => serializer.serialize_str("keychain"),
+            Self::EncryptedFile => serializer.serialize_str("encrypted_file"),
+            Self::Yubikey { serial, slot } => {
+                use serde::ser::SerializeStruct;
+                let mut s = serializer.serialize_struct("KeyProviderKind", 3)?;
+                s.serialize_field("kind", "yubikey")?;
+                s.serialize_field("serial", serial)?;
+                s.serialize_field("slot", slot)?;
+                s.end()
+            }
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for KeyProviderKind {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Repr {
+            // Legacy v0.3.x/v0.4.x form: bare string.
+            Str(String),
+            // v0.5.x+ form for data-carrying variants.
+            Object {
+                kind: String,
+                #[serde(default)]
+                serial: Option<u32>,
+                #[serde(default)]
+                slot: Option<u8>,
+            },
+        }
+
+        use serde::de::Error as DeError;
+        match Repr::deserialize(deserializer)? {
+            Repr::Str(s) => match s.as_str() {
+                "keychain" => Ok(Self::Keychain),
+                "encrypted_file" => Ok(Self::EncryptedFile),
+                other => Err(DeError::unknown_variant(
+                    other,
+                    &["keychain", "encrypted_file", "yubikey"],
+                )),
+            },
+            Repr::Object { kind, serial, slot } => match kind.as_str() {
+                "keychain" => Ok(Self::Keychain),
+                "encrypted_file" => Ok(Self::EncryptedFile),
+                "yubikey" => {
+                    let serial =
+                        serial.ok_or_else(|| DeError::missing_field("serial"))?;
+                    let slot = slot.ok_or_else(|| DeError::missing_field("slot"))?;
+                    Ok(Self::Yubikey { serial, slot })
+                }
+                other => Err(DeError::unknown_variant(
+                    other,
+                    &["keychain", "encrypted_file", "yubikey"],
+                )),
+            },
+        }
+    }
 }
 
 /// On-disk format of `identity.json`. Pub(crate) — callers should
@@ -256,6 +352,57 @@ mod tests {
         assert_eq!(kc, "\"keychain\"");
         let ef = serde_json::to_string(&KeyProviderKind::EncryptedFile).expect("ser");
         assert_eq!(ef, "\"encrypted_file\"");
+    }
+
+    #[test]
+    fn key_provider_kind_yubikey_serialises_tagged() {
+        let yk = KeyProviderKind::Yubikey {
+            serial: 10_143_663,
+            slot: 0x9c,
+        };
+        let json = serde_json::to_string(&yk).expect("ser");
+        let v: serde_json::Value = serde_json::from_str(&json).expect("parse");
+        assert_eq!(v["kind"], "yubikey");
+        assert_eq!(v["serial"], 10_143_663);
+        assert_eq!(v["slot"], 156); // 0x9c = 156
+    }
+
+    #[test]
+    fn key_provider_kind_yubikey_round_trips() {
+        let yk = KeyProviderKind::Yubikey {
+            serial: 42,
+            slot: 0x9c,
+        };
+        let json = serde_json::to_string(&yk).expect("ser");
+        let back: KeyProviderKind = serde_json::from_str(&json).expect("de");
+        assert_eq!(back, yk);
+    }
+
+    #[test]
+    fn key_provider_kind_legacy_bare_string_still_deserialises() {
+        // identity.json files written by v0.3.x / v0.4.x carry
+        // `"key_provider": "keychain"` (a bare string, not an
+        // object). The new Deserialize must accept that form so
+        // existing identities load on v0.5.x without migration.
+        let kc: KeyProviderKind = serde_json::from_str("\"keychain\"").expect("de");
+        assert_eq!(kc, KeyProviderKind::Keychain);
+        let ef: KeyProviderKind = serde_json::from_str("\"encrypted_file\"").expect("de");
+        assert_eq!(ef, KeyProviderKind::EncryptedFile);
+    }
+
+    #[test]
+    fn key_provider_kind_yubikey_requires_serial_and_slot() {
+        let err = serde_json::from_str::<KeyProviderKind>(r#"{"kind":"yubikey"}"#).expect_err("rejected");
+        assert!(err.to_string().contains("serial"), "missing serial: {err}");
+    }
+
+    #[test]
+    fn key_provider_kind_unknown_variant_rejected() {
+        let err = serde_json::from_str::<KeyProviderKind>("\"tpm\"").expect_err("rejected");
+        assert!(
+            err.to_string().contains("tpm") || err.to_string().contains("unknown"),
+            "{err}"
+        );
     }
 
     #[test]
