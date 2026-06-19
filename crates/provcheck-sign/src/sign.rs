@@ -80,16 +80,8 @@ pub fn sign_asset(
     // surfaced, c2pa errors are for c2pa concerns).
     std::fs::metadata(src).map_err(SignError::Source)?;
 
-    let alg = match identity.locked.algorithm.as_str() {
-        "ES256" => c2pa::SigningAlg::Es256,
-        "ES384" => c2pa::SigningAlg::Es384,
-        "ES512" => c2pa::SigningAlg::Es512,
-        "PS256" => c2pa::SigningAlg::Ps256,
-        "PS384" => c2pa::SigningAlg::Ps384,
-        "PS512" => c2pa::SigningAlg::Ps512,
-        "Ed25519" => c2pa::SigningAlg::Ed25519,
-        other => return Err(SignError::UnknownAlgorithm(other.to_string())),
-    };
+    let alg = parse_algorithm(&identity.locked.algorithm)
+        .ok_or_else(|| SignError::UnknownAlgorithm(identity.locked.algorithm.clone()))?;
 
     let signer = c2pa::create_signer::from_keys(
         identity.locked.chain_pem.as_bytes(),
@@ -140,6 +132,27 @@ pub fn sign_asset(
     Ok(SignResult {
         output_path: dst.to_path_buf(),
         manifest_bytes,
+    })
+}
+
+/// Parse a JWS algorithm identifier (`"ES256"`, `"Ed25519"`, etc.)
+/// into the corresponding [`c2pa::SigningAlg`] variant. Returns
+/// `None` for unrecognised inputs; the canonical set is the seven
+/// variants c2pa-rs supports.
+///
+/// Shared between [`sign_asset`] and the default
+/// [`crate::providers::KeyProvider::signer`] implementation so the
+/// algorithm-string-to-variant mapping lives in one place.
+pub fn parse_algorithm(s: &str) -> Option<c2pa::SigningAlg> {
+    Some(match s {
+        "ES256" => c2pa::SigningAlg::Es256,
+        "ES384" => c2pa::SigningAlg::Es384,
+        "ES512" => c2pa::SigningAlg::Es512,
+        "PS256" => c2pa::SigningAlg::Ps256,
+        "PS384" => c2pa::SigningAlg::Ps384,
+        "PS512" => c2pa::SigningAlg::Ps512,
+        "Ed25519" => c2pa::SigningAlg::Ed25519,
+        _ => return None,
     })
 }
 

@@ -38,6 +38,110 @@ use secrecy::SecretString;
 
 use crate::types::KeyProviderKind;
 
+#[cfg(test)]
+mod default_signer_tests {
+    use super::*;
+    use crate::cert::{SubjectInfo, generate};
+    use crate::types::LockedIdentity;
+    use time::OffsetDateTime;
+
+    /// Stub provider that returns a pre-set PEM from `fetch()`.
+    /// Used to verify the default `signer()` trait impl wires
+    /// through correctly without depending on a real backend.
+    struct TestProvider {
+        pem: String,
+    }
+
+    impl KeyProvider for TestProvider {
+        fn kind(&self) -> KeyProviderKind {
+            KeyProviderKind::EncryptedFile
+        }
+
+        fn store(
+            &self,
+            _: &Path,
+            _: &str,
+            _: &SecretString,
+            _: &mut dyn FnMut(NewPassphrasePrompt) -> PassphraseResult,
+        ) -> Result<(), ProviderError> {
+            unreachable!("store not called in default-signer tests")
+        }
+
+        fn fetch(
+            &self,
+            _: &Path,
+            _: &str,
+            _: &mut dyn FnMut(UnlockPrompt) -> PassphraseResult,
+        ) -> Result<SecretString, ProviderError> {
+            Ok(SecretString::from(self.pem.clone()))
+        }
+
+        fn delete(&self, _: &Path, _: &str) -> Result<(), ProviderError> {
+            unreachable!("delete not called in default-signer tests")
+        }
+    }
+
+    #[test]
+    fn default_signer_wraps_software_pem_into_c2pa_signer() {
+        // Generate a real ES256 keypair via the cert module so the
+        // chain + key are mutually consistent.
+        let kp = generate(&SubjectInfo::default()).expect("generate");
+        let locked = LockedIdentity {
+            chain_pem: kp.chain_pem,
+            fingerprint: kp.fingerprint.clone(),
+            algorithm: kp.algorithm.clone(),
+            did: None,
+            handle: None,
+            created_at: OffsetDateTime::UNIX_EPOCH,
+            key_provider: KeyProviderKind::EncryptedFile,
+            recovery_recipients: vec![],
+        };
+        let provider = TestProvider { pem: kp.key_pem };
+        let mut prompt = |_: UnlockPrompt| -> PassphraseResult {
+            Ok(SecretString::from(String::new()))
+        };
+        let tempdir = tempfile::tempdir().expect("tempdir");
+        let signer = provider
+            .signer(tempdir.path(), &locked, &mut prompt)
+            .expect("default signer impl wraps cleanly");
+        assert_eq!(signer.alg(), c2pa::SigningAlg::Es256);
+        let certs = signer.certs().expect("signer exposes cert chain");
+        assert!(!certs.is_empty(), "cert chain has at least the leaf");
+    }
+
+    #[test]
+    fn default_signer_rejects_unknown_algorithm() {
+        let kp = generate(&SubjectInfo::default()).expect("generate");
+        let locked = LockedIdentity {
+            chain_pem: kp.chain_pem,
+            fingerprint: kp.fingerprint,
+            algorithm: "RSA-PSS-WHATEVER".to_string(),
+            did: None,
+            handle: None,
+            created_at: OffsetDateTime::UNIX_EPOCH,
+            key_provider: KeyProviderKind::EncryptedFile,
+            recovery_recipients: vec![],
+        };
+        let provider = TestProvider { pem: kp.key_pem };
+        let mut prompt = |_: UnlockPrompt| -> PassphraseResult {
+            Ok(SecretString::from(String::new()))
+        };
+        let tempdir = tempfile::tempdir().expect("tempdir");
+        // Box<dyn c2pa::Signer> doesn't impl Debug; can't use
+        // .expect_err. Match on the result instead.
+        match provider.signer(tempdir.path(), &locked, &mut prompt) {
+            Ok(_) => panic!("expected unknown-algorithm error, got success"),
+            Err(ProviderError::SignerSetup(msg)) => {
+                assert!(
+                    msg.contains("RSA-PSS-WHATEVER") || msg.contains("unknown"),
+                    "error message names the bad algorithm: {msg}"
+                );
+            }
+            Err(other) => panic!("expected SignerSetup, got {other:?}"),
+        }
+    }
+}
+
 /// Context handed to a new-passphrase prompt callback. The
 /// `purpose` string is for the prompt's own labelling — useful when
 /// one process prompts multiple times during a session (e.g.
@@ -94,6 +198,20 @@ pub enum ProviderError {
     /// `NotFound` kind to match the file backend's semantics).
     #[error("keychain backend: {0}")]
     Keychain(String),
+
+    /// Hardware-token backend failure — device not present, PIV
+    /// applet locked, PIN exhausted, signing operation refused.
+    /// The inner string carries the underlying error's detail.
+    #[error("hardware token: {0}")]
+    HardwareToken(String),
+
+    /// The unlocked key + cert chain could not be wrapped into a
+    /// `c2pa::Signer`. Typically an unknown algorithm string or a
+    /// malformed cert chain. Distinct from
+    /// [`AuthenticationFailed`](Self::AuthenticationFailed)
+    /// because the unwrap itself succeeded.
+    #[error("signer setup: {0}")]
+    SignerSetup(String),
 
     /// Filesystem error reading or writing the stored material.
     #[error("io: {0}")]
@@ -169,4 +287,49 @@ pub trait KeyProvider {
     /// `rotate` (after the new key has been persisted) and by an
     /// explicit `kit wipe` command.
     fn delete(&self, dir: &Path, fingerprint: &str) -> Result<(), ProviderError>;
+
+    /// Construct a [`c2pa::Signer`] backed by the stored credentials.
+    ///
+    /// This is the integration seam between `provcheck-sign` and the
+    /// c2pa crate: every C2PA signing operation (in this workspace
+    /// and downstream) goes through this method. Different backends
+    /// can satisfy the seam differently:
+    ///
+    /// - Software backends (keychain, age-file): the default impl
+    ///   calls [`Self::fetch`] to recover the private key PEM, then
+    ///   wraps it with `c2pa::create_signer::from_keys` — the
+    ///   existing v0.4.x signing path, exactly.
+    /// - Hardware backends (Yubikey, TPM, Secure Enclave): override
+    ///   this method to return a `Box<dyn c2pa::Signer>` whose
+    ///   `sign()` delegates to the device's signing API. The
+    ///   private key never enters host RAM, so [`Self::fetch`] is
+    ///   structurally inappropriate; HSM backends will typically
+    ///   `panic!("call .signer() not .fetch() on this backend")`
+    ///   in their `fetch` impl (or return a dedicated error).
+    ///
+    /// `locked` carries the cert chain and algorithm needed to
+    /// construct the signer; `passphrase` is invoked by software
+    /// backends to unwrap the key, by hardware backends to collect
+    /// the device PIN (via the [`UnlockPrompt::Yubikey`]-style
+    /// variants that may be added).
+    fn signer(
+        &self,
+        dir: &Path,
+        locked: &crate::types::LockedIdentity,
+        passphrase: &mut dyn FnMut(UnlockPrompt) -> PassphraseResult,
+    ) -> Result<Box<dyn c2pa::Signer>, ProviderError> {
+        use secrecy::ExposeSecret;
+        let key_pem = self.fetch(dir, &locked.fingerprint, passphrase)?;
+        let alg = crate::sign::parse_algorithm(&locked.algorithm).ok_or_else(|| {
+            ProviderError::SignerSetup(format!("unknown algorithm: {}", locked.algorithm))
+        })?;
+        let signer = c2pa::create_signer::from_keys(
+            locked.chain_pem.as_bytes(),
+            key_pem.expose_secret().as_bytes(),
+            alg,
+            None,
+        )
+        .map_err(|e| ProviderError::SignerSetup(format!("c2pa::create_signer: {e}")))?;
+        Ok(signer)
+    }
 }
