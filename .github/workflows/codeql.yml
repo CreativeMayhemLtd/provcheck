@@ -42,7 +42,7 @@ jobs:
         language: [rust, javascript, actions]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # The Rust pack needs the same Linux build deps the regular CI
       # job installs — keyring's libdbus-sys build.rs runs during the
