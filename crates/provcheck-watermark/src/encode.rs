@@ -106,16 +106,23 @@ pub fn embed(
     };
     let rescaled: Vec<f32> = waveform.iter().map(|s| s * rescale).collect();
 
-    // 2. Forward STFT.
+    // 2. Forward STFT. Drop `rescaled` here so its `n_samples` worth of
+    //    memory (~596 MB on a 56-minute mp3 at 44.1 kHz) doesn't sit
+    //    next to the spectrogram during the chunk loop. The STFT keeps
+    //    everything it needs in `spec`.
     let spec = waveform_to_spectrum(&rescaled)?;
+    drop(rescaled);
     let n_frames = spec.n_frames;
 
-    // 3. Message tensor — letters_encoding, tiled across t_frames.
+    // 3. Message symbol stream — the small `[MESSAGE_DIM, n_frames]`
+    //    one-hot tensor that gets projected up to `[FREQ_BINS, n_frames]`
+    //    by `transform_message`. We do NOT precompute the projected
+    //    full grid here; that was a ~595 MB allocation that scaled
+    //    linearly with input length and was the dominant cause of the
+    //    v0.3.8 embed-side OOM on multi-minute MP3s (public issue #17,
+    //    fixed in v0.5.1). The projection lives inside the chunk loop
+    //    instead, producing only `[FREQ_BINS, chunk_t]` per iteration.
     let msg_enc_5 = letters_encoding(payload, n_frames);
-    // 3b. Apply the encoder's transform_message (linear 5→1024 + zero-pad
-    //     to FREQ_BINS) in Rust. The ONNX skips this step because tract
-    //     0.21 can't analyse the F.pad node; the weights are tiny (20 KB).
-    let msg_enc_padded = transform_message(&msg_enc_5, n_frames);
 
     // 4. Utterance-level normalisation scalar: sqrt(mean(carrier²))
     //    over the full magnitude grid. silentcipher applies this AFTER
@@ -131,15 +138,21 @@ pub fn embed(
 
     // 5. Chunked ONNX inference, then post-process per chunk into the
     //    `carrier_reconst` buffer (magnitude after watermark embed).
+    //    `transform_message_chunk` runs inline so the message projection
+    //    never exists as a full-length tensor; only `chunk_t` columns
+    //    of it are materialised at any time.
     let model = model()?;
     let mut carrier_reconst = vec![0.0_f32; FREQ_BINS * n_frames];
     let mut t_start = 0;
     while t_start < n_frames {
         let chunk_t = (n_frames - t_start).min(CHUNK_T_FRAMES);
 
-        // Extract the carrier and msg slices for this chunk.
+        // Extract the carrier slice and project the message for this
+        // chunk only. Both buffers are `FREQ_BINS * chunk_t` rather
+        // than `FREQ_BINS * n_frames`.
         let carrier_chunk = extract_carrier_chunk(&spec.magnitude, n_frames, t_start, chunk_t);
-        let msg_chunk = extract_carrier_chunk(&msg_enc_padded, n_frames, t_start, chunk_t);
+        let msg_chunk =
+            transform_message_chunk(&msg_enc_5, n_frames, t_start, chunk_t);
 
         // Run encoder ONNX. Output is the raw dec_c output, BEFORE
         // utterance-level normalisation + negate + relu.
@@ -238,9 +251,10 @@ fn extract_carrier_chunk(
     chunk
 }
 
-/// Project the `[MESSAGE_DIM, T]` one-hot message tensor up to
-/// `[FREQ_BINS, T]` via the encoder's linear-layer + zero-pad. Mirrors
-/// `silentcipher.model.Encoder.transform_message` (model.py:36-40):
+/// Project a chunk of the `[MESSAGE_DIM, n_frames]` one-hot message
+/// tensor up to `[FREQ_BINS, chunk_t]`, applying the encoder's linear
+/// layer plus zero-pad. Mirrors `silentcipher.model.Encoder.transform_message`
+/// (model.py:36-40):
 ///
 /// ```python
 /// output = self.linear(msg.transpose(2, 3)).transpose(2, 3)
@@ -248,29 +262,43 @@ fn extract_carrier_chunk(
 /// ```
 ///
 /// The linear is `nn.Linear(MESSAGE_DIM=5, MESSAGE_BAND_SIZE=1024)`, so
-/// weight is shape (1024, 5) and bias is shape (1024,).
-fn transform_message(msg_enc: &[f32], t_frames: usize) -> Vec<f32> {
-    debug_assert_eq!(msg_enc.len(), MESSAGE_DIM * t_frames);
+/// weight is shape `(1024, 5)` and bias is shape `(1024,)`.
+///
+/// `msg_enc` is the full `[MESSAGE_DIM, n_frames]` tensor (small;
+/// 5 * n_frames f32). The output covers only the time-window
+/// `[t_start, t_start + chunk_t)` so callers can chunk the encoder
+/// inference without ever materialising a full-length projected
+/// tensor (`FREQ_BINS * n_frames` would be ~600 MB on a 56-minute
+/// MP3, which is what blew up the v0.3.8 embed path).
+fn transform_message_chunk(
+    msg_enc: &[f32],
+    n_frames: usize,
+    t_start: usize,
+    chunk_t: usize,
+) -> Vec<f32> {
+    debug_assert_eq!(msg_enc.len(), MESSAGE_DIM * n_frames);
+    debug_assert!(t_start + chunk_t <= n_frames);
 
     // Decode the embedded weight + bias. PyTorch stores `Linear` weight
-    // as `(out, in)` row-major — i.e., `weight[k, d] = bytes[(k * MESSAGE_DIM + d) * 4..]`.
+    // as `(out, in)` row-major: `weight[k, d] = bytes[(k * MESSAGE_DIM + d) * 4..]`.
     let weight: &[f32] = bytemuck_cast_f32(TRANSFORM_MESSAGE_WEIGHTS);
     let bias: &[f32] = bytemuck_cast_f32(TRANSFORM_MESSAGE_BIAS);
     debug_assert_eq!(weight.len(), MESSAGE_BAND_SIZE * MESSAGE_DIM);
     debug_assert_eq!(bias.len(), MESSAGE_BAND_SIZE);
 
-    let mut padded = vec![0.0_f32; FREQ_BINS * t_frames];
-    for t in 0..t_frames {
+    // Output layout matches the carrier chunk: row-major `[bin, t]`
+    // flattened as `bin * chunk_t + t`, where `t` runs `0..chunk_t`.
+    // Bins `MESSAGE_BAND_SIZE..FREQ_BINS` stay at zero (the F.pad).
+    let mut padded = vec![0.0_f32; FREQ_BINS * chunk_t];
+    for t_local in 0..chunk_t {
+        let t = t_start + t_local;
         for k in 0..MESSAGE_BAND_SIZE {
             // sum_d weight[k, d] * msg_enc[d, t] + bias[k]
             let mut acc = bias[k];
             for d in 0..MESSAGE_DIM {
-                acc += weight[k * MESSAGE_DIM + d] * msg_enc[d * t_frames + t];
+                acc += weight[k * MESSAGE_DIM + d] * msg_enc[d * n_frames + t];
             }
-            // Output layout matches the carrier: row-major `[bin, t]` →
-            // flat index `bin * t_frames + t`. Bins MESSAGE_BAND_SIZE..FREQ_BINS
-            // stay at zero (the F.pad in transform_message).
-            padded[k * t_frames + t] = acc;
+            padded[k * chunk_t + t_local] = acc;
         }
     }
     padded
@@ -413,6 +441,68 @@ mod tests {
             let a = out[dim * t_frames];
             let b = out[dim * t_frames + MESSAGE_LEN];
             assert_eq!(a, b, "tile-start mismatch at dim={dim}");
+        }
+    }
+
+    /// Reference all-at-once projection. Used only in tests to verify
+    /// `transform_message_chunk` produces identical numbers in chunked
+    /// mode (the production code path).
+    fn transform_message_full(msg_enc: &[f32], t_frames: usize) -> Vec<f32> {
+        let weight: &[f32] = bytemuck_cast_f32(TRANSFORM_MESSAGE_WEIGHTS);
+        let bias: &[f32] = bytemuck_cast_f32(TRANSFORM_MESSAGE_BIAS);
+        let mut padded = vec![0.0_f32; FREQ_BINS * t_frames];
+        for t in 0..t_frames {
+            for k in 0..MESSAGE_BAND_SIZE {
+                let mut acc = bias[k];
+                for d in 0..MESSAGE_DIM {
+                    acc += weight[k * MESSAGE_DIM + d] * msg_enc[d * t_frames + t];
+                }
+                padded[k * t_frames + t] = acc;
+            }
+        }
+        padded
+    }
+
+    /// Chunked message projection must produce the same per-bin values
+    /// as the all-at-once projection over the matching time window.
+    /// Regression test for the v0.5.1 embed-OOM fix (public issue #17):
+    /// if the per-chunk projection drifts from the original semantics,
+    /// embedded watermarks would no longer round-trip through the
+    /// detector.
+    #[test]
+    fn transform_message_chunk_matches_full_projection() {
+        let payload = [0x44, 0x46, 0x4d, 0x01, 0x00];
+        // Pick a t_frames that crosses several tile boundaries and is
+        // not a multiple of an arbitrary chunk size.
+        let n_frames = MESSAGE_LEN * 7 + 3;
+        let msg_enc = letters_encoding(payload, n_frames);
+
+        let full = transform_message_full(&msg_enc, n_frames);
+
+        // Walk every reasonable chunk window and confirm the per-bin
+        // values match. Cover the head, the tail (truncated final
+        // chunk), and an interior window.
+        for &(t_start, chunk_t) in &[
+            (0_usize, 32_usize),
+            (32, 32),
+            (50, 17),
+            (n_frames - 5, 5),
+            (0, n_frames),
+        ] {
+            assert!(t_start + chunk_t <= n_frames, "test window out of range");
+            let chunk = transform_message_chunk(&msg_enc, n_frames, t_start, chunk_t);
+            for bin in 0..FREQ_BINS {
+                for t_local in 0..chunk_t {
+                    let from_chunk = chunk[bin * chunk_t + t_local];
+                    let from_full = full[bin * n_frames + (t_start + t_local)];
+                    let diff = (from_chunk - from_full).abs();
+                    assert!(
+                        diff < 1e-5,
+                        "mismatch at bin={bin} t_local={t_local} t_start={t_start} chunk_t={chunk_t}: \
+                         chunk={from_chunk} full={from_full} diff={diff}"
+                    );
+                }
+            }
         }
     }
 }

@@ -5131,7 +5131,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "c2pa",
  "provcheck-attestation-spec",
@@ -5142,7 +5142,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-app"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "keyring",
  "provcheck",
@@ -5163,7 +5163,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-attestation-spec"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "pem",
  "serde",
@@ -5173,7 +5173,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-audioseal"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "hound",
  "provcheck",
@@ -5188,7 +5188,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-platform"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "c2pa",
  "dirs 5.0.1",
@@ -5205,7 +5205,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-publish"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "atrium-api",
  "atrium-identity",
@@ -5221,7 +5221,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-sign"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "age",
  "c2pa",
@@ -5244,7 +5244,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-watermark"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "hound",
  "provcheck",
@@ -5261,7 +5261,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-wavmark"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "hound",
  "provcheck",
