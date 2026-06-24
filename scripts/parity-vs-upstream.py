@@ -134,12 +134,23 @@ def python_embed(model, y, message_bytes, sdr_db):
 
 
 def rust_embed(kit_binary, input_path, output_path, payload_hex, sdr_db):
-    """Call the Rust provcheck-kit watermark CLI at the given SDR."""
+    """Call the Rust provcheck-kit watermark CLI at the given SDR.
+
+    Passes `--no-verify-after-embed` so the kit produces an output
+    WAV even at SDRs where the self-test would refuse the mark.
+    Parity is a diagnostic; the script's own conf-cell verdict is
+    the gate, not the kit's per-file refusal."""
+    # NOTE: `--verify-after-embed false` not `--no-verify-after-embed`.
+    # v0.5.3's clap action is `Set` (which takes a boolean value); the
+    # help text falsely claims `--no-verify-after-embed` is the bypass
+    # flag. Tracked for cleanup in v0.5.4. The `Set false` form is the
+    # one that actually works against the shipped v0.5.3 binary.
     cmd = [
         str(kit_binary), "watermark",
         str(input_path), "-o", str(output_path),
         "--payload", payload_hex,
         "--sdr-db", str(sdr_db),
+        "--verify-after-embed", "false",
         "--overwrite",
     ]
     res = subprocess.run(cmd, capture_output=True, text=True)
