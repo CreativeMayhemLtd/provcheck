@@ -125,6 +125,69 @@ RUN curl -L -o /tmp/kit.tar.gz \
  && rm /tmp/kit.tar.gz
 ```
 
+### Build dependencies
+
+The pre-built release tarballs are self-contained except for one
+runtime shared library — `libpcsclite1` — that the YubiKey support in
+`provcheck-sign` links unconditionally even if you never plug in a
+YubiKey. Without it the binary segfaults at start on a minimal Linux
+image.
+
+If you `cargo install` from source instead, you'll also need a small
+set of build-time packages. The Linux lists below assume Debian /
+Ubuntu (apt) and Fedora / RHEL (dnf); other distros have equivalent
+packages.
+
+**Build-time (Debian/Ubuntu):**
+
+```bash
+apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    libpcsclite-dev \
+    libdbus-1-dev \
+    ca-certificates git
+```
+
+**Build-time (Fedora/RHEL):**
+
+```bash
+dnf install -y \
+    pkgconf-pkg-config \
+    openssl-devel \
+    pcsc-lite-devel \
+    dbus-devel \
+    ca-certificates git
+```
+
+**Runtime (any Linux):**
+
+```bash
+# Debian/Ubuntu
+apt-get install -y libpcsclite1
+# Fedora/RHEL
+dnf install -y pcsc-lite-libs
+```
+
+Why each:
+
+| Package | Pulled in by | Used for |
+|---|---|---|
+| `pkg-config` | several `*-sys` crates | resolving native dep flags |
+| `libssl-dev` | `openssl-sys 0.9.117` (transitive — `provcheck-sign`) | OpenSSL link. `c2pa` core uses `rust_native_crypto`, but `provcheck-sign` still pulls `openssl-sys` transitively; without `libssl-dev` cargo fails at `pkg-config --libs --cflags openssl`. |
+| `libpcsclite-dev` (build) / `libpcsclite1` (runtime) | `yubikey` crate via `provcheck-sign` | PC/SC smartcard interface for the YubiKey PIV backend. Linked unconditionally — even users who never touch a YubiKey need the runtime lib or the binary segfaults at start. |
+| `libdbus-1-dev` | `keyring v3` Secret Service backend | OS keyring on Linux (`provcheck-kit init` default backend). |
+| `ca-certificates`, `git` | cargo + HTTPS | only needed for `cargo install --git`. |
+
+macOS and Windows builds don't need the apt list — the equivalent
+libraries ship in the OS (Keychain, PC/SC) or are vendored.
+
+> **Future improvement (not done in this PR):** feature-gate
+> `provcheck-sign`'s `openssl-sys` dependency so the workspace
+> consistently uses `rust_native_crypto` / `rustls`. That would let us
+> drop `libssl-dev` and the corresponding OpenSSL CVE-tracking burden
+> from the deployment surface.
+
 ## Try it
 
 Two example signed files ship with the repo plus two unsigned controls:
