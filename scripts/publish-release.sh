@@ -53,7 +53,7 @@ REPO_PUBLIC="CreativeMayhemLtd/provcheck"
 
 # --- 1. Preflight ---
 
-echo "[1/4] Preflight …"
+echo "[1/5] Preflight …"
 
 if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   echo "fatal: must run from inside the provcheck-dev git tree." >&2
@@ -109,14 +109,14 @@ fi
 # --- 2. Push main + tag to public ---
 
 echo
-echo "[2/4] Pushing main + tag to $REPO_PUBLIC …"
+echo "[2/5] Pushing main + tag to $REPO_PUBLIC …"
 git push public main
 git push public "$TAG"
 
 # --- 3. Build release notes ---
 
 echo
-echo "[3/4] Building release notes …"
+echo "[3/5] Building release notes …"
 
 PRIOR_TAG=$(git describe --tags --abbrev=0 "$TAG^" 2>/dev/null || true)
 NOTES_FILE=$(mktemp)
@@ -149,7 +149,7 @@ trap 'rm -f "$NOTES_FILE"' EXIT
 # --- 4. Create the GitHub Release ---
 
 echo
-echo "[4/4] Creating GitHub Release $TAG on $REPO_PUBLIC …"
+echo "[4/5] Creating GitHub Release $TAG on $REPO_PUBLIC …"
 
 GH_ARGS=(release create "$TAG"
   --repo "$REPO_PUBLIC"
@@ -166,6 +166,36 @@ done
 # keyring. Clear it for this call so keyring auth takes over. Without
 # this line, the v0.1.0 release cut 401'd at the final step.
 GITHUB_TOKEN= gh "${GH_ARGS[@]}"
+
+# --- 5. Refresh repo description + homepage + topics on both repos -----
+#
+# Keeps GitHub's front-page metadata in sync with the project's actual
+# positioning. Without this, the repo description drifts (or stays
+# empty) across releases and technical evaluators land on a stale page.
+# Both repos are refreshed because the dev repo is a private mirror
+# but is still indexed internally.
+
+echo
+echo "[5/5] Refreshing GitHub repo metadata on both repos …"
+
+REPO_DESC="Local-first C2PA Content Credentials verifier + creator toolkit. Neural-watermark cross-check (silentcipher, AudioSeal, WavMark) and atproto-bound identity. CLI + GUI for Windows/Linux/macOS. Apache-2.0."
+REPO_HOME="https://provcheck.ai"
+REPO_TOPICS=(c2pa content-credentials provenance watermarking silentcipher audioseal wavmark atproto rust tauri desktop-app cli deepfake ai-provenance signing)
+
+refresh_repo_metadata() {
+  local repo="$1"
+  local desc_prefix="$2"
+  GITHUB_TOKEN= gh repo edit "$repo" \
+    --description "${desc_prefix}${REPO_DESC}" \
+    --homepage "$REPO_HOME" >/dev/null
+  for t in "${REPO_TOPICS[@]}"; do
+    GITHUB_TOKEN= gh repo edit "$repo" --add-topic "$t" >/dev/null 2>&1 || true
+  done
+  echo "  ${repo}: description + homepage + ${#REPO_TOPICS[@]} topics OK"
+}
+
+refresh_repo_metadata "$REPO_PUBLIC" ""
+refresh_repo_metadata "CreativeMayhemLtd/provcheck-dev" "[DEV MIRROR] "
 
 echo
 echo "Done. Release live at: https://github.com/${REPO_PUBLIC}/releases/tag/${TAG}"

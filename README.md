@@ -29,28 +29,52 @@ you run `publish` or `verify`.
 
 ## Status
 
-**v0.5.0 shipped 2026-06-19.** Both CLI binaries (`provcheck`,
+**v0.5.3 shipped 2026-06-24.** Both CLI binaries (`provcheck`,
 `provcheck-kit`) and the desktop GUI ship as pre-built downloads for
-Windows / Linux / macOS-aarch64. The creator-side flow (mint identity →
-sign → publish to atproto → verifier cross-checks) is production-ready
-and battle-tested against rAIdio.bot music renders and doomscroll.fm
-voice mixdowns.
+Windows / Linux / macOS-aarch64. The creator-side flow (mint identity
+➝ sign ➝ publish to atproto ➝ verifier cross-checks) is production-
+ready and battle-tested against rAIdio.bot music renders and
+doomscroll.fm voice mixdowns. The v0.5.x line ships in seven public
+releases over twelve days; the current ship target is v0.5.3.
 
-**v0.5.0 lands hardware-backed identity custody.** `provcheck-kit
-init --yubikey` mints an ES256 keypair on a Yubikey PIV slot 9c. The
-private key is generated on-device and never extractable; every C2PA
-signature gates on the PIV PIN. A new GUI "Keys" tab shows local-vs-
-atproto state side-by-side, surfaces mismatches (superseded local
-key, orphan active record), and offers one-click revoke + rotate
-without dropping to a terminal. See
-[For creators — sign + publish](#for-creators--sign--publish) below.
+**v0.5.x highlights:**
+
+- **v0.5.3:** AAC-in-MP4/M4A detector priming fix. symphonia 0.5.5's
+  `isomp4` reader does not surface the MP4 `edts/elst` edit list or
+  the `iTunSMPB` tag as `codec_params.delay`, so prior to v0.5.3 every
+  STFT frame on AAC-in-MP4/M4A was one AAC frame out of phase with
+  the embedder's frame grid and detection returned conf 0.000. The
+  fix hardcodes the standard 1024-sample AAC LC priming when
+  symphonia leaves `delay = None` for an AAC track, and adds `mp4`,
+  `m4b`, and `mov` to the audio-extension allowlist. Public issue #24.
+- **v0.5.2:** Stereo embed. New `--channels {auto, mono, stereo}` on
+  `kit watermark` runs two independent mono embeds with the same
+  payload so a stereo delivery pipeline keeps the mark across the
+  downmix-then-upmix roundtrip. silentcipher default SDR drops 47 ➝
+  30 dB so libmp3lame 192k delivery survives at conf 0.95+. AudioSeal
+  default alpha rises 1.0 ➝ 3.0 so both AAC 192k and libmp3lame 192k
+  delivery survive at conf 0.999. Always-on `--verify-after-embed`
+  self-test deletes the output file and exits non-zero when the
+  freshly-embedded mark fails to detect at conf >= 0.50. Public
+  issue #23.
+- **v0.5.1:** silentcipher embed OOM fix on multi-minute MP3s. Public
+  issue #17.
+- **v0.5.0:** Hardware-backed identity custody via Yubikey PIV slot
+  9c. `provcheck-kit init --yubikey` mints an ES256 keypair on-device;
+  the private key is never extractable, every signature gates on the
+  PIV PIN. A new GUI "Keys" tab shows local-vs-atproto state side by
+  side, surfaces mismatches (superseded local key, orphan active
+  record), and offers one-click revoke and rotate without dropping
+  to a terminal. See
+  [For creators — sign + publish](#for-creators--sign--publish) below.
 
 All three neural-watermark detector families ship live: silentcipher
 40-bit payload at 44.1 kHz, AudioSeal 16-bit ECC-protected brand ID
 at 16 kHz, WavMark 32-bit payload at 16 kHz. Verifier output carries
-per-detector time-span localisation (`marked_regions`) — both the
-CLI text report and the GUI timeline strip show where inside the
-audio the mark sits.
+per-detector time-span localisation (`marked_regions`); both the CLI
+text report and the GUI timeline strip show where inside the audio
+the mark sits. Codec compatibility matrix and parity-vs-upstream
+findings live in [`docs/v0.5.2-codec-survival/`](docs/v0.5.2-codec-survival/).
 
 ## Install
 
@@ -352,8 +376,8 @@ provcheck fills those gaps. It:
 - runs locally (files never leave your machine),
 - ships as single binaries plus a small GUI,
 - is free, permissively licensed (Apache-2.0),
-- is bundled with [rAIdio.bot](https://store.steampowered.com/app/4600000)
-  and the doomscroll.fm pipeline,
+- is bundled with [rAIdio.bot](https://raidio.bot) and the
+  [doomscroll.fm](https://doomscroll.fm) pipeline,
 - works on ANY C2PA-signed content, not just ours.
 
 ## Release history
