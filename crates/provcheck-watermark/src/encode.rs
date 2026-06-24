@@ -56,10 +56,17 @@ const TRANSFORM_MESSAGE_BIAS: &[u8] =
 /// encoder's linear layer before being zero-padded to `FREQ_BINS`.
 const MESSAGE_BAND_SIZE: usize = 1024;
 
-/// Default message SDR in dB. Read from the silentcipher 44.1k
-/// checkpoint's `hparams.yaml` — see the export script's metadata
-/// JSON. Higher = quieter watermark.
-const DEFAULT_MESSAGE_SDR_DB: f32 = 47.0;
+/// Default message SDR in dB. The silentcipher 44.1k checkpoint
+/// trained at 47 dB (per `hparams.yaml`), which optimises for
+/// inaudibility but does not survive lossy delivery codecs.
+/// v0.5.2 lowers the default to 30 dB after the codec-survival
+/// sweep in `docs/v0.5.2-codec-survival/` showed 30 dB retains
+/// libmp3lame 192k detection at conf 0.95+ while still being
+/// imperceptible on real-world content. Pass `--sdr-db 47` on
+/// the CLI to restore v0.5.1 behaviour. Higher = quieter
+/// watermark. AAC delivery is not survivable at any SDR; use
+/// AudioSeal for AAC pipelines.
+pub const DEFAULT_MESSAGE_SDR_DB: f32 = 30.0;
 
 type Runnable = TypedRunnableModel<TypedModel>;
 
@@ -198,6 +205,33 @@ pub fn embed(
     }
 
     Ok(rescaled_out)
+}
+
+/// Embed the same payload into both channels of a stereo signal.
+///
+/// silentcipher's encoder is mono-only by training-time
+/// architecture; we orchestrate two independent embeds (L and R
+/// with the same payload and SDR) so the resulting stereo file
+/// detects on either single channel and on the mono downmix.
+/// Returns `(marked_left, marked_right)`, each the same length as
+/// the matching input channel. Errors if the two input channels
+/// have different lengths.
+pub fn embed_stereo(
+    left: &[f32],
+    right: &[f32],
+    payload: [u8; 5],
+    message_sdr_db: Option<f32>,
+) -> Result<(Vec<f32>, Vec<f32>), EncodeError> {
+    if left.len() != right.len() {
+        return Err(EncodeError::Inference(format!(
+            "stereo embed: left ({}) and right ({}) have different lengths",
+            left.len(),
+            right.len()
+        )));
+    }
+    let l = embed(left, payload, message_sdr_db)?;
+    let r = embed(right, payload, message_sdr_db)?;
+    Ok((l, r))
 }
 
 /// Build the message tensor that the encoder ONNX expects.

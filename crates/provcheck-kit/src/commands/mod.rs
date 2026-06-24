@@ -2354,6 +2354,25 @@ pub mod watermark {
         Wavmark,
     }
 
+    /// Output channel layout for the marked WAV.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Default)]
+    #[clap(rename_all = "lowercase")]
+    pub enum ChannelMode {
+        /// Match the input: mono in → mono out, stereo in → stereo
+        /// out (per-channel independent embed of the same payload).
+        /// 3+ channel input is downmixed to stereo with a one-line
+        /// note. This is the v0.5.2 default.
+        #[default]
+        Auto,
+        /// Always emit mono. Input is downmixed by averaging across
+        /// all channels. This is the v0.5.1 behaviour.
+        Mono,
+        /// Always emit stereo. Mono input is duplicated into both
+        /// channels (each gets its own embed). Stereo input embeds
+        /// L and R independently with the same payload.
+        Stereo,
+    }
+
     #[derive(Debug, Args)]
     pub struct CliArgs {
         /// Input audio file (any format symphonia decodes — mp3, wav,
@@ -2398,12 +2417,34 @@ pub mod watermark {
         #[arg(long, value_name = "DB")]
         pub sdr_db: Option<f32>,
 
-        /// (AudioSeal) Watermark strength multiplier. AudioSeal's
-        /// training default is `1.0`. Higher = more audible + more
-        /// robust; lower = quieter + more fragile. Ignored when
+        /// (AudioSeal) Watermark strength multiplier. v0.5.2 default
+        /// is `3.0`, raised from the upstream README's `1.0` after
+        /// the codec-survival sweep showed `1.0` is too quiet to
+        /// self-detect on real-world music content. Pass `--alpha 1`
+        /// to restore v0.5.1 behaviour, or `5.0` for cleaner
+        /// brand-ID recovery through AAC re-encode. Ignored when
         /// `--kind silentcipher`.
         #[arg(long, value_name = "ALPHA")]
         pub alpha: Option<f32>,
+
+        /// Output channel layout. `auto` (default) matches input
+        /// channels; `mono` always downmixes; `stereo` always emits
+        /// stereo with per-channel independent embeds of the same
+        /// payload. Stereo delivery pipelines should use `auto` or
+        /// `stereo` so the mark survives the eventual delivery
+        /// downmix-then-upmix; the v0.5.1 mono-only behaviour
+        /// loses the mark when ffmpeg upmixes mono → stereo for
+        /// AAC delivery.
+        #[arg(long, value_enum, default_value_t = ChannelMode::Auto)]
+        pub channels: ChannelMode,
+
+        /// Run the matching detector against the freshly-embedded
+        /// waveform and report the recovered confidence. Enabled by
+        /// default; pass `--no-verify-after-embed` to skip. When
+        /// enabled, conf < 0.50 deletes the output file and exits
+        /// non-zero so weak marks do not silently propagate.
+        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+        pub verify_after_embed: bool,
 
         /// Overwrite the output file if it already exists.
         #[arg(long)]
@@ -2441,37 +2482,89 @@ pub mod watermark {
         }
     }
 
+    fn resolve_output_channels(mode: ChannelMode, source_channels: u16) -> u16 {
+        match mode {
+            ChannelMode::Mono => 1,
+            ChannelMode::Stereo => 2,
+            ChannelMode::Auto => {
+                if source_channels >= 2 {
+                    2
+                } else {
+                    1
+                }
+            }
+        }
+    }
+
     async fn embed_silentcipher(args: CliArgs) -> Result<()> {
         let payload = parse_payload_hex(&args.payload)?;
+        let sdr_user = args.sdr_db;
+        let sdr_effective = sdr_user.unwrap_or(sc_encode::DEFAULT_MESSAGE_SDR_DB);
+        let sdr_note = if sdr_user.is_none() {
+            " (v0.5.2 delivery default; pass --sdr-db 47 for max imperceptibility)"
+        } else {
+            ""
+        };
 
         eprintln!(
             "provcheck-kit: decoding {} (silentcipher)",
             args.input.display()
         );
+
         let input = args.input.clone();
-        let waveform = tokio::task::spawn_blocking(move || sc_audio::decode_to_mono_44k1(&input))
+        let mode = args.channels;
+        let stereo = tokio::task::spawn_blocking(move || sc_audio::decode_to_stereo_44k1(&input))
             .await
             .context("join audio decode task")?
             .with_context(|| format!("decode {}", args.input.display()))?;
-        let duration_s = waveform.len() as f32 / sc_hparams::SAMPLE_RATE as f32;
+        let source_channels = stereo.source_channels;
+        let duration_s = stereo.left.len() as f32 / sc_hparams::SAMPLE_RATE as f32;
+        let out_channels = resolve_output_channels(mode, source_channels);
         eprintln!(
-            "provcheck-kit:   {} samples ({:.2} s @ {} Hz mono)",
-            waveform.len(),
+            "provcheck-kit:   {} samples ({:.2} s @ {} Hz, source {} channel{}, output {} channel{})",
+            stereo.left.len(),
             duration_s,
-            sc_hparams::SAMPLE_RATE
+            sc_hparams::SAMPLE_RATE,
+            source_channels,
+            if source_channels == 1 { "" } else { "s" },
+            out_channels,
+            if out_channels == 1 { "" } else { "s" },
         );
 
         eprintln!(
-            "provcheck-kit: embedding {:02x?} (SDR {} dB)",
-            payload,
-            args.sdr_db.unwrap_or(47.0)
+            "provcheck-kit: embedding {:02x?} (SDR {} dB{})",
+            payload, sdr_effective, sdr_note
         );
-        let sdr = args.sdr_db;
+
         let t0 = Instant::now();
-        let marked = tokio::task::spawn_blocking(move || sc_encode::embed(&waveform, payload, sdr))
-            .await
-            .context("join embed task")?
-            .context("silentcipher embed failed")?;
+        let (marked_l, marked_r): (Vec<f32>, Option<Vec<f32>>) = if out_channels == 2 {
+            let left = stereo.left;
+            let right = stereo.right;
+            let (l, r) =
+                tokio::task::spawn_blocking(move || sc_encode::embed_stereo(&left, &right, payload, sdr_user))
+                    .await
+                    .context("join embed task")?
+                    .context("silentcipher stereo embed failed")?;
+            (l, Some(r))
+        } else {
+            // Mono output. If the source was stereo and we are
+            // forcing mono, downmix L and R before the single embed.
+            let mono = if source_channels >= 2 {
+                stereo
+                    .left
+                    .iter()
+                    .zip(stereo.right.iter())
+                    .map(|(l, r)| (l + r) * 0.5)
+                    .collect::<Vec<f32>>()
+            } else {
+                stereo.left
+            };
+            let m = tokio::task::spawn_blocking(move || sc_encode::embed(&mono, payload, sdr_user))
+                .await
+                .context("join embed task")?
+                .context("silentcipher embed failed")?;
+            (m, None)
+        };
         let embed_elapsed = t0.elapsed();
         eprintln!(
             "provcheck-kit:   embed wall-clock {:.2?} ({:.2}x real-time)",
@@ -2479,7 +2572,17 @@ pub mod watermark {
             embed_elapsed.as_secs_f32() / duration_s.max(1e-6)
         );
 
-        write_wav(&args.output, &marked, sc_hparams::SAMPLE_RATE).await?;
+        write_wav(
+            &args.output,
+            marked_l.as_slice(),
+            marked_r.as_deref(),
+            sc_hparams::SAMPLE_RATE,
+        )
+        .await?;
+
+        if args.verify_after_embed {
+            verify_after_embed(&args.output, Kind::Silentcipher).await?;
+        }
         eprintln!("provcheck-kit: done.");
         Ok(())
     }
@@ -2497,36 +2600,75 @@ pub mod watermark {
             );
         }
 
+        let alpha_user = args.alpha;
+        let alpha_effective = alpha_user.unwrap_or(as_encode::DEFAULT_ALPHA);
+        let alpha_note = if alpha_user.is_none() {
+            " (v0.5.2 delivery default; pass --alpha 1.0 for max imperceptibility, 5.0 for cleaner AAC brand recovery)"
+        } else {
+            ""
+        };
+
         eprintln!(
             "provcheck-kit: decoding {} (audioseal)",
             args.input.display()
         );
+
         let input = args.input.clone();
-        let waveform = tokio::task::spawn_blocking(move || as_audio::decode_to_mono_16k(&input))
+        let mode = args.channels;
+        let stereo = tokio::task::spawn_blocking(move || as_audio::decode_to_stereo_16k(&input))
             .await
             .context("join audio decode task")?
             .with_context(|| format!("decode {}", args.input.display()))?;
-        let duration_s = waveform.len() as f32 / as_audio::SAMPLE_RATE as f32;
+        let source_channels = stereo.source_channels;
+        let duration_s = stereo.left.len() as f32 / as_audio::SAMPLE_RATE as f32;
+        let out_channels = resolve_output_channels(mode, source_channels);
         eprintln!(
-            "provcheck-kit:   {} samples ({:.2} s @ {} Hz mono)",
-            waveform.len(),
+            "provcheck-kit:   {} samples ({:.2} s @ {} Hz, source {} channel{}, output {} channel{})",
+            stereo.left.len(),
             duration_s,
-            as_audio::SAMPLE_RATE
+            as_audio::SAMPLE_RATE,
+            source_channels,
+            if source_channels == 1 { "" } else { "s" },
+            out_channels,
+            if out_channels == 1 { "" } else { "s" },
         );
 
         eprintln!(
-            "provcheck-kit: embedding brand id 0x{:02x} (alpha {})",
-            args.brand_id,
-            args.alpha.unwrap_or(as_encode::DEFAULT_ALPHA)
+            "provcheck-kit: embedding brand id 0x{:02x} (alpha {}{})",
+            args.brand_id, alpha_effective, alpha_note
         );
+
         let brand_id = args.brand_id;
         let alpha = args.alpha;
         let t0 = Instant::now();
-        let marked =
-            tokio::task::spawn_blocking(move || as_encode::embed(&waveform, brand_id, alpha))
-                .await
-                .context("join embed task")?
-                .context("audioseal embed failed")?;
+        let (marked_l, marked_r): (Vec<f32>, Option<Vec<f32>>) = if out_channels == 2 {
+            let left = stereo.left;
+            let right = stereo.right;
+            let (l, r) = tokio::task::spawn_blocking(move || {
+                as_encode::embed_stereo(&left, &right, brand_id, alpha)
+            })
+            .await
+            .context("join embed task")?
+            .context("audioseal stereo embed failed")?;
+            (l, Some(r))
+        } else {
+            let mono = if source_channels >= 2 {
+                stereo
+                    .left
+                    .iter()
+                    .zip(stereo.right.iter())
+                    .map(|(l, r)| (l + r) * 0.5)
+                    .collect::<Vec<f32>>()
+            } else {
+                stereo.left
+            };
+            let m =
+                tokio::task::spawn_blocking(move || as_encode::embed(&mono, brand_id, alpha))
+                    .await
+                    .context("join embed task")?
+                    .context("audioseal embed failed")?;
+            (m, None)
+        };
         let embed_elapsed = t0.elapsed();
         eprintln!(
             "provcheck-kit:   embed wall-clock {:.2?} ({:.2}x real-time)",
@@ -2534,7 +2676,17 @@ pub mod watermark {
             embed_elapsed.as_secs_f32() / duration_s.max(1e-6)
         );
 
-        write_wav(&args.output, &marked, as_audio::SAMPLE_RATE).await?;
+        write_wav(
+            &args.output,
+            marked_l.as_slice(),
+            marked_r.as_deref(),
+            as_audio::SAMPLE_RATE,
+        )
+        .await?;
+
+        if args.verify_after_embed {
+            verify_after_embed(&args.output, Kind::Audioseal).await?;
+        }
         eprintln!("provcheck-kit: done.");
         Ok(())
     }
@@ -2548,6 +2700,9 @@ pub mod watermark {
                 args.brand_id,
                 registry::ID_MASK
             );
+        }
+        if matches!(args.channels, ChannelMode::Stereo) {
+            bail!("--channels stereo is not yet supported for --kind wavmark; pass --channels mono or use silentcipher/audioseal");
         }
 
         eprintln!(
@@ -2584,32 +2739,119 @@ pub mod watermark {
             embed_elapsed.as_secs_f32() / duration_s.max(1e-6)
         );
 
-        write_wav(&args.output, &marked, wm_audio::SAMPLE_RATE).await?;
+        write_wav(&args.output, &marked, None, wm_audio::SAMPLE_RATE).await?;
+
+        if args.verify_after_embed {
+            verify_after_embed(&args.output, Kind::Wavmark).await?;
+        }
         eprintln!("provcheck-kit: done.");
         Ok(())
     }
 
-    async fn write_wav(output: &std::path::Path, marked: &[f32], sample_rate: u32) -> Result<()> {
-        eprintln!("provcheck-kit: writing WAV to {}", output.display());
+    async fn write_wav(
+        output: &std::path::Path,
+        left: &[f32],
+        right: Option<&[f32]>,
+        sample_rate: u32,
+    ) -> Result<()> {
+        let channels: u16 = if right.is_some() { 2 } else { 1 };
+        eprintln!(
+            "provcheck-kit: writing WAV to {} ({} channel{})",
+            output.display(),
+            channels,
+            if channels == 1 { "" } else { "s" }
+        );
         let output_path = output.to_path_buf();
-        let marked_owned = marked.to_vec();
+        let left_owned = left.to_vec();
+        let right_owned = right.map(|r| r.to_vec());
         tokio::task::spawn_blocking(move || -> Result<()> {
             let spec = hound::WavSpec {
-                channels: 1,
+                channels,
                 sample_rate,
                 bits_per_sample: 32,
                 sample_format: hound::SampleFormat::Float,
             };
             let mut writer = hound::WavWriter::create(&output_path, spec)
                 .with_context(|| format!("create {}", output_path.display()))?;
-            for s in &marked_owned {
-                writer.write_sample(*s).context("write sample")?;
+            match right_owned {
+                None => {
+                    for s in &left_owned {
+                        writer.write_sample(*s).context("write sample")?;
+                    }
+                }
+                Some(r) => {
+                    let n = left_owned.len().min(r.len());
+                    for i in 0..n {
+                        writer
+                            .write_sample(left_owned[i])
+                            .context("write left sample")?;
+                        writer.write_sample(r[i]).context("write right sample")?;
+                    }
+                }
             }
             writer.finalize().context("finalize WAV")
         })
         .await
         .context("join WAV write task")??;
         Ok(())
+    }
+
+    /// Run the matching detector against the freshly-written WAV and
+    /// report the recovered confidence. Acts on the file on disk so
+    /// it exercises the same code path a downstream verifier would
+    /// use. Three outcomes:
+    ///
+    /// - conf >= 0.85: print confirmation, return Ok.
+    /// - 0.50 <= conf < 0.85: print thin-margin warning, return Ok.
+    /// - conf < 0.50: print error, delete the output file, return Err.
+    ///
+    /// The third case prevents weak marks from silently propagating
+    /// to downstream pipelines that trust the kit's exit code.
+    async fn verify_after_embed(output: &std::path::Path, kind: Kind) -> Result<()> {
+        let path = output.to_path_buf();
+        let kind_name = match kind {
+            Kind::Silentcipher => "silentcipher",
+            Kind::Audioseal => "audioseal",
+            Kind::Wavmark => "wavmark",
+        };
+        let (conf, payload_ok) = tokio::task::spawn_blocking(move || -> Result<(f32, bool)> {
+            let result = match kind {
+                Kind::Silentcipher => provcheck_watermark::detect(&path)
+                    .with_context(|| "silentcipher verify failed")?,
+                Kind::Audioseal => provcheck_audioseal::detect(&path)
+                    .with_context(|| "audioseal verify failed")?,
+                Kind::Wavmark => provcheck_wavmark::detect(&path)
+                    .with_context(|| "wavmark verify failed")?,
+            };
+            let payload_ok = result.payload.is_some();
+            Ok((result.confidence, payload_ok))
+        })
+        .await
+        .context("join verify task")??;
+
+        if conf >= 0.85 {
+            eprintln!(
+                "provcheck-kit: verify-after-embed: {kind_name} conf {conf:.3} OK (payload {})",
+                if payload_ok { "recovered" } else { "MISSING" }
+            );
+            Ok(())
+        } else if conf >= 0.50 {
+            eprintln!(
+                "provcheck-kit: verify-after-embed: WARNING — {kind_name} conf {conf:.3} thin (payload {}); consider a stronger embed knob (--sdr-db lower for silentcipher, --alpha higher for audioseal)",
+                if payload_ok { "recovered" } else { "MISSING" }
+            );
+            Ok(())
+        } else {
+            // Delete the output file so weak marks do not silently
+            // propagate to downstream pipelines.
+            let display = output.display().to_string();
+            let _ = tokio::fs::remove_file(output).await;
+            bail!(
+                "verify-after-embed: {kind_name} conf {conf:.3} below 0.50 threshold; deleted {display}. \
+                 Try a stronger embed (--sdr-db lower for silentcipher, --alpha higher for audioseal). \
+                 Pass --no-verify-after-embed to bypass this gate."
+            );
+        }
     }
 
     #[cfg(test)]

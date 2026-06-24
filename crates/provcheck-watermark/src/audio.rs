@@ -39,6 +39,19 @@ pub enum AudioError {
     Io(#[from] std::io::Error),
 }
 
+/// Stereo decode output. The two channels are always populated
+/// at the target rate (44.1 kHz). `source_channels` is the
+/// channel count of the original file BEFORE any duplication —
+/// 1 means we duplicated a mono input into both `left` and
+/// `right`, so the caller can decide whether to embed both
+/// channels or treat them as identical.
+#[derive(Debug)]
+pub struct StereoDecoded {
+    pub left: Vec<f32>,
+    pub right: Vec<f32>,
+    pub source_channels: u16,
+}
+
 /// Decode `path` to a mono `f32` waveform at the model's target
 /// rate (44.1 kHz). Returns `Err(NotAudio)` for files that
 /// symphonia can't identify as audio — the caller should map
@@ -135,6 +148,115 @@ pub fn decode_to_mono_44k1(path: &Path) -> Result<Vec<f32>, AudioError> {
     resample(&mono, src_sample_rate, SAMPLE_RATE).map_err(|e| AudioError::Resample(e.to_string()))
 }
 
+/// Decode `path` to two `f32` waveforms (left, right) at 44.1 kHz.
+/// For mono input, the single channel is duplicated into both
+/// buffers and `source_channels` reports 1 so callers know the
+/// duplication happened. For 3+ channel input, channels 0 and 1
+/// are kept and the rest are dropped with a downmix of all the
+/// "extra" channels averaged into both L and R (the most common
+/// 5.1 case puts dialogue in centre + L/R; preserving L and R
+/// while folding centre + surrounds into both keeps the mark
+/// recoverable from the eventual stereo delivery).
+///
+/// Same encoder-priming trim and same rubato resample as the
+/// mono path. Output L and R are guaranteed equal-length.
+pub fn decode_to_stereo_44k1(path: &Path) -> Result<StereoDecoded, AudioError> {
+    let file = File::open(path)?;
+    let mss = MediaSourceStream::new(Box::new(file), Default::default());
+
+    let mut hint = Hint::new();
+    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+        hint.with_extension(ext);
+    }
+
+    let probed = symphonia::default::get_probe()
+        .format(
+            &hint,
+            mss,
+            &FormatOptions::default(),
+            &MetadataOptions::default(),
+        )
+        .map_err(|_| AudioError::NotAudio)?;
+
+    let mut format = probed.format;
+    let track = format
+        .tracks()
+        .iter()
+        .find(|t| t.codec_params.codec != CODEC_TYPE_NULL)
+        .ok_or(AudioError::NotAudio)?;
+    let track_id = track.id;
+    let src_sample_rate = track
+        .codec_params
+        .sample_rate
+        .ok_or_else(|| AudioError::Decode("track missing sample rate".into()))?;
+    let source_channels = track
+        .codec_params
+        .channels
+        .map(|c| c.count() as u16)
+        .unwrap_or(1);
+    let enc_delay = track.codec_params.delay.unwrap_or(0) as usize;
+    let enc_padding = track.codec_params.padding.unwrap_or(0) as usize;
+
+    let mut decoder = symphonia::default::get_codecs()
+        .make(&track.codec_params, &DecoderOptions::default())
+        .map_err(|e| AudioError::Decode(format!("no codec: {e}")))?;
+
+    let mut left = Vec::<f32>::with_capacity(1 << 20);
+    let mut right = Vec::<f32>::with_capacity(1 << 20);
+
+    loop {
+        let packet = match format.next_packet() {
+            Ok(p) => p,
+            Err(SymphoniaError::IoError(e)) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
+                break;
+            }
+            Err(SymphoniaError::ResetRequired) => break,
+            Err(e) => return Err(AudioError::Decode(e.to_string())),
+        };
+        if packet.track_id() != track_id {
+            continue;
+        }
+
+        let decoded = match decoder.decode(&packet) {
+            Ok(d) => d,
+            Err(SymphoniaError::DecodeError(_)) => continue,
+            Err(e) => return Err(AudioError::Decode(e.to_string())),
+        };
+
+        append_stereo(&decoded, &mut left, &mut right);
+    }
+
+    if left.is_empty() {
+        return Err(AudioError::Decode("decoded zero samples".into()));
+    }
+
+    if enc_delay > 0 && enc_delay < left.len() {
+        left.drain(..enc_delay);
+        right.drain(..enc_delay);
+    }
+    if enc_padding > 0 && enc_padding < left.len() {
+        let new_len = left.len() - enc_padding;
+        left.truncate(new_len);
+        right.truncate(new_len);
+    }
+
+    let (left, right) = if src_sample_rate == SAMPLE_RATE {
+        (left, right)
+    } else {
+        let l = resample(&left, src_sample_rate, SAMPLE_RATE)
+            .map_err(|e| AudioError::Resample(e.to_string()))?;
+        let r = resample(&right, src_sample_rate, SAMPLE_RATE)
+            .map_err(|e| AudioError::Resample(e.to_string()))?;
+        (l, r)
+    };
+
+    Ok(StereoDecoded {
+        left,
+        right,
+        source_channels,
+    })
+}
+
 /// Append the decoded buffer's samples to `mono`, downmixing
 /// across channels by averaging. Symphonia exposes each sample
 /// format as a separate generic, so we dispatch once on the
@@ -173,6 +295,68 @@ fn append_mono(buf: &AudioBufferRef<'_>, mono: &mut Vec<f32>) {
         AudioBufferRef::S32(b) => downmix!(b, |s: i32| s as f32 / 2_147_483_648.0),
         AudioBufferRef::F32(b) => downmix!(b, |s: f32| s),
         AudioBufferRef::F64(b) => downmix!(b, |s: f64| s as f32),
+    }
+}
+
+/// Append the decoded buffer's samples to `left` and `right`,
+/// keeping channels 0 and 1 separate. For 1-channel input the
+/// single channel is duplicated into both buffers. For 3+ channel
+/// input channels 2.. are averaged and added equally to both L
+/// and R so centre + surround content survives the eventual
+/// stereo delivery downmix.
+fn append_stereo(buf: &AudioBufferRef<'_>, left: &mut Vec<f32>, right: &mut Vec<f32>) {
+    macro_rules! split {
+        ($buf:ident, $to_f32:expr) => {{
+            let spec = $buf.spec();
+            let chans = spec.channels.count();
+            let frames = $buf.frames();
+            match chans {
+                0 => {}
+                1 => {
+                    for f in 0..frames {
+                        let s = $to_f32($buf.chan(0)[f]);
+                        left.push(s);
+                        right.push(s);
+                    }
+                }
+                _ => {
+                    for f in 0..frames {
+                        let mut l = $to_f32($buf.chan(0)[f]);
+                        let mut r = $to_f32($buf.chan(1)[f]);
+                        if chans > 2 {
+                            let mut extras = 0.0_f32;
+                            for c in 2..chans {
+                                extras += $to_f32($buf.chan(c)[f]);
+                            }
+                            extras /= (chans - 2) as f32;
+                            l += extras;
+                            r += extras;
+                        }
+                        left.push(l);
+                        right.push(r);
+                    }
+                }
+            }
+        }};
+    }
+
+    match buf {
+        AudioBufferRef::U8(b) => split!(b, |s: u8| (s as f32 - 128.0) / 128.0),
+        AudioBufferRef::U16(b) => split!(b, |s: u16| (s as f32 - 32768.0) / 32768.0),
+        AudioBufferRef::U24(b) => split!(b, |s: symphonia::core::sample::u24| {
+            (s.0 as f32 - 8_388_608.0) / 8_388_608.0
+        }),
+        AudioBufferRef::U32(b) => {
+            split!(b, |s: u32| (s as f64 / 4_294_967_295.0 * 2.0 - 1.0) as f32)
+        }
+        AudioBufferRef::S8(b) => split!(b, |s: i8| s as f32 / 128.0),
+        AudioBufferRef::S16(b) => split!(b, |s: i16| s as f32 / 32_768.0),
+        AudioBufferRef::S24(b) => split!(b, |s: symphonia::core::sample::i24| {
+            s.0 as f32 / 8_388_608.0
+        }),
+        AudioBufferRef::S32(b) => split!(b, |s: i32| s as f32 / 2_147_483_648.0),
+        AudioBufferRef::F32(b) => split!(b, |s: f32| s),
+        AudioBufferRef::F64(b) => split!(b, |s: f64| s as f32),
     }
 }
 

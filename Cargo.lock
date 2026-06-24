@@ -2883,9 +2883,9 @@ checksum = "f8ca58f447f06ed17d5fc4043ce1b10dd205e060fb3ce5b979b8ed8e59ff3f79"
 
 [[package]]
 name = "memmap2"
-version = "0.9.10"
+version = "0.9.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "714098028fe011992e1c3962653c96b2d578c4b4bce9036e15ff220319b1e0e3"
+checksum = "d1219ed1b7f229ee7104d281dd01d6802fe28bb6e95d292942c4daacdeb798c0"
 dependencies = [
  "libc",
 ]
@@ -3733,7 +3733,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "c2pa",
  "hound",
@@ -3747,7 +3747,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-attestation-spec"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "pem",
  "serde",
@@ -3758,7 +3758,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-audioseal"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "anyhow",
  "hound",
@@ -3775,7 +3775,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-cli"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "clap",
  "provcheck",
@@ -3787,7 +3787,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-examples"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "anyhow",
  "c2pa",
@@ -3797,7 +3797,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-kit"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "anyhow",
  "c2pa",
@@ -3821,7 +3821,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-platform"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "c2pa",
  "dirs",
@@ -3841,7 +3841,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-publish"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "atrium-api",
  "atrium-identity",
@@ -3858,7 +3858,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-sign"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "age",
  "c2pa",
@@ -3884,7 +3884,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-watermark"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "anyhow",
  "hound",
@@ -3903,7 +3903,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-wavmark"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "anyhow",
  "hound",

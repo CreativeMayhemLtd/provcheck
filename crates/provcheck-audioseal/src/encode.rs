@@ -49,9 +49,18 @@ pub enum EncodeError {
 /// Default per-sample watermark amplitude. AudioSeal's
 /// `Watermarker.forward` takes `alpha` as a multiplier on the
 /// watermark signal before adding to the source: `marked = x + α*w`.
-/// `α = 1.0` is the model's training-time default and what the
-/// upstream README's worked examples use.
-pub const DEFAULT_ALPHA: f32 = 1.0;
+///
+/// The upstream README's worked examples use `α = 1.0`, but the
+/// codec-survival sweep in `docs/v0.5.2-codec-survival/` showed
+/// that on real-world music content alpha=1.0 produces a mark
+/// that sits below provcheck's 0.70 detected threshold even on
+/// pristine PCM (~0.67 conf). v0.5.2 raises the default to 3.0
+/// so the default behaviour reliably self-detects (~0.999 conf)
+/// and survives both AAC 192k stereo and libmp3lame 192k mono
+/// at conf 0.999. Pass `--alpha 1.0` to restore the v0.5.1
+/// behaviour, or `--alpha 5.0` for cleaner brand-ID recovery
+/// through AAC delivery.
+pub const DEFAULT_ALPHA: f32 = 3.0;
 
 /// Embed a 5-bit brand ID into a 16 kHz mono waveform. Returns the
 /// marked waveform (same length as input). `alpha` scales the
@@ -158,6 +167,35 @@ pub fn embed_brand(
     alpha: Option<f32>,
 ) -> Result<Vec<f32>, EncodeError> {
     embed(waveform, brand_id_5bit, alpha)
+}
+
+/// Embed the same brand into both channels of a stereo signal.
+///
+/// AudioSeal's generator is mono-only by training-time
+/// architecture; we orchestrate two independent embeds (L and R
+/// with the same brand and alpha) so the resulting stereo file
+/// detects on either single channel and on the mono downmix.
+/// Returns `(marked_left, marked_right)`, each the same length as
+/// the matching input channel. Errors if the two input channels
+/// have different lengths.
+pub fn embed_stereo(
+    left: &[f32],
+    right: &[f32],
+    brand_id_5bit: u8,
+    alpha: Option<f32>,
+) -> Result<(Vec<f32>, Vec<f32>), EncodeError> {
+    if left.len() != right.len() {
+        return Err(EncodeError::Model(crate::model::ModelError::Inference(
+            format!(
+                "stereo embed: left ({}) and right ({}) have different lengths",
+                left.len(),
+                right.len()
+            ),
+        )));
+    }
+    let l = embed(left, brand_id_5bit, alpha)?;
+    let r = embed(right, brand_id_5bit, alpha)?;
+    Ok((l, r))
 }
 
 #[cfg(test)]
