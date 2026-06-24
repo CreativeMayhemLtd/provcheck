@@ -18,7 +18,7 @@ use rubato::{
     Resampler, SincFixedIn, SincInterpolationParameters, SincInterpolationType, WindowFunction,
 };
 use symphonia::core::audio::{AudioBufferRef, Signal};
-use symphonia::core::codecs::{CODEC_TYPE_NULL, DecoderOptions};
+use symphonia::core::codecs::{CODEC_TYPE_AAC, CODEC_TYPE_NULL, DecoderOptions};
 use symphonia::core::errors::Error as SymphoniaError;
 use symphonia::core::formats::FormatOptions;
 use symphonia::core::io::MediaSourceStream;
@@ -26,6 +26,19 @@ use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
 
 use crate::hparams::SAMPLE_RATE;
+
+/// Default AAC LC encoder priming when the source container's
+/// metadata does not surface it. Lavf, FFmpeg's built-in `aac`
+/// encoder, and most reference AAC LC implementations insert
+/// exactly 1024 priming samples at the head of the stream;
+/// `iTunSMPB`-style streams (Apple, Nero) use 2112. symphonia
+/// 0.5.5's `isomp4` reader does not expose the `edts/elst` edit
+/// list or `iTunSMPB` tag as `codec_params.delay`, so we apply
+/// this default when both `delay` is unset AND the codec is AAC.
+/// Public issue #24 (v0.5.2): without this, AAC-in-MP4/M4A
+/// detection returned conf 0.000 because every STFT frame was
+/// 1024 samples out of phase with the embedder's frame grid.
+const AAC_DEFAULT_PRIMING_SAMPLES: u32 = 1024;
 
 #[derive(Debug, thiserror::Error)]
 pub enum AudioError {
@@ -94,7 +107,7 @@ pub fn decode_to_mono_44k1(path: &Path) -> Result<Vec<f32>, AudioError> {
     // which shifts every downstream STFT frame and breaks the
     // silentcipher per-position mode vote. See
     // docs/v0.3.3-detection-gap/ for the empirical alignment proof.
-    let enc_delay = track.codec_params.delay.unwrap_or(0) as usize;
+    let enc_delay = effective_priming(track) as usize;
     let enc_padding = track.codec_params.padding.unwrap_or(0) as usize;
 
     let mut decoder = symphonia::default::get_codecs()
@@ -194,7 +207,7 @@ pub fn decode_to_stereo_44k1(path: &Path) -> Result<StereoDecoded, AudioError> {
         .channels
         .map(|c| c.count() as u16)
         .unwrap_or(1);
-    let enc_delay = track.codec_params.delay.unwrap_or(0) as usize;
+    let enc_delay = effective_priming(track) as usize;
     let enc_padding = track.codec_params.padding.unwrap_or(0) as usize;
 
     let mut decoder = symphonia::default::get_codecs()
@@ -255,6 +268,20 @@ pub fn decode_to_stereo_44k1(path: &Path) -> Result<StereoDecoded, AudioError> {
         right,
         source_channels,
     })
+}
+
+/// Encoder priming (head samples to drop) for the given track,
+/// falling back to [`AAC_DEFAULT_PRIMING_SAMPLES`] when symphonia
+/// did not surface the delay metadata and the codec is AAC. See
+/// the constant's doc-comment for the rationale.
+fn effective_priming(track: &symphonia::core::formats::Track) -> u32 {
+    if let Some(d) = track.codec_params.delay {
+        return d;
+    }
+    if track.codec_params.codec == CODEC_TYPE_AAC {
+        return AAC_DEFAULT_PRIMING_SAMPLES;
+    }
+    0
 }
 
 /// Append the decoded buffer's samples to `mono`, downmixing

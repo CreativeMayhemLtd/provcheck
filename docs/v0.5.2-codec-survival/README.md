@@ -18,20 +18,48 @@ This directory is both:
   output and upstream Python silentcipher's embed output is **1.000
   across every tested SDR**. The Rust port is numerically faithful.
 - The 47 dB training default is far above the survivability margin
-  for any lossy codec. **At 30 dB it works for MP3, at any SDR it
-  fails for AAC.**
+  for any lossy codec. **At 30 dB it works for MP3 and (post-v0.5.3)
+  for AAC.**
 - **MP3 (libmp3lame) delivery survives the embed.** Rust embed at SDR
   30 dB into MP3 192k retains conf 0.95 (well above the 0.85
   robustness threshold).
-- **AAC delivery does NOT survive the embed under any tested
-  combination** of bitrate (192k, 256k, 320k, VBR q5), SDR (25-47 dB),
-  channel count, or implementation (Python upstream OR Rust port).
-  AAC's psychoacoustic compression removes the inaudible content
-  silentcipher uses to hide marks. This is a silentcipher
-  architectural limit, not a Rust port bug.
 - v0.5.2 lowers `DEFAULT_MESSAGE_SDR_DB` from 47 to 30, adds stereo
   embed (two independent mono embeds with the same payload), and
   always-on verify-after-embed self-test.
+
+## v0.5.3 correction — silentcipher AAC delivery actually works
+
+The first version of this doc concluded that "AAC delivery does NOT
+survive the embed under any tested combination" of bitrate, SDR,
+channel count, or implementation. **That conclusion was wrong.**
+Public issue #24 surfaced the real root cause: the silentcipher
+*embed* always survived AAC at conf 0.92, but the *detector* was
+silently returning conf 0.000 on AAC-in-MP4/M4A because symphonia
+0.5.5 does not surface the MP4 `edts/elst` or `iTunSMPB` priming
+metadata as `codec_params.delay`. So our decode left every STFT
+frame 1024 samples out of phase with the embedder's frame grid.
+
+v0.5.3 fixes this by hardcoding `AAC_DEFAULT_PRIMING_SAMPLES = 1024`
+when symphonia returns `delay = None` for an AAC track. The fix
+also adds `mp4`, `m4b`, and `mov` to the audio-extension allowlist
+(MP4 video containers with an AAC audio track previously got
+rejected by the early `looks_like_audio` sniff).
+
+Post-fix numbers on the same 15-second segment, Rust embed at SDR
+30 dB ➝ ffmpeg aac 192k stereo ➝ Rust detector:
+
+| Container | Pre-fix conf | Post-fix conf |
+|---|---:|---:|
+| `.m4a` (AAC in MP4 audio container) | 0.000 | 0.921 |
+| `.mp4` (AAC alongside h264 video) | 0.000 | 0.921 |
+
+Independent verification: ffmpeg-decoding the same AAC bitstream to
+PCM and detecting that PCM gives conf 0.921 — confirming the mark
+was always there; the only thing wrong was our decoder's frame
+alignment. AudioSeal stays the recommended path for AAC delivery
+(higher post-AAC margin, see below) but silentcipher is now a
+viable second option for pipelines that prefer the 40-bit ASCII
+payload.
 
 ## Findings table
 

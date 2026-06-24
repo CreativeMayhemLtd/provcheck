@@ -197,7 +197,20 @@ fn looks_like_audio(path: &Path) -> bool {
     };
     matches!(
         ext.to_ascii_lowercase().as_str(),
-        "mp3" | "wav" | "flac" | "aac" | "m4a" | "ogg" | "oga" | "opus" | "wma" | "aiff" | "aif"
+        "mp3"
+            | "mp4"
+            | "wav"
+            | "flac"
+            | "aac"
+            | "m4a"
+            | "m4b"
+            | "mov"
+            | "ogg"
+            | "oga"
+            | "opus"
+            | "wma"
+            | "aiff"
+            | "aif"
     )
 }
 

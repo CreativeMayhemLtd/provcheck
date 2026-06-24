@@ -10,7 +10,7 @@ use rubato::{
     Resampler, SincFixedIn, SincInterpolationParameters, SincInterpolationType, WindowFunction,
 };
 use symphonia::core::audio::{AudioBufferRef, Signal};
-use symphonia::core::codecs::{CODEC_TYPE_NULL, DecoderOptions};
+use symphonia::core::codecs::{CODEC_TYPE_AAC, CODEC_TYPE_NULL, DecoderOptions};
 use symphonia::core::errors::Error as SymphoniaError;
 use symphonia::core::formats::FormatOptions;
 use symphonia::core::io::MediaSourceStream;
@@ -20,6 +20,22 @@ use symphonia::core::probe::Hint;
 /// Target sample rate for WavMark. The 32-bit decoder is trained at
 /// 16 kHz; passing a different rate silently breaks the watermark.
 pub const SAMPLE_RATE: u32 = 16_000;
+
+/// Default AAC LC encoder priming when the source container does
+/// not surface it. See the matching constant in
+/// `provcheck-watermark/src/audio.rs` for the rationale. Public
+/// issue #24 (v0.5.2).
+const AAC_DEFAULT_PRIMING_SAMPLES: u32 = 1024;
+
+fn effective_priming(track: &symphonia::core::formats::Track) -> u32 {
+    if let Some(d) = track.codec_params.delay {
+        return d;
+    }
+    if track.codec_params.codec == CODEC_TYPE_AAC {
+        return AAC_DEFAULT_PRIMING_SAMPLES;
+    }
+    0
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum AudioError {
@@ -65,7 +81,7 @@ pub fn decode_to_mono_16k(path: &Path) -> Result<Vec<f32>, AudioError> {
         .codec_params
         .sample_rate
         .ok_or_else(|| AudioError::Decode("track missing sample rate".into()))?;
-    let enc_delay = track.codec_params.delay.unwrap_or(0) as usize;
+    let enc_delay = effective_priming(track) as usize;
     let enc_padding = track.codec_params.padding.unwrap_or(0) as usize;
 
     let mut decoder = symphonia::default::get_codecs()
