@@ -46,3 +46,4 @@ Thumbs.db
 # ones go through Git LFS — uncomment if we adopt LFS later.
 # *.mp4
 # *.mov
+publish_v*.log
