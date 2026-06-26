@@ -105,7 +105,7 @@ else
 
     # Embed silentcipher into a 5s slice + AAC re-encode + detect.
     target/release/provcheck-kit watermark examples/rAIdio.bot-sample.mp3 \
-        -o "$SCRATCH/sc_marked.wav" --verify-after-embed false --overwrite >/dev/null 2>&1 || true
+        -o "$SCRATCH/sc_marked.wav" --no-verify-after-embed --overwrite >/dev/null 2>&1 || true
     # Truncate to 5s for speed.
     ffmpeg -y -loglevel error -i "$SCRATCH/sc_marked.wav" -t 5 "$SCRATCH/sc_5s.wav"
     ffmpeg -y -loglevel error -i "$SCRATCH/sc_5s.wav" -c:a aac -b:a 192k -ar 44100 -ac 2 "$SCRATCH/sc_aac.m4a"
@@ -119,7 +119,7 @@ else
 
     # Embed audioseal at default alpha + AAC re-encode + detect.
     target/release/provcheck-kit watermark "$SCRATCH/sc_5s.wav" \
-        -o "$SCRATCH/as_marked.wav" --kind audioseal --brand-id 1 --verify-after-embed false --overwrite >/dev/null 2>&1
+        -o "$SCRATCH/as_marked.wav" --kind audioseal --brand-id 1 --no-verify-after-embed --overwrite >/dev/null 2>&1
     ffmpeg -y -loglevel error -i "$SCRATCH/as_marked.wav" -c:a aac -b:a 192k -ar 44100 -ac 2 "$SCRATCH/as_aac.m4a"
     as_conf=$(target/release/provcheck --json "$SCRATCH/as_aac.m4a" 2>/dev/null | \
         python -c "import json,sys; r=json.load(sys.stdin); wm=[w for w in r['watermarks'] if w['kind']=='audio_seal'][0]; print(wm['confidence'])")

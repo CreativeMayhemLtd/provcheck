@@ -2443,8 +2443,22 @@ pub mod watermark {
         /// default; pass `--no-verify-after-embed` to skip. When
         /// enabled, conf < 0.50 deletes the output file and exits
         /// non-zero so weak marks do not silently propagate.
-        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+        ///
+        /// v0.5.3 shipped this with `ArgAction::Set` which only
+        /// accepted `--verify-after-embed true|false`. v0.5.4
+        /// switches to the `SetTrue/SetFalse` pair so both
+        /// `--verify-after-embed` and `--no-verify-after-embed`
+        /// behave the way the help text claims.
+        #[arg(long, default_value_t = true, action = clap::ArgAction::SetTrue, overrides_with = "no_verify_after_embed")]
         pub verify_after_embed: bool,
+
+        /// Skip the verify-after-embed self-test (negation of
+        /// `--verify-after-embed`). Use when you have your own
+        /// post-embed verification step OR when probing weak SDR /
+        /// alpha values where the self-test would otherwise refuse
+        /// to write the output.
+        #[arg(long = "no-verify-after-embed", action = clap::ArgAction::SetTrue, overrides_with = "verify_after_embed")]
+        pub no_verify_after_embed: bool,
 
         /// Overwrite the output file if it already exists.
         #[arg(long)]
@@ -2580,7 +2594,7 @@ pub mod watermark {
         )
         .await?;
 
-        if args.verify_after_embed {
+        if args.verify_after_embed && !args.no_verify_after_embed {
             verify_after_embed(&args.output, Kind::Silentcipher).await?;
         }
         eprintln!("provcheck-kit: done.");
@@ -2684,7 +2698,7 @@ pub mod watermark {
         )
         .await?;
 
-        if args.verify_after_embed {
+        if args.verify_after_embed && !args.no_verify_after_embed {
             verify_after_embed(&args.output, Kind::Audioseal).await?;
         }
         eprintln!("provcheck-kit: done.");
@@ -2741,7 +2755,7 @@ pub mod watermark {
 
         write_wav(&args.output, &marked, None, wm_audio::SAMPLE_RATE).await?;
 
-        if args.verify_after_embed {
+        if args.verify_after_embed && !args.no_verify_after_embed {
             verify_after_embed(&args.output, Kind::Wavmark).await?;
         }
         eprintln!("provcheck-kit: done.");
