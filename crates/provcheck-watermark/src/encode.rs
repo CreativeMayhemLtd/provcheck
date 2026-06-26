@@ -148,36 +148,84 @@ pub fn embed(
     //    `transform_message_chunk` runs inline so the message projection
     //    never exists as a full-length tensor; only `chunk_t` columns
     //    of it are materialised at any time.
+    //
+    //    v0.6.0 P1: batches of up to `parallel_batch` chunks run
+    //    concurrently via rayon. Each thread independently extracts
+    //    its slice of the spectrogram, runs tract, and post-processes
+    //    into a chunk-local buffer; the scatter into `carrier_reconst`
+    //    happens sequentially after each batch because chunks within
+    //    a batch are disjoint in time. Mirrors the detector's
+    //    PARALLEL_BATCH pattern in `crates/provcheck-watermark/src/lib.rs`
+    //    (`detect_chunked`). Empirical cap of 4 keeps peak memory
+    //    bounded — each chunk peaks around 1.5 GB of tract intermediates,
+    //    so 4-wide is safe on a 16 GB host and the doomscroll
+    //    16 GB container we observed.
+    use rayon::prelude::*;
+
+    let parallel_batch: usize = std::thread::available_parallelism()
+        .map(|n| (n.get() / 2).clamp(1, 4))
+        .unwrap_or(2);
+
     let model = model()?;
     let mut carrier_reconst = vec![0.0_f32; FREQ_BINS * n_frames];
-    let mut t_start = 0;
-    while t_start < n_frames {
-        let chunk_t = (n_frames - t_start).min(CHUNK_T_FRAMES);
+    let mut t_consumed: usize = 0;
 
-        // Extract the carrier slice and project the message for this
-        // chunk only. Both buffers are `FREQ_BINS * chunk_t` rather
-        // than `FREQ_BINS * n_frames`.
-        let carrier_chunk = extract_carrier_chunk(&spec.magnitude, n_frames, t_start, chunk_t);
-        let msg_chunk =
-            transform_message_chunk(&msg_enc_5, n_frames, t_start, chunk_t);
-
-        // Run encoder ONNX. Output is the raw dec_c output, BEFORE
-        // utterance-level normalisation + negate + relu.
-        let info_raw = run_encoder_chunk(model, &carrier_chunk, &msg_chunk, sdr, chunk_t)?;
-
-        // Apply post-processing per chunk and scatter into the
-        // full carrier_reconst buffer.
-        for bin in 0..FREQ_BINS {
-            for t in 0..chunk_t {
-                let info = info_raw[bin * chunk_t + t] * utterance_norm;
-                // ensure_negative_message + relu(+ carrier).
-                let candidate = -info + carrier_chunk[bin * chunk_t + t];
-                let reconst = if candidate > 0.0 { candidate } else { 0.0 };
-                carrier_reconst[bin * n_frames + (t_start + t)] = reconst;
+    while t_consumed < n_frames {
+        // Build this batch's chunk offsets + sizes.
+        let mut batch: Vec<(usize, usize)> = Vec::with_capacity(parallel_batch);
+        let mut t_cursor = t_consumed;
+        for _ in 0..parallel_batch {
+            if t_cursor >= n_frames {
+                break;
             }
+            let chunk_t = (n_frames - t_cursor).min(CHUNK_T_FRAMES);
+            batch.push((t_cursor, chunk_t));
+            t_cursor += chunk_t;
         }
 
-        t_start += chunk_t;
+        // Run encoder + post-process in parallel. Each thread produces
+        // a `[FREQ_BINS, chunk_t]` chunk-local buffer of reconst values
+        // (laid out as `bin * chunk_t + t`). tract's runnable model is
+        // `Send + Sync` behind `&`, so rayon can hand the same
+        // OnceLock-cached model to every worker without contention on
+        // its own state.
+        let processed: Result<Vec<(usize, usize, Vec<f32>)>, EncodeError> = batch
+            .par_iter()
+            .map(|&(t_start, chunk_t)| {
+                let carrier_chunk =
+                    extract_carrier_chunk(&spec.magnitude, n_frames, t_start, chunk_t);
+                let msg_chunk =
+                    transform_message_chunk(&msg_enc_5, n_frames, t_start, chunk_t);
+                let info_raw =
+                    run_encoder_chunk(model, &carrier_chunk, &msg_chunk, sdr, chunk_t)?;
+
+                let mut chunk_reconst = vec![0.0_f32; FREQ_BINS * chunk_t];
+                for bin in 0..FREQ_BINS {
+                    for t in 0..chunk_t {
+                        let info = info_raw[bin * chunk_t + t] * utterance_norm;
+                        // ensure_negative_message + relu(+ carrier).
+                        let candidate = -info + carrier_chunk[bin * chunk_t + t];
+                        chunk_reconst[bin * chunk_t + t] =
+                            if candidate > 0.0 { candidate } else { 0.0 };
+                    }
+                }
+                Ok((t_start, chunk_t, chunk_reconst))
+            })
+            .collect();
+        let chunks = processed?;
+
+        // Scatter every chunk in this batch into carrier_reconst.
+        // Chunks within a batch are guaranteed non-overlapping by
+        // construction (cursor advances by chunk_t each iteration).
+        for (t_start, chunk_t, chunk_reconst) in chunks {
+            for bin in 0..FREQ_BINS {
+                let src_off = bin * chunk_t;
+                let dst_off = bin * n_frames + t_start;
+                carrier_reconst[dst_off..dst_off + chunk_t]
+                    .copy_from_slice(&chunk_reconst[src_off..src_off + chunk_t]);
+            }
+            t_consumed = t_consumed.max(t_start + chunk_t);
+        }
     }
 
     // 6. Inverse STFT — magnitude from carrier_reconst, phase from
