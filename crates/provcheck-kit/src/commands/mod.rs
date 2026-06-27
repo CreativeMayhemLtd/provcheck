@@ -2476,9 +2476,43 @@ pub mod watermark {
         #[arg(long = "no-verify-after-embed", action = clap::ArgAction::SetTrue, overrides_with = "verify_after_embed")]
         pub no_verify_after_embed: bool,
 
+        /// (silentcipher only) Memory budget knob. `default` keeps
+        /// v0.6.0 P1's auto-cap (up to 4 chunks in parallel). `low`
+        /// forces a single chunk at a time, peaking at one tract
+        /// intermediate buffer instead of up to four. Use `low` on
+        /// memory-constrained hosts where the orchestrator already
+        /// runs 4+ workers wide. v0.6.0 P3 phase 3d. AudioSeal and
+        /// WavMark embed paths are unaffected (they already process
+        /// chunks sequentially).
+        #[arg(long, value_enum, default_value_t = MemoryBudget::Default)]
+        pub memory_budget: MemoryBudget,
+
         /// Overwrite the output file if it already exists.
         #[arg(long)]
         pub overwrite: bool,
+    }
+
+    /// Memory budget for the silentcipher embed chunk loop. See the
+    /// `--memory-budget` flag docs above for the full rationale.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Default)]
+    #[clap(rename_all = "lowercase")]
+    pub enum MemoryBudget {
+        /// Auto-cap chunk parallelism via the same formula the
+        /// detector uses: `clamp(cores/2, 1, 4)`. v0.6.0 P1 default.
+        #[default]
+        Default,
+        /// Force sequential chunk processing. Peak RSS drops by
+        /// roughly 4x at the cost of 2.5-3x slower wall clock.
+        Low,
+    }
+
+    impl MemoryBudget {
+        pub fn max_parallel_chunks(self) -> Option<usize> {
+            match self {
+                Self::Default => None,
+                Self::Low => Some(1),
+            }
+        }
     }
 
     fn parse_payload_hex(s: &str) -> Result<[u8; 5]> {
@@ -2566,15 +2600,19 @@ pub mod watermark {
             payload, sdr_effective, sdr_note
         );
 
+        let embed_config = sc_encode::EmbedConfig {
+            max_parallel_chunks: args.memory_budget.max_parallel_chunks(),
+        };
         let t0 = Instant::now();
         let (marked_l, marked_r): (Vec<f32>, Option<Vec<f32>>) = if out_channels == 2 {
             let left = stereo.left;
             let right = stereo.right;
-            let (l, r) =
-                tokio::task::spawn_blocking(move || sc_encode::embed_stereo(&left, &right, payload, sdr_user))
-                    .await
-                    .context("join embed task")?
-                    .context("silentcipher stereo embed failed")?;
+            let (l, r) = tokio::task::spawn_blocking(move || {
+                sc_encode::embed_stereo_with_config(&left, &right, payload, sdr_user, embed_config)
+            })
+            .await
+            .context("join embed task")?
+            .context("silentcipher stereo embed failed")?;
             (l, Some(r))
         } else {
             // Mono output. If the source was stereo and we are
@@ -2589,10 +2627,12 @@ pub mod watermark {
             } else {
                 stereo.left
             };
-            let m = tokio::task::spawn_blocking(move || sc_encode::embed(&mono, payload, sdr_user))
-                .await
-                .context("join embed task")?
-                .context("silentcipher embed failed")?;
+            let m = tokio::task::spawn_blocking(move || {
+                sc_encode::embed_with_config(&mono, payload, sdr_user, embed_config)
+            })
+            .await
+            .context("join embed task")?
+            .context("silentcipher embed failed")?;
             (m, None)
         };
         let embed_elapsed = t0.elapsed();
@@ -3183,6 +3223,11 @@ pub mod serve {
     use std::path::PathBuf;
     use std::time::Instant;
 
+    // Suppress: the from_str method we use comes from the
+    // `ValueEnum` trait, but clap re-exports it via the macro
+    // expansion so the explicit import isn't needed at the call
+    // sites. Leaving it absent keeps the warning-clean build.
+
     use anyhow::{Context, Result};
     use clap::{Args, ValueEnum};
     use serde::{Deserialize, Serialize};
@@ -3242,6 +3287,12 @@ pub mod serve {
 
         #[serde(default = "default_overwrite")]
         pub overwrite: bool,
+
+        /// Optional memory-budget override matching the
+        /// `--memory-budget` CLI flag. `"default"` or `"low"`.
+        /// Defaults to `"default"` when omitted.
+        #[serde(default = "default_memory_budget")]
+        pub memory_budget: String,
     }
 
     fn default_kind() -> String {
@@ -3261,6 +3312,9 @@ pub mod serve {
     }
     fn default_overwrite() -> bool {
         true
+    }
+    fn default_memory_budget() -> String {
+        "default".to_string()
     }
 
     #[derive(Debug, Serialize)]
@@ -3351,6 +3405,8 @@ pub mod serve {
             .map_err(|e| anyhow::anyhow!("unknown kind {:?}: {e}", req.kind))?;
         let channels = watermark::ChannelMode::from_str(&req.channels, true)
             .map_err(|e| anyhow::anyhow!("unknown channels {:?}: {e}", req.channels))?;
+        let memory_budget = watermark::MemoryBudget::from_str(&req.memory_budget, true)
+            .map_err(|e| anyhow::anyhow!("unknown memory_budget {:?}: {e}", req.memory_budget))?;
 
         let args = watermark::CliArgs {
             input: req.input,
@@ -3363,6 +3419,7 @@ pub mod serve {
             channels,
             verify_after_embed: req.verify_after_embed,
             no_verify_after_embed: !req.verify_after_embed,
+            memory_budget,
             overwrite: req.overwrite,
         };
         watermark::run(args).await.context("watermark dispatch")

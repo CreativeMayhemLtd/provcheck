@@ -82,6 +82,22 @@ pub enum EncodeError {
     TooShort,
 }
 
+/// Embed configuration knobs threaded through the encode pipeline.
+/// All fields are optional; `None` keeps the v0.6.0 P1 default
+/// behaviour. v0.6.0 P3 phase 3d adds `max_parallel_chunks` so
+/// memory-constrained operators can cap concurrent chunks below
+/// the P1 detect-side cap of `min(cores/2, 4)`. Setting it to
+/// `Some(1)` is the canonical "low memory" mode, peaking at one
+/// tract intermediate buffer (~1.5 GB) instead of up to four.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct EmbedConfig {
+    /// Override the embed-side chunk parallelism cap. `None` uses
+    /// the same auto-cap as the detect path. `Some(1)` forces
+    /// sequential chunk processing (the v0.5.4 behaviour); higher
+    /// values widen the rayon fan-out up to the chunk count.
+    pub max_parallel_chunks: Option<usize>,
+}
+
 /// Embed a 5-byte payload into a mono 44.1 kHz f32 waveform.
 ///
 /// Returns a watermarked waveform of the same length as the input.
@@ -98,6 +114,18 @@ pub fn embed(
     waveform: &[f32],
     payload: [u8; 5],
     message_sdr_db: Option<f32>,
+) -> Result<Vec<f32>, EncodeError> {
+    embed_with_config(waveform, payload, message_sdr_db, EmbedConfig::default())
+}
+
+/// Embed with explicit [`EmbedConfig`]. v0.6.0 P3 phase 3d entry.
+/// Existing callers should keep using [`embed`]; pass an explicit
+/// config only when overriding chunk parallelism for memory.
+pub fn embed_with_config(
+    waveform: &[f32],
+    payload: [u8; 5],
+    message_sdr_db: Option<f32>,
+    config: EmbedConfig,
 ) -> Result<Vec<f32>, EncodeError> {
     if waveform.is_empty() {
         return Err(EncodeError::TooShort);
@@ -162,9 +190,10 @@ pub fn embed(
     //    16 GB container we observed.
     use rayon::prelude::*;
 
-    let parallel_batch: usize = std::thread::available_parallelism()
+    let auto_batch: usize = std::thread::available_parallelism()
         .map(|n| (n.get() / 2).clamp(1, 4))
         .unwrap_or(2);
+    let parallel_batch: usize = config.max_parallel_chunks.unwrap_or(auto_batch).max(1);
 
     let model = model()?;
     let mut carrier_reconst = vec![0.0_f32; FREQ_BINS * n_frames];
@@ -270,6 +299,19 @@ pub fn embed_stereo(
     payload: [u8; 5],
     message_sdr_db: Option<f32>,
 ) -> Result<(Vec<f32>, Vec<f32>), EncodeError> {
+    embed_stereo_with_config(left, right, payload, message_sdr_db, EmbedConfig::default())
+}
+
+/// Stereo embed with explicit [`EmbedConfig`]. Runs the two
+/// per-channel mono embeds sequentially, threading the same config
+/// through both. v0.6.0 P3 phase 3d entry.
+pub fn embed_stereo_with_config(
+    left: &[f32],
+    right: &[f32],
+    payload: [u8; 5],
+    message_sdr_db: Option<f32>,
+    config: EmbedConfig,
+) -> Result<(Vec<f32>, Vec<f32>), EncodeError> {
     if left.len() != right.len() {
         return Err(EncodeError::Inference(format!(
             "stereo embed: left ({}) and right ({}) have different lengths",
@@ -277,8 +319,8 @@ pub fn embed_stereo(
             right.len()
         )));
     }
-    let l = embed(left, payload, message_sdr_db)?;
-    let r = embed(right, payload, message_sdr_db)?;
+    let l = embed_with_config(left, payload, message_sdr_db, config)?;
+    let r = embed_with_config(right, payload, message_sdr_db, config)?;
     Ok((l, r))
 }
 
