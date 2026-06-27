@@ -108,6 +108,22 @@ pub enum Command {
     /// is a WAV (re-encode externally to MP3/AAC as needed).
     Watermark(watermark::CliArgs),
 
+    /// Long-lived watermark worker. Reads JSON-line requests on
+    /// stdin, writes JSON-line responses on stdout. Reuses the
+    /// in-process tract model across requests so per-file model
+    /// load (3-5 seconds in the one-shot CLI flow) drops to zero
+    /// after the first request. Exit cleanly on stdin EOF.
+    ///
+    /// Request shape: `{"id":"...","input":"/path","output":"/path",
+    /// "kind":"silentcipher"|"audioseal"|"wavmark",
+    /// "payload":"hex","brand_id":N,"sdr_db":F,"alpha":F,
+    /// "channels":"auto"|"mono"|"stereo","verify_after_embed":bool,
+    /// "overwrite":bool}`.
+    ///
+    /// Response shape: `{"id":"...","ok":true,"elapsed_ms":N}` or
+    /// `{"id":"...","ok":false,"error":"..."}`. v0.6.0 P2.
+    Serve(serve::CliArgs),
+
     /// Write the current identity to an age-format backup file.
     /// Use `--use-recovery-recipients` to encrypt to the
     /// registered X25519 recipient set instead of a passphrase.
@@ -3135,5 +3151,227 @@ mod tests {
             }
             _ => panic!("wrong subcommand"),
         }
+    }
+}
+
+// ----------------------------------------------------------------
+// `serve` — long-lived watermark worker (v0.6.0 P2)
+// ----------------------------------------------------------------
+
+pub mod serve {
+    //! Long-lived watermark worker. Reads JSON-line requests on
+    //! stdin, writes JSON-line responses on stdout. Each request
+    //! constructs an in-memory `watermark::CliArgs` and dispatches
+    //! to the same code path the one-shot `kit watermark` uses, so
+    //! request semantics stay bit-identical to the CLI. The win is
+    //! amortising the tract model load (3-5 seconds per
+    //! invocation) across every request after the first.
+    //!
+    //! Designed to be wired as a per-concurrency-slot worker
+    //! process in batch-embed orchestrators (doomscroll.fm being
+    //! the canonical case). The orchestrator opens N workers,
+    //! load-balances requests across them, and respawns one when
+    //! it dies. Each worker stays single-threaded inside; the
+    //! embed itself uses rayon under the hood (v0.6.0 P1).
+    //!
+    //! Errors are surfaced per-request via the JSON response so a
+    //! malformed input does not kill the worker. Panics inside the
+    //! watermark path are not caught by this module; operators
+    //! should wrap the binary in a respawn loop.
+
+    use std::io::{BufRead, Write};
+    use std::path::PathBuf;
+    use std::time::Instant;
+
+    use anyhow::{Context, Result};
+    use clap::{Args, ValueEnum};
+    use serde::{Deserialize, Serialize};
+
+    use super::watermark;
+
+    #[derive(Debug, Args)]
+    pub struct CliArgs {
+        /// Protocol shape. `jsonl` (default) reads one JSON object
+        /// per line on stdin, writes one JSON response per line on
+        /// stdout. Future revisions may add `socket` for unix-domain
+        /// transport; for v0.6.0 P2 only `jsonl` is wired.
+        #[arg(long, value_enum, default_value_t = Protocol::Jsonl)]
+        pub protocol: Protocol,
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Default)]
+    #[clap(rename_all = "lowercase")]
+    pub enum Protocol {
+        #[default]
+        Jsonl,
+    }
+
+    /// Wire-level watermark request. Serde defaults match the
+    /// `kit watermark` CLI defaults so omitting a field gives the
+    /// same behaviour you'd get on the command line.
+    #[derive(Debug, Deserialize)]
+    pub struct WatermarkRequest {
+        /// Caller-supplied correlation id, echoed back in the
+        /// response so the orchestrator can match request to reply
+        /// out of order.
+        pub id: String,
+
+        pub input: PathBuf,
+        pub output: PathBuf,
+
+        #[serde(default = "default_kind")]
+        pub kind: String,
+
+        #[serde(default = "default_payload")]
+        pub payload: String,
+
+        #[serde(default = "default_brand_id")]
+        pub brand_id: u8,
+
+        #[serde(default)]
+        pub sdr_db: Option<f32>,
+
+        #[serde(default)]
+        pub alpha: Option<f32>,
+
+        #[serde(default = "default_channels")]
+        pub channels: String,
+
+        #[serde(default = "default_verify")]
+        pub verify_after_embed: bool,
+
+        #[serde(default = "default_overwrite")]
+        pub overwrite: bool,
+    }
+
+    fn default_kind() -> String {
+        "silentcipher".to_string()
+    }
+    fn default_payload() -> String {
+        "44464d0100".to_string()
+    }
+    fn default_brand_id() -> u8 {
+        1
+    }
+    fn default_channels() -> String {
+        "auto".to_string()
+    }
+    fn default_verify() -> bool {
+        true
+    }
+    fn default_overwrite() -> bool {
+        true
+    }
+
+    #[derive(Debug, Serialize)]
+    pub struct WatermarkResponse {
+        pub id: String,
+        pub ok: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub elapsed_ms: Option<u128>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub error: Option<String>,
+    }
+
+    pub async fn run(args: CliArgs) -> Result<()> {
+        let _ = args.protocol; // only Jsonl is wired for v0.6.0 P2
+
+        eprintln!("provcheck-kit: serve started (protocol=jsonl); send JSON requests on stdin");
+        let stdin = std::io::stdin();
+        let mut stdout = std::io::stdout().lock();
+        let reader = stdin.lock();
+
+        for line in reader.lines() {
+            let line = match line {
+                Ok(l) => l,
+                Err(e) => {
+                    let _ = write_response(
+                        &mut stdout,
+                        &WatermarkResponse {
+                            id: "unknown".to_string(),
+                            ok: false,
+                            elapsed_ms: None,
+                            error: Some(format!("stdin read error: {e}")),
+                        },
+                    );
+                    break;
+                }
+            };
+            if line.trim().is_empty() {
+                continue;
+            }
+            let req: WatermarkRequest = match serde_json::from_str(&line) {
+                Ok(r) => r,
+                Err(e) => {
+                    let _ = write_response(
+                        &mut stdout,
+                        &WatermarkResponse {
+                            id: "unknown".to_string(),
+                            ok: false,
+                            elapsed_ms: None,
+                            error: Some(format!("malformed request: {e}")),
+                        },
+                    );
+                    continue;
+                }
+            };
+            let resp = handle(req).await;
+            write_response(&mut stdout, &resp)?;
+        }
+        eprintln!("provcheck-kit: serve shutdown (stdin closed)");
+        Ok(())
+    }
+
+    async fn handle(req: WatermarkRequest) -> WatermarkResponse {
+        let id = req.id.clone();
+        let t0 = Instant::now();
+        match dispatch(req).await {
+            Ok(()) => WatermarkResponse {
+                id,
+                ok: true,
+                elapsed_ms: Some(t0.elapsed().as_millis()),
+                error: None,
+            },
+            Err(e) => WatermarkResponse {
+                id,
+                ok: false,
+                elapsed_ms: Some(t0.elapsed().as_millis()),
+                error: Some(format!("{e:#}")),
+            },
+        }
+    }
+
+    /// Construct an in-memory `watermark::CliArgs` from the JSON
+    /// request and call into the same code path the one-shot CLI
+    /// uses. This is intentional: every request runs through the
+    /// existing decode, embed, write, verify-after-embed flow, so
+    /// output is bit-identical to the CLI on the same input.
+    async fn dispatch(req: WatermarkRequest) -> Result<()> {
+        let kind = watermark::Kind::from_str(&req.kind, true)
+            .map_err(|e| anyhow::anyhow!("unknown kind {:?}: {e}", req.kind))?;
+        let channels = watermark::ChannelMode::from_str(&req.channels, true)
+            .map_err(|e| anyhow::anyhow!("unknown channels {:?}: {e}", req.channels))?;
+
+        let args = watermark::CliArgs {
+            input: req.input,
+            output: req.output,
+            kind,
+            payload: req.payload,
+            brand_id: req.brand_id,
+            sdr_db: req.sdr_db,
+            alpha: req.alpha,
+            channels,
+            verify_after_embed: req.verify_after_embed,
+            no_verify_after_embed: !req.verify_after_embed,
+            overwrite: req.overwrite,
+        };
+        watermark::run(args).await.context("watermark dispatch")
+    }
+
+    fn write_response<W: Write>(out: &mut W, resp: &WatermarkResponse) -> Result<()> {
+        let line = serde_json::to_string(resp).context("serialize response")?;
+        writeln!(out, "{line}").context("write response")?;
+        out.flush().context("flush stdout")?;
+        Ok(())
     }
 }
