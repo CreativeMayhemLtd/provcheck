@@ -96,7 +96,7 @@ x509-cert = "0.2"
 [dev-dependencies]
 # Round-trip tests: re-read the rcgen output via x509-parser to
 # confirm the cert chain decodes cleanly and contains what we set.
-x509-parser = "0.16"
+x509-parser = "0.18"
 # Extracting DER bytes out of the PEM chain in tests. Production
 # code uses the spec crate's fingerprint helpers and doesn't need
 # to touch the pem crate directly.
