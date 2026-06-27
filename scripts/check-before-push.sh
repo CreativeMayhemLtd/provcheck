@@ -69,8 +69,17 @@ else
         exit 1
     fi
 
-    # Build the release CLI once so parity-vs-upstream uses fresh binaries.
-    cargo build --release --bin provcheck-kit --bin provcheck >/dev/null 2>&1
+    # Build the release CLI once so parity-vs-upstream uses fresh
+    # binaries. `|| true` because Windows file locking will fail
+    # this build silently when another process is holding the kit
+    # or verifier exe open (e.g. a long-running prod-batch verify
+    # run by the operator). In that case the parity sweep just
+    # uses whichever binary is already on disk; if it is too stale
+    # the sweep's threshold check below catches that downstream.
+    # Without `|| true` the script's `set -euo pipefail` exits
+    # silently here, leaving the operator with an unexplained push
+    # rejection.
+    cargo build --release --bin provcheck-kit --bin provcheck >/dev/null 2>&1 || true
 
     # Run a focused sweep (5s clip, SDR 30 + 47) and parse the conf
     # column for the rust-detect-rust row. The full script writes its
