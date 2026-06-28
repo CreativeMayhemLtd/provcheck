@@ -58,6 +58,7 @@ async fn main() -> ExitCode {
         Command::Verify(args) => commands::verify::run(args).await,
         Command::Watermark(args) => commands::watermark::run(args).await,
         Command::Serve(args) => commands::serve::run(args).await,
+        Command::Weights(args) => commands::weights::run(args).await,
         Command::ExportBackup(args) => commands::export_backup::run(args).await,
         Command::ImportBackup(args) => commands::import_backup::run(args).await,
         Command::Unlock(args) => commands::unlock::run(args).await,

@@ -59,6 +59,22 @@ pub enum Error {
         family: &'static str,
         variant: &'static str,
     },
+    /// Weights not yet downloaded. The caller (CLI / GUI) should
+    /// prompt the user to install via
+    /// [`download`] rather than silently fetching them. Carries
+    /// the entry so the prompt can show family, variant, size,
+    /// and the public URL.
+    ///
+    /// "always respect the user" — v0.7 phase 8a design direction.
+    #[error(
+        "weights not installed for {family}/{variant} ({size_mb} MB) — \
+         download via provcheck-weights::download or `provcheck-kit weights install {family}`"
+    )]
+    NotCached {
+        family: &'static str,
+        variant: &'static str,
+        size_mb: u64,
+    },
     #[error("cache directory not resolvable on this platform")]
     NoCacheDir,
     #[error("io: {0}")]
@@ -94,31 +110,58 @@ pub fn cache_path_for(entry: &WeightEntry) -> Result<PathBuf, Error> {
     Ok(dir.join(entry.filename))
 }
 
-/// Load the weight bytes from cache, downloading + verifying first
-/// if absent. The main entry point detector crates call from their
-/// `model.rs` modules.
+/// Return the cached weight path if present + SHA-valid; otherwise
+/// return [`Error::NotCached`] WITHOUT initiating a download.
 ///
-/// On success the file is guaranteed to exist on disk at the
-/// returned path AND its bytes have been SHA256-verified against
-/// the bundled manifest. The detector loads from the returned
-/// path via `tract`'s `model_for_path` (or equivalent).
-pub fn load_or_download(family: &str, variant: &str) -> Result<PathBuf, Error> {
+/// This is what detector crates (silentcipher, audioseal, wavmark,
+/// image) call from their internal model loading. A missing weight
+/// is surfaced cleanly so the CLI / GUI can prompt the user
+/// rather than silently blocking for ~30s while a download
+/// happens behind their back.
+///
+/// "always respect the user" — v0.7 phase 8a design direction.
+pub fn load_if_cached(family: &str, variant: &str) -> Result<PathBuf, Error> {
+    let entry = entry(family, variant)?;
+    let path = cache_path_for(entry)?;
+    if !path.exists() {
+        return Err(Error::NotCached {
+            family: entry.family,
+            variant: entry.variant,
+            size_mb: entry.size_bytes / (1024 * 1024),
+        });
+    }
+    if !verify::file_sha256_matches(&path, &entry.sha256)? {
+        // Stale or corrupted cache; remove + surface as NotCached
+        // so the caller gets a clean "needs install" signal.
+        let _ = std::fs::remove_file(&path);
+        return Err(Error::NotCached {
+            family: entry.family,
+            variant: entry.variant,
+            size_mb: entry.size_bytes / (1024 * 1024),
+        });
+    }
+    Ok(path)
+}
+
+/// Explicitly download a weight. Called by the kit's
+/// `weights install` subcommand and the GUI's install-modal
+/// confirmation handler — both code paths that already have
+/// user consent to perform the network operation.
+///
+/// Detector crates do NOT call this. They call [`load_if_cached`]
+/// and surface the missing-weights error to the CLI / GUI.
+pub fn download(family: &str, variant: &str) -> Result<PathBuf, Error> {
     let entry = entry(family, variant)?;
     let path = cache_path_for(entry)?;
 
+    // Idempotent: if a valid cached copy already exists, skip the
+    // network entirely.
+    if path.exists() && verify::file_sha256_matches(&path, &entry.sha256)? {
+        return Ok(path);
+    }
     if path.exists() {
-        // Verify cached file is still intact. A flipped bit or a
-        // truncated download from a previous run would surface here
-        // before we hand the bytes to the detector.
-        if verify::file_sha256_matches(&path, &entry.sha256)? {
-            return Ok(path);
-        }
-        // Stale or corrupted cache. Remove + redownload.
         let _ = std::fs::remove_file(&path);
     }
-
-    // Atomic download via temp file + rename so a partial download
-    // never leaves a half-written file at the canonical path.
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -134,6 +177,32 @@ pub fn load_or_download(family: &str, variant: &str) -> Result<PathBuf, Error> {
     }
     std::fs::rename(&tmp, &path)?;
     Ok(path)
+}
+
+/// Delete a cached weight. Idempotent (returns Ok if the file is
+/// already absent). Called by the kit's `weights uninstall`
+/// subcommand.
+pub fn uninstall(family: &str, variant: &str) -> Result<(), Error> {
+    let entry = entry(family, variant)?;
+    let path = cache_path_for(entry)?;
+    if path.exists() {
+        std::fs::remove_file(&path)?;
+    }
+    Ok(())
+}
+
+/// Convenience wrapper: load from cache, falling back to download
+/// if absent. Reserved for explicit-consent contexts (e.g., the
+/// `kit weights install` subcommand's body, the GUI's modal
+/// confirmation handler). Detector crates use [`load_if_cached`]
+/// instead so missing weights surface as a clean error rather
+/// than a silent network operation.
+pub fn load_or_download(family: &str, variant: &str) -> Result<PathBuf, Error> {
+    match load_if_cached(family, variant) {
+        Ok(p) => Ok(p),
+        Err(Error::NotCached { .. }) => download(family, variant),
+        Err(e) => Err(e),
+    }
 }
 
 /// Return whether each manifest entry is currently cached + valid.
@@ -171,14 +240,13 @@ pub struct WeightCacheState {
     pub valid: bool,
 }
 
-/// Pre-fetch every manifest entry. Operator-facing surface for
-/// `kit weights install --all` (and the kit's offline-prep path).
-pub fn install_all() -> Vec<(&'static WeightEntry, Result<PathBuf, Error>)> {
-    MANIFEST
-        .iter()
-        .map(|e| (e, load_or_download(e.family, e.variant)))
-        .collect()
-}
+// NOTE: an `install_all()` bulk pre-fetch was deliberately removed
+// from the public API per the v0.7 phase 8a design direction
+// ("always respect the user"). The kit's `weights install`
+// subcommand takes one family at a time. Operators who genuinely
+// want everything installed can script it from `MANIFEST` directly,
+// but the default flow does not push a download decision on the
+// user.
 
 fn hex(bytes: &[u8]) -> String {
     let mut s = String::with_capacity(bytes.len() * 2);

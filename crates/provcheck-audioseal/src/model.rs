@@ -158,7 +158,7 @@ fn generator_model() -> Result<&'static Runnable, ModelError> {
 }
 
 fn build_runnable_from_weights(variant: &str) -> Result<Runnable, String> {
-    let path = provcheck_weights::load_or_download("audioseal", variant)
+    let path = provcheck_weights::load_if_cached("audioseal", variant)
         .map_err(|e| format!("weights: {e}"))?;
     let file = std::fs::File::open(&path)
         .map_err(|e| format!("open {}: {e}", path.display()))?;

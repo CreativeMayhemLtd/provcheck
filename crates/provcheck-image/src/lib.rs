@@ -91,23 +91,27 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
         });
     }
 
-    // v0.7 phase 7a + 8a DLC integration: ensure TrustMark-B
-    // decoder weights are downloaded + verified + cached BEFORE
-    // we hand-wave the inference stub. This validates the DLC
-    // path end-to-end through this crate even before 7b-inference
-    // lands — the operator gets the "downloading 47 MB
-    // (one-time)" experience now so they cannot be surprised by
-    // it later.
-    //
-    // The download is lazy: first detect() pulls the weights;
-    // subsequent calls hit the cache. Operators can pre-fetch
-    // via `provcheck-kit weights install` to avoid the first-
-    // detect latency.
-    let weights_path = provcheck_weights::load_or_download("trustmark", "b-decoder")?;
-    let weights_msg = format!(
-        "image detector wiring pending (v0.7 phase 7b-inference); weights cached at {}",
-        weights_path.display()
-    );
+    // v0.7 phase 8a "always respect the user": check whether the
+    // TrustMark-B decoder weights are already cached. If not,
+    // surface as NotDetected with an actionable install hint —
+    // do NOT auto-download. The CLI / GUI is the right layer to
+    // ask the user for consent before pulling 47 MB.
+    let weights_msg = match provcheck_weights::load_if_cached("trustmark", "b-decoder") {
+        Ok(path) => format!(
+            "image detector wiring pending (v0.7 phase 7b-inference); weights cached at {}",
+            path.display()
+        ),
+        Err(provcheck_weights::Error::NotCached {
+            family,
+            variant,
+            size_mb,
+        }) => format!(
+            "image detector requires weights ({size_mb} MB): \
+             run `provcheck-kit weights install {family}` \
+             (or via the GUI's Detection capabilities panel)"
+        ),
+        Err(e) => return Err(Error::Weights(e)),
+    };
 
     Ok(WatermarkResult {
         kind: WatermarkKind::TrustMark,

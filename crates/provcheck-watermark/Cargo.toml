@@ -83,5 +83,10 @@ rayon = "1"
 
 [dev-dependencies]
 tempfile = "3"
+# Integration tests pre-install silentcipher weights via the
+# explicit `download` API so they can exercise embed roundtrips
+# without depending on whichever weights happen to be cached
+# locally. v0.7 phase 8a.
+provcheck-weights = { path = "../provcheck-weights" }
 # Examples use anyhow's "?" idiom; not pulled in by the lib.
 anyhow = "1"

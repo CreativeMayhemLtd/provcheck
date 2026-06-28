@@ -300,7 +300,7 @@ fn decoder_model() -> Result<&'static Runnable, ModelError> {
 }
 
 fn build_runnable_from_weights(variant: &str) -> Result<Runnable, String> {
-    let path = provcheck_weights::load_or_download("wavmark", variant)
+    let path = provcheck_weights::load_if_cached("wavmark", variant)
         .map_err(|e| format!("weights: {e}"))?;
     let file = std::fs::File::open(&path)
         .map_err(|e| format!("open {}: {e}", path.display()))?;
@@ -337,7 +337,7 @@ fn fc_back_weights() -> &'static [f32] {
 }
 
 fn load_f32_blob_from_weights(variant: &str, expected_elems: usize, label: &str) -> Vec<f32> {
-    let path = provcheck_weights::load_or_download("wavmark", variant)
+    let path = provcheck_weights::load_if_cached("wavmark", variant)
         .unwrap_or_else(|e| panic!("{label}: weights load: {e}"));
     let bytes = std::fs::read(&path)
         .unwrap_or_else(|e| panic!("{label}: read {}: {e}", path.display()));

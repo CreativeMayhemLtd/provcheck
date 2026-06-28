@@ -110,6 +110,36 @@ findings live in [`docs/v0.5.2-codec-survival/`](docs/v0.5.2-codec-survival/).
 
 ## Install
 
+### First-run: install the detector weights you need
+
+provcheck ships a slim binary (~20 MB) and pulls detector weights
+on demand from the public release. You install one family at a
+time, on your terms — nothing downloads behind your back.
+
+```bash
+# See what's available + which families you have
+provcheck-kit weights status
+
+# Install one family (downloads + SHA256 verifies + caches under
+# the OS-conventional location)
+provcheck-kit weights install silentcipher      # 11 MB
+provcheck-kit weights install audioseal         # 89 MB
+provcheck-kit weights install wavmark           # 16 MB
+provcheck-kit weights install trustmark         # 62 MB
+
+# Remove what you do not need
+provcheck-kit weights uninstall wavmark
+```
+
+If you run `provcheck file.mp3` (or `kit watermark`) without the
+matching family installed, the verifier surfaces a clean error
+naming the install command. No silent network calls.
+
+There is intentionally no `--all` shortcut: the consent is per-
+family. The `PROVCHECK_WEIGHTS_CACHE_DIR` environment variable
+overrides the default cache location (useful for read-only
+filesystems and CI mirrors).
+
 ### Pre-built binaries (recommended)
 
 Download from the [Releases page](https://github.com/CreativeMayhemLtd/provcheck/releases):

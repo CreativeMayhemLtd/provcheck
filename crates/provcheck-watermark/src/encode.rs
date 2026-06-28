@@ -702,7 +702,7 @@ fn model() -> Result<&'static Runnable, EncodeError> {
 
 #[cfg(not(feature = "cuda"))]
 fn build_model() -> Result<Runnable, String> {
-    let path = provcheck_weights::load_or_download("silentcipher", "encoder")
+    let path = provcheck_weights::load_if_cached("silentcipher", "encoder")
         .map_err(|e| format!("weights: {e}"))?;
     let file = std::fs::File::open(&path)
         .map_err(|e| format!("open {}: {e}", path.display()))?;
@@ -725,7 +725,7 @@ fn build_model() -> Result<Runnable, String> {
     use ort::execution_providers::CUDAExecutionProvider;
     use ort::session::Session;
     use ort::session::builder::GraphOptimizationLevel;
-    let path = provcheck_weights::load_or_download("silentcipher", "encoder")
+    let path = provcheck_weights::load_if_cached("silentcipher", "encoder")
         .map_err(|e| format!("weights: {e}"))?;
     let session = Session::builder()
         .map_err(|e| e.to_string())?

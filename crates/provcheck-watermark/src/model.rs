@@ -190,7 +190,7 @@ fn model() -> Result<&'static Runnable, ModelError> {
 }
 
 fn build_model() -> Result<Runnable, ModelError> {
-    let path = provcheck_weights::load_or_download("silentcipher", "decoder")
+    let path = provcheck_weights::load_if_cached("silentcipher", "decoder")
         .map_err(|e| ModelError::Load(format!("weights: {e}")))?;
     let file = std::fs::File::open(&path)
         .map_err(|e| ModelError::Load(format!("open {}: {e}", path.display())))?;

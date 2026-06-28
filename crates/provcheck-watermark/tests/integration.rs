@@ -105,6 +105,14 @@ fn result_serializes_to_json_with_expected_shape() {
 fn real_silentcipher_embed_roundtrips_to_detection() {
     use provcheck_watermark::{audio, encode};
 
+    // v0.7 phase 8a: weights are DLC. Tests have no user to ask
+    // for consent, so they call `download` directly to ensure the
+    // weights are present before exercising the embed path. The
+    // production code path uses `load_if_cached` and surfaces a
+    // clean "not installed" error instead — tests are the
+    // exception, not the rule.
+    ensure_silentcipher_weights_installed();
+
     let cover_path = workspace_example("rAIdio.bot-sample.mp3");
     if !cover_path.exists() {
         // The workspace sample is checked in, but be defensive
@@ -173,6 +181,7 @@ fn real_silentcipher_embed_roundtrips_to_detection() {
 #[test]
 fn streaming_embed_matches_materialised_within_tolerance() {
     use provcheck_watermark::{audio, encode};
+    ensure_silentcipher_weights_installed();
 
     let cover_path = workspace_example("rAIdio.bot-sample.mp3");
     if !cover_path.exists() {
@@ -227,6 +236,17 @@ fn streaming_embed_matches_materialised_within_tolerance() {
         s_r.confidence,
         conf_diff
     );
+}
+
+/// v0.7 phase 8a: test-only weight installer. Production code
+/// surfaces a "not installed" error if weights are absent — this
+/// pre-installs them so the integration test can exercise embed
+/// + detect without external setup.
+fn ensure_silentcipher_weights_installed() {
+    for variant in ["encoder", "decoder"] {
+        provcheck_weights::download("silentcipher", variant)
+            .unwrap_or_else(|e| panic!("install silentcipher/{variant}: {e}"));
+    }
 }
 
 /// Resolve a path relative to the workspace `examples/` directory

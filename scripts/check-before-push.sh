@@ -60,6 +60,27 @@ red()    { printf "\033[31m%s\033[0m\n" "$*" >&2; }
 green()  { printf "\033[32m%s\033[0m\n" "$*"; }
 yellow() { printf "\033[33m%s\033[0m\n" "$*"; }
 
+# ---- 0. Pre-install detector weights -----------------------------
+#
+# v0.7 phase 8a: weights are downloaded on user demand, not bundled.
+# Tests + gate scripts must explicitly install the weights they
+# need before exercising the code paths that load them. We install
+# silentcipher (gate step 2 parity sweep + step 3 AAC smoke) and
+# audioseal (gate step 3 AAC smoke). Idempotent — re-installs are
+# no-ops when the cache is valid.
+yellow "[0/3] pre-installing detector weights (silentcipher + audioseal)"
+if [[ -x target/release/provcheck-kit ]]; then
+    target/release/provcheck-kit weights install silentcipher 2>&1 | tail -3
+    target/release/provcheck-kit weights install audioseal 2>&1 | tail -3
+else
+    yellow "  kit binary not yet built; will install via cargo run from the test target dir"
+    CARGO_TARGET_DIR=./target-gate cargo run --release --bin provcheck-kit -- \
+        weights install silentcipher 2>&1 | tail -3 || true
+    CARGO_TARGET_DIR=./target-gate cargo run --release --bin provcheck-kit -- \
+        weights install audioseal 2>&1 | tail -3 || true
+fi
+green "  OK"
+
 # ---- 1. Workspace cargo test --------------------------------------
 yellow "[1/3] cargo test --release --workspace"
 # Use a separate target dir so the test build's intermediate link

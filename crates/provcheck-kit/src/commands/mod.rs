@@ -124,6 +124,17 @@ pub enum Command {
     /// `{"id":"...","ok":false,"error":"..."}`. v0.6.0 P2.
     Serve(serve::CliArgs),
 
+    /// Manage downloadable detector weights. Every detector family
+    /// (silentcipher, audioseal, wavmark, trustmark) ships its
+    /// trained model weights as a download-on-demand artefact on
+    /// the public release. `kit weights` lists what's available,
+    /// installs the ones you want, and removes the ones you don't.
+    ///
+    /// Weights are never auto-downloaded — detection / embed
+    /// commands surface a clean "not installed" error when a
+    /// family is needed but absent. v0.7 phase 8a.
+    Weights(weights::CliArgs),
+
     /// Write the current identity to an age-format backup file.
     /// Use `--use-recovery-recipients` to encrypt to the
     /// registered X25519 recipient set instead of a passphrase.
@@ -3451,6 +3462,134 @@ pub mod serve {
         let line = serde_json::to_string(resp).context("serialize response")?;
         writeln!(out, "{line}").context("write response")?;
         out.flush().context("flush stdout")?;
+        Ok(())
+    }
+}
+
+pub mod weights {
+    //! Manage downloadable detector weights — `kit weights status`
+    //! / `install <family>` / `uninstall <family>`.
+    //!
+    //! Per v0.7 phase 8a design direction ("always respect the
+    //! user"), the subcommand intentionally does NOT have an
+    //! `install --all` shortcut. Operators install one family at
+    //! a time, with the size visible up front so the consent is
+    //! explicit. Detect / embed commands that run without the
+    //! relevant weights installed return a clean error pointing
+    //! at this subcommand.
+
+    use anyhow::{Context, Result, anyhow};
+    use clap::{Args, Subcommand};
+
+    #[derive(Debug, Args)]
+    pub struct CliArgs {
+        #[command(subcommand)]
+        pub action: Action,
+    }
+
+    #[derive(Debug, Subcommand)]
+    pub enum Action {
+        /// List every weight in the bundled manifest with its
+        /// install state, size, and download URL.
+        Status,
+        /// Install one detector family's weights (download +
+        /// SHA256-verify + cache). Argument is the family name
+        /// (silentcipher / audioseal / wavmark / trustmark);
+        /// installs every variant of that family.
+        Install(InstallArgs),
+        /// Remove a detector family's cached weights. Idempotent —
+        /// does nothing if the family is already absent.
+        Uninstall(UninstallArgs),
+    }
+
+    #[derive(Debug, Args)]
+    pub struct InstallArgs {
+        /// Family name as it appears in `weights status` (e.g.
+        /// `silentcipher`, `trustmark`).
+        pub family: String,
+    }
+
+    #[derive(Debug, Args)]
+    pub struct UninstallArgs {
+        /// Family name as it appears in `weights status`.
+        pub family: String,
+    }
+
+    pub async fn run(args: CliArgs) -> Result<()> {
+        match args.action {
+            Action::Status => run_status(),
+            Action::Install(a) => run_install(&a.family),
+            Action::Uninstall(a) => run_uninstall(&a.family),
+        }
+    }
+
+    fn run_status() -> Result<()> {
+        let statuses = provcheck_weights::status();
+        println!(
+            "{:14}  {:18}  {:9}  {:9}  size       url",
+            "family", "variant", "installed", "valid",
+        );
+        for s in &statuses {
+            let installed = if s.cached.exists { "yes" } else { "no" };
+            let valid = if s.cached.valid { "yes" } else { "—" };
+            let size_mb = s.entry.size_bytes as f32 / 1024.0 / 1024.0;
+            println!(
+                "{:14}  {:18}  {:9}  {:9}  {:6.1} MB  {}",
+                s.entry.family, s.entry.variant, installed, valid, size_mb, s.entry.url
+            );
+        }
+        Ok(())
+    }
+
+    fn run_install(family: &str) -> Result<()> {
+        // Collect every variant of this family from the manifest.
+        let variants: Vec<&'static provcheck_weights::WeightEntry> = provcheck_weights::MANIFEST
+            .iter()
+            .filter(|e| e.family == family)
+            .collect();
+        if variants.is_empty() {
+            return Err(anyhow!(
+                "unknown family {family:?}. Run `kit weights status` for the manifest."
+            ));
+        }
+        let total_mb: f32 = variants
+            .iter()
+            .map(|e| e.size_bytes as f32 / 1024.0 / 1024.0)
+            .sum();
+        eprintln!(
+            "installing {} weight(s) for {family} ({:.1} MB total):",
+            variants.len(),
+            total_mb
+        );
+        for entry in variants {
+            let mb = entry.size_bytes as f32 / 1024.0 / 1024.0;
+            eprint!("  {} ({:.1} MB) ... ", entry.variant, mb);
+            match provcheck_weights::download(entry.family, entry.variant) {
+                Ok(path) => eprintln!("OK -> {}", path.display()),
+                Err(e) => {
+                    eprintln!("FAIL");
+                    return Err(anyhow!("install {} failed: {e}", entry.variant));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn run_uninstall(family: &str) -> Result<()> {
+        let variants: Vec<&'static provcheck_weights::WeightEntry> = provcheck_weights::MANIFEST
+            .iter()
+            .filter(|e| e.family == family)
+            .collect();
+        if variants.is_empty() {
+            return Err(anyhow!(
+                "unknown family {family:?}. Run `kit weights status` for the manifest."
+            ));
+        }
+        for entry in variants {
+            provcheck_weights::uninstall(entry.family, entry.variant)
+                .with_context(|| format!("uninstall {}/{}", entry.family, entry.variant))?;
+            eprintln!("removed {}/{}", entry.family, entry.variant);
+        }
         Ok(())
     }
 }
