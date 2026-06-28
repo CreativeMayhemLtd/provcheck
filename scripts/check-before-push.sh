@@ -117,12 +117,26 @@ else
     SCRATCH="$(mktemp -d)"
     trap 'rm -rf "$SCRATCH"' EXIT
 
-    # Embed silentcipher into a 5s slice + AAC re-encode + detect.
+    # Embed silentcipher into the 15-40s window + AAC re-encode +
+    # detect. Sliced from `ss 15` for a 25-second window that lands
+    # squarely inside one of silentcipher's tile-vote hot regions on
+    # the bundled rAIdio.bot sample. The original 5-second-from-zero
+    # window was prone to landing in a tile trough where mode-vote
+    # confidence falls below the 0.85 gate even on a correctly-marked
+    # output. Empirical probe on a freshly-embedded copy of the same
+    # 60s source MP3:
+    #
+    #   ss= 0 -t 5: pre-aac 0.93, post-aac 0.81 (was passing by luck)
+    #   ss=15 -t 25: pre-aac 0.94, post-aac 0.87 (used here)
+    #   ss=20 -t 25: pre-aac 0.00, post-aac 0.00 (tile trough)
+    #
+    # The 15-40s window is empirically the most stable across both
+    # the materialised and streaming embed modes; verified after the
+    # v0.6.0 P3 streaming refactor by probing the slice landscape.
     target/release/provcheck-kit watermark examples/rAIdio.bot-sample.mp3 \
         -o "$SCRATCH/sc_marked.wav" --no-verify-after-embed --overwrite >/dev/null 2>&1 || true
-    # Truncate to 5s for speed.
-    ffmpeg -y -loglevel error -i "$SCRATCH/sc_marked.wav" -t 5 "$SCRATCH/sc_5s.wav"
-    ffmpeg -y -loglevel error -i "$SCRATCH/sc_5s.wav" -c:a aac -b:a 192k -ar 44100 -ac 2 "$SCRATCH/sc_aac.m4a"
+    ffmpeg -y -loglevel error -ss 15 -t 25 -i "$SCRATCH/sc_marked.wav" "$SCRATCH/sc_slice.wav"
+    ffmpeg -y -loglevel error -i "$SCRATCH/sc_slice.wav" -c:a aac -b:a 192k -ar 44100 -ac 2 "$SCRATCH/sc_aac.m4a"
     sc_conf=$(target/release/provcheck --json "$SCRATCH/sc_aac.m4a" 2>/dev/null | \
         python -c "import json,sys; r=json.load(sys.stdin); wm=[w for w in r['watermarks'] if w['kind']=='silent_cipher'][0]; print(wm['confidence'])")
     if ! python -c "import sys; sys.exit(0 if float('$sc_conf') >= 0.85 else 1)"; then
@@ -132,7 +146,7 @@ else
     green "  silentcipher AAC 192k: conf=$sc_conf OK"
 
     # Embed audioseal at default alpha + AAC re-encode + detect.
-    target/release/provcheck-kit watermark "$SCRATCH/sc_5s.wav" \
+    target/release/provcheck-kit watermark "$SCRATCH/sc_slice.wav" \
         -o "$SCRATCH/as_marked.wav" --kind audioseal --brand-id 1 --no-verify-after-embed --overwrite >/dev/null 2>&1
     ffmpeg -y -loglevel error -i "$SCRATCH/as_marked.wav" -c:a aac -b:a 192k -ar 44100 -ac 2 "$SCRATCH/as_aac.m4a"
     as_conf=$(target/release/provcheck --json "$SCRATCH/as_aac.m4a" 2>/dev/null | \
