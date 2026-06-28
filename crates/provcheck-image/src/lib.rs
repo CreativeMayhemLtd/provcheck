@@ -56,6 +56,10 @@ pub mod encode;
 pub enum Error {
     #[error("file not found or unreadable: {0}")]
     Io(#[from] std::io::Error),
+    /// Weight download / verify / cache failure surfaced through
+    /// `provcheck-weights`. v0.7 phase 8a DLC wiring.
+    #[error("weights: {0}")]
+    Weights(#[from] provcheck_weights::Error),
 }
 
 /// Run image-modality watermark detection on the file at `path`.
@@ -87,6 +91,24 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
         });
     }
 
+    // v0.7 phase 7a + 8a DLC integration: ensure TrustMark-B
+    // decoder weights are downloaded + verified + cached BEFORE
+    // we hand-wave the inference stub. This validates the DLC
+    // path end-to-end through this crate even before 7b-inference
+    // lands — the operator gets the "downloading 47 MB
+    // (one-time)" experience now so they cannot be surprised by
+    // it later.
+    //
+    // The download is lazy: first detect() pulls the weights;
+    // subsequent calls hit the cache. Operators can pre-fetch
+    // via `provcheck-kit weights install` to avoid the first-
+    // detect latency.
+    let weights_path = provcheck_weights::load_or_download("trustmark", "b-decoder")?;
+    let weights_msg = format!(
+        "image detector wiring pending (v0.7 phase 7b-inference); weights cached at {}",
+        weights_path.display()
+    );
+
     Ok(WatermarkResult {
         kind: WatermarkKind::TrustMark,
         status: WatermarkStatus::NotDetected,
@@ -94,7 +116,7 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
         confidence: 0.0,
         payload: None,
         brand: None,
-        message: Some("image detector not yet wired (v0.7 phase 7a stub)".into()),
+        message: Some(weights_msg),
         marked_regions: None,
     })
 }
@@ -149,13 +171,15 @@ mod tests {
     }
 
     #[test]
-    fn image_extension_returns_scaffold_stub() {
+    #[ignore = "requires network to download TrustMark weights from the public GH release"]
+    fn image_extension_returns_weights_pending_stub() {
         let f = tempfile_with_ext("png", b"\x89PNG\r\n\x1a\nfake");
         let r = detect(f.path()).expect("detect");
         assert!(!r.detected);
-        assert_eq!(
-            r.message.as_deref(),
-            Some("image detector not yet wired (v0.7 phase 7a stub)")
+        let msg = r.message.as_deref().unwrap_or("");
+        assert!(
+            msg.starts_with("image detector wiring pending"),
+            "got message: {msg}"
         );
     }
 

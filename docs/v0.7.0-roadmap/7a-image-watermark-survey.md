@@ -21,11 +21,17 @@ ship without re-confirming the license on the wiring commit.
 - **Repository:** https://github.com/adobe/TrustMark
 - **Paper:** Bui et al, "TrustMark: Universal Watermarking for
   Arbitrary Resolution Images" (arXiv:2311.18297, late 2023).
-- **Claimed code license:** Apache-2.0.
-- **Claimed weights license:** Apache-2.0 (released by Adobe's
-  CAI team explicitly for permissive use; the matching paper
-  cites the release as part of the Content Authenticity
-  Initiative's open ecosystem play).
+- **Code license (verified 2026-06-28):** **MIT**. The
+  repository's blanket LICENSE statement, the README, and the
+  package metadata all agree. My v0.7 phase 7a doc originally
+  said Apache-2.0 — that was wrong; corrected at 7b.
+- **Weights license (verified 2026-06-28):** **MIT** by the
+  same blanket statement. The weights themselves do not carry a
+  separate license file; the MIT statement covers the artifact
+  set. Adobe hosts the `.ckpt` and `.onnx` files at
+  `https://cai-watermark.adobe.net/watermarking/trustmark-models/`
+  (migrated from Netlify in April 2026). We mirror to our public
+  GH release at `weights-v1` for SHA-pinned distribution.
 - **Architecture:** Encoder-decoder CNN; supports arbitrary image
   resolutions via patch-level processing. Built for C2PA-adjacent
   workflows specifically.

@@ -15,10 +15,14 @@ name = "provcheck_image"
 
 [dependencies]
 # v0.7 phase 7a: scaffold only. The chosen first family is
-# TrustMark (Adobe Apache-2.0). The ONNX backend wires in at 7b;
-# right now the crate is a shape-parity stub that the kit can
-# dispatch through.
+# TrustMark (Adobe, MIT-licensed code + weights). The ONNX
+# backend wires in at 7b; right now detect() pulls the weights
+# via provcheck-weights (the DLC pattern, so v0.7 ships with a
+# slim binary instead of bundled 60+ MB ONNX files via
+# include_bytes!()) but the actual inference is still a stub
+# until 7b-inference lands.
 provcheck = { path = "../provcheck" }
+provcheck-weights = { path = "../provcheck-weights" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

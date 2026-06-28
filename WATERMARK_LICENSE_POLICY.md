@@ -73,7 +73,7 @@ Three reasons, in priority order:
 
 | Family | Maintainer | Code license | Weights license | Pass? | provcheck status |
 | --- | --- | --- | --- | --- | --- |
-| **TrustMark** | Adobe / CAI | Apache-2.0 (claimed) | Apache-2.0 (claimed) | ✓ (re-verify at 7b) | **Scaffolded** in `provcheck-image` — crate exists with stubbed `detect` + `embed`. Phase 7b is the wiring commit; license re-verification happens there. |
+| **TrustMark** | Adobe / CAI | MIT (verified 2026-06-28) | MIT (verified 2026-06-28) | ✓ | **Scaffolded + DLC-wired** in `provcheck-image` — crate exists, `detect()` pulls weights via `provcheck-weights` from the public mirror's `weights-v1` release. Actual TrustMark inference lands at 7b-inference. |
 | **Stable Signature** | Meta (FAIR) | CC-BY-NC 4.0 | CC-BY-NC 4.0 | ✗ | **Not added.** Non-commercial clause fails the workspace rule. |
 | **StegaStamp** | Tancik et al, UC Berkeley | MIT (code) | unclear (Google Drive download without LICENSE.md) | hold | **Not added.** Code is permissive; weights status is the open question. Acceptable if upstream confirms permissive weights OR if we retrain from CC0/CC-BY data. |
 | **HiDDeN** | community reimpl of Stanford paper (Zhu et al, ECCV 2018) | MIT (community code) | no canonical publishable weights | hold | **Not added.** Academic baseline; no publishable-as-FOSS weights checkpoint. Defer in favour of TrustMark. |
