@@ -466,6 +466,39 @@ for "this CLI binary processes data locally."
 
 **Revisit when:** never, unless project direction changes.
 
+## Looking past v0.7
+
+This roadmap covers v0.7 only. The sequence beyond it is:
+
+- **v0.8.x — refinement.** Polish on what v0.7 ships: ergonomics,
+  bug fixes from real-world v0.7 use, primitive cleanup that did
+  not make the 7-pre audit cut, doc polish, performance work that
+  needs a stable multimodal base. No major new families. Scope
+  defined when v0.7 ships and the rough edges show themselves.
+
+- **v0.9.x — staging release for AI content detection.** Adds the
+  architectural slots (report schema fields, trait boundaries,
+  CLI surface, GUI tab) that v1.0's AI detection add-on plugs
+  into. No live classification yet. This is a contracts release;
+  the model code and weights land in v1.0. Forward-compat note
+  for the 7-pre primitives audit: `Report.ai_classifier` is a
+  sibling to `Report.watermarks` rather than a stretched
+  watermark variant, so the trait-boundary decision in 7-pre
+  should accommodate that shape now.
+
+- **v1.0.0 — full release with AI content detection as a paid DLC
+  in the desktop app.** AI content classification, anti-spoofing,
+  and deepfake detection ship as a downloadable-content add-on
+  through the Tauri app's update channel. NOT bundled in the
+  Apache-2.0 CLI binaries. The CLI stays free FOSS; the desktop
+  app gains an optional paid layer for the detection capabilities.
+
+This release sequence is a decision, not a survey; do not
+re-propose AI content detection in v0.7 or v0.8. The
+`WATERMARK_LICENSE_POLICY.md` FOSS-only gate continues to govern
+the watermark detector families in the CLI; the v1.0 DLC sits
+outside that surface.
+
 ## Related
 
 - v0.6.0 roadmap parent: [`../v0.6.0-roadmap/`](../v0.6.0-roadmap/).
