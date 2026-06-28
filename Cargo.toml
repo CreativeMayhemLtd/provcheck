@@ -10,6 +10,8 @@ members = [
     "crates/provcheck-audioseal",
     "crates/provcheck-wavmark",
     "crates/provcheck-image",
+    "crates/provcheck-video",
+    "crates/provcheck-synthid-text",
     "crates/provcheck-weights",
     "crates/provcheck-cli",
     "crates/provcheck-examples",
@@ -17,7 +19,7 @@ members = [
 resolver = "3"
 
 [workspace.package]
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 rust-version = "1.85"
 license = "Apache-2.0"

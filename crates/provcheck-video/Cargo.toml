@@ -1,0 +1,22 @@
+[package]
+name = "provcheck-video"
+description = "Video-modality watermark detection for provcheck (per-frame TrustMark + temporal voting; v0.7 phase 7d scaffold)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+
+[lib]
+name = "provcheck_video"
+
+[dependencies]
+provcheck = { path = "../provcheck" }
+provcheck-image = { path = "../provcheck-image" }
+provcheck-weights = { path = "../provcheck-weights" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true

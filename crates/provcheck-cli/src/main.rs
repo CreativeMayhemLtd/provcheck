@@ -239,6 +239,14 @@ fn main() -> ExitCode {
         if let Ok(w) = provcheck_image::detect(&args.file) {
             report.watermarks.push(w);
         }
+        // v0.7 phase 7d (scaffold): video-modality dispatch.
+        if let Ok(w) = provcheck_video::detect(&args.file) {
+            report.watermarks.push(w);
+        }
+        // v0.7 phase 7e (scaffold): SynthID-text dispatch.
+        if let Ok(w) = provcheck_synthid_text::detect(&args.file) {
+            report.watermarks.push(w);
+        }
     }
 
     // `--require-watermark` escalates "no detector found a

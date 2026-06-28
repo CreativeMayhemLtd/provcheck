@@ -296,6 +296,14 @@ pub enum WatermarkKind {
     /// Image-modality watermarking, scaffolded in
     /// `provcheck-image` (v0.7 phase 7a).
     TrustMark,
+    /// TrustMark applied per-frame to a video, with temporal
+    /// majority-vote across the recovered brand ids. Scaffolded
+    /// in `provcheck-video` (v0.7 phase 7d).
+    TrustMarkVideo,
+    /// Google SynthID-text — tournament-sampling logit-bias
+    /// watermark on LLM output. Apache-2.0 algorithm. Scaffolded
+    /// in `provcheck-synthid-text` (v0.7 phase 7e).
+    SynthIdText,
 }
 
 /// Tri-state quality of a watermark detection. See
@@ -500,6 +508,8 @@ impl Display for Report {
                     WatermarkKind::AudioSeal => "audioseal",
                     WatermarkKind::WavMark => "wavmark",
                     WatermarkKind::TrustMark => "trustmark",
+                    WatermarkKind::TrustMarkVideo => "trustmark-video",
+                    WatermarkKind::SynthIdText => "synthid-text",
                 };
                 let pct = (wm.confidence.clamp(0.0, 1.0) * 100.0).round() as u32;
                 match wm.status {

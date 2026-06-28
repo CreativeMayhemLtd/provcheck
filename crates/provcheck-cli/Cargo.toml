@@ -21,4 +21,6 @@ provcheck-watermark = { path = "../provcheck-watermark" }
 provcheck-audioseal = { path = "../provcheck-audioseal" }
 provcheck-wavmark = { path = "../provcheck-wavmark" }
 provcheck-image = { path = "../provcheck-image" }
+provcheck-video = { path = "../provcheck-video" }
+provcheck-synthid-text = { path = "../provcheck-synthid-text" }
 clap = { workspace = true }
