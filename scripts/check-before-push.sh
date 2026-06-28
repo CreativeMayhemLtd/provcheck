@@ -29,6 +29,23 @@
 
 set -euo pipefail
 
+# Surface the failing line + last command + exit code on any abort
+# under `set -e`. v0.6.0 release postmortem: step 3 of this gate was
+# silently aborting with no diagnostic because the heredoc piping
+# `$0 2>&1 | tail -N` discards everything before tail's window AND
+# step 3 redirects the kit binary's stderr to /dev/null. The trap
+# below prints the LINENO + BASH_COMMAND + exit code DIRECTLY to
+# stderr, bypassing any in-script pipe, so a future investigator
+# sees WHICH command failed instead of having to bash -x.
+on_error() {
+    ec=$?
+    lineno=$1
+    echo "" >&2
+    echo "gate aborted: exit=$ec line=$lineno cmd=\"$BASH_COMMAND\"" >&2
+    exit "$ec"
+}
+trap 'on_error "$LINENO"' ERR
+
 SKIP_PARITY=0
 for a in "$@"; do
     case "$a" in
@@ -120,24 +137,32 @@ else
     # Embed silentcipher into the 15-40s window + AAC re-encode +
     # detect. Sliced from `ss 15` for a 25-second window that lands
     # squarely inside one of silentcipher's tile-vote hot regions on
-    # the bundled rAIdio.bot sample. The original 5-second-from-zero
-    # window was prone to landing in a tile trough where mode-vote
-    # confidence falls below the 0.85 gate even on a correctly-marked
-    # output. Empirical probe on a freshly-embedded copy of the same
-    # 60s source MP3:
+    # the bundled rAIdio.bot sample. v0.6.0 release postmortem:
+    # `ss=0 -t=5` was prone to landing in a tile trough where mode-
+    # vote confidence falls below the 0.85 gate even on a correctly-
+    # marked output (empirical probe at scripts/check-before-push.sh
+    # commit history).
     #
-    #   ss= 0 -t 5: pre-aac 0.93, post-aac 0.81 (was passing by luck)
-    #   ss=15 -t 25: pre-aac 0.94, post-aac 0.87 (used here)
-    #   ss=20 -t 25: pre-aac 0.00, post-aac 0.00 (tile trough)
-    #
-    # The 15-40s window is empirically the most stable across both
-    # the materialised and streaming embed modes; verified after the
-    # v0.6.0 P3 streaming refactor by probing the slice landscape.
+    # The kit embed STDERR is preserved (was `>/dev/null 2>&1 || true`
+    # which masked real failures — another v0.6.0 lesson). If the
+    # embed itself fails, the ffmpeg slice will fail next and the
+    # ERR trap installed at the top of this script will surface
+    # both the failing line and the kit's stderr.
     target/release/provcheck-kit watermark examples/rAIdio.bot-sample.mp3 \
-        -o "$SCRATCH/sc_marked.wav" --no-verify-after-embed --overwrite >/dev/null 2>&1 || true
+        -o "$SCRATCH/sc_marked.wav" --no-verify-after-embed --overwrite >/dev/null
+    [[ -s "$SCRATCH/sc_marked.wav" ]] || {
+        red "  FAIL: kit produced no output WAV (sc_marked.wav missing or empty)"
+        exit 1
+    }
     ffmpeg -y -loglevel error -ss 15 -t 25 -i "$SCRATCH/sc_marked.wav" "$SCRATCH/sc_slice.wav"
     ffmpeg -y -loglevel error -i "$SCRATCH/sc_slice.wav" -c:a aac -b:a 192k -ar 44100 -ac 2 "$SCRATCH/sc_aac.m4a"
-    sc_conf=$(target/release/provcheck --json "$SCRATCH/sc_aac.m4a" 2>/dev/null | \
+    # `provcheck` exits 1 on unsigned files; the AAC re-encode strips
+    # any C2PA manifest, so on a watermark-only test the verifier
+    # ALWAYS reports unsigned and returns non-zero. We care about the
+    # watermark conf in the JSON body, not the manifest verification
+    # status, so wrap to tolerate the exit code while still propagating
+    # any genuine JSON-parse failures from python downstream.
+    sc_conf=$( { target/release/provcheck --json "$SCRATCH/sc_aac.m4a" 2>/dev/null || true; } | \
         python -c "import json,sys; r=json.load(sys.stdin); wm=[w for w in r['watermarks'] if w['kind']=='silent_cipher'][0]; print(wm['confidence'])")
     if ! python -c "import sys; sys.exit(0 if float('$sc_conf') >= 0.85 else 1)"; then
         red "  FAIL: silentcipher AAC 192k delivery conf=$sc_conf < 0.85 (issue #24 regression)"
@@ -149,7 +174,10 @@ else
     target/release/provcheck-kit watermark "$SCRATCH/sc_slice.wav" \
         -o "$SCRATCH/as_marked.wav" --kind audioseal --brand-id 1 --no-verify-after-embed --overwrite >/dev/null 2>&1
     ffmpeg -y -loglevel error -i "$SCRATCH/as_marked.wav" -c:a aac -b:a 192k -ar 44100 -ac 2 "$SCRATCH/as_aac.m4a"
-    as_conf=$(target/release/provcheck --json "$SCRATCH/as_aac.m4a" 2>/dev/null | \
+    # Same `|| true` pattern as the silentcipher step above —
+    # provcheck reports the AAC file as unsigned (no C2PA), exits 1,
+    # but the watermark conf JSON body is what we are gating on.
+    as_conf=$( { target/release/provcheck --json "$SCRATCH/as_aac.m4a" 2>/dev/null || true; } | \
         python -c "import json,sys; r=json.load(sys.stdin); wm=[w for w in r['watermarks'] if w['kind']=='audio_seal'][0]; print(wm['confidence'])")
     if ! python -c "import sys; sys.exit(0 if float('$as_conf') >= 0.85 else 1)"; then
         red "  FAIL: audioseal AAC 192k delivery conf=$as_conf < 0.85 (issue #23 regression)"

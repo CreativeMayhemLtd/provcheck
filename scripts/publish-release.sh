@@ -37,10 +37,27 @@
 
 set -euo pipefail
 
+ASSUME_YES=0
+ARGS=()
+for a in "$@"; do
+  case "$a" in
+    --yes|-y) ASSUME_YES=1 ;;
+    --help|-h)
+      echo "usage: $0 [--yes] <tag> [artefact...]" >&2
+      echo "  --yes / -y    skip the confirmation prompt (required for non-tty)" >&2
+      echo "example: $0 --yes v0.6.0 dist/v0.6.0/provcheck-v0.6.0-*/*.{zip,tar.gz} \\" >&2
+      echo "                        dist/v0.6.0/provcheck-kit-v0.6.0-*/*.{zip,tar.gz}" >&2
+      exit 0
+      ;;
+    *) ARGS+=("$a") ;;
+  esac
+done
+set -- "${ARGS[@]}"
+
 if [[ $# -lt 1 ]]; then
-  echo "usage: $0 <tag> [artefact...]" >&2
-  echo "example: $0 v0.3.0 dist/provcheck-v0.3.0-*.{zip,tar.gz} \\" >&2
-  echo "                   dist/provcheck-kit-v0.3.0-*.{zip,tar.gz}" >&2
+  echo "usage: $0 [--yes] <tag> [artefact...]" >&2
+  echo "example: $0 v0.6.0 dist/v0.6.0/provcheck-v0.6.0-*.{zip,tar.gz} \\" >&2
+  echo "                   dist/v0.6.0/provcheck-kit-v0.6.0-*.{zip,tar.gz}" >&2
   exit 2
 fi
 
@@ -100,10 +117,26 @@ echo "  To:         $REPO_PUBLIC"
 echo "  Artefacts:  ${#ARTIFACTS[@]} file(s)"
 for art in "${ARTIFACTS[@]}"; do echo "              - $art"; done
 echo
-read -r -p "Push and create public release? [y/N] " confirm
-if [[ "${confirm,,}" != "y" ]]; then
-  echo "aborted."
-  exit 1
+# Confirmation: interactive only when stdin is a tty. Non-interactive
+# invocations (CI, scripts, "echo y | ...") MUST pass `--yes` so the
+# intent is explicit; otherwise we abort rather than silently doing
+# nothing. This replaces a `read -r -p` that silently exited with
+# status 1 when stdin was not connected to a tty — the operator saw
+# no confirmation prompt and no error, just a no-op publish. v0.6.0
+# release postmortem.
+if [[ "$ASSUME_YES" == "1" ]]; then
+  echo "  --yes: skipping confirmation prompt."
+elif [[ -t 0 ]]; then
+  read -r -p "Push and create public release? [y/N] " confirm
+  if [[ "${confirm,,}" != "y" ]]; then
+    echo "aborted."
+    exit 1
+  fi
+else
+  echo "ERROR: stdin is not a tty and --yes was not passed." >&2
+  echo "       Pass --yes to skip the confirmation prompt in a non-" >&2
+  echo "       interactive context (CI, scripts, here-docs, etc)." >&2
+  exit 2
 fi
 
 # --- 2. Push main + tag to public ---
