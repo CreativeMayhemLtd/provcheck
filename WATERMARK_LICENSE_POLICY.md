@@ -57,15 +57,30 @@ Three reasons, in priority order:
    we'd refuse to sign off on for the artist-side tools doesn't belong on the
    verifier either.
 
-## Watermark families surveyed (2026-06-09)
+## Watermark families surveyed
+
+### Audio (2026-06-09; AudioSeal + WavMark integrated since v0.4.x)
 
 | Family | Maintainer | Code license | Weights license | Pass? | provcheck status |
 | --- | --- | --- | --- | --- | --- |
 | **silentcipher** | Sony AI | MIT | MIT | ✓ | **Integrated** in `provcheck-watermark` — full STFT + tract pipeline. Detection live. |
-| **AudioSeal** | Meta (FAIR) | MIT | MIT (since 2024-04-02) | ✓ | **Scaffolded** in `provcheck-audioseal` — crate exists, wired into CLI/GUI dispatch, returns `implementation pending` until the decoder is ported. Pre-relicense (CC-BY-NC) era would have been rejected. |
-| **WavMark** | independent (paper 2308.12770) | MIT | MIT (weights ship via PyPI `wavmark`) | ✓ | **Scaffolded** in `provcheck-wavmark` — same scaffold pattern as AudioSeal. |
+| **AudioSeal** | Meta (FAIR) | MIT | MIT (since 2024-04-02) | ✓ | **Integrated** in `provcheck-audioseal` — detect + embed (v0.4.0) + stereo (v0.5.2). Pre-relicense (CC-BY-NC) era would have been rejected. |
+| **WavMark** | independent (paper 2308.12770) | MIT | MIT (weights ship via PyPI `wavmark`) | ✓ | **Integrated** in `provcheck-wavmark` — detect + embed (v0.4.1). Stereo added v0.7 phase 7-pre audit #1. |
 | **SynthID Audio** | Google DeepMind | unreleased | unreleased | ✗ | **Not added.** Detection only via Gemini / SynthID Detector portal (early-tester waitlist). No public model, no public API. Re-survey if Google open-sources it. |
 | classical echo-hiding / LSB / spread-spectrum | — | — | — | ✓ | **Not added.** Algorithmic, no model weights; would be implemented in pure Rust from the relevant papers. No upstream license to inherit. |
+
+### Image (2026-06-28; first family scaffolded in v0.7 phase 7a)
+
+| Family | Maintainer | Code license | Weights license | Pass? | provcheck status |
+| --- | --- | --- | --- | --- | --- |
+| **TrustMark** | Adobe / CAI | Apache-2.0 (claimed) | Apache-2.0 (claimed) | ✓ (re-verify at 7b) | **Scaffolded** in `provcheck-image` — crate exists with stubbed `detect` + `embed`. Phase 7b is the wiring commit; license re-verification happens there. |
+| **Stable Signature** | Meta (FAIR) | CC-BY-NC 4.0 | CC-BY-NC 4.0 | ✗ | **Not added.** Non-commercial clause fails the workspace rule. |
+| **StegaStamp** | Tancik et al, UC Berkeley | MIT (code) | unclear (Google Drive download without LICENSE.md) | hold | **Not added.** Code is permissive; weights status is the open question. Acceptable if upstream confirms permissive weights OR if we retrain from CC0/CC-BY data. |
+| **HiDDeN** | community reimpl of Stanford paper (Zhu et al, ECCV 2018) | MIT (community code) | no canonical publishable weights | hold | **Not added.** Academic baseline; no publishable-as-FOSS weights checkpoint. Defer in favour of TrustMark. |
+| classical DCT-DWT methods | — | — | — | ✓ | **Fallback only.** No model-weights concern by construction. Robustness ceiling sits below TrustMark on real-world delivery pipelines. Standby in case TrustMark license re-verification at 7b fails. |
+
+Full image-family survey rationale lives at
+[`docs/v0.7.0-roadmap/7a-image-watermark-survey.md`](docs/v0.7.0-roadmap/7a-image-watermark-survey.md).
 
 All three FOSS-eligible neural families now have a Rust home. silentcipher
 runs a full pipeline; AudioSeal and WavMark are scaffold-only — each crate's

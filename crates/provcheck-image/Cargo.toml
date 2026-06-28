@@ -1,0 +1,35 @@
+[package]
+name = "provcheck-image"
+description = "Image-modality neural-watermark detection for provcheck (TrustMark scaffold; 7b wiring pending)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+
+[lib]
+name = "provcheck_image"
+
+[dependencies]
+# v0.7 phase 7a: scaffold only. The chosen first family is
+# TrustMark (Adobe Apache-2.0). The ONNX backend wires in at 7b;
+# right now the crate is a shape-parity stub that the kit can
+# dispatch through.
+provcheck = { path = "../provcheck" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+# Image container decoding. Mirrors symphonia's role on the audio
+# side: get the bytes off disk into a normalised pixel array the
+# rest of the pipeline consumes. The `image` crate covers PNG,
+# JPEG, WebP, BMP, GIF, TIFF out of the box. AVIF and HEIC need
+# additional decoder crates we defer to 7b based on what TrustMark
+# can actually consume.
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
+
+[dev-dependencies]
+tempfile = "3"

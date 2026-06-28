@@ -9,6 +9,7 @@ members = [
     "crates/provcheck-watermark",
     "crates/provcheck-audioseal",
     "crates/provcheck-wavmark",
+    "crates/provcheck-image",
     "crates/provcheck-cli",
     "crates/provcheck-examples",
 ]

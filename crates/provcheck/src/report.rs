@@ -291,6 +291,11 @@ pub enum WatermarkKind {
     /// package under the same terms. Scaffolded in
     /// `provcheck-wavmark`.
     WavMark,
+    /// TrustMark (Adobe / CAI, arXiv:2311.18297). Apache-2.0
+    /// claimed on code and weights — re-verified at 7b.
+    /// Image-modality watermarking, scaffolded in
+    /// `provcheck-image` (v0.7 phase 7a).
+    TrustMark,
 }
 
 /// Tri-state quality of a watermark detection. See
@@ -494,6 +499,7 @@ impl Display for Report {
                     WatermarkKind::SilentCipher => "silentcipher",
                     WatermarkKind::AudioSeal => "audioseal",
                     WatermarkKind::WavMark => "wavmark",
+                    WatermarkKind::TrustMark => "trustmark",
                 };
                 let pct = (wm.confidence.clamp(0.0, 1.0) * 100.0).round() as u32;
                 match wm.status {
