@@ -91,3 +91,43 @@ pub fn embed_with_config(
 ) -> Result<Vec<f32>, EncodeError> {
     embed(waveform, brand_id_5bit)
 }
+
+/// Embed the same brand into both channels of a stereo signal.
+///
+/// WavMark's HiNet encoder is mono-only by training-time
+/// architecture; like silentcipher + audioseal we orchestrate
+/// two independent embeds (L and R with the same brand) so the
+/// resulting stereo file detects on either single channel and on
+/// the mono downmix. Returns `(marked_left, marked_right)`, each
+/// the same length as the matching input channel. Errors if the
+/// two input channels have different lengths.
+///
+/// v0.7 phase 7-pre audit #1.
+pub fn embed_stereo(
+    left: &[f32],
+    right: &[f32],
+    brand_id_5bit: u8,
+) -> Result<(Vec<f32>, Vec<f32>), EncodeError> {
+    if left.len() != right.len() {
+        return Err(EncodeError::Model(crate::model::ModelError::Inference(
+            format!(
+                "stereo embed: left ({}) and right ({}) have different lengths",
+                left.len(),
+                right.len()
+            ),
+        )));
+    }
+    let l = embed(left, brand_id_5bit)?;
+    let r = embed(right, brand_id_5bit)?;
+    Ok((l, r))
+}
+
+/// Shape-parity wrapper. Calls [`embed_stereo`] and ignores config.
+pub fn embed_stereo_with_config(
+    left: &[f32],
+    right: &[f32],
+    brand_id_5bit: u8,
+    _config: EmbedConfig,
+) -> Result<(Vec<f32>, Vec<f32>), EncodeError> {
+    embed_stereo(left, right, brand_id_5bit)
+}
