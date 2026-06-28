@@ -29,13 +29,45 @@ you run `publish` or `verify`.
 
 ## Status
 
-**v0.5.3 shipped 2026-06-24.** Both CLI binaries (`provcheck`,
+**v0.6.0 shipped 2026-06-28.** Both CLI binaries (`provcheck`,
 `provcheck-kit`) and the desktop GUI ship as pre-built downloads for
 Windows / Linux / macOS-aarch64. The creator-side flow (mint identity
 ➝ sign ➝ publish to atproto ➝ verifier cross-checks) is production-
 ready and battle-tested against rAIdio.bot music renders and
-doomscroll.fm voice mixdowns. The v0.5.x line ships in seven public
-releases over twelve days; the current ship target is v0.5.3.
+doomscroll.fm voice mixdowns. v0.6.0 closes the throughput +
+memory + GPU story for long-form audio.
+
+**v0.6.0 headlines:**
+
+- **CUDA backend** for the silentcipher embed encoder via the new
+  `cuda` feature flag (`cargo build --release --features cuda
+  --bin provcheck-kit`). 56-minute stereo episode embed drops from
+  29 minutes on a 4-wide CPU (v0.5.4's 2× real-time baseline was
+  ~70 min — v0.6.0 already shaves that) to **6.6 minutes on an
+  NVIDIA 3090** (0.12× real-time). Routes through `ort` 2.x's
+  `CUDAExecutionProvider`. Operator installs `onnxruntime-gpu` +
+  CUDA 12.x + cuDNN; NVIDIA libraries are not redistributed per
+  their licensing. Default download stays a single tract-only CPU
+  binary; the CUDA build is opt-in.
+- **Streaming embed** that never materialises the full
+  spectrogram. New `--memory-budget streaming` value on `kit
+  watermark` runs a two-pass chunk-fused pipeline (pass 1 streams
+  utterance_norm, pass 2 streams the chunk loop directly into an
+  overlap-add ring-buffer iSTFT). On a 56-minute stereo episode
+  peak RSS drops from 11.5 GB (default 4-wide mode) to 5.0 GB.
+  Trade-off is ~1.6× real-time wall clock vs default's 0.52×.
+  Ships for memory-constrained operators on 8-16 GB containers.
+- **Chunk-parallel embed.** Default mode now uses rayon to fan
+  out up to 4 chunks of silentcipher encoder inference per call,
+  matching the detector-side P1 pattern. Delivers the 4× CPU
+  speedup baseline above; the `--memory-budget low` knob backs it
+  off to sequential for memory-constrained hosts.
+- **Kit serve mode.** New `kit serve` subcommand exposes the
+  watermark embed pipeline over a JSON-line stdin/stdout
+  protocol. Single model load amortised across an entire batch;
+  the cold-start tract optimisation pass (about 3 seconds) runs
+  once instead of once per file. Built for batch-processing
+  consumers like doomscroll.fm's nightly cycle.
 
 **v0.5.x highlights:**
 
@@ -287,6 +319,64 @@ What the kit gives you:
 
 Full spec: [`docs/atproto-signing-key.md`](docs/atproto-signing-key.md).
 
+## For batch processors — throughput, memory, GPU (v0.6.0)
+
+Long-form audio pipelines (podcast cycles, music render queues,
+broadcast feeds) hit the silentcipher embed harder than single-track
+creators. v0.6.0 ships four knobs for tuning the embed path to the
+host shape:
+
+```bash
+# Default mode: chunk-parallel rayon up to 4-wide. Best wall clock
+# on a host with > 16 GB free RAM. About 0.5x real-time on a 56-min
+# stereo episode (a 56-min file embeds in 29 minutes).
+provcheck-kit watermark long.mp3 -o long.wav
+
+# Sequential chunks. Trades wall clock for memory; pick this on
+# 8-16 GB containers where the default mode's 4-wide rayon peak
+# (~11 GB on a 56-min stereo file) is over budget.
+provcheck-kit watermark long.mp3 -o long.wav --memory-budget low
+
+# Streaming chunk-fused embed. Two-pass design that never
+# materialises the full spectrogram. Peak RSS drops to ~5 GB on a
+# 56-min stereo file at the cost of ~1.6x real-time (about 92 min).
+# Pick this on memory-constrained hosts or for the deepest RSS cap.
+provcheck-kit watermark long.mp3 -o long.wav --memory-budget streaming
+
+# Batch-mode JSON-line worker. Reads `{"id": ..., "input": ...,
+# "output": ..., "kind": ..., "payload": ..., ...}` requests on
+# stdin, emits `{"id": ..., "ok": true|false, ...}` responses on
+# stdout. Single model load amortised across all requests in the
+# session (cold-start tract optimisation runs once, not once per
+# file). Suited for long-running render queues.
+provcheck-kit serve <requests.jsonl >responses.jsonl
+```
+
+**CUDA backend (opt-in build):** build the kit with `--features
+cuda` to route the silentcipher embed encoder through `ort` 2.x's
+`CUDAExecutionProvider`. On an NVIDIA 3090 a 56-minute stereo
+episode embeds in **6.6 minutes** (0.12× real-time, ~10× faster
+than the v0.5.4 baseline). Operator installs `onnxruntime-gpu` +
+CUDA 12.x + cuDNN; the kit dlopens them at runtime via the
+`ORT_DYLIB_PATH` env var. NVIDIA libraries are not redistributed
+in our release archives per their license terms.
+
+```bash
+# Build the CUDA-enabled kit (separate target dir keeps the
+# default tract-only binary untouched).
+CARGO_TARGET_DIR=./target-cuda cargo build --release --features cuda --bin provcheck-kit
+
+# At runtime, point the dlopen at the onnxruntime DLLs.
+# On Windows after `pip install --user onnxruntime-gpu`:
+export ORT_DYLIB_PATH=<onnxruntime-gpu install>/onnxruntime/capi/onnxruntime.dll
+export PATH="$PATH;C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.8/bin"
+
+./target-cuda/release/provcheck-kit watermark long.mp3 -o long.wav
+```
+
+Full design notes including the per-host trade-off matrix:
+[`docs/v0.6.0-roadmap/`](./docs/v0.6.0-roadmap/).
+
 ## Watermark detection — what we ship
 
 provcheck ships three fully-implemented neural-watermark detectors,
@@ -384,6 +474,7 @@ provcheck fills those gaps. It:
 
 | Version | Date | Highlights |
 |---|---|---|
+| **v0.6.0** | 2026-06-28 | **Throughput + memory + GPU.** Four-phase release: (P1) chunk-parallel embed via rayon delivers 4× CPU speedup on default mode (29 min for a 56-min stereo episode vs v0.5.4's ~70 min). (P2) `kit serve` JSON-line stdin/stdout worker amortises model load across an entire batch (cold-start ~3s amortised over many files). (P3) Streaming embed via two-pass chunk-fused design (`--memory-budget streaming`) caps peak RSS at 5.0 GB on a 56-min stereo episode (vs 11.5 GB default-mode), trading ~1.6× real-time wall clock for 56% RSS reduction; also covers a `--memory-budget low` knob for chunk-sequential CPU. (P4) Optional CUDA backend via `--features cuda` routes the silentcipher embed encoder through `ort` 2.x's `CUDAExecutionProvider` for ~10× total speedup vs v0.5.4 (56-min stereo episode embeds in 6.6 min on an NVIDIA 3090). The default download stays a single tract-only CPU binary; the CUDA build is opt-in and requires operator-installed `onnxruntime-gpu` + CUDA 12.x + cuDNN. New roadmap doc set at `docs/v0.6.0-roadmap/` with the P1-P4 designs and the CUDA implementation notes. |
 | **v0.5.4** | 2026-06-26 | **Clap surface cleanup + safe dependency bumps.** `--no-verify-after-embed` now actually parses (was broken in v0.5.3 by `ArgAction::Set` which only accepted `--verify-after-embed true|false`). serde_json 1.0.149 → 1.0.150, zeroize 1.8.2 → 1.9.0. No watermark code changes. |
 | **v0.5.3** | 2026-06-24 | **AAC-in-MP4/M4A detector fix (public issue #24).** The detector silently returned conf 0.000 on AAC audio inside MP4 or M4A containers because symphonia 0.5.5's `isomp4` reader does not surface the `edts/elst` edit list or `iTunSMPB` tag as `codec_params.delay`, so we never trimmed the 1024-sample AAC encoder priming and every STFT frame was one AAC frame out of phase with the embedder's frame grid. Fix hardcodes `AAC_DEFAULT_PRIMING_SAMPLES = 1024` when symphonia returns `delay = None` for an AAC track (matches Lavf and most other AAC LC encoders), and adds `mp4`, `m4b`, and `mov` to the audio-extension allowlist so MP4 video containers with an AAC audio track make it past the early sniff. Silentcipher marks now survive AAC 192k stereo round-trips at conf 0.92, which corrects the v0.5.2 codec-survival doc's "AAC unsupported for silentcipher" claim — the embed always survived AAC; only the decoder was misaligned. AudioSeal stays the recommended path for AAC delivery (higher post-AAC margin), but silentcipher is now a viable second option. New `decode_probe` example under `crates/provcheck-watermark/examples/` for future container-alignment triage. |
 | **v0.5.2** | 2026-06-24 | **Stereo embed + delivery-codec defaults + verify-after-embed.** New `--channels {auto, mono, stereo}` flag on `kit watermark`; `auto` matches input channels by running two independent mono embeds with the same payload, so stereo delivery pipelines no longer lose the mark to a downmix-then-upmix roundtrip. Silentcipher default SDR drops 47 → 30 dB so libmp3lame 192k delivery survives at conf 0.95+ (public issue #23); AAC delivery is documented as unsupported for silentcipher under any tested setting. AudioSeal default alpha rises 1.0 → 3.0 so the default behaviour reliably self-detects and survives AAC 192k at conf 0.999, plus libmp3lame 192k. New always-on `--verify-after-embed` self-test runs the matching detector against the freshly-written WAV; conf < 0.50 deletes the output file and exits non-zero so weak marks do not silently propagate downstream. Full parity report + codec compatibility matrix in [`docs/v0.5.2-codec-survival/`](docs/v0.5.2-codec-survival/). Pass `--sdr-db 47`, `--alpha 1.0`, or `--no-verify-after-embed` to restore v0.5.1 behaviour. |

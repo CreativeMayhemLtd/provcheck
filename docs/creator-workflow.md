@@ -181,7 +181,7 @@ Pull the Linux binary into your container:
 
 ```dockerfile
 FROM debian:bookworm-slim
-ARG PROVCHECK_VERSION=v0.3.3
+ARG PROVCHECK_VERSION=v0.6.0
 RUN apt-get update && apt-get install -y curl ca-certificates && rm -rf /var/lib/apt/lists/*
 RUN curl -L \
     "https://github.com/CreativeMayhemLtd/provcheck/releases/download/${PROVCHECK_VERSION}/provcheck-kit-${PROVCHECK_VERSION}-linux-x86_64.tar.gz" \
@@ -198,6 +198,62 @@ For batch operation in a long-running process, `provcheck-kit unlock`
 once at startup primes the in-process passphrase cache (encrypted-file
 backend only — the OS keychain handles batching natively via
 "always allow").
+
+### Batch watermark embedding (v0.6.0)
+
+For pipelines that watermark many files in a row, `kit serve`
+amortises the silentcipher model load across all requests in a
+single worker session. Cold-start tract optimisation runs once
+(~3 seconds), not once per file.
+
+```bash
+# Request shape (one JSON object per line on stdin):
+#   {"id": "ep001", "input": "ep001.mp3", "output": "ep001.wav",
+#    "kind": "silentcipher", "payload": "44464d0100",
+#    "sdr_db": 30.0, "memory_budget": "default",
+#    "verify_after_embed": true, "overwrite": true, "channels": "auto"}
+provcheck-kit serve <requests.jsonl >responses.jsonl
+```
+
+Memory budget knobs for the watermark subcommand:
+
+- `--memory-budget default` — chunk-parallel rayon up to 4-wide.
+  Best wall clock. Peak RSS ~11 GB on a 56-min stereo episode.
+- `--memory-budget low` — sequential chunks. Trades wall clock
+  for memory. Peak RSS ~5 GB on a 56-min stereo episode.
+- `--memory-budget streaming` — chunk-fused streaming embed.
+  Never materialises the full spectrogram. Same memory profile
+  as `low` but ~25% faster wall clock; the better choice for
+  most memory-constrained hosts.
+
+### GPU acceleration (v0.6.0, CUDA, opt-in build)
+
+For shops with NVIDIA hardware on the render host, the
+`--features cuda` build routes the silentcipher embed encoder
+through `ort` 2.x's CUDA Execution Provider. A 56-min stereo
+episode embed drops from 29 minutes (4-wide CPU) to about 6.6
+minutes on an NVIDIA 3090.
+
+The default download stays a single tract-only CPU binary. The
+CUDA build is opt-in:
+
+```bash
+# Build from source on the render host:
+git clone https://github.com/CreativeMayhemLtd/provcheck
+cd provcheck
+CARGO_TARGET_DIR=./target-cuda cargo build --release --features cuda --bin provcheck-kit
+
+# At runtime, point the kit at onnxruntime-gpu's shared libraries.
+# On Windows after `pip install --user onnxruntime-gpu`:
+set ORT_DYLIB_PATH=%APPDATA%\Python\Python312\site-packages\onnxruntime\capi\onnxruntime.dll
+set PATH=%PATH%;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8\bin
+
+./target-cuda/release/provcheck-kit watermark episode.mp3 -o episode.wav
+```
+
+NVIDIA libraries are not redistributed in our release archives
+per their license terms; install them separately on the host.
+Full design notes at [`docs/v0.6.0-roadmap/`](../docs/v0.6.0-roadmap/).
 
 ### CI verification gate
 
