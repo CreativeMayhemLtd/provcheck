@@ -49,6 +49,7 @@ pub mod image;
 pub mod encode;
 #[doc(hidden)]
 pub mod model;
+pub mod bch;
 
 /// Errors returned by [`detect`]. Non-fatal outcomes (file is
 /// not an image, decoder failure) are reported on the returned
@@ -163,7 +164,7 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
     // report Detected. TrustMark BCH-5 ecosystem interop ships as
     // a follow-up phase that swaps this magic-byte gate for the
     // proper finite-field decode.
-    let (status, brand) = classify_provcheck_raw(&result.bits);
+    let (status, brand) = classify_bch5(&result.bits);
     Ok(WatermarkResult {
         kind: WatermarkKind::TrustMark,
         status,
@@ -176,8 +177,12 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
         brand,
         message: Some(format!(
             "TrustMark-B decoder ran; {} raw bits recovered, mean |logit| {:.3}. \
-             Provcheck-internal payload format active; BCH-5 ecosystem interop \
-             (Adobe TrustMark Python round-trip) lands as a follow-up phase.",
+             BCH-5 shortened (96, 61, t=5) ecosystem-interop format. \
+             Status NotDetected here means BCH could not correct the bit \
+             pattern — either the image is unmarked, or the mark was degraded \
+             beyond BCH's 5-bit correction capacity by a downstream transform. \
+             High mean |logit| with NotDetected typically means a marked image \
+             that lost too many bits to lossy re-encode or aggressive resize.",
             model::SECRET_LEN,
             result.mean_abs_logit
         )),
@@ -185,31 +190,66 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
     })
 }
 
-/// Classify decoded bits according to the v0.7 phase 7c
-/// provcheck-internal payload format. Returns
-/// `(WatermarkStatus, Option<WatermarkBrand>)`.
-fn classify_provcheck_raw(bits: &[u8]) -> (WatermarkStatus, Option<WatermarkBrand>) {
+/// Classify decoded bits via the BCH_5 shortened-codeword format.
+/// Returns `(WatermarkStatus, Option<WatermarkBrand>)`.
+///
+/// Pipeline:
+/// 1. Check the 4 version bits at positions [96..100] match
+///    `0b0001` (BCH_5 marker).
+/// 2. Reconstruct the full 127-bit BCH codeword from the 96-bit
+///    shortened form by prepending 31 zero pads to the data
+///    portion.
+/// 3. Run BCH(127, 92, t=5) error correction.
+/// 4. Check the magic byte at the head of the recovered data.
+/// 5. Extract the brand id.
+fn classify_bch5(bits: &[u8]) -> (WatermarkStatus, Option<WatermarkBrand>) {
+    use crate::encode;
     if bits.len() < model::SECRET_LEN {
         return (WatermarkStatus::NotDetected, None);
     }
-    // Reconstruct magic byte from bits[0..8] MSB-first.
+    // Version marker.
+    if bits[96..100] != [0, 0, 0, 1] {
+        return (WatermarkStatus::NotDetected, None);
+    }
+
+    // Layout in the 96-bit shortened codeword:
+    //   bits[0..61]  = 61 data bits
+    //   bits[61..96] = 35 ECC bits
+    // Full BCH(127, 92) codeword layout per bch::encode:
+    //   pos[0..35]  = parity
+    //   pos[35..66] = SHORTEN_PAD zero bits
+    //   pos[66..127] = 61 data bits
+    let mut received = vec![0u8; crate::bch::N];
+    for i in 0..35 {
+        received[i] = bits[61 + i];
+    }
+    // pos[35..66] stays zero (the shortening pad).
+    for i in 0..61 {
+        received[66 + i] = bits[i];
+    }
+
+    let (data, _errs) = match crate::bch::decode(&received) {
+        Ok(r) => r,
+        Err(_) => return (WatermarkStatus::NotDetected, None),
+    };
+    // `data` is the 92-bit BCH input that was encoded. Strip the
+    // 31 leading zero pads to get the 61 data bits.
+    let payload = &data[31..];
+
+    // Magic byte at the head.
     let mut magic = 0u8;
     for i in 0..8 {
-        if bits[i] == 1 {
+        if payload[i] == 1 {
             magic |= 1 << (7 - i);
         }
     }
     if magic != encode::PROVCHECK_RAW_MAGIC {
         return (WatermarkStatus::NotDetected, None);
     }
-    // Version bits 96..100 must all be 0 (provcheck-raw schema).
-    if bits[96..100].iter().any(|&b| b != 0) {
-        return (WatermarkStatus::NotDetected, None);
-    }
-    // Brand id bits 8..13.
+    // Brand id at bits 8..13 of the recovered data.
     let mut brand_id = 0u8;
     for i in 0..5 {
-        if bits[8 + i] == 1 {
+        if payload[8 + i] == 1 {
             brand_id |= 1 << (4 - i);
         }
     }

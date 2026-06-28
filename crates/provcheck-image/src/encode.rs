@@ -14,32 +14,31 @@
 //!
 //! ## Payload format
 //!
-//! Phase 7c uses a **provcheck-internal** 100-bit payload format
-//! (NOT TrustMark's BCH_5). The format is:
+//! Phase 7c-followup ships **BCH_5 ecosystem-interop** payload —
+//! the same shortened BCH(96, 61, t=5) format Adobe's Python
+//! TrustMark uses. A mark embedded by provcheck round-trips
+//! cleanly through Python TrustMark and vice versa.
 //!
 //! | bits      | meaning                                         |
 //! | --------- | ----------------------------------------------- |
-//! | 0..8      | magic byte `0xA5` so a provcheck detector can   |
-//! |           | distinguish provcheck-stamped marks from noise. |
-//! | 8..13     | 5-bit brand id (BRAND_RAIDIO / BRAND_DOOMSCROLL |
-//! |           | / BRAND_VAIDEO from the audio crate registry).  |
-//! | 13..96    | zeros (reserved).                               |
-//! | 96..100   | version `0b0000` — denotes "provcheck raw".     |
-//! |           | TrustMark BCH_5 marks use `0b0001` here.        |
+//! | 0..61     | 61-bit BCH data payload                         |
+//! |   0..8    |   magic byte `0xA5` (provcheck signature)       |
+//! |   8..13   |   5-bit brand id (BRAND_RAIDIO etc.)            |
+//! |   13..61  |   zeros (reserved)                              |
+//! | 61..96    | 35-bit BCH parity / ECC                         |
+//! | 96..100   | 4-bit version `0b0001` (BCH_5 schema marker)    |
 //!
-//! The round-trip (provcheck encode → provcheck decode → same
-//! brand) works today. Ecosystem interop with Adobe's Python
-//! TrustMark requires real BCH-5 error correction; that lands as
-//! a follow-up phase that swaps the secret-encoding step for
-//! BCH(m=5, polynomial=137, t=5). The provcheck-internal format
-//! today is forward-compatible: BCH-encoded marks will continue
-//! to fall through the magic-byte check and decode via the
-//! BCH path when it lands.
+//! BCH encode pads the 61 data bits to 92 (BCH(127, 92, 5) input
+//! width) by prepending 31 zeros, runs the full 127-bit encoder,
+//! then drops those 31 leading zeros from the codeword's data
+//! portion — what's left is exactly the 61 + 35 = 96 bit shortened
+//! codeword. Decode reverses the trick.
 
 use std::path::Path;
 
 use image::{ImageBuffer, Rgb, RgbImage};
 
+use crate::bch;
 use crate::image as imgmod;
 use crate::model::{self, SECRET_LEN};
 
@@ -67,29 +66,71 @@ pub struct EmbedConfig {}
 /// most variants (`1.25` for P). We track the default B/Q value.
 const WM_STRENGTH: f32 = 1.0;
 
-/// Magic byte at the head of provcheck-raw payloads. Distinguishes
-/// a v0.7 provcheck-stamped mark from noise and from future BCH-5
-/// marks (which use upstream's structure).
+/// Magic byte at the head of every provcheck BCH-5 payload.
+/// Distinguishes provcheck-stamped marks from arbitrary bit
+/// patterns that happen to BCH-decode cleanly.
 pub const PROVCHECK_RAW_MAGIC: u8 = 0xA5;
 
-/// Pack a brand-id-5bit into the 100-bit provcheck-raw secret.
-fn build_secret(brand_id_5bit: u8) -> [u8; SECRET_LEN] {
-    let mut bits = [0u8; SECRET_LEN];
-    // bits[0..8] = magic
+/// Length of the BCH-protected portion of the 100-bit secret
+/// (data + ECC). The remaining 4 bits hold the version marker.
+const PROTECTED_LEN: usize = 96;
+/// Length of the BCH data payload INSIDE the protected portion
+/// (61 bits). The other 35 bits of the protected portion are ECC.
+const DATA_LEN: usize = 61;
+/// Length of the BCH ECC.
+const ECC_LEN: usize = PROTECTED_LEN - DATA_LEN; // 35
+/// Zero-pad length when shortening BCH(127, 92) → BCH(96, 61).
+const SHORTEN_PAD: usize = bch::K - DATA_LEN; // 31
+
+/// Version marker for BCH_5. Upstream TrustMark Python writes
+/// the 4 version bits as `0b0001` for the BCH_5 encoding mode.
+const VERSION_BCH5: [u8; 4] = [0, 0, 0, 1];
+
+/// Build the 61-bit BCH data payload: magic + brand id + zeros.
+fn build_data_payload(brand_id_5bit: u8) -> [u8; DATA_LEN] {
+    let mut data = [0u8; DATA_LEN];
     for i in 0..8 {
         if (PROVCHECK_RAW_MAGIC >> (7 - i)) & 1 == 1 {
-            bits[i] = 1;
+            data[i] = 1;
         }
     }
-    // bits[8..13] = brand id, MSB first
     for i in 0..5 {
         if (brand_id_5bit >> (4 - i)) & 1 == 1 {
-            bits[8 + i] = 1;
+            data[8 + i] = 1;
         }
     }
-    // bits[13..96] zeros (already)
-    // bits[96..100] version = 0b0000 (already)
-    bits
+    data
+}
+
+/// BCH-encode the 61-bit data payload + version into the 100-bit
+/// secret the TrustMark encoder ONNX expects.
+fn build_secret(brand_id_5bit: u8) -> [u8; SECRET_LEN] {
+    let data = build_data_payload(brand_id_5bit);
+
+    // Shortened BCH: pad data to BCH's full K=92 input width by
+    // prepending SHORTEN_PAD=31 zero bits.
+    let mut bch_input = vec![0u8; bch::K];
+    bch_input[SHORTEN_PAD..].copy_from_slice(&data);
+
+    let codeword = bch::encode(&bch_input);
+    // codeword layout per bch::encode: positions [0..ECC_LEN]
+    // hold parity; positions [ECC_LEN..N] hold the 92-bit BCH
+    // input we just fed (first SHORTEN_PAD are zero, last DATA_LEN
+    // are the real data).
+    debug_assert_eq!(codeword.len(), bch::N);
+
+    let mut secret = [0u8; SECRET_LEN];
+    // bits[0..DATA_LEN] = the 61 data bits (= codeword[ECC_LEN + SHORTEN_PAD..bch::N])
+    for i in 0..DATA_LEN {
+        secret[i] = codeword[ECC_LEN + SHORTEN_PAD + i];
+    }
+    // bits[DATA_LEN..PROTECTED_LEN] = the 35 ECC bits (= codeword[0..ECC_LEN])
+    for i in 0..ECC_LEN {
+        secret[DATA_LEN + i] = codeword[i];
+    }
+    // bits[PROTECTED_LEN..SECRET_LEN] = version = 0b0001
+    secret[PROTECTED_LEN..].copy_from_slice(&VERSION_BCH5);
+    secret
 }
 
 /// Embed a brand-tagged TrustMark-B watermark into the image at
@@ -255,4 +296,50 @@ fn chw_normalised_to_rgb_u8(chw: &[f32], w: u32, h: u32) -> RgbImage {
 #[inline]
 fn denorm(v: f32) -> u8 {
     (((v + 1.0) * 0.5).clamp(0.0, 1.0) * 255.0).round() as u8
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Build a secret, then run the SAME bit layout the detect path
+    /// reads, and confirm the brand id survives. This isolates the
+    /// secret encoding ↔ classification symmetry from the ONNX
+    /// model's bit fidelity.
+    #[test]
+    fn secret_layout_roundtrips_through_classifier() {
+        for brand_id in 1u8..=3 {
+            let secret = build_secret(brand_id);
+            assert_eq!(secret.len(), SECRET_LEN);
+            assert_eq!(&secret[PROTECTED_LEN..], &VERSION_BCH5);
+
+            // Reconstruct the BCH codeword the classifier would.
+            let mut received = vec![0u8; crate::bch::N];
+            for i in 0..ECC_LEN {
+                received[i] = secret[DATA_LEN + i];
+            }
+            for i in 0..DATA_LEN {
+                received[ECC_LEN + SHORTEN_PAD + i] = secret[i];
+            }
+            let (data, errs) = crate::bch::decode(&received).expect("decode clean codeword");
+            assert_eq!(errs, 0, "fresh codeword should have 0 errors");
+            let payload = &data[SHORTEN_PAD..];
+            assert_eq!(payload.len(), DATA_LEN);
+            // Magic + brand should round-trip.
+            let mut magic = 0u8;
+            for i in 0..8 {
+                if payload[i] == 1 {
+                    magic |= 1 << (7 - i);
+                }
+            }
+            assert_eq!(magic, PROVCHECK_RAW_MAGIC);
+            let mut recovered_brand = 0u8;
+            for i in 0..5 {
+                if payload[8 + i] == 1 {
+                    recovered_brand |= 1 << (4 - i);
+                }
+            }
+            assert_eq!(recovered_brand, brand_id, "brand id should round-trip");
+        }
+    }
 }
