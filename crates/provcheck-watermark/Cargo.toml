@@ -50,7 +50,7 @@ ndarray = { version = "0.16", optional = true }
 # run on every cold process start. The model itself is committed
 # at models/silentcipher-decoder.nnef.tgz; see examples/nnef-bake.rs
 # for the one-shot conversion tool.
-tract-nnef = { version = "0.21", features = ["flate2"] }
+tract-nnef = { version = "0.22", features = ["flate2"] }
 
 # Audio container decoding. Default features cover the common
 # containers; we add `mp3` explicitly because it's behind a
