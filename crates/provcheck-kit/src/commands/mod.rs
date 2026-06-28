@@ -135,6 +135,11 @@ pub enum Command {
     /// family is needed but absent. v0.7 phase 8a.
     Weights(weights::CliArgs),
 
+    /// One-call creator pipeline: watermark + C2PA sign in
+    /// sequence on the same input. Auto-detects audio vs image
+    /// from the extension. v0.7 phase 7g.
+    Stamp(stamp::CliArgs),
+
     /// Write the current identity to an age-format backup file.
     /// Use `--use-recovery-recipients` to encrypt to the
     /// registered X25519 recipient set instead of a passphrase.
@@ -177,7 +182,7 @@ pub enum Command {
 
 /// Shared helper — many commands accept `--data-dir` to override
 /// the default `provcheck-sign::persist::default_dir`.
-#[derive(Debug, Args)]
+#[derive(Debug, Args, Clone)]
 pub struct DataDirOpt {
     /// Override the data directory. Defaults to
     /// `$XDG_DATA_HOME/provcheck-kit/` on Linux/macOS and
@@ -3627,5 +3632,189 @@ pub mod weights {
             eprintln!("removed {}/{}", entry.family, entry.variant);
         }
         Ok(())
+    }
+}
+
+pub mod stamp {
+    //! `provcheck-kit stamp <input> -o <output>` — one-call creator
+    //! pipeline: watermark + C2PA sign in sequence, sharing args
+    //! across both steps. v0.7 phase 7g.
+    //!
+    //! Per the v0.7 roadmap, this is "the creator UX moment" — a
+    //! creator types one command and gets a fully provenanced
+    //! output. Auto-detects modality from the input extension and
+    //! routes to the right watermark family (silentcipher for
+    //! .mp3/.wav/.flac/.m4a/.ogg, image for .png/.jpg/.webp).
+    //!
+    //! Atproto record publishing is intentionally NOT part of
+    //! this command in v0.7. There is no per-asset atproto record
+    //! schema yet; that lands as a follow-up (and the v0.9
+    //! ComfyUI node task #151 will exercise the schema design
+    //! when it lands). `kit stamp` today is local-output only —
+    //! the creator can `kit publish` separately if they want to
+    //! refresh their identity record.
+
+    use std::path::PathBuf;
+
+    use anyhow::{Context, Result, bail};
+    use clap::Args;
+
+    use super::DataDirOpt;
+
+    #[derive(Debug, Args)]
+    pub struct CliArgs {
+        /// Input file (audio or image — modality auto-detected
+        /// from the extension).
+        pub input: PathBuf,
+
+        /// Destination path. Required — the kit will not
+        /// overwrite the source in place because watermark + sign
+        /// always need to write a derived file.
+        #[arg(short = 'o', long, value_name = "PATH")]
+        pub output: PathBuf,
+
+        /// 5-bit brand id matching the signer's atproto identity.
+        /// Defaults to RAIDIO (2) for parity with the audio
+        /// `--brand-id` knob.
+        #[arg(long, default_value_t = 2)]
+        pub brand_id: u8,
+
+        /// Allow overwriting `--output` if it already exists.
+        #[arg(long)]
+        pub overwrite: bool,
+
+        /// Skip the watermark step. Useful when the input is
+        /// already marked upstream and `stamp` is only the C2PA
+        /// signing step.
+        #[arg(long)]
+        pub no_watermark: bool,
+
+        /// Skip the C2PA sign step. Useful when the creator wants
+        /// just the watermark without engaging the local signing
+        /// identity.
+        #[arg(long)]
+        pub no_sign: bool,
+
+        #[command(flatten)]
+        pub data_dir: DataDirOpt,
+    }
+
+    enum Modality {
+        Audio,
+        Image,
+    }
+
+    fn detect_modality(path: &std::path::Path) -> Result<Modality> {
+        let ext = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|e| e.to_ascii_lowercase())
+            .ok_or_else(|| anyhow::anyhow!("input has no extension; cannot detect modality"))?;
+        match ext.as_str() {
+            "mp3" | "wav" | "flac" | "m4a" | "ogg" | "opus" | "aac" | "mp4" | "mov" => {
+                Ok(Modality::Audio)
+            }
+            "png" | "jpg" | "jpeg" | "webp" | "bmp" | "gif" | "tiff" | "tif" => Ok(Modality::Image),
+            _ => bail!("unsupported extension {ext:?}; expected audio (mp3/wav/flac/...) or image (png/jpg/webp/...)"),
+        }
+    }
+
+    pub async fn run(args: CliArgs) -> Result<()> {
+        if args.output.exists() && !args.overwrite {
+            bail!(
+                "output exists; pass --overwrite to replace: {}",
+                args.output.display()
+            );
+        }
+        let modality = detect_modality(&args.input)?;
+        let modality_name = match modality {
+            Modality::Audio => "audio",
+            Modality::Image => "image",
+        };
+        eprintln!(
+            "provcheck-kit: stamp ({modality_name}) {} -> {}",
+            args.input.display(),
+            args.output.display()
+        );
+
+        // Step 1: watermark. Routes through the existing kit
+        // command modules so we share their config, error
+        // surfaces, verify-after-embed self-test, and CLI flag
+        // semantics. The watermark step writes its output to
+        // args.output; downstream sign reads from there.
+        if !args.no_watermark {
+            run_watermark_step(&args, &modality).await?;
+        } else {
+            // No watermark requested: copy input to output so the
+            // sign step has something to operate on.
+            tokio::fs::copy(&args.input, &args.output)
+                .await
+                .with_context(|| {
+                    format!(
+                        "copy {} -> {}",
+                        args.input.display(),
+                        args.output.display()
+                    )
+                })?;
+        }
+
+        // Step 2: C2PA sign in place (signs args.output, overwrites it).
+        if !args.no_sign {
+            run_sign_step(&args).await?;
+        }
+
+        eprintln!("provcheck-kit: stamp complete -> {}", args.output.display());
+        Ok(())
+    }
+
+    async fn run_watermark_step(args: &CliArgs, modality: &Modality) -> Result<()> {
+        use super::watermark;
+        let kind = match modality {
+            Modality::Audio => watermark::Kind::Silentcipher,
+            Modality::Image => watermark::Kind::Image,
+        };
+        let wargs = watermark::CliArgs {
+            input: args.input.clone(),
+            output: args.output.clone(),
+            kind,
+            payload: brand_id_to_payload_hex(args.brand_id),
+            brand_id: args.brand_id,
+            sdr_db: None,
+            alpha: None,
+            channels: watermark::ChannelMode::Auto,
+            verify_after_embed: true,
+            no_verify_after_embed: false,
+            memory_budget: watermark::MemoryBudget::Default,
+            overwrite: args.overwrite,
+        };
+        watermark::run(wargs).await.context("stamp: watermark step")
+    }
+
+    /// Build a 10-hex-char silentcipher payload from a brand id.
+    /// Brand id 2 (RAIDIO) → `b"RAI\x01\x00"` = `5241490100`.
+    fn brand_id_to_payload_hex(brand_id_5bit: u8) -> String {
+        let triplet: [u8; 3] = match brand_id_5bit {
+            1 => *b"DFM",
+            2 => *b"RAI",
+            3 => *b"VAI",
+            _ => *b"DFM",
+        };
+        format!(
+            "{:02x}{:02x}{:02x}0100",
+            triplet[0], triplet[1], triplet[2]
+        )
+    }
+
+    async fn run_sign_step(args: &CliArgs) -> Result<()> {
+        use super::sign;
+        let sargs = sign::CliArgs {
+            data_dir: args.data_dir.clone(),
+            file: args.output.clone(),
+            out: None, // in-place: sign overwrites args.output via its temp-rename dance
+            manifest: None,
+            embed_identity: true,
+            action: None,
+        };
+        sign::run(sargs).await.context("stamp: sign step")
     }
 }
