@@ -39,9 +39,11 @@ use crate::stft::{
     spectrum_to_waveform, streaming_utterance_norm, waveform_to_spectrum,
 };
 
-/// Encoder ONNX, embedded at build time. Produced by
-/// `scripts/export-silentcipher-encoder.py`.
-const ENCODER_BYTES: &[u8] = include_bytes!("../models/silentcipher-encoder.onnx");
+// v0.7 phase 8a: silentcipher encoder ONNX migrated from
+// include_bytes!() to the provcheck-weights DLC pattern. First
+// embed() lazily pulls from the public mirror's weights-v1
+// release; subsequent calls hit the cache. Kit binary drops by
+// ~2.1 MB.
 
 /// `Encoder.linear` weights — shape `(MESSAGE_BAND_SIZE=1024, MESSAGE_DIM=5)`,
 /// row-major as PyTorch dumps them. Used by [`transform_message`] to project
@@ -700,9 +702,13 @@ fn model() -> Result<&'static Runnable, EncodeError> {
 
 #[cfg(not(feature = "cuda"))]
 fn build_model() -> Result<Runnable, String> {
-    let mut cursor = std::io::Cursor::new(ENCODER_BYTES);
+    let path = provcheck_weights::load_or_download("silentcipher", "encoder")
+        .map_err(|e| format!("weights: {e}"))?;
+    let file = std::fs::File::open(&path)
+        .map_err(|e| format!("open {}: {e}", path.display()))?;
+    let mut reader = std::io::BufReader::new(file);
     let model = tract_onnx::onnx()
-        .model_for_read(&mut cursor)
+        .model_for_read(&mut reader)
         .and_then(|m| m.into_optimized())
         .and_then(|m| m.into_runnable())
         .map_err(|e| e.to_string())?;
@@ -719,13 +725,15 @@ fn build_model() -> Result<Runnable, String> {
     use ort::execution_providers::CUDAExecutionProvider;
     use ort::session::Session;
     use ort::session::builder::GraphOptimizationLevel;
+    let path = provcheck_weights::load_or_download("silentcipher", "encoder")
+        .map_err(|e| format!("weights: {e}"))?;
     let session = Session::builder()
         .map_err(|e| e.to_string())?
         .with_optimization_level(GraphOptimizationLevel::Level3)
         .map_err(|e| e.to_string())?
         .with_execution_providers([CUDAExecutionProvider::default().build()])
         .map_err(|e| e.to_string())?
-        .commit_from_memory(ENCODER_BYTES)
+        .commit_from_file(&path)
         .map_err(|e| e.to_string())?;
     Ok(std::sync::Mutex::new(session))
 }

@@ -33,12 +33,12 @@ use tract_onnx::prelude::*;
 
 use crate::stft::StftConfig;
 
-const ENCODER_BYTES: &[u8] = include_bytes!("../models/wavmark-encoder.onnx");
-const DECODER_BYTES: &[u8] = include_bytes!("../models/wavmark-decoder.onnx");
-
-const FC_WEIGHTS: &[u8] = include_bytes!("../models/wavmark-watermark_fc.weights.bin");
+// v0.7 phase 8a: wavmark encoder + decoder + FC weights migrated
+// from include_bytes!() to the provcheck-weights DLC pattern. Kit
+// binary drops by ~16 MB. The tiny bias .bin files (64 KB
+// fc.bias, 128 bytes fc_back.bias) stay embedded — too small to
+// justify a download round trip.
 const FC_BIAS: &[u8] = include_bytes!("../models/wavmark-watermark_fc.bias.bin");
-const FC_BACK_WEIGHTS: &[u8] = include_bytes!("../models/wavmark-watermark_fc_back.weights.bin");
 const FC_BACK_BIAS: &[u8] = include_bytes!("../models/wavmark-watermark_fc_back.bias.bin");
 
 /// Samples per WavMark chunk (16 kHz × 1 s).
@@ -282,8 +282,8 @@ fn encoder_model() -> Result<&'static Runnable, ModelError> {
     if let Some(m) = MODEL.get() {
         return Ok(m);
     }
-    let m = build_runnable(ENCODER_BYTES)
-        .map_err(|e: TractError| ModelError::Load(format!("encoder: {e}")))?;
+    let m = build_runnable_from_weights("encoder")
+        .map_err(|e| ModelError::Load(format!("encoder: {e}")))?;
     let _ = MODEL.set(m);
     Ok(MODEL.get().expect("just set"))
 }
@@ -293,25 +293,30 @@ fn decoder_model() -> Result<&'static Runnable, ModelError> {
     if let Some(m) = MODEL.get() {
         return Ok(m);
     }
-    let m = build_runnable(DECODER_BYTES)
-        .map_err(|e: TractError| ModelError::Load(format!("decoder: {e}")))?;
+    let m = build_runnable_from_weights("decoder")
+        .map_err(|e| ModelError::Load(format!("decoder: {e}")))?;
     let _ = MODEL.set(m);
     Ok(MODEL.get().expect("just set"))
 }
 
-fn build_runnable(bytes: &[u8]) -> TractResult<Runnable> {
-    let mut cursor = std::io::Cursor::new(bytes);
+fn build_runnable_from_weights(variant: &str) -> Result<Runnable, String> {
+    let path = provcheck_weights::load_or_download("wavmark", variant)
+        .map_err(|e| format!("weights: {e}"))?;
+    let file = std::fs::File::open(&path)
+        .map_err(|e| format!("open {}: {e}", path.display()))?;
+    let mut reader = std::io::BufReader::new(file);
     let model = tract_onnx::onnx()
-        .model_for_read(&mut cursor)?
-        .into_optimized()?
-        .into_runnable()?;
+        .model_for_read(&mut reader)
+        .and_then(|m| m.into_optimized())
+        .and_then(|m| m.into_runnable())
+        .map_err(|e| e.to_string())?;
     Ok(model)
 }
 
 fn fc_weights() -> &'static [f32] {
     static W: OnceLock<Vec<f32>> = OnceLock::new();
     W.get_or_init(|| {
-        load_f32_blob(FC_WEIGHTS, CHUNK_SAMPLES * NUM_BITS, "watermark_fc.weights")
+        load_f32_blob_from_weights("fc-weights", CHUNK_SAMPLES * NUM_BITS, "watermark_fc.weights")
     })
 }
 
@@ -323,12 +328,20 @@ fn fc_bias() -> &'static [f32] {
 fn fc_back_weights() -> &'static [f32] {
     static W: OnceLock<Vec<f32>> = OnceLock::new();
     W.get_or_init(|| {
-        load_f32_blob(
-            FC_BACK_WEIGHTS,
+        load_f32_blob_from_weights(
+            "fc-back-weights",
             NUM_BITS * CHUNK_SAMPLES,
             "watermark_fc_back.weights",
         )
     })
+}
+
+fn load_f32_blob_from_weights(variant: &str, expected_elems: usize, label: &str) -> Vec<f32> {
+    let path = provcheck_weights::load_or_download("wavmark", variant)
+        .unwrap_or_else(|e| panic!("{label}: weights load: {e}"));
+    let bytes = std::fs::read(&path)
+        .unwrap_or_else(|e| panic!("{label}: read {}: {e}", path.display()));
+    load_f32_blob(&bytes, expected_elems, label)
 }
 
 fn fc_back_bias() -> &'static [f32] {

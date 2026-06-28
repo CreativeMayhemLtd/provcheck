@@ -16,12 +16,11 @@ use std::sync::OnceLock;
 
 use tract_onnx::prelude::*;
 
-/// Detector ONNX. Two outputs (presence + 16-bit message).
-const DETECTOR_BYTES: &[u8] = include_bytes!("../models/audioseal-detector.onnx");
-
-/// Generator ONNX. Returns the watermark signal; caller computes
-/// `marked = x + alpha * watermark`.
-const GENERATOR_BYTES: &[u8] = include_bytes!("../models/audioseal-generator.onnx");
+// v0.7 phase 8a: audioseal detector + generator ONNX migrated
+// from include_bytes!() to the provcheck-weights DLC pattern.
+// Kit binary drops by ~89 MB (the biggest single drop). First
+// detect()/embed() lazily pulls from the public mirror's
+// weights-v1 release; subsequent calls hit cache.
 
 /// Fixed input length for both ONNX files. Audio shorter than this
 /// must be zero-padded; longer audio must be chunked. Equal to
@@ -141,8 +140,8 @@ fn detector_model() -> Result<&'static Runnable, ModelError> {
     if let Some(m) = MODEL.get() {
         return Ok(m);
     }
-    let m = build_runnable(DETECTOR_BYTES)
-        .map_err(|e: TractError| ModelError::Load(format!("detector: {e}")))?;
+    let m = build_runnable_from_weights("detector")
+        .map_err(|e| ModelError::Load(format!("detector: {e}")))?;
     let _ = MODEL.set(m);
     Ok(MODEL.get().expect("just set"))
 }
@@ -152,17 +151,22 @@ fn generator_model() -> Result<&'static Runnable, ModelError> {
     if let Some(m) = MODEL.get() {
         return Ok(m);
     }
-    let m = build_runnable(GENERATOR_BYTES)
-        .map_err(|e: TractError| ModelError::Load(format!("generator: {e}")))?;
+    let m = build_runnable_from_weights("generator")
+        .map_err(|e| ModelError::Load(format!("generator: {e}")))?;
     let _ = MODEL.set(m);
     Ok(MODEL.get().expect("just set"))
 }
 
-fn build_runnable(bytes: &[u8]) -> TractResult<Runnable> {
-    let mut cursor = std::io::Cursor::new(bytes);
+fn build_runnable_from_weights(variant: &str) -> Result<Runnable, String> {
+    let path = provcheck_weights::load_or_download("audioseal", variant)
+        .map_err(|e| format!("weights: {e}"))?;
+    let file = std::fs::File::open(&path)
+        .map_err(|e| format!("open {}: {e}", path.display()))?;
+    let mut reader = std::io::BufReader::new(file);
     let model = tract_onnx::onnx()
-        .model_for_read(&mut cursor)?
-        .into_optimized()?
-        .into_runnable()?;
+        .model_for_read(&mut reader)
+        .and_then(|m| m.into_optimized())
+        .and_then(|m| m.into_runnable())
+        .map_err(|e| e.to_string())?;
     Ok(model)
 }

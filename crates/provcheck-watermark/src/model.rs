@@ -15,9 +15,11 @@ use tract_onnx::prelude::*;
 
 use crate::hparams::{FREQ_BINS, MESSAGE_DIM};
 
-/// The full silentcipher decoder ONNX, embedded at build time.
-/// `provcheck.exe` thus needs no external model file.
-const MODEL_BYTES: &[u8] = include_bytes!("../models/silentcipher-decoder.onnx");
+// v0.7 phase 8a: silentcipher decoder ONNX migrated from
+// include_bytes!() to the provcheck-weights DLC pattern. First
+// detect() lazily pulls from the public mirror's weights-v1
+// release; subsequent calls hit the cache. Kit binary drops by
+// ~9.5 MB.
 
 /// Type alias for the runnable model we keep in the
 /// [`OnceLock`]. tract's `TypedRunnableModel<TypedModel>` is
@@ -179,7 +181,7 @@ fn model() -> Result<&'static Runnable, ModelError> {
         return Ok(m);
     }
 
-    let m = build_model().map_err(|e: TractError| ModelError::Load(e.to_string()))?;
+    let m = build_model()?;
     // OnceLock::set returns Err only if already set; if a
     // racing thread set first, ours is dropped and we hand
     // back the existing one.
@@ -187,12 +189,17 @@ fn model() -> Result<&'static Runnable, ModelError> {
     Ok(MODEL.get().expect("just set"))
 }
 
-fn build_model() -> TractResult<Runnable> {
-    let mut cursor = std::io::Cursor::new(MODEL_BYTES);
+fn build_model() -> Result<Runnable, ModelError> {
+    let path = provcheck_weights::load_or_download("silentcipher", "decoder")
+        .map_err(|e| ModelError::Load(format!("weights: {e}")))?;
+    let file = std::fs::File::open(&path)
+        .map_err(|e| ModelError::Load(format!("open {}: {e}", path.display())))?;
+    let mut reader = std::io::BufReader::new(file);
     let model = tract_onnx::onnx()
-        .model_for_read(&mut cursor)?
-        .into_optimized()?
-        .into_runnable()?;
+        .model_for_read(&mut reader)
+        .and_then(|m| m.into_optimized())
+        .and_then(|m| m.into_runnable())
+        .map_err(|e| ModelError::Load(e.to_string()))?;
     Ok(model)
 }
 

@@ -15,6 +15,7 @@ name = "provcheck_wavmark"
 
 [dependencies]
 provcheck = { path = "../provcheck" }
+provcheck-weights = { path = "../provcheck-weights" }
 thiserror.workspace = true
 
 # ONNX inference. WavMark ships as two ONNX models (HiNet forward +

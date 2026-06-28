@@ -22,8 +22,9 @@ use std::time::Instant;
 
 use tract_onnx::prelude::*;
 
-const DETECTOR_BYTES: &[u8] = include_bytes!("../models/audioseal-detector.onnx");
-const GENERATOR_BYTES: &[u8] = include_bytes!("../models/audioseal-generator.onnx");
+// v0.7 phase 8a: weights moved to DLC. This example pulls them
+// at runtime through provcheck-weights instead of via
+// include_bytes!() on the now-deleted models/*.onnx files.
 
 const SAMPLE_RATE: usize = 16_000;
 const NBITS: usize = 16;
@@ -36,7 +37,8 @@ fn main() -> anyhow::Result<()> {
     // 1. Detector
     eprintln!("[1/2] loading detector ONNX...");
     let t0 = Instant::now();
-    let mut cursor = std::io::Cursor::new(DETECTOR_BYTES);
+    let detector_path = provcheck_weights::load_or_download("audioseal", "detector")?;
+    let mut cursor = std::io::BufReader::new(std::fs::File::open(&detector_path)?);
     let detector = tract_onnx::onnx()
         .model_for_read(&mut cursor)?
         .into_optimized()?
@@ -64,7 +66,8 @@ fn main() -> anyhow::Result<()> {
     eprintln!();
     eprintln!("[2/2] loading generator ONNX...");
     let t0 = Instant::now();
-    let mut cursor = std::io::Cursor::new(GENERATOR_BYTES);
+    let generator_path = provcheck_weights::load_or_download("audioseal", "generator")?;
+    let mut cursor = std::io::BufReader::new(std::fs::File::open(&generator_path)?);
     let generator = tract_onnx::onnx()
         .model_for_read(&mut cursor)?
         .into_optimized()?

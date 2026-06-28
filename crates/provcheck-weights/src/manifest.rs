@@ -57,6 +57,81 @@ pub const MANIFEST: &[WeightEntry] = &[
         sha256: hex32!("31e2fc73deba043de3b2ed0cbd4b0ec38fcc69dc112d3c4b6e52364a0921a65d"),
         size_bytes: 17_312_208,
     },
+    // Sony silentcipher encoder (MIT, weights via huggingface
+    // sony/silentcipher). v0.6 included via include_bytes!();
+    // migrated to DLC in the v0.7 phase 8a batch.
+    WeightEntry {
+        family: "silentcipher",
+        variant: "encoder",
+        filename: "silentcipher-encoder-v1.onnx",
+        url: "https://github.com/CreativeMayhemLtd/provcheck/releases/download/weights-v1/silentcipher-encoder-v1.onnx",
+        sha256: hex32!("d4f7b1992af8efda33f03b7e79b3f00293824ea0ca2462db484e1e30eea93061"),
+        size_bytes: 2_170_740,
+    },
+    // Sony silentcipher decoder (detect path).
+    WeightEntry {
+        family: "silentcipher",
+        variant: "decoder",
+        filename: "silentcipher-decoder-v1.onnx",
+        url: "https://github.com/CreativeMayhemLtd/provcheck/releases/download/weights-v1/silentcipher-decoder-v1.onnx",
+        sha256: hex32!("6e433b5a1910e751adfa123c271ad48cb6fae39caf618db0000b0e0f3ee2288b"),
+        size_bytes: 9_538_724,
+    },
+    // Meta AudioSeal detector (MIT since 2024-04-02 relicense).
+    WeightEntry {
+        family: "audioseal",
+        variant: "detector",
+        filename: "audioseal-detector-v1.onnx",
+        url: "https://github.com/CreativeMayhemLtd/provcheck/releases/download/weights-v1/audioseal-detector-v1.onnx",
+        sha256: hex32!("7dd84d2ba60207f05c657f9e01ec1fe9c59b37844410d68301d426179220936d"),
+        size_bytes: 34_707_680,
+    },
+    // Meta AudioSeal generator (embed path).
+    WeightEntry {
+        family: "audioseal",
+        variant: "generator",
+        filename: "audioseal-generator-v1.onnx",
+        url: "https://github.com/CreativeMayhemLtd/provcheck/releases/download/weights-v1/audioseal-generator-v1.onnx",
+        sha256: hex32!("82cc3898553497429283ecdb662f785b5490a2680cba343451c8958d26a773e1"),
+        size_bytes: 58_889_748,
+    },
+    // WavMark HiNet encoder (MIT, weights via PyPI `wavmark`).
+    WeightEntry {
+        family: "wavmark",
+        variant: "encoder",
+        filename: "wavmark-encoder-v1.onnx",
+        url: "https://github.com/CreativeMayhemLtd/provcheck/releases/download/weights-v1/wavmark-encoder-v1.onnx",
+        sha256: hex32!("cce4c7ee399c47e63f616ee82c574f9b8466ed789d5408cbc63529d526191e02"),
+        size_bytes: 5_861_770,
+    },
+    // WavMark HiNet decoder (detect path).
+    WeightEntry {
+        family: "wavmark",
+        variant: "decoder",
+        filename: "wavmark-decoder-v1.onnx",
+        url: "https://github.com/CreativeMayhemLtd/provcheck/releases/download/weights-v1/wavmark-decoder-v1.onnx",
+        sha256: hex32!("78d101db31a180a6927a6170d9bbf4b22008554c50695a87f52440568831a4c7"),
+        size_bytes: 5_861_768,
+    },
+    // WavMark forward FC weights (used by stft.rs's apply_watermark_fc).
+    // The matching bias is small enough (64 KB) to keep embedded.
+    WeightEntry {
+        family: "wavmark",
+        variant: "fc-weights",
+        filename: "wavmark-watermark-fc-weights-v1.bin",
+        url: "https://github.com/CreativeMayhemLtd/provcheck/releases/download/weights-v1/wavmark-watermark-fc-weights-v1.bin",
+        sha256: hex32!("a493f449cb569af798a8d8d65b2b7bec3e7c126255868a125bae99f5bad1f881"),
+        size_bytes: 2_048_000,
+    },
+    // WavMark inverse FC weights (apply_watermark_fc_back).
+    WeightEntry {
+        family: "wavmark",
+        variant: "fc-back-weights",
+        filename: "wavmark-watermark-fc-back-weights-v1.bin",
+        url: "https://github.com/CreativeMayhemLtd/provcheck/releases/download/weights-v1/wavmark-watermark-fc-back-weights-v1.bin",
+        sha256: hex32!("ce64d17d41d8827fefceda499c8fd4a3e8701e9c1a4ff73d362644bb2e31040e"),
+        size_bytes: 2_048_000,
+    },
 ];
 
 /// Compile-time hex string to `[u8; 32]`. Lets the manifest stay

@@ -28,6 +28,7 @@ cuda = ["dep:ort", "dep:ndarray"]
 
 [dependencies]
 provcheck = { path = "../provcheck" }
+provcheck-weights = { path = "../provcheck-weights" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
