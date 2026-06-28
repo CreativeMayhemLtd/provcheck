@@ -26,8 +26,39 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
+  # cargo-audit gate. Fires once per tag. Fails the matrix on any
+  # NEW advisory not in SECURITY.md's tolerated table. Forces an
+  # explicit decision: either bump the dep, or add the row to
+  # SECURITY.md in the same commit. See
+  # feedback_release_prep_gates.md + feedback_tolerated_advisories_watch.md.
+  #
+  # The --ignore IDs below MUST mirror SECURITY.md exactly. Adding
+  # a new tolerated advisory means: update SECURITY.md AND add the
+  # ID here in the same commit, with a sentence in the commit body
+  # explaining the rationale.
+  cargo-audit:
+    name: cargo audit (RUSTSEC gate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+      - name: install cargo-audit
+        run: cargo install cargo-audit --locked --version ^0.21
+      - name: run cargo audit against SECURITY.md tolerated set
+        run: |
+          cargo audit \
+            --ignore RUSTSEC-2023-0071 \
+            --ignore RUSTSEC-2024-0436 \
+            --ignore RUSTSEC-2024-0370 \
+            --ignore RUSTSEC-2026-0173 \
+            --ignore RUSTSEC-2025-0136 \
+            --ignore RUSTSEC-2026-0097
+
   build:
     name: build (${{ matrix.target }})
+    needs: cargo-audit
     strategy:
       fail-fast: false
       matrix:
@@ -244,6 +275,7 @@ jobs:
   # follow-up once certs exist.
   build-gui:
     name: build-gui (${{ matrix.gui_suffix }})
+    needs: cargo-audit
     strategy:
       fail-fast: false
       matrix:
@@ -399,6 +431,7 @@ jobs:
   # In parallel with the build / build-gui jobs so it doesn't
   # extend the critical path.
   build-sbom:
+    needs: cargo-audit
     name: build-sbom
     runs-on: ubuntu-latest
     steps:
