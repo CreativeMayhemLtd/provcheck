@@ -315,47 +315,172 @@ pub fn spectrum_to_waveform(spec: &Spectrum) -> Result<Vec<f32>, StftError> {
     if spec.n_frames == 0 {
         return Err(StftError::TooShort);
     }
-    let window = hann_window(WIN);
-    let mut planner = RealFftPlanner::<f32>::new();
-    let c2r = planner.plan_fft_inverse(N_FFT);
-    let mut in_buf: Vec<Complex<f32>> = c2r.make_input_vec();
-    let mut out_buf = c2r.make_output_vec();
+    let mut streamer = IstftStreamer::new(spec.n_frames, spec.n_samples_input)?;
+    let mut mag_frame = vec![0.0_f32; FREQ_BINS];
+    let mut phase_frame = vec![0.0_f32; FREQ_BINS];
+    for t in 0..spec.n_frames {
+        for bin in 0..FREQ_BINS {
+            mag_frame[bin] = spec.magnitude[bin * spec.n_frames + t];
+            phase_frame[bin] = spec.phase[bin * spec.n_frames + t];
+        }
+        streamer.push_frame(&mag_frame, &phase_frame);
+    }
+    Ok(streamer.finish())
+}
 
-    let n_fft_inv = 1.0_f32 / (N_FFT as f32);
-    let padded_len = (spec.n_frames - 1) * HOP + N_FFT;
-    let head_trim = N_FFT / 2;
-    let trimmed_len = padded_len - 2 * head_trim;
-    debug_assert_eq!(trimmed_len, spec.n_samples_input);
+/// Streaming overlap-add iSTFT. Accepts magnitude + phase frames
+/// one at a time and emits samples as they become final (no future
+/// frame can contribute). Builds the output waveform incrementally
+/// without holding a full `Spectrum` or any padded_len intermediate
+/// buffer.
+///
+/// Memory: O(WIN) ring buffers (~32 KB) plus the output body
+/// (trimmed_len samples) being accumulated. The body itself can be
+/// removed in a future phase 3c by accepting a `Write` callback at
+/// construction time.
+///
+/// Usage:
+/// ```ignore
+/// let mut s = IstftStreamer::new(n_frames, n_samples_input)?;
+/// for (mag, phase) in frames {
+///     s.push_frame(&mag, &phase);
+/// }
+/// let waveform = s.finish();
+/// ```
+pub struct IstftStreamer {
+    window: Vec<f32>,
+    c2r: std::sync::Arc<dyn realfft::ComplexToReal<f32>>,
+    in_buf: Vec<Complex<f32>>,
+    out_buf: Vec<f32>,
+    n_fft_inv: f32,
+    n_frames: usize,
+    head_trim: usize,
+    trimmed_len: usize,
+    ring_sum: Vec<f32>,
+    ring_norm: Vec<f32>,
+    ring_start: usize,
+    emitted: usize,
+    frames_processed: usize,
+    body: Vec<f32>,
+}
 
-    // v0.6.0 P3 phase 3b: streaming overlap-add. The old path
-    // allocated full-length `sum` and `norm` vectors (~1.3 GB on a
-    // 56-minute episode). Streaming uses a `WIN`-wide ring that
-    // holds the active overlap-add region. Samples drop out of the
-    // ring as soon as no future frame can contribute to them, which
-    // for 50% overlap is `HOP` samples per processed frame.
-    //
-    // Algorithm:
-    //   ring_start is the padded-space index that ring[0] currently
-    //   represents. When processing frame `t` (starts at `t*HOP`),
-    //   align = t*HOP - ring_start (always >= 0). Accumulate the
-    //   windowed iFFT output into ring[align..align+WIN].
-    //   After accumulating, the first HOP samples of the ring are
-    //   "final" — no future frame can touch padded-space indices
-    //   in [ring_start, ring_start + HOP) — so we normalise and
-    //   either emit them (if past `head_trim`) or skip them (if
-    //   inside the head reflect-pad we are about to trim).
-    //   Then we shift the ring HOP-left and zero the new tail.
-    let mut ring_sum = vec![0.0_f32; WIN];
-    let mut ring_norm = vec![0.0_f32; WIN];
-    let mut ring_start: usize = 0;
-    let mut emitted: usize = 0;
-    let mut body: Vec<f32> = Vec::with_capacity(trimmed_len);
+impl IstftStreamer {
+    pub fn new(n_frames: usize, n_samples_input: usize) -> Result<Self, StftError> {
+        if n_frames == 0 {
+            return Err(StftError::TooShort);
+        }
+        let window = hann_window(WIN);
+        let mut planner = RealFftPlanner::<f32>::new();
+        let c2r = planner.plan_fft_inverse(N_FFT);
+        let in_buf: Vec<Complex<f32>> = c2r.make_input_vec();
+        let out_buf = c2r.make_output_vec();
+        let n_fft_inv = 1.0_f32 / (N_FFT as f32);
+        let padded_len = (n_frames - 1) * HOP + N_FFT;
+        let head_trim = N_FFT / 2;
+        let trimmed_len = padded_len - 2 * head_trim;
+        debug_assert_eq!(trimmed_len, n_samples_input);
+        Ok(Self {
+            window,
+            c2r,
+            in_buf,
+            out_buf,
+            n_fft_inv,
+            n_frames,
+            head_trim,
+            trimmed_len,
+            ring_sum: vec![0.0_f32; WIN],
+            ring_norm: vec![0.0_f32; WIN],
+            ring_start: 0,
+            emitted: 0,
+            frames_processed: 0,
+            body: Vec::with_capacity(trimmed_len),
+        })
+    }
 
-    let mut emit_one = |sum_val: f32, norm_val: f32, body: &mut Vec<f32>, ring_pos: &mut usize, emitted: &mut usize| {
-        // Position in padded space:
+    /// Push one magnitude + phase frame (each of length `FREQ_BINS`).
+    /// Internally runs an iFFT, accumulates into the ring, and emits
+    /// `HOP` samples of finalised output.
+    pub fn push_frame(&mut self, magnitude: &[f32], phase: &[f32]) {
+        debug_assert_eq!(magnitude.len(), FREQ_BINS);
+        debug_assert_eq!(phase.len(), FREQ_BINS);
+        debug_assert!(self.frames_processed < self.n_frames);
+
+        for (bin, slot) in self.in_buf.iter_mut().enumerate().take(FREQ_BINS) {
+            let mag = magnitude[bin];
+            let ph = phase[bin];
+            *slot = Complex::new(mag * ph.cos(), mag * ph.sin());
+        }
+        self.in_buf[0].im = 0.0;
+        self.in_buf[FREQ_BINS - 1].im = 0.0;
+        self.c2r
+            .process(&mut self.in_buf, &mut self.out_buf)
+            .expect("realfft sizes fixed by planner");
+
+        let frame_start = self.frames_processed * HOP;
+        let align = frame_start - self.ring_start;
+        debug_assert!(align + WIN <= self.ring_sum.len());
+        for i in 0..WIN {
+            let w = self.window[i];
+            self.ring_sum[align + i] += self.out_buf[i] * w * self.n_fft_inv;
+            self.ring_norm[align + i] += w * w;
+        }
+
+        // Emit first HOP samples of the ring (final after this frame).
+        let mut pos = self.ring_start;
+        for i in 0..HOP {
+            Self::emit_one(
+                self.ring_sum[i],
+                self.ring_norm[i],
+                &mut self.body,
+                &mut pos,
+                &mut self.emitted,
+                self.head_trim,
+                self.trimmed_len,
+            );
+        }
+        self.ring_sum.copy_within(HOP..WIN, 0);
+        self.ring_norm.copy_within(HOP..WIN, 0);
+        for slot in &mut self.ring_sum[WIN - HOP..] {
+            *slot = 0.0;
+        }
+        for slot in &mut self.ring_norm[WIN - HOP..] {
+            *slot = 0.0;
+        }
+        self.ring_start += HOP;
+        self.frames_processed += 1;
+    }
+
+    /// Flush the remaining ring buffer (the last frame's tail that
+    /// no further frame would have contributed to) and return the
+    /// reconstructed body waveform of length `n_samples_input`.
+    pub fn finish(mut self) -> Vec<f32> {
+        let mut pos = self.ring_start;
+        for i in 0..(WIN - HOP) {
+            Self::emit_one(
+                self.ring_sum[i],
+                self.ring_norm[i],
+                &mut self.body,
+                &mut pos,
+                &mut self.emitted,
+                self.head_trim,
+                self.trimmed_len,
+            );
+        }
+        self.body
+    }
+
+    #[inline]
+    fn emit_one(
+        sum_val: f32,
+        norm_val: f32,
+        body: &mut Vec<f32>,
+        ring_pos: &mut usize,
+        emitted: &mut usize,
+        head_trim: usize,
+        trimmed_len: usize,
+    ) {
         let padded_pos = *ring_pos;
         *ring_pos += 1;
-        // Drop the head reflect-pad.
         if padded_pos < head_trim {
             return;
         }
@@ -369,55 +494,99 @@ pub fn spectrum_to_waveform(spec: &Spectrum) -> Result<Vec<f32>, StftError> {
         };
         body.push(v);
         *emitted += 1;
-    };
+    }
+}
 
-    for t in 0..spec.n_frames {
-        for (bin, slot) in in_buf.iter_mut().enumerate().take(FREQ_BINS) {
-            let mag = spec.magnitude[bin * spec.n_frames + t];
-            let ph = spec.phase[bin * spec.n_frames + t];
-            *slot = Complex::new(mag * ph.cos(), mag * ph.sin());
+/// Compute magnitude + phase for a contiguous time slice of frames
+/// `[t_start, t_start + chunk_t)` without materialising the full
+/// spectrogram. Used by the v0.6.0 P3 chunk-fused embed path.
+///
+/// Returns `(magnitude, phase)`, each laid out as `[bin * chunk_t + t]`
+/// of length `FREQ_BINS * chunk_t`.
+///
+/// `n_samples_input` is the silentcipher tail-padded length (the
+/// same value that `waveform_to_spectrum` returns in its Spectrum).
+/// Caller must pass the same value across all chunks of one pass so
+/// the boundary reflection math agrees.
+pub fn forward_stft_chunk(
+    waveform: &[f32],
+    n_samples_input: usize,
+    t_start: usize,
+    chunk_t: usize,
+) -> Result<(Vec<f32>, Vec<f32>), StftError> {
+    if waveform.is_empty() {
+        return Err(StftError::Empty);
+    }
+    let pad = N_FFT / 2;
+    let window = hann_window(WIN);
+    let mut planner = RealFftPlanner::<f32>::new();
+    let r2c = planner.plan_fft_forward(N_FFT);
+    let mut in_buf = r2c.make_input_vec();
+    let mut out_buf: Vec<Complex<f32>> = r2c.make_output_vec();
+
+    let mut magnitude = vec![0.0_f32; FREQ_BINS * chunk_t];
+    let mut phase = vec![0.0_f32; FREQ_BINS * chunk_t];
+
+    for t_local in 0..chunk_t {
+        let t = t_start + t_local;
+        let start = t * HOP;
+        for (i, w) in window.iter().enumerate().take(WIN) {
+            in_buf[i] = effective_sample(start + i, waveform, n_samples_input, pad) * w;
         }
-        in_buf[0].im = 0.0;
-        in_buf[FREQ_BINS - 1].im = 0.0;
-        c2r.process(&mut in_buf, &mut out_buf)
+        for slot in in_buf.iter_mut().take(N_FFT).skip(WIN) {
+            *slot = 0.0;
+        }
+        r2c.process(&mut in_buf, &mut out_buf)
             .expect("realfft sizes fixed by planner");
-
-        let frame_start = t * HOP;
-        let align = frame_start - ring_start;
-        debug_assert!(align + WIN <= ring_sum.len());
-        for i in 0..WIN {
-            let w = window[i];
-            ring_sum[align + i] += out_buf[i] * w * n_fft_inv;
-            ring_norm[align + i] += w * w;
+        for (bin, c) in out_buf.iter().enumerate() {
+            magnitude[bin * chunk_t + t_local] = (c.re * c.re + c.im * c.im).sqrt();
+            phase[bin * chunk_t + t_local] = c.im.atan2(c.re);
         }
+    }
+    Ok((magnitude, phase))
+}
 
-        // After accumulating frame t, samples in the first HOP slots
-        // of the ring are final (no future frame contributes to
-        // padded indices < (t+1)*HOP). Emit them, then slide.
-        let mut pos = ring_start;
-        for i in 0..HOP {
-            emit_one(ring_sum[i], ring_norm[i], &mut body, &mut pos, &mut emitted);
+/// One-pass streaming computation of silentcipher's `utterance_norm`
+/// = `sqrt(mean(magnitude²))` over the full spectrogram, without
+/// materialising the spectrogram.
+///
+/// Used by the chunk-fused embed pass to obtain the global rescale
+/// constant before the second pass produces output frames.
+pub fn streaming_utterance_norm(waveform: &[f32]) -> Result<f32, StftError> {
+    if waveform.is_empty() {
+        return Err(StftError::Empty);
+    }
+    let n_samples_input = waveform.len() + (WIN - (waveform.len() % WIN));
+    let pad = N_FFT / 2;
+    let padded_len = n_samples_input + 2 * pad;
+    let n_frames = compute_n_frames(padded_len);
+    if n_frames == 0 {
+        return Err(StftError::TooShort);
+    }
+    let window = hann_window(WIN);
+    let mut planner = RealFftPlanner::<f32>::new();
+    let r2c = planner.plan_fft_forward(N_FFT);
+    let mut in_buf = r2c.make_input_vec();
+    let mut out_buf: Vec<Complex<f32>> = r2c.make_output_vec();
+
+    let mut sum_sq: f64 = 0.0;
+    for t in 0..n_frames {
+        let start = t * HOP;
+        for (i, w) in window.iter().enumerate().take(WIN) {
+            in_buf[i] = effective_sample(start + i, waveform, n_samples_input, pad) * w;
         }
-        ring_sum.copy_within(HOP..WIN, 0);
-        ring_norm.copy_within(HOP..WIN, 0);
-        for slot in &mut ring_sum[WIN - HOP..] {
+        for slot in in_buf.iter_mut().take(N_FFT).skip(WIN) {
             *slot = 0.0;
         }
-        for slot in &mut ring_norm[WIN - HOP..] {
-            *slot = 0.0;
+        r2c.process(&mut in_buf, &mut out_buf)
+            .expect("realfft sizes fixed by planner");
+        for c in &out_buf {
+            let m = ((c.re * c.re + c.im * c.im) as f64).sqrt();
+            sum_sq += m * m;
         }
-        ring_start += HOP;
     }
-
-    // After the last frame, the ring still holds WIN - HOP = HOP
-    // samples of the final frame's tail that nothing else will
-    // touch. Flush them.
-    let mut pos = ring_start;
-    for i in 0..(WIN - HOP) {
-        emit_one(ring_sum[i], ring_norm[i], &mut body, &mut pos, &mut emitted);
-    }
-
-    Ok(body)
+    let count = (FREQ_BINS * n_frames) as f64;
+    Ok((sum_sq / count).sqrt() as f32)
 }
 
 fn hann_window(n: usize) -> Vec<f32> {
@@ -611,6 +780,74 @@ mod tests {
             n_frames,
             n_samples_input,
         })
+    }
+
+    #[test]
+    fn forward_stft_chunk_matches_full_spectrum_slice() {
+        // forward_stft_chunk computes the same (magnitude, phase)
+        // values for frames [t_start, t_start + chunk_t) as
+        // waveform_to_spectrum would over the full input. Bit-exact:
+        // the FFT planner is deterministic and effective_sample is
+        // pure.
+        let n = WIN * 6 + 271;
+        let waveform: Vec<f32> = (0..n)
+            .map(|i| {
+                let t = i as f32 / 44_100.0;
+                0.25 * (2.0 * std::f32::consts::PI * 660.0 * t).sin()
+                    + 0.15 * (2.0 * std::f32::consts::PI * 2200.0 * t).cos()
+            })
+            .collect();
+        let full = waveform_to_spectrum(&waveform).expect("full");
+        let chunk_t = 4;
+        for t_start in [0_usize, 2, full.n_frames / 2, full.n_frames - chunk_t] {
+            let (mag_chunk, phase_chunk) =
+                forward_stft_chunk(&waveform, full.n_samples_input, t_start, chunk_t)
+                    .expect("chunk");
+            for t_local in 0..chunk_t {
+                let t = t_start + t_local;
+                for bin in 0..FREQ_BINS {
+                    let m_full = full.magnitude[bin * full.n_frames + t];
+                    let m_chunk = mag_chunk[bin * chunk_t + t_local];
+                    assert_eq!(
+                        m_full.to_bits(),
+                        m_chunk.to_bits(),
+                        "mag mismatch at bin={bin} t={t} (chunk t_start={t_start})"
+                    );
+                    let p_full = full.phase[bin * full.n_frames + t];
+                    let p_chunk = phase_chunk[bin * chunk_t + t_local];
+                    assert_eq!(
+                        p_full.to_bits(),
+                        p_chunk.to_bits(),
+                        "phase mismatch at bin={bin} t={t}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn streaming_utterance_norm_matches_full_spectrum() {
+        // streaming_utterance_norm should produce a value within
+        // numerical-precision tolerance of sqrt(mean(spec.magnitude²))
+        // computed from the full spectrum. f64 accumulation in both
+        // paths means the tolerance is very tight.
+        let n = WIN * 5 + 99;
+        let waveform: Vec<f32> = (0..n)
+            .map(|i| {
+                let t = i as f32 / 44_100.0;
+                0.3 * (2.0 * std::f32::consts::PI * 440.0 * t).sin()
+            })
+            .collect();
+        let full = waveform_to_spectrum(&waveform).expect("full");
+        let stream_norm = streaming_utterance_norm(&waveform).expect("stream");
+        let full_sum_sq: f64 = full.magnitude.iter().map(|x| (*x as f64).powi(2)).sum();
+        let full_count = (FREQ_BINS * full.n_frames) as f64;
+        let full_norm = (full_sum_sq / full_count).sqrt() as f32;
+        let rel_err = (stream_norm - full_norm).abs() / full_norm.max(f32::EPSILON);
+        assert!(
+            rel_err < 1e-5,
+            "stream={stream_norm} full={full_norm} rel_err={rel_err}"
+        );
     }
 
     #[test]
