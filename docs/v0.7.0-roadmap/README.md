@@ -59,6 +59,73 @@ hosted service appears in the v0.7.0 surface.
 
 ## Phase-by-phase plan
 
+### Phase 7-pre — Primitives audit + feature-completeness pass
+
+**Effort:** 3-5 days.
+
+**Why first:** the multimodal expansion phases (7a-7d) add new
+crates that should inherit a coherent public API shape from the
+existing audio crates. Auditing the primitives before scaffolding
+new ones means the new crates land with the right shape instead
+of inheriting churn or drift. Tracked as Task #147.
+
+**Scope:**
+
+- Cross-crate API parity. Audit whether `provcheck-watermark`'s
+  `embed_stereo` / `embed_with_config` / `embed_stereo_with_config`
+  pattern has matching siblings on `provcheck-audioseal` and
+  `provcheck-wavmark`. Where the shape differs without a real
+  reason, add the missing primitive.
+- Public exposure. Walk every `pub fn` in every crate. Any helper
+  the kit reaches into via internal access that should be
+  library-level instead. Any primitive marked `pub(crate)` that
+  external consumers (rAIdio.bot, doomscroll integrations) would
+  benefit from. Promote.
+- Composite operations. Add ergonomic combinators for the common
+  composite paths: `embed_and_sign(asset, payload, identity)`,
+  `detect_and_classify(path)`, `embed_and_verify(asset, payload)`.
+  Each is a thin wrapper but landing them as primitives means
+  external callers do not have to reinvent the orchestration.
+- Error variant coverage. Anywhere a crate currently surfaces an
+  opaque string error for a known structural failure, promote the
+  variant to typed. The detect path's `decoder error: %s` is the
+  prime example.
+- Send/Sync/async consistency. Detect is sync; if the verifier
+  ever spawns N detector calls in parallel (it does today via
+  rayon), the public API should make the Send + Sync story
+  explicit, not implicit. Same for the sign + publish path which
+  is async via tokio.
+- Streaming variants. Phase 3a/3b shipped `effective_sample` and
+  a streaming overlap-add iSTFT as internal primitives. Decide
+  whether to expose either at the public boundary so external
+  callers can reuse them (e.g. for their own STFT-shaped
+  pipelines).
+- Trait boundaries for the multimodal expansion. Sketch the
+  shape of a generic `WatermarkFamily` trait, OR commit to the
+  current shape of "one crate per family, public detect/embed
+  functions, results funnelled into `Report.watermarks`". Either
+  is fine but the decision should be made before phase 7a
+  scaffolds `provcheck-image`.
+
+**Acceptance:**
+
+- `docs/v0.7.0-roadmap/primitives-audit.md` lands enumerating
+  every gap found, with a fix-in-this-release vs defer column.
+- Each fix-in-this-release row lands as its own commit (so the
+  history reads as a primitives-audit series rather than a single
+  bundled refactor).
+- `cargo test --release --workspace` stays green throughout.
+- No breaking changes to the existing public API surface — the
+  audit ADDS primitives where they are missing, it does not
+  remove or restructure existing ones. Breaking changes get
+  flagged as v0.8.0 candidates instead.
+
+**Direction from project owner:** FC > small. It is OK to grow
+the public surface area if completeness requires it. The
+"single 70 MB binary" property stays load-bearing for the kit,
+but the LIBRARY surface area can grow to whatever feature-
+completeness requires.
+
 ### Phase 7a — Image watermark library survey + crate scaffold
 
 **Effort:** 1 week (mostly survey, doc, license review).
@@ -221,20 +288,25 @@ storage. Reuses every function the kit already exposes.
 ## Sequencing
 
 ```
-7a image survey  ─┬─▶ 7b image detect ─▶ 7c image embed ─┬─▶ 7d video
-                  │                                       │
-                  └─▶ 7f codec-robust audio (parallel)    │
-                                                          │
-7e synthid-text ─▶ 7g unified kit publish ◀───────────────┘
+7-pre primitives audit ─┬─▶ 7a image survey  ─┬─▶ 7b image detect ─▶ 7c image embed ─┬─▶ 7d video
+                        │                     │                                       │
+                        ├─▶ 7e synthid-text   └─▶ 7f codec-robust audio (parallel)    │
+                        │                                                              │
+                        └─▶ 7g unified kit publish ◀────────────────────────────────────┘
 ```
 
-- 7a, 7e, 7f can all start in parallel (different code paths,
-  different skill sets).
+- 7-pre primitives audit lands first; everything depends on its
+  output (the audited public API surface). New crates in 7a
+  inherit the cleaned-up shape rather than the pre-audit churn.
+- 7a, 7e, 7f can start in parallel after 7-pre (different code
+  paths, different skill sets).
 - 7b depends on 7a's family choice.
 - 7c depends on 7b's pipeline shape being right.
 - 7d depends on 7c (per-frame approach reuses the image embed).
 - 7g is the integration step that lights everything up; depends
-  on 7c being callable from the kit.
+  on 7c being callable from the kit and on the 7-pre audit's
+  composite-operation primitives (specifically `embed_and_sign`,
+  the foundation for `kit publish`).
 
 Total wall clock if pipelined with a second pair of hands:
 roughly 8-10 weeks. Single-maintainer serial: roughly 12-14
