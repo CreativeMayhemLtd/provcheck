@@ -3868,6 +3868,7 @@ dependencies = [
  "provcheck",
  "provcheck-attestation-spec",
  "provcheck-audioseal",
+ "provcheck-image",
  "provcheck-publish",
  "provcheck-sign",
  "provcheck-watermark",

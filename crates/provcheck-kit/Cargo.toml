@@ -30,6 +30,7 @@ provcheck-attestation-spec = { path = "../provcheck-attestation-spec" }
 # v0.3.8: the watermark crate's `encode` module + `audio` decoder, used
 # by the `kit watermark` subcommand to re-stamp ffmpeg-normalised mixes.
 provcheck-watermark = { path = "../provcheck-watermark" }
+provcheck-image = { path = "../provcheck-image" }
 provcheck-weights = { path = "../provcheck-weights" }
 # v0.4.0: second watermark family. Adds `kit watermark --kind audioseal`.
 provcheck-audioseal = { path = "../provcheck-audioseal" }

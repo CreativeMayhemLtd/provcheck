@@ -2379,6 +2379,10 @@ pub mod watermark {
         Audioseal,
         /// WavMark 32-bit payload @ 16 kHz (16-bit fix pattern + 16-bit ECC brand ID).
         Wavmark,
+        /// TrustMark-B image watermark (Adobe / CAI). v0.7 phase 7c.
+        /// Provcheck-internal payload format; BCH-5 ecosystem interop
+        /// (Adobe TrustMark Python round-trip) lands in a follow-up.
+        Image,
     }
 
     /// Output channel layout for the marked WAV.
@@ -2565,6 +2569,7 @@ pub mod watermark {
             Kind::Silentcipher => embed_silentcipher(args).await,
             Kind::Audioseal => embed_audioseal(args).await,
             Kind::Wavmark => embed_wavmark(args).await,
+            Kind::Image => embed_image(args).await,
         }
     }
 
@@ -2899,6 +2904,34 @@ pub mod watermark {
         Ok(())
     }
 
+    async fn embed_image(args: CliArgs) -> Result<()> {
+        use provcheck_image::encode as img_encode;
+        let brand_id = if args.brand_id == 0 { 2 } else { args.brand_id }; // default RAIDIO
+        if args.output.exists() && !args.overwrite {
+            bail!(
+                "output exists; pass --overwrite to replace: {}",
+                args.output.display()
+            );
+        }
+        let input = args.input.clone();
+        let output = args.output.clone();
+        eprintln!(
+            "provcheck-kit: embedding TrustMark-B (brand_id={brand_id}) into {} -> {}",
+            input.display(),
+            output.display()
+        );
+        let t0 = Instant::now();
+        tokio::task::spawn_blocking(move || -> Result<()> {
+            img_encode::embed(&input, &output, brand_id)
+                .with_context(|| "TrustMark embed failed")
+        })
+        .await
+        .context("join image embed task")??;
+        let elapsed = t0.elapsed();
+        eprintln!("provcheck-kit:   embed wall-clock {:.2?}", elapsed);
+        Ok(())
+    }
+
     /// Run the matching detector against the freshly-written WAV and
     /// report the recovered confidence. Acts on the file on disk so
     /// it exercises the same code path a downstream verifier would
@@ -2916,6 +2949,7 @@ pub mod watermark {
             Kind::Silentcipher => "silentcipher",
             Kind::Audioseal => "audioseal",
             Kind::Wavmark => "wavmark",
+            Kind::Image => "trustmark",
         };
         let (conf, payload_ok) = tokio::task::spawn_blocking(move || -> Result<(f32, bool)> {
             let result = match kind {
@@ -2925,6 +2959,8 @@ pub mod watermark {
                     .with_context(|| "audioseal verify failed")?,
                 Kind::Wavmark => provcheck_wavmark::detect(&path)
                     .with_context(|| "wavmark verify failed")?,
+                Kind::Image => provcheck_image::detect(&path)
+                    .with_context(|| "trustmark verify failed")?,
             };
             let payload_ok = result.payload.is_some();
             Ok((result.confidence, payload_ok))

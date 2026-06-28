@@ -89,6 +89,72 @@ fn model() -> Result<&'static Mutex<Session>, ModelError> {
     Ok(MODEL.get().expect("just set"))
 }
 
+/// Build the encoder ort session (lazy + cached). Mutex pattern
+/// mirrors the decoder.
+fn encoder_model() -> Result<&'static Mutex<Session>, ModelError> {
+    static MODEL: OnceLock<Mutex<Session>> = OnceLock::new();
+    if let Some(m) = MODEL.get() {
+        return Ok(m);
+    }
+    let path = provcheck_weights::load_if_cached("trustmark", "b-encoder")
+        .map_err(|e| ModelError::Load(format!("weights: {e}")))?;
+    let session = Session::builder()
+        .map_err(|e| ModelError::Load(e.to_string()))?
+        .commit_from_file(&path)
+        .map_err(|e| ModelError::Load(format!("ort commit: {e}")))?;
+    let _ = MODEL.set(Mutex::new(session));
+    Ok(MODEL.get().expect("just set"))
+}
+
+/// Run the TrustMark-B encoder on a 256×256 cover image plus a
+/// 100-bit secret. Returns the stego image at 256×256 in
+/// `[-1, 1]` CHW layout. Caller is responsible for the residual
+/// + blend + resize-to-original-size dance per upstream
+/// `trustmark.py`'s encoder path.
+///
+/// v0.7 phase 7c.
+pub fn run_encoder(cover_chw: &[f32], secret_bits: &[u8; SECRET_LEN]) -> Result<Vec<f32>, ModelError> {
+    debug_assert_eq!(cover_chw.len(), 3 * (MODEL_RES * MODEL_RES) as usize);
+    let model = encoder_model()?;
+
+    let cover_arr = Array4::<f32>::from_shape_vec(
+        (1, 3, MODEL_RES as usize, MODEL_RES as usize),
+        cover_chw.to_vec(),
+    )
+    .map_err(|e| ModelError::Inference(format!("cover shape: {e}")))?;
+
+    let secret: Vec<f32> = secret_bits.iter().map(|&b| b as f32).collect();
+    let secret_arr = ndarray::Array2::<f32>::from_shape_vec((1, SECRET_LEN), secret)
+        .map_err(|e| ModelError::Inference(format!("secret shape: {e}")))?;
+
+    let mut session = model
+        .lock()
+        .map_err(|e| ModelError::Inference(format!("ort encoder mutex poisoned: {e}")))?;
+    let cover_tensor = TensorRef::from_array_view(cover_arr.view())
+        .map_err(|e| ModelError::Inference(format!("cover tensor: {e}")))?;
+    let secret_tensor = TensorRef::from_array_view(secret_arr.view())
+        .map_err(|e| ModelError::Inference(format!("secret tensor: {e}")))?;
+    let outputs = session
+        .run(ort::inputs![cover_tensor, secret_tensor])
+        .map_err(|e| ModelError::Inference(e.to_string()))?;
+    let output = outputs
+        .iter()
+        .next()
+        .ok_or_else(|| ModelError::Inference("encoder returned no outputs".into()))?
+        .1;
+    let (shape, data) = output
+        .try_extract_tensor::<f32>()
+        .map_err(|e| ModelError::Inference(e.to_string()))?;
+    let total: usize = shape.iter().map(|d| *d as usize).product();
+    let expected = 3 * (MODEL_RES * MODEL_RES) as usize;
+    if total != expected {
+        return Err(ModelError::OutputShape {
+            got: shape.iter().map(|d| *d as usize).collect(),
+        });
+    }
+    Ok(data.to_vec())
+}
+
 /// Run the TrustMark-B decoder on a preprocessed image tensor and
 /// return raw bits + confidence proxy.
 pub fn run_decoder(decoded: &DecodedImage) -> Result<DecoderOutput, ModelError> {

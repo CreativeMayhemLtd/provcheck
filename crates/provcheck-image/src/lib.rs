@@ -157,31 +157,69 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
         }
     };
 
-    // BCH-5 error correction + brand mapping are NOT in this
-    // phase — that lands as 7b-followup. For now surface the raw
-    // 13-byte packed payload + the mean-|logit| confidence proxy.
-    // Status stays NotDetected because without BCH we cannot
-    // distinguish "marked image" from "unmarked image whose
-    // decoder happened to produce random bits", and we will not
-    // over-claim. The CLI's text mode shows the raw payload bytes
-    // and the confidence proxy so a downstream consumer can wire
-    // a heuristic if they need one before 7b-followup ships.
+    // v0.7 phase 7c: provcheck-internal "raw" payload format. If
+    // the first byte matches `PROVCHECK_RAW_MAGIC` and the version
+    // bits are `0b0000`, treat the next 5 bits as a brand id and
+    // report Detected. TrustMark BCH-5 ecosystem interop ships as
+    // a follow-up phase that swaps this magic-byte gate for the
+    // proper finite-field decode.
+    let (status, brand) = classify_provcheck_raw(&result.bits);
     Ok(WatermarkResult {
         kind: WatermarkKind::TrustMark,
-        status: WatermarkStatus::NotDetected,
-        detected: false,
+        status,
+        detected: matches!(
+            status,
+            WatermarkStatus::Detected | WatermarkStatus::Degraded
+        ),
         confidence: result.mean_abs_logit,
         payload: Some(result.payload_bytes),
-        brand: None,
+        brand,
         message: Some(format!(
             "TrustMark-B decoder ran; {} raw bits recovered, mean |logit| {:.3}. \
-             BCH-5 error correction + brand mapping land in 7b-followup; status \
-             stays NotDetected until then to avoid false-positive claims.",
+             Provcheck-internal payload format active; BCH-5 ecosystem interop \
+             (Adobe TrustMark Python round-trip) lands as a follow-up phase.",
             model::SECRET_LEN,
             result.mean_abs_logit
         )),
         marked_regions: None,
     })
+}
+
+/// Classify decoded bits according to the v0.7 phase 7c
+/// provcheck-internal payload format. Returns
+/// `(WatermarkStatus, Option<WatermarkBrand>)`.
+fn classify_provcheck_raw(bits: &[u8]) -> (WatermarkStatus, Option<WatermarkBrand>) {
+    if bits.len() < model::SECRET_LEN {
+        return (WatermarkStatus::NotDetected, None);
+    }
+    // Reconstruct magic byte from bits[0..8] MSB-first.
+    let mut magic = 0u8;
+    for i in 0..8 {
+        if bits[i] == 1 {
+            magic |= 1 << (7 - i);
+        }
+    }
+    if magic != encode::PROVCHECK_RAW_MAGIC {
+        return (WatermarkStatus::NotDetected, None);
+    }
+    // Version bits 96..100 must all be 0 (provcheck-raw schema).
+    if bits[96..100].iter().any(|&b| b != 0) {
+        return (WatermarkStatus::NotDetected, None);
+    }
+    // Brand id bits 8..13.
+    let mut brand_id = 0u8;
+    for i in 0..5 {
+        if bits[8 + i] == 1 {
+            brand_id |= 1 << (4 - i);
+        }
+    }
+    let brand = match brand_id {
+        1 => Some(WatermarkBrand::Doomscroll),
+        2 => Some(WatermarkBrand::Raidio),
+        3 => Some(WatermarkBrand::Vaideo),
+        _ => None,
+    };
+    (WatermarkStatus::Detected, brand)
 }
 
 fn looks_like_image(path: &Path) -> bool {
