@@ -20,6 +20,7 @@
 //! # Ok::<(), Error>(())
 //! ```
 
+pub mod confidence;
 pub mod report;
 pub mod verification;
 

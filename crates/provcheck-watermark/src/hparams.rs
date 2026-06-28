@@ -48,9 +48,19 @@ pub const MESSAGE_LEN: usize = 21;
 /// Confidence at or above which detection is reported as
 /// `Detected`. Below this but above
 /// [`CONFIDENCE_DEGRADED_THRESHOLD`] reports as `Degraded`.
-pub const CONFIDENCE_DETECTED_THRESHOLD: f32 = 0.70;
+///
+/// v0.7 phase 7-pre audit #4: canonical definition now lives at
+/// `provcheck::confidence::DETECTED_THRESHOLD`. This constant is
+/// kept for backward compatibility (downstream callers including
+/// the kit's per-family verify thresholds reference this name).
+pub const CONFIDENCE_DETECTED_THRESHOLD: f32 = provcheck::confidence::DETECTED_THRESHOLD;
 
 /// Confidence at or above which detection is reported as
 /// `Degraded` (when not `Detected`). Below this reports as
 /// `NotDetected` even if structural validity passed.
-pub const CONFIDENCE_DEGRADED_THRESHOLD: f32 = 0.50;
+///
+/// v0.7 phase 7-pre audit #4: canonical definition now lives at
+/// `provcheck::confidence::DEGRADED_THRESHOLD`. Kept for backward
+/// compatibility — see the matching note on
+/// [`CONFIDENCE_DETECTED_THRESHOLD`].
+pub const CONFIDENCE_DEGRADED_THRESHOLD: f32 = provcheck::confidence::DEGRADED_THRESHOLD;

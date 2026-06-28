@@ -434,6 +434,36 @@ pub fn embed_stereo_with_config(
     Ok((l, r))
 }
 
+/// Embed and self-test in one call: returns the marked waveform
+/// AND the detector's confidence + payload-recovery verdict
+/// against that very output.
+///
+/// Mirrors the kit's `--verify-after-embed` flag at the library
+/// level so external Rust callers can opt into the same safety
+/// guarantee without re-implementing the temp-file dance or the
+/// threshold logic. No disk I/O happens — detection runs against
+/// the in-memory marked waveform via
+/// `crate::detect_from_mono_44k1`.
+///
+/// The returned [`provcheck::prelude::WatermarkResult`] carries
+/// the confidence, the recovered payload (if any), the brand, and
+/// the [`provcheck::prelude::WatermarkStatus`] tier
+/// (Detected / Degraded / NotDetected). Threshold semantics live in
+/// `provcheck::confidence` so callers can choose to fail the
+/// pipeline on `< Detected` or accept `Degraded` etc.
+///
+/// v0.7 phase 7-pre audit #5.
+pub fn embed_and_verify(
+    waveform: &[f32],
+    payload: [u8; 5],
+    message_sdr_db: Option<f32>,
+) -> Result<(Vec<f32>, provcheck::prelude::WatermarkResult), EncodeError> {
+    let marked = embed(waveform, payload, message_sdr_db)?;
+    let result = crate::detect_from_mono_44k1(&marked)
+        .map_err(|e| EncodeError::Inference(format!("verify after embed: {e}")))?;
+    Ok((marked, result))
+}
+
 /// Build the message tensor that the encoder ONNX expects.
 ///
 /// silentcipher's letters_encoding (model.py:62-81) takes a list of

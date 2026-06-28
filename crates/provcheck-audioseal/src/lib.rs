@@ -270,3 +270,20 @@ mod tests {
         assert_eq!(classify(0.49), WatermarkStatus::NotDetected);
     }
 }
+
+/// v0.7 phase 7-pre audit #10: Send + Sync bound assertion.
+/// See `provcheck-watermark::_send_sync_assertions` for rationale.
+#[cfg(test)]
+mod _send_sync_assertions {
+    fn assert_send_sync<T: Send + Sync>() {}
+
+    #[test]
+    fn key_public_types_are_send_sync() {
+        assert_send_sync::<crate::WatermarkResult>();
+        assert_send_sync::<crate::WatermarkBrand>();
+        assert_send_sync::<crate::WatermarkKind>();
+        assert_send_sync::<crate::WatermarkStatus>();
+        assert_send_sync::<crate::encode::EmbedConfig>();
+        assert_send_sync::<crate::encode::EncodeError>();
+    }
+}

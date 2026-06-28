@@ -134,8 +134,29 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
         Err(audio::AudioError::Io(e)) => return Err(Error::Io(e)),
     };
 
+    // 2-5. Run the post-decode pipeline on the in-memory waveform.
+    //      Same path as [`detect_from_mono_44k1`] consumes (the
+    //      v0.7 7-pre audit primitive for callers that already
+    //      hold decoded samples — like the kit's verify-after-embed
+    //      path that just emitted a freshly-marked Vec<f32>).
+    detect_from_mono_44k1(&waveform)
+}
+
+/// Run silentcipher detection on an in-memory mono 44.1 kHz
+/// waveform, skipping the audio decode + resample step. Returns the
+/// same `WatermarkResult` shape as the file-path [`detect`]. Useful
+/// for callers that just produced a watermarked waveform via
+/// [`encode::embed`] and want to verify it without a disk roundtrip.
+///
+/// `waveform` MUST be at 44.1 kHz mono — the model is trained at
+/// that rate. Use [`audio::decode_to_mono_44k1`] to derive it from
+/// a file, or [`audio::resample`] if you have it at a different
+/// sample rate.
+///
+/// v0.7 phase 7-pre audit #5 foundation.
+pub fn detect_from_mono_44k1(waveform: &[f32]) -> Result<WatermarkResult, Error> {
     // 2. STFT → carrier [1, 1, 2049, T].
-    let (carrier, t_frames) = match stft::waveform_to_carrier(&waveform) {
+    let (carrier, t_frames) = match stft::waveform_to_carrier(waveform) {
         Ok(c) => c,
         Err(stft::StftError::Empty) => {
             return Ok(not_detected("audio decoded to zero samples"));
@@ -487,5 +508,27 @@ mod tests {
             "stale stub-pending sentinel in real-pipeline path: {}",
             msg
         );
+    }
+}
+
+/// v0.7 phase 7-pre audit #10: Send + Sync bound assertion.
+///
+/// Compile-time check that the crate's load-bearing public types
+/// stay `Send + Sync` so the kit's `tokio::task::spawn_blocking`
+/// bridge between async dispatch and sync compute keeps working.
+/// If a future refactor accidentally introduces an `Rc` (etc.)
+/// into one of these, this test stops compiling immediately.
+#[cfg(test)]
+mod _send_sync_assertions {
+    fn assert_send_sync<T: Send + Sync>() {}
+
+    #[test]
+    fn key_public_types_are_send_sync() {
+        assert_send_sync::<crate::WatermarkResult>();
+        assert_send_sync::<crate::WatermarkBrand>();
+        assert_send_sync::<crate::WatermarkKind>();
+        assert_send_sync::<crate::WatermarkStatus>();
+        assert_send_sync::<crate::encode::EmbedConfig>();
+        assert_send_sync::<crate::encode::EncodeError>();
     }
 }
