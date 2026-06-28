@@ -45,7 +45,9 @@ jobs:
         with:
           toolchain: stable
       - name: install cargo-audit
-        run: cargo install cargo-audit --locked --version ^0.21
+        # 0.22 added CVSS 4.0 parser support — needed for any 2026
+        # advisory in the RustSec database.
+        run: cargo install cargo-audit --locked --version ^0.22
       - name: run cargo audit against SECURITY.md tolerated set
         run: |
           cargo audit \
