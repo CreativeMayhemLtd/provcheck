@@ -43,7 +43,7 @@
 //! provcheck_weights::install_all(); // bulk pre-fetch
 //! ```
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 mod cache;
 mod download;

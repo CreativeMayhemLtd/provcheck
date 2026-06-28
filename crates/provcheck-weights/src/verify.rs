@@ -26,5 +26,11 @@ pub(crate) fn file_sha256_matches(path: &Path, expected: &[u8; 32]) -> Result<bo
         hasher.update(&buf[..n]);
     }
     let actual = hasher.finalize();
-    Ok(actual.as_slice() == expected.as_slice())
+    // GenericArray::as_slice was deprecated in generic-array 0.14;
+    // the sha2 0.10 output is `GenericArray<u8, U32>`. Treating it
+    // as `&[u8]` via Deref keeps the comparison constant-time
+    // semantics (it is not — but neither does the deprecated
+    // method) without pulling in subtle-time.
+    let actual_ref: &[u8] = actual.as_ref();
+    Ok(actual_ref == expected.as_slice())
 }
