@@ -727,14 +727,44 @@ fn build_model() -> Result<Runnable, String> {
     use ort::session::builder::GraphOptimizationLevel;
     let path = provcheck_weights::load_if_cached("silentcipher", "encoder")
         .map_err(|e| format!("weights: {e}"))?;
-    let session = Session::builder()
+    // v0.7.x followup for public issue #32: `error_on_failure` flips
+    // ort's CUDA EP from "silently fall back to CPU if the runtime
+    // is missing" to "fail loudly", so we can surface a useful
+    // diagnostic to the operator instead of letting them wait the
+    // full embed wall-clock on a CPU path they thought was GPU.
+    let cuda_ep = CUDAExecutionProvider::default()
+        .with_device_id(0)
+        .build()
+        .error_on_failure();
+    let session = match Session::builder()
         .map_err(|e| e.to_string())?
         .with_optimization_level(GraphOptimizationLevel::Level3)
         .map_err(|e| e.to_string())?
-        .with_execution_providers([CUDAExecutionProvider::default().build()])
-        .map_err(|e| e.to_string())?
-        .commit_from_file(&path)
-        .map_err(|e| e.to_string())?;
+        .with_execution_providers([cuda_ep])
+    {
+        Ok(b) => {
+            eprintln!(
+                "provcheck-watermark: CUDA execution provider active (device 0). \
+                 Embed will use GPU."
+            );
+            b.commit_from_file(&path).map_err(|e| e.to_string())?
+        }
+        Err(e) => {
+            eprintln!(
+                "provcheck-watermark: WARNING — `--features cuda` was built in, \
+                 but the CUDA execution provider could not initialise: {e}. \
+                 Falling back to CPU. Verify onnxruntime-gpu + CUDA 12.x + \
+                 cuDNN are installed on this host; see \
+                 docs/v0.6.0-roadmap/p4-cuda-implementation-notes.md."
+            );
+            Session::builder()
+                .map_err(|e| e.to_string())?
+                .with_optimization_level(GraphOptimizationLevel::Level3)
+                .map_err(|e| e.to_string())?
+                .commit_from_file(&path)
+                .map_err(|e| e.to_string())?
+        }
+    };
     Ok(std::sync::Mutex::new(session))
 }
 
