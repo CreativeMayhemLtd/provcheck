@@ -29,6 +29,7 @@
 
 use std::sync::OnceLock;
 
+#[cfg(not(feature = "cuda"))]
 use tract_onnx::prelude::*;
 
 use crate::hparams::{FREQ_BINS, MESSAGE_DIM, MESSAGE_LEN, VCTK_AVG_ENERGY};
@@ -68,7 +69,18 @@ const MESSAGE_BAND_SIZE: usize = 1024;
 /// AudioSeal for AAC pipelines.
 pub const DEFAULT_MESSAGE_SDR_DB: f32 = 30.0;
 
+#[cfg(not(feature = "cuda"))]
 type Runnable = TypedRunnableModel<TypedModel>;
+
+/// v0.6.0 P4: CUDA backend via ort (onnxruntime-rs). Same ONNX
+/// file; the session pins the CUDA execution provider so the
+/// encoder runs on GPU when one is available, with a documented
+/// fall-back to CPU EP otherwise. Wrapped in a `Mutex` because
+/// `ort::Session::run` requires `&mut self`; CUDA serialises
+/// inference on the single stream anyway so this does not give
+/// up parallelism, it just makes the borrow-checker honest.
+#[cfg(feature = "cuda")]
+type Runnable = std::sync::Mutex<ort::session::Session>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum EncodeError {
@@ -452,6 +464,7 @@ fn bytemuck_cast_f32(bytes: &[u8]) -> &[f32] {
 /// Single tract inference call against the encoder ONNX. Returns
 /// the raw dec_c output `[1, 1, FREQ_BINS, chunk_t]` flattened as
 /// `[bin * chunk_t + t]`.
+#[cfg(not(feature = "cuda"))]
 fn run_encoder_chunk(
     model: &Runnable,
     carrier: &[f32],
@@ -498,6 +511,53 @@ fn run_encoder_chunk(
     Ok(view.iter().copied().collect())
 }
 
+/// CUDA encoder inference via ort. Same input shapes as the tract
+/// path; same output shape. The execution provider is fixed to
+/// CUDA at session-build time (with CPU EP as the documented
+/// fallback). Built behind `--features cuda`.
+#[cfg(feature = "cuda")]
+fn run_encoder_chunk(
+    model: &Runnable,
+    carrier: &[f32],
+    msg_enc: &[f32],
+    sdr_db: f32,
+    chunk_t: usize,
+) -> Result<Vec<f32>, EncodeError> {
+    use ndarray::Array4;
+    let carrier_arr = Array4::<f32>::from_shape_vec((1, 1, FREQ_BINS, chunk_t), carrier.to_vec())
+        .map_err(|e| EncodeError::Inference(format!("carrier shape: {e}")))?;
+    let msg_arr = Array4::<f32>::from_shape_vec((1, 1, FREQ_BINS, chunk_t), msg_enc.to_vec())
+        .map_err(|e| EncodeError::Inference(format!("msg_enc shape: {e}")))?;
+    let sdr_arr = ndarray::Array0::<f32>::from_elem((), sdr_db);
+
+    let mut model = model.lock().map_err(|e| EncodeError::Inference(format!("ort session mutex poisoned: {e}")))?;
+    let outputs = model
+        .run(ort::inputs![
+            "carrier_mag" => ort::value::TensorRef::from_array_view(carrier_arr.view()).map_err(|e| EncodeError::Inference(e.to_string()))?,
+            "msg_enc_padded" => ort::value::TensorRef::from_array_view(msg_arr.view()).map_err(|e| EncodeError::Inference(e.to_string()))?,
+            "message_sdr" => ort::value::TensorRef::from_array_view(sdr_arr.view()).map_err(|e| EncodeError::Inference(e.to_string()))?,
+        ])
+        .map_err(|e| EncodeError::Inference(e.to_string()))?;
+
+    let out = outputs
+        .get("message_info_raw")
+        .ok_or_else(|| EncodeError::Inference("message_info_raw output missing".into()))?;
+    let (shape, data) = out
+        .try_extract_tensor::<f32>()
+        .map_err(|e| EncodeError::Inference(e.to_string()))?;
+    let shape_usize: Vec<usize> = shape.iter().map(|d| *d as usize).collect();
+    let layout_ok = matches!(
+        &shape_usize[..],
+        [1, 1, b, t] if *b == FREQ_BINS && *t == chunk_t
+    );
+    if !layout_ok {
+        return Err(EncodeError::Inference(format!(
+            "expected [1, 1, {FREQ_BINS}, {chunk_t}], got {shape_usize:?}"
+        )));
+    }
+    Ok(data.to_vec())
+}
+
 /// Build the runnable encoder ONNX model once and reuse for every
 /// call. Same OnceLock pattern as the decoder model.
 fn model() -> Result<&'static Runnable, EncodeError> {
@@ -505,18 +565,41 @@ fn model() -> Result<&'static Runnable, EncodeError> {
     if let Some(m) = MODEL.get() {
         return Ok(m);
     }
-    let m = build_model().map_err(|e: TractError| EncodeError::Load(e.to_string()))?;
+    let m = build_model().map_err(EncodeError::Load)?;
     let _ = MODEL.set(m);
     Ok(MODEL.get().expect("just set"))
 }
 
-fn build_model() -> TractResult<Runnable> {
+#[cfg(not(feature = "cuda"))]
+fn build_model() -> Result<Runnable, String> {
     let mut cursor = std::io::Cursor::new(ENCODER_BYTES);
     let model = tract_onnx::onnx()
-        .model_for_read(&mut cursor)?
-        .into_optimized()?
-        .into_runnable()?;
+        .model_for_read(&mut cursor)
+        .and_then(|m| m.into_optimized())
+        .and_then(|m| m.into_runnable())
+        .map_err(|e| e.to_string())?;
     Ok(model)
+}
+
+/// CUDA-backed encoder session. Loads ONNX once, pins CUDA EP at
+/// session-build time. If the CUDA EP is not available on the
+/// host (driver missing, runtime libs not installed) ort falls
+/// back to CPU EP automatically — slower but functional. Document
+/// the CUDA install path in `docs/v0.6.0-roadmap/p4-ort-cuda-backend-design.md`.
+#[cfg(feature = "cuda")]
+fn build_model() -> Result<Runnable, String> {
+    use ort::execution_providers::CUDAExecutionProvider;
+    use ort::session::Session;
+    use ort::session::builder::GraphOptimizationLevel;
+    let session = Session::builder()
+        .map_err(|e| e.to_string())?
+        .with_optimization_level(GraphOptimizationLevel::Level3)
+        .map_err(|e| e.to_string())?
+        .with_execution_providers([CUDAExecutionProvider::default().build()])
+        .map_err(|e| e.to_string())?
+        .commit_from_memory(ENCODER_BYTES)
+        .map_err(|e| e.to_string())?;
+    Ok(std::sync::Mutex::new(session))
 }
 
 #[cfg(test)]

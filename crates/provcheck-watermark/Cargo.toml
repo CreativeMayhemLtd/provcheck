@@ -13,6 +13,19 @@ readme.workspace = true
 [lib]
 name = "provcheck_watermark"
 
+[features]
+default = []
+# v0.6.0 P4: optional CUDA-backed inference via ort
+# (onnxruntime-rs). When `cuda` is enabled the embed pipeline
+# routes the encoder ONNX call through ort with the CUDA
+# execution provider instead of tract-onnx. Requires the
+# onnxruntime CUDA shared libraries installed on the host at
+# runtime (see docs/v0.6.0-roadmap/p4-ort-cuda-backend-design.md).
+# Build with `cargo build --release --features cuda` and produce
+# a `provcheck-kit-cuda` target separate from the default
+# tract-only kit binary.
+cuda = ["dep:ort", "dep:ndarray"]
+
 [dependencies]
 provcheck = { path = "../provcheck" }
 serde.workspace = true
@@ -24,6 +37,14 @@ thiserror.workspace = true
 # library via include_bytes!() at build time so there's nothing
 # to load at runtime.
 tract-onnx = "0.21"
+
+# Optional GPU-accelerated inference via onnxruntime, behind
+# the `cuda` feature flag. Same ONNX model files. The default
+# CPU build does not pull this in.
+ort = { version = "2.0.0-rc.4", optional = true, default-features = false, features = ["std", "ndarray", "cuda", "load-dynamic"] }
+# ndarray for the ort path's input tensor construction. Behind
+# the cuda feature so we don't pull it into the default CPU build.
+ndarray = { version = "0.16", optional = true }
 # NNEF format support — used to load a pre-optimised version of the
 # silentcipher decoder so tract's graph optimiser doesn't have to
 # run on every cold process start. The model itself is committed

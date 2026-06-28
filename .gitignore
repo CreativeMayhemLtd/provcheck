@@ -47,3 +47,4 @@ Thumbs.db
 # *.mp4
 # *.mov
 publish_v*.log
+target-cuda/

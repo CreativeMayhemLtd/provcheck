@@ -14,6 +14,14 @@ readme.workspace = true
 name = "provcheck-kit"
 path = "src/main.rs"
 
+[features]
+default = []
+# v0.6.0 P4: propagate the `cuda` feature into the watermark crate
+# so building `cargo build --release --features cuda -p provcheck-kit`
+# produces a CUDA-enabled kit binary. The default download stays
+# tract-only CPU.
+cuda = ["provcheck-watermark/cuda"]
+
 [dependencies]
 # The sibling crates this CLI composes.
 provcheck-sign = { path = "../provcheck-sign" }
