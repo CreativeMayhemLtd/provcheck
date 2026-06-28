@@ -161,7 +161,11 @@ fn reflect_pad(y: &[f32], pad: usize) -> Vec<f32> {
 /// `center=True`: frames = 1 + (len - N_FFT) / HOP, floored,
 /// but only counting frames that fit inside `len` without
 /// running past the end.
-fn compute_n_frames(len: usize) -> usize {
+/// Frame count for an N-sample padded input under our HOP / N_FFT
+/// scheme. Public so callers using the streaming primitives
+/// directly (`forward_stft_chunk` + `IstftStreamer`) can size their
+/// own pipelines without re-deriving the math.
+pub fn compute_n_frames(len: usize) -> usize {
     if len < N_FFT {
         0
     } else {

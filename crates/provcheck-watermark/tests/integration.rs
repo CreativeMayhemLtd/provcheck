@@ -164,6 +164,71 @@ fn real_silentcipher_embed_roundtrips_to_detection() {
     );
 }
 
+/// v0.6.0 P3 chunk-fused streaming embed: must produce a detectable
+/// mark equivalent to the materialised-spectrogram embed on the
+/// same input. Output waveforms should match within tight float
+/// tolerance because the only structural source of divergence is
+/// the utterance_norm computation (streaming uses f64 accumulation;
+/// materialised uses f32) which is 1e-5 relative.
+#[test]
+fn streaming_embed_matches_materialised_within_tolerance() {
+    use provcheck_watermark::{audio, encode};
+
+    let cover_path = workspace_example("rAIdio.bot-sample.mp3");
+    if !cover_path.exists() {
+        eprintln!(
+            "skipping: cover sample not present at {}",
+            cover_path.display()
+        );
+        return;
+    }
+    let cover = audio::decode_to_mono_44k1(&cover_path).expect("decode cover");
+    let payload: [u8; 5] = [0x44, 0x46, 0x4D, 0x01, 0x00];
+
+    let materialised = encode::embed(&cover, payload, None).expect("materialised embed");
+    let streaming =
+        encode::embed_streaming_with_config(&cover, payload, None, encode::EmbedConfig::default())
+            .expect("streaming embed");
+    assert_eq!(materialised.len(), streaming.len(), "length parity");
+
+    // Sample-level divergence should be tiny. Generous bound for any
+    // f64-vs-f32 rounding inside the utterance_norm path.
+    let mut max_abs = 0.0_f32;
+    let mut sum_abs = 0.0_f64;
+    for (m, s) in materialised.iter().zip(streaming.iter()) {
+        let d = (m - s).abs();
+        if d > max_abs {
+            max_abs = d;
+        }
+        sum_abs += d as f64;
+    }
+    let mean_abs = sum_abs / materialised.len() as f64;
+    assert!(
+        max_abs < 1e-3,
+        "max |materialised - streaming| = {max_abs}; mean = {mean_abs}"
+    );
+
+    // Both outputs detect at comparable confidence.
+    let m_file = write_float_wav(&materialised, 44_100);
+    let s_file = write_float_wav(&streaming, 44_100);
+    let m_r = detect(m_file.path()).expect("detect materialised");
+    let s_r = detect(s_file.path()).expect("detect streaming");
+    assert!(m_r.detected && s_r.detected, "both must detect");
+    assert_eq!(
+        m_r.payload.as_deref(),
+        s_r.payload.as_deref(),
+        "both must recover same payload"
+    );
+    let conf_diff = (m_r.confidence - s_r.confidence).abs();
+    assert!(
+        conf_diff < 0.05,
+        "detect confidence drift: materialised {} vs streaming {} (diff {})",
+        m_r.confidence,
+        s_r.confidence,
+        conf_diff
+    );
+}
+
 /// Resolve a path relative to the workspace `examples/` directory
 /// from inside an integration test. `CARGO_MANIFEST_DIR` is set
 /// to the crate root (`crates/provcheck-watermark`); walking up

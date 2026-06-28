@@ -32,9 +32,12 @@ use std::sync::OnceLock;
 #[cfg(not(feature = "cuda"))]
 use tract_onnx::prelude::*;
 
-use crate::hparams::{FREQ_BINS, MESSAGE_DIM, MESSAGE_LEN, VCTK_AVG_ENERGY};
+use crate::hparams::{FREQ_BINS, MESSAGE_DIM, MESSAGE_LEN, N_FFT, VCTK_AVG_ENERGY, WIN};
 use crate::model::CHUNK_T_FRAMES;
-use crate::stft::{Spectrum, spectrum_to_waveform, waveform_to_spectrum};
+use crate::stft::{
+    IstftStreamer, Spectrum, compute_n_frames, forward_stft_chunk,
+    spectrum_to_waveform, streaming_utterance_norm, waveform_to_spectrum,
+};
 
 /// Encoder ONNX, embedded at build time. Produced by
 /// `scripts/export-silentcipher-encoder.py`.
@@ -293,6 +296,101 @@ pub fn embed_with_config(
         *s *= de_rescale;
     }
 
+    Ok(rescaled_out)
+}
+
+/// Chunk-fused streaming embed. Same semantics as [`embed_with_config`]
+/// but the spectrogram is NEVER materialised in full: a two-pass
+/// streaming design computes the global `utterance_norm` in pass 1
+/// then processes one chunk at a time in pass 2, feeding each chunk's
+/// reconstructed magnitude + phase frames directly into the streaming
+/// iSTFT.
+///
+/// v0.6.0 P3 phase 3-fusion. Trades:
+/// - ~10-20% extra wall clock (pass 1 + repeated forward STFTs per
+///   chunk), in exchange for
+/// - drops `spec.magnitude` (~600 MB on a 56-min episode),
+/// - drops `spec.phase` (~600 MB),
+/// - drops `carrier_reconst` (~600 MB),
+/// - drops the full `rescaled_out` buffer in 3c (not yet).
+///
+/// Internally sequential — no chunk parallelism — so the
+/// [`EmbedConfig`] `max_parallel_chunks` field is ignored. Use this
+/// path when peak host RAM matters more than wall clock; use
+/// [`embed_with_config`] when wall clock matters more.
+pub fn embed_streaming_with_config(
+    waveform: &[f32],
+    payload: [u8; 5],
+    message_sdr_db: Option<f32>,
+    _config: EmbedConfig,
+) -> Result<Vec<f32>, EncodeError> {
+    if waveform.is_empty() {
+        return Err(EncodeError::TooShort);
+    }
+    // 1. VCTK rescale (identical to the materialised path).
+    let original_power: f32 = waveform.iter().map(|s| s * s).sum::<f32>() / waveform.len() as f32;
+    let rescale = if original_power > f32::EPSILON {
+        (VCTK_AVG_ENERGY / original_power).sqrt()
+    } else {
+        1.0
+    };
+    let rescaled: Vec<f32> = waveform.iter().map(|s| s * rescale).collect();
+
+    // 2. Derive padded-space dimensions without materialising the
+    //    spectrum.
+    let n_samples_input = rescaled.len() + (WIN - (rescaled.len() % WIN));
+    let pad = N_FFT / 2;
+    let padded_len = n_samples_input + 2 * pad;
+    let n_frames = compute_n_frames(padded_len);
+    if n_frames == 0 {
+        return Err(EncodeError::TooShort);
+    }
+
+    // 3. Pass 1: streaming utterance_norm.
+    let utterance_norm = streaming_utterance_norm(&rescaled)
+        .map_err(|e| EncodeError::Inference(format!("streaming utterance_norm: {e}")))?;
+
+    let msg_enc_5 = letters_encoding(payload, n_frames);
+    let sdr = message_sdr_db.unwrap_or(DEFAULT_MESSAGE_SDR_DB);
+    let model = model()?;
+
+    // 4. Pass 2: chunk-fused embed + streaming iSTFT.
+    let mut istft = IstftStreamer::new(n_frames, n_samples_input)
+        .map_err(|e| EncodeError::Inference(format!("istft streamer: {e}")))?;
+    let mut mag_frame = vec![0.0_f32; FREQ_BINS];
+    let mut phase_frame = vec![0.0_f32; FREQ_BINS];
+    let mut t_consumed: usize = 0;
+    while t_consumed < n_frames {
+        let chunk_t = (n_frames - t_consumed).min(CHUNK_T_FRAMES);
+        let (carrier_chunk, phase_chunk) =
+            forward_stft_chunk(&rescaled, n_samples_input, t_consumed, chunk_t)
+                .map_err(|e| EncodeError::Inference(format!("forward_stft_chunk: {e}")))?;
+        let msg_chunk = transform_message_chunk(&msg_enc_5, n_frames, t_consumed, chunk_t);
+        let info_raw = run_encoder_chunk(model, &carrier_chunk, &msg_chunk, sdr, chunk_t)?;
+
+        for t_local in 0..chunk_t {
+            for bin in 0..FREQ_BINS {
+                let info = info_raw[bin * chunk_t + t_local] * utterance_norm;
+                let candidate = -info + carrier_chunk[bin * chunk_t + t_local];
+                mag_frame[bin] = if candidate > 0.0 { candidate } else { 0.0 };
+                phase_frame[bin] = phase_chunk[bin * chunk_t + t_local];
+            }
+            istft.push_frame(&mag_frame, &phase_frame);
+        }
+        t_consumed += chunk_t;
+    }
+    let mut rescaled_out = istft.finish();
+
+    // 5. Trim + de-rescale (identical to the materialised path).
+    rescaled_out.truncate(waveform.len());
+    let de_rescale = if original_power > f32::EPSILON {
+        (original_power / VCTK_AVG_ENERGY).sqrt()
+    } else {
+        1.0
+    };
+    for s in rescaled_out.iter_mut() {
+        *s *= de_rescale;
+    }
     Ok(rescaled_out)
 }
 
