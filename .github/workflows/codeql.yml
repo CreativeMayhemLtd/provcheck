@@ -34,6 +34,14 @@ jobs:
   analyze:
     name: analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
+    # CodeQL code scanning requires GitHub Advanced Security on
+    # private repos. `provcheck-dev` is private and the org does NOT
+    # carry a GHAS seat (would be $49/user/month), so this workflow
+    # cannot upload SARIF results there — every job aborts at the
+    # "Code Security must be enabled" step. The public `provcheck`
+    # mirror is free for CodeQL, so we gate the entire matrix on
+    # repository name and let the workflow file mirror over unchanged.
+    if: github.repository == 'CreativeMayhemLtd/provcheck'
     strategy:
       fail-fast: false
       matrix:
