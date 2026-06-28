@@ -181,10 +181,47 @@ Intel Mac users: run the Apple Silicon binary through Rosetta, or use
 
 ### Via cargo (any platform with a Rust toolchain)
 
+Install pinned to a release tag, straight from this repo:
+
 ```bash
-cargo install provcheck-cli         # verifier
-cargo install --path crates/provcheck-kit   # signing kit (from source clone)
+cargo install --locked --git https://github.com/CreativeMayhemLtd/provcheck \
+    --tag v0.7.0 provcheck-cli              # verifier
+cargo install --locked --git https://github.com/CreativeMayhemLtd/provcheck \
+    --tag v0.7.0 provcheck-kit              # signing kit
 ```
+
+`--locked` enforces the upstream `Cargo.lock` for reproducible builds.
+Bump the `--tag` to whatever shows in [Releases](https://github.com/CreativeMayhemLtd/provcheck/releases).
+
+> **Why not `cargo install provcheck-cli` from crates.io?**
+> Only `provcheck-cli` is currently published on crates.io, and it's
+> frozen at `0.1.1` (many minor versions behind). `provcheck-kit`,
+> `provcheck`, `provcheck-sign`, and `provcheck-publish` are not on
+> crates.io at all. Until the full workspace is published, the
+> `--git --tag` form above is the only way to get current code from
+> cargo.
+
+If you've already cloned the repo, the path-based form also works:
+
+```bash
+cargo install --locked --path crates/provcheck-cli
+cargo install --locked --path crates/provcheck-kit
+```
+
+On Debian/Ubuntu the cargo install also needs these system packages:
+
+```bash
+apt-get install -y pkg-config libssl-dev libpcsclite-dev libdbus-1-dev
+# runtime: libpcsclite1 (provcheck-sign links libpcsclite unconditionally)
+```
+
+On Fedora/RHEL:
+
+```bash
+dnf install -y pkgconf-pkg-config openssl-devel pcsc-lite-devel dbus-devel
+```
+
+(PR #25 + #26 by @neitzert, applied 2026-06-28.)
 
 ### In a Docker container (e.g. for a render pipeline)
 

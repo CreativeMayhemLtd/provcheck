@@ -27,6 +27,14 @@ against our same `.onnx` model, so it carries no dependency on the
 silentcipher source code. Anyone with Python and our model checkpoint
 can reproduce the harness end-to-end.
 
+> **Follow-up:** A separate-but-adjacent issue — silentcipher
+> reliability on **C2PA-signed** MP3s (the wrapped-read path, not the
+> bare-MP3 path) — survived v0.3.3 in production and was found
+> resolved in v0.5.x during a downstream cargo-install migration on
+> 2026-06-24. See [`c2pa-mp3-followup.md`](./c2pa-mp3-followup.md)
+> for the observation record and the signed-input extension to the
+> regression protocol.
+
 ---
 
 ## What we knew at the start
