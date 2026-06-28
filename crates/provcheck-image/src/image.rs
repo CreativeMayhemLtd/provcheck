@@ -11,13 +11,15 @@ use std::path::Path;
 use image::imageops::FilterType;
 use image::{GenericImageView, ImageReader};
 
-/// TrustMark-B decoder input resolution. The upstream Python
-/// `trustmark.py` resizes to 224 before feeding PyTorch; the
-/// exported ONNX includes its own resize-to-256 + center-crop, so
-/// in practice 256 also works on the Python side. We track Adobe's
-/// Python value (224) so any future tract op-coverage fix sees the
-/// same preprocessing the upstream tests do.
-pub(crate) const MODEL_RES: u32 = 224;
+/// TrustMark-B decoder ONNX input resolution. The upstream Python
+/// `trustmark.py` documents `model_resolution_dec = 224` for the
+/// post-torch-resize tensor, but Adobe's exported ONNX takes a
+/// raw 256×256 input and applies an internal resize-to-the-model-
+/// native-resolution as its first node. We feed 256 here to match
+/// what the ONNX actually expects; the discrepancy with the
+/// Python constant is a known upstream quirk. Live-smoke confirmed
+/// against the real decoder on 2026-06-28.
+pub(crate) const MODEL_RES: u32 = 256;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ImageError {
