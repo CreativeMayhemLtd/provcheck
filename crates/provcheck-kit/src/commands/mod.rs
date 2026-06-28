@@ -2504,14 +2504,25 @@ pub mod watermark {
         /// Force sequential chunk processing. Peak RSS drops by
         /// roughly 4x at the cost of 2.5-3x slower wall clock.
         Low,
+        /// v0.6.0 P3 chunk-fused streaming embed. Two-pass design:
+        /// no full spectrogram is ever materialised. Peak RSS drops
+        /// by roughly 3-4x vs `default`, at the cost of about
+        /// 10-20% extra wall clock for the streaming utterance_norm
+        /// pre-pass plus the repeated per-chunk forward STFTs.
+        /// Stereo runs the two mono passes sequentially.
+        Streaming,
     }
 
     impl MemoryBudget {
         pub fn max_parallel_chunks(self) -> Option<usize> {
             match self {
                 Self::Default => None,
-                Self::Low => Some(1),
+                Self::Low | Self::Streaming => Some(1),
             }
+        }
+
+        pub fn is_streaming(self) -> bool {
+            matches!(self, Self::Streaming)
         }
     }
 
@@ -2603,12 +2614,19 @@ pub mod watermark {
         let embed_config = sc_encode::EmbedConfig {
             max_parallel_chunks: args.memory_budget.max_parallel_chunks(),
         };
+        let streaming = args.memory_budget.is_streaming();
         let t0 = Instant::now();
         let (marked_l, marked_r): (Vec<f32>, Option<Vec<f32>>) = if out_channels == 2 {
             let left = stereo.left;
             let right = stereo.right;
-            let (l, r) = tokio::task::spawn_blocking(move || {
-                sc_encode::embed_stereo_with_config(&left, &right, payload, sdr_user, embed_config)
+            let (l, r) = tokio::task::spawn_blocking(move || -> Result<(Vec<f32>, Vec<f32>), sc_encode::EncodeError> {
+                if streaming {
+                    let l = sc_encode::embed_streaming_with_config(&left, payload, sdr_user, embed_config)?;
+                    let r = sc_encode::embed_streaming_with_config(&right, payload, sdr_user, embed_config)?;
+                    Ok((l, r))
+                } else {
+                    sc_encode::embed_stereo_with_config(&left, &right, payload, sdr_user, embed_config)
+                }
             })
             .await
             .context("join embed task")?
@@ -2628,7 +2646,11 @@ pub mod watermark {
                 stereo.left
             };
             let m = tokio::task::spawn_blocking(move || {
-                sc_encode::embed_with_config(&mono, payload, sdr_user, embed_config)
+                if streaming {
+                    sc_encode::embed_streaming_with_config(&mono, payload, sdr_user, embed_config)
+                } else {
+                    sc_encode::embed_with_config(&mono, payload, sdr_user, embed_config)
+                }
             })
             .await
             .context("join embed task")?
