@@ -87,6 +87,43 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libdbus-1-dev libpcsclite-dev pkg-config
 
+      # v0.7 phase 7b-followup: download the onnxruntime CPU
+      # shared library for the target platform. The image-modality
+      # detector (provcheck-image / TrustMark) uses ort with
+      # load-dynamic, so the binary needs onnxruntime alongside it.
+      # Pinned to the version ort 2.0.0-rc.10 was tested against
+      # (1.20.x). Bundling means downloaded release archives just
+      # work — the user does NOT install onnxruntime separately.
+      - name: Download onnxruntime CPU runtime
+        shell: bash
+        run: |
+          ORT_VER=1.20.1
+          case "${{ matrix.target }}" in
+            x86_64-pc-windows-msvc)
+              url="https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VER}/onnxruntime-win-x64-${ORT_VER}.zip"
+              dir="onnxruntime-win-x64-${ORT_VER}"
+              curl -sSL -o ort.zip "$url"
+              7z x ort.zip >/dev/null
+              cp "${dir}/lib/onnxruntime.dll" .
+              ;;
+            x86_64-unknown-linux-gnu)
+              url="https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VER}/onnxruntime-linux-x64-${ORT_VER}.tgz"
+              dir="onnxruntime-linux-x64-${ORT_VER}"
+              curl -sSL "$url" | tar -xz
+              cp "${dir}/lib/libonnxruntime.so" .
+              cp "${dir}/lib/libonnxruntime.so.${ORT_VER}" . || true
+              ;;
+            aarch64-apple-darwin)
+              url="https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VER}/onnxruntime-osx-arm64-${ORT_VER}.tgz"
+              dir="onnxruntime-osx-arm64-${ORT_VER}"
+              curl -sSL "$url" | tar -xz
+              cp "${dir}/lib/libonnxruntime.${ORT_VER}.dylib" .
+              cp "${dir}/lib/libonnxruntime.dylib" . 2>/dev/null || \
+                ln -sf "libonnxruntime.${ORT_VER}.dylib" libonnxruntime.dylib
+              ;;
+          esac
+          ls -la *onnxruntime* | head -5
+
       # Build both CLI binaries in a single cargo invocation so the
       # workspace is compiled once. provcheck (verifier) and
       # provcheck-kit (creator-side toolkit) ship as separate
@@ -112,6 +149,14 @@ jobs:
           mkdir -p "$stage_dir"
           cp "target/${{ matrix.target }}/release/provcheck${{ matrix.bin_ext }}" "$stage_dir/"
           cp README.md LICENSE "$stage_dir/"
+          # v0.7 phase 7b-followup: bundle the onnxruntime CPU
+          # shared lib next to the binary so the loader finds it
+          # via the standard executable-directory search path.
+          case "${{ matrix.target }}" in
+            x86_64-pc-windows-msvc)        cp onnxruntime.dll "$stage_dir/" ;;
+            x86_64-unknown-linux-gnu)      cp libonnxruntime.so* "$stage_dir/" ;;
+            aarch64-apple-darwin)          cp libonnxruntime*.dylib "$stage_dir/" ;;
+          esac
 
           if [[ "${{ matrix.archive }}" == "zip" ]]; then
             archive_name="${stage_dir}.zip"
@@ -146,6 +191,14 @@ jobs:
           # Carry the spec writeup so a creator who installs the
           # kit also has the wire-format reference at hand.
           cp docs/atproto-signing-key.md "$stage_dir/"
+          # v0.7 phase 7b-followup: bundle onnxruntime alongside
+          # the kit too — `kit watermark --kind image` calls the
+          # same ort path.
+          case "${{ matrix.target }}" in
+            x86_64-pc-windows-msvc)        cp onnxruntime.dll "$stage_dir/" ;;
+            x86_64-unknown-linux-gnu)      cp libonnxruntime.so* "$stage_dir/" ;;
+            aarch64-apple-darwin)          cp libonnxruntime*.dylib "$stage_dir/" ;;
+          esac
 
           if [[ "${{ matrix.archive }}" == "zip" ]]; then
             archive_name="${stage_dir}.zip"
