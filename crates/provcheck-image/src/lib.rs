@@ -47,6 +47,8 @@ pub use provcheck::prelude::{WatermarkBrand, WatermarkKind, WatermarkResult, Wat
 #[doc(hidden)]
 pub mod image;
 pub mod encode;
+#[doc(hidden)]
+pub mod model;
 
 /// Errors returned by [`detect`]. Non-fatal outcomes (file is
 /// not an image, decoder failure) are reported on the returned
@@ -91,36 +93,93 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
         });
     }
 
-    // v0.7 phase 8a "always respect the user": check whether the
-    // TrustMark-B decoder weights are already cached. If not,
-    // surface as NotDetected with an actionable install hint —
-    // do NOT auto-download. The CLI / GUI is the right layer to
-    // ask the user for consent before pulling 47 MB.
-    let weights_msg = match provcheck_weights::load_if_cached("trustmark", "b-decoder") {
-        Ok(path) => format!(
-            "image detector wiring pending (v0.7 phase 7b-inference); weights cached at {}",
-            path.display()
-        ),
+    // v0.7 phase 8a "always respect the user": surface a clean
+    // install-needed message if weights are absent. Detect / CLI
+    // layer prompts for consent — never the model layer.
+    match provcheck_weights::load_if_cached("trustmark", "b-decoder") {
+        Ok(_) => {}
         Err(provcheck_weights::Error::NotCached {
             family,
-            variant,
+            variant: _,
             size_mb,
-        }) => format!(
-            "image detector requires weights ({size_mb} MB): \
-             run `provcheck-kit weights install {family}` \
-             (or via the GUI's Detection capabilities panel)"
-        ),
+        }) => {
+            return Ok(WatermarkResult {
+                kind: WatermarkKind::TrustMark,
+                status: WatermarkStatus::NotDetected,
+                detected: false,
+                confidence: 0.0,
+                payload: None,
+                brand: None,
+                message: Some(format!(
+                    "image detector requires weights ({size_mb} MB): \
+                     run `provcheck-kit weights install {family}`"
+                )),
+                marked_regions: None,
+            });
+        }
         Err(e) => return Err(Error::Weights(e)),
+    }
+
+    // v0.7 phase 7b: real TrustMark-B decoder inference.
+    let decoded = image::decode(path).map_err(|e| match e {
+        image::ImageError::NotImage => {
+            // Caught above by `looks_like_image`, but defend.
+            Error::Weights(provcheck_weights::Error::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "decoder rejected as non-image",
+            )))
+        }
+        image::ImageError::Decode(msg) => {
+            Error::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, msg))
+        }
+        image::ImageError::Io(e) => Error::Io(e),
+    })?;
+
+    let result = match model::run_decoder(&decoded) {
+        Ok(out) => out,
+        Err(e) => {
+            return Ok(WatermarkResult {
+                kind: WatermarkKind::TrustMark,
+                status: WatermarkStatus::NotDetected,
+                detected: false,
+                confidence: 0.0,
+                payload: None,
+                brand: None,
+                message: Some(format!(
+                    "TrustMark decoder runtime error: {e}. \
+                     v0.7 phase 7b status: preprocessing + DLC weight delivery + \
+                     verifier integration are wired, but tract 0.21's ONNX op coverage \
+                     cannot run Adobe's decoder export (Gemm and Resize op attribute \
+                     combinations declined). 7b-followup switches the backend to ort."
+                )),
+                marked_regions: None,
+            });
+        }
     };
 
+    // BCH-5 error correction + brand mapping are NOT in this
+    // phase — that lands as 7b-followup. For now surface the raw
+    // 13-byte packed payload + the mean-|logit| confidence proxy.
+    // Status stays NotDetected because without BCH we cannot
+    // distinguish "marked image" from "unmarked image whose
+    // decoder happened to produce random bits", and we will not
+    // over-claim. The CLI's text mode shows the raw payload bytes
+    // and the confidence proxy so a downstream consumer can wire
+    // a heuristic if they need one before 7b-followup ships.
     Ok(WatermarkResult {
         kind: WatermarkKind::TrustMark,
         status: WatermarkStatus::NotDetected,
         detected: false,
-        confidence: 0.0,
-        payload: None,
+        confidence: result.mean_abs_logit,
+        payload: Some(result.payload_bytes),
         brand: None,
-        message: Some(weights_msg),
+        message: Some(format!(
+            "TrustMark-B decoder ran; {} raw bits recovered, mean |logit| {:.3}. \
+             BCH-5 error correction + brand mapping land in 7b-followup; status \
+             stays NotDetected until then to avoid false-positive claims.",
+            model::SECRET_LEN,
+            result.mean_abs_logit
+        )),
         marked_regions: None,
     })
 }

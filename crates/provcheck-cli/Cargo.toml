@@ -20,4 +20,5 @@ provcheck-platform = { path = "../provcheck-platform" }
 provcheck-watermark = { path = "../provcheck-watermark" }
 provcheck-audioseal = { path = "../provcheck-audioseal" }
 provcheck-wavmark = { path = "../provcheck-wavmark" }
+provcheck-image = { path = "../provcheck-image" }
 clap = { workspace = true }

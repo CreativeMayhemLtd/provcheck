@@ -235,6 +235,10 @@ fn main() -> ExitCode {
         if let Ok(w) = provcheck_wavmark::detect(&args.file) {
             report.watermarks.push(w);
         }
+        // v0.7 phase 7b: image-modality TrustMark-B decoder.
+        if let Ok(w) = provcheck_image::detect(&args.file) {
+            report.watermarks.push(w);
+        }
     }
 
     // `--require-watermark` escalates "no detector found a

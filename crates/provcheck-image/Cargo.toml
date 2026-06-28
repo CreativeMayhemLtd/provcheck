@@ -35,5 +35,10 @@ thiserror.workspace = true
 # can actually consume.
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
 
+# v0.7 phase 7b: ONNX inference for TrustMark-B decoder. Same
+# pattern as the audio crates — bytes come from the DLC weights
+# cache, tract optimises + runs the model.
+tract-onnx = "0.21"
+
 [dev-dependencies]
 tempfile = "3"
