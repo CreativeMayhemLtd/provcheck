@@ -24,6 +24,17 @@ pub enum EncodeError {
     Model(#[from] ModelError),
 }
 
+/// Embed config for shape parity with `provcheck-watermark::EmbedConfig`.
+/// WavMark's HiNet encoder is per-1s-chunk by training-time
+/// architecture and not chunk-parallel internally, so the config
+/// has no knobs at this layer; the type exists so downstream
+/// dispatchers can route through wavmark with the same call shape
+/// as silentcipher without a special case.
+///
+/// v0.7 phase 7-pre.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct EmbedConfig {}
+
 /// Embed a 5-bit brand ID into a 16 kHz mono waveform. Returns the
 /// marked waveform (same length as input). The tail (any samples
 /// past the last full 16000-sample chunk) is copied through
@@ -69,4 +80,14 @@ mod tests {
         let r = embed(&[], registry::BRAND_DOOMSCROLL);
         assert!(matches!(r, Err(EncodeError::Empty)));
     }
+}
+
+/// Shape-parity wrapper. Calls [`embed`] and ignores the config.
+/// v0.7 phase 7-pre.
+pub fn embed_with_config(
+    waveform: &[f32],
+    brand_id_5bit: u8,
+    _config: EmbedConfig,
+) -> Result<Vec<f32>, EncodeError> {
+    embed(waveform, brand_id_5bit)
 }

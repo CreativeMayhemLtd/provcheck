@@ -169,6 +169,39 @@ pub fn embed_brand(
     embed(waveform, brand_id_5bit, alpha)
 }
 
+/// Embed config for shape parity with `provcheck-watermark::EmbedConfig`.
+/// AudioSeal's generator is not chunk-parallel internally so the
+/// config currently has no knobs that matter at this layer; the
+/// type exists so downstream dispatchers (kit's `--memory-budget`
+/// flag) can route through audioseal with the same call shape as
+/// silentcipher without a special case. Future audioseal-specific
+/// knobs (alpha scheduling, region-level skip) will slot in here.
+///
+/// v0.7 phase 7-pre.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct EmbedConfig {}
+
+/// Shape-parity wrapper. Calls [`embed`] and ignores the config.
+pub fn embed_with_config(
+    waveform: &[f32],
+    brand_id_5bit: u8,
+    alpha: Option<f32>,
+    _config: EmbedConfig,
+) -> Result<Vec<f32>, EncodeError> {
+    embed(waveform, brand_id_5bit, alpha)
+}
+
+/// Shape-parity wrapper. Calls [`embed_stereo`] and ignores the config.
+pub fn embed_stereo_with_config(
+    left: &[f32],
+    right: &[f32],
+    brand_id_5bit: u8,
+    alpha: Option<f32>,
+    _config: EmbedConfig,
+) -> Result<(Vec<f32>, Vec<f32>), EncodeError> {
+    embed_stereo(left, right, brand_id_5bit, alpha)
+}
+
 /// Embed the same brand into both channels of a stereo signal.
 ///
 /// AudioSeal's generator is mono-only by training-time

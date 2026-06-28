@@ -20,6 +20,20 @@ const BRAND_RAI: [u8; 3] = [b'R', b'A', b'I'];
 const BRAND_DFM: [u8; 3] = [b'D', b'F', b'M'];
 const BRAND_VAI: [u8; 3] = [b'V', b'A', b'I'];
 
+/// Schema 1 payload for the rAIdio.bot AI music brand.
+/// 5-byte tagged union: `b"RAI" + schema=1 + reserved=0`.
+/// v0.7 phase 7-pre — exposed as a public constant so downstream
+/// callers do not have to hard-code the triplet themselves.
+pub const PAYLOAD_RAIDIO: [u8; 5] = [b'R', b'A', b'I', 0x01, 0x00];
+
+/// Schema 1 payload for the doomscroll.fm AI voice brand.
+/// 5-byte tagged union: `b"DFM" + schema=1 + reserved=0`.
+pub const PAYLOAD_DOOMSCROLL: [u8; 5] = [b'D', b'F', b'M', 0x01, 0x00];
+
+/// Schema 1 payload for the vAIdeo.bot AI video brand.
+/// 5-byte tagged union: `b"VAI" + schema=1 + reserved=0`.
+pub const PAYLOAD_VAIDEO: [u8; 5] = [b'V', b'A', b'I', 0x01, 0x00];
+
 /// Parse a 5-byte payload according to its embedded schema
 /// version and return the matching [`WatermarkBrand`]. Always
 /// returns `Some` — unknown brands and unknown schemas have
