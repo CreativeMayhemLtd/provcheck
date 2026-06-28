@@ -48,3 +48,4 @@ Thumbs.db
 # *.mov
 publish_v*.log
 target-cuda/
+target-gate/

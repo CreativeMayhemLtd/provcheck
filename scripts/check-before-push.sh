@@ -45,7 +45,12 @@ yellow() { printf "\033[33m%s\033[0m\n" "$*"; }
 
 # ---- 1. Workspace cargo test --------------------------------------
 yellow "[1/3] cargo test --release --workspace"
-if ! cargo test --release --workspace 2>&1 | tail -40; then
+# Use a separate target dir so the test build's intermediate link
+# step does not collide with a long-running process holding
+# `target/release/*.exe` open on Windows. Same root cause as step 2's
+# `|| true` rebuild tolerance, applied here as a clean-build-tree
+# pattern rather than a swallow-and-continue.
+if ! CARGO_TARGET_DIR=./target-gate cargo test --release --workspace 2>&1 | tail -40; then
     red "  FAIL: workspace tests"
     exit 1
 fi
