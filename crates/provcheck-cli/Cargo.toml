@@ -14,6 +14,9 @@ readme.workspace = true
 name = "provcheck"
 path = "src/main.rs"
 
+[dev-dependencies]
+tempfile = "3"
+
 [dependencies]
 provcheck = { path = "../provcheck" }
 provcheck-platform = { path = "../provcheck-platform" }
