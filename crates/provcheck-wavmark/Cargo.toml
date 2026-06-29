@@ -39,5 +39,7 @@ rayon = "1"
 hound = "3"
 
 [dev-dependencies]
+# Cross-crate parity invariant on the brand-registry layout.
+provcheck-audioseal = { path = "../provcheck-audioseal" }
 tempfile = "3"
 anyhow = "1"
