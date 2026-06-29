@@ -270,6 +270,87 @@ mod tests {
     }
 
     #[test]
+    fn round_trips_vai_payload() {
+        // Cover the third registered brand alongside RAI + DFM.
+        let payload = [86, 65, 73, 1, 0]; // VAI + schema=1 + reserved=0
+        let (logits, t) = synth_logits(payload, 30, 0);
+        let r = decode_logits(&logits, t);
+        assert!(r.valid);
+        assert_eq!(r.payload, payload);
+    }
+
+    #[test]
+    fn round_trips_all_zero_payload() {
+        // Minimum-value payload — degenerate but valid.
+        let payload = [0u8; 5];
+        let (logits, t) = synth_logits(payload, 30, 0);
+        let r = decode_logits(&logits, t);
+        assert!(r.valid);
+        assert_eq!(r.payload, payload);
+    }
+
+    #[test]
+    fn round_trips_all_ones_payload() {
+        // Maximum-value payload — every bit set.
+        let payload = [0xFFu8; 5];
+        let (logits, t) = synth_logits(payload, 30, 0);
+        let r = decode_logits(&logits, t);
+        assert!(r.valid);
+        assert_eq!(r.payload, payload);
+    }
+
+    #[test]
+    fn confidence_is_perfect_on_clean_synth_logits() {
+        // synth_logits builds a clean tile-aligned tensor where
+        // every tile matches the per-position mode → conf = 1.0.
+        let payload = [82, 65, 73, 1, 0];
+        let (logits, t) = synth_logits(payload, 30, 0);
+        let r = decode_logits(&logits, t);
+        assert!(r.valid);
+        assert!(
+            (r.confidence - 1.0).abs() < 1e-5,
+            "expected conf == 1.0 on clean input, got {}",
+            r.confidence
+        );
+    }
+
+    #[test]
+    fn tile_quality_length_matches_n_tiles_on_valid_input() {
+        // tile_quality is per-tile; length must equal the number
+        // of complete tiles in the input.
+        let payload = [82, 65, 73, 1, 0];
+        let n_tiles = 17;
+        let (logits, t) = synth_logits(payload, n_tiles, 0);
+        let r = decode_logits(&logits, t);
+        assert!(r.valid);
+        assert_eq!(r.tile_quality.len(), n_tiles);
+    }
+
+    #[test]
+    fn tile_quality_is_empty_on_invalid_input() {
+        // Below 1 tile worth of input → invalid → tile_quality
+        // must be empty (not panicked, not a stale buffer).
+        let logits = vec![0.0_f32; MESSAGE_DIM * (MESSAGE_LEN - 1)];
+        let r = decode_logits(&logits, MESSAGE_LEN - 1);
+        assert!(!r.valid);
+        assert!(r.tile_quality.is_empty());
+    }
+
+    #[test]
+    fn tile_quality_values_are_in_zero_to_one_range() {
+        let payload = [68, 70, 77, 1, 0];
+        let (logits, t) = synth_logits(payload, 30, 5);
+        let r = decode_logits(&logits, t);
+        assert!(r.valid);
+        for (i, &q) in r.tile_quality.iter().enumerate() {
+            assert!(
+                (0.0..=1.0).contains(&q),
+                "tile {i} quality {q} outside [0, 1]"
+            );
+        }
+    }
+
+    #[test]
     fn rejects_input_with_no_terminator() {
         // Build logits where every position prefers symbol 1
         // (a payload-only message with no terminator). Decoder
