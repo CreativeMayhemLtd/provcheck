@@ -358,6 +358,102 @@ mod tests {
         );
     }
 
+    // ----- normalise_pds_url tests ----------
+    //
+    // normalise_pds_url is the input pipe between operator CLI
+    // strings and our atrium agent. Pin every documented case.
+
+    #[test]
+    fn normalise_pds_url_drops_leading_whitespace() {
+        assert_eq!(normalise_pds_url("  bsky.social"), "https://bsky.social");
+    }
+
+    #[test]
+    fn normalise_pds_url_drops_trailing_whitespace() {
+        assert_eq!(normalise_pds_url("bsky.social  "), "https://bsky.social");
+    }
+
+    #[test]
+    fn normalise_pds_url_drops_multiple_trailing_slashes() {
+        // Only ONE trailing slash is trimmed per the function;
+        // pin the actual contract so a future "make it strict"
+        // refactor doesn't silently change behaviour.
+        let result = normalise_pds_url("https://bsky.social/");
+        assert_eq!(result, "https://bsky.social");
+    }
+
+    #[test]
+    fn normalise_pds_url_preserves_path_components() {
+        // A self-hosted PDS at a subpath must NOT have its path
+        // stripped. Only the trailing slash gets removed.
+        assert_eq!(
+            normalise_pds_url("https://example.com/pds"),
+            "https://example.com/pds"
+        );
+    }
+
+    #[test]
+    fn normalise_pds_url_handles_localhost_with_port() {
+        assert_eq!(
+            normalise_pds_url("http://localhost:3000"),
+            "http://localhost:3000"
+        );
+    }
+
+    // ----- write_session_file tests ----------
+    //
+    // The atomic-write contract: tmp file written first, renamed
+    // over the destination on success. The on-disk format is the
+    // SessionFile serde representation.
+
+    #[test]
+    fn write_session_file_creates_session_json_in_target_dir() {
+        let dir = TempDir::new().unwrap();
+        let file = fake_session_file();
+        write_session_file(dir.path(), &file).expect("write");
+        let path = session_path(dir.path());
+        assert!(path.is_file(), "session.json must exist after write");
+    }
+
+    #[test]
+    fn write_session_file_writes_pretty_json() {
+        // Operators sometimes hand-edit session.json. Pretty-print
+        // is the documented format. Pin it.
+        let dir = TempDir::new().unwrap();
+        let file = fake_session_file();
+        write_session_file(dir.path(), &file).expect("write");
+        let bytes = std::fs::read(session_path(dir.path())).expect("read");
+        let s = String::from_utf8(bytes).expect("utf8");
+        assert!(s.contains('\n'), "expected pretty-printed JSON, got: {s}");
+    }
+
+    #[test]
+    fn write_session_file_creates_parent_directory() {
+        // The atomic-write must create any missing parent dirs,
+        // so a fresh data-dir bootstrap works.
+        let parent = TempDir::new().unwrap();
+        let nested = parent.path().join("nested").join("dirs");
+        let file = fake_session_file();
+        // nested dir doesn't exist yet — write_session_file must
+        // create it.
+        write_session_file(&nested, &file).expect("write through nested dirs");
+        assert!(session_path(&nested).is_file());
+    }
+
+    #[test]
+    fn write_session_file_then_read_preserves_jwts() {
+        // SessionFile serde MUST preserve the JWT bytes verbatim
+        // for the resume-session path to work. (Redaction
+        // happens in the Debug impl, NOT serde.)
+        let dir = TempDir::new().unwrap();
+        let file = fake_session_file();
+        write_session_file(dir.path(), &file).expect("write");
+        let bytes = std::fs::read(session_path(dir.path())).expect("read");
+        let parsed: SessionFile = serde_json::from_slice(&bytes).expect("parse");
+        assert_eq!(parsed.access_jwt, file.access_jwt);
+        assert_eq!(parsed.refresh_jwt, file.refresh_jwt);
+    }
+
     // ----- AtprotoClient::Debug redaction tests ----------
     //
     // The Debug impl on AtprotoClient is the only safe way to
