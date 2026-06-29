@@ -489,6 +489,89 @@ mod tests {
     }
 
     #[test]
+    fn encode_is_deterministic_for_same_input() {
+        // Encoding the same data twice must produce the exact
+        // same codeword. Catches any non-determinism a future
+        // optimisation might introduce.
+        let mut data = vec![0u8; K];
+        for (i, slot) in data.iter_mut().enumerate() {
+            *slot = ((i * 31) & 1) as u8;
+        }
+        let cw1 = encode(&data);
+        let cw2 = encode(&data);
+        assert_eq!(cw1, cw2, "encode must be deterministic");
+    }
+
+    #[test]
+    fn encoded_codeword_length_is_always_n() {
+        for seed in 0..10 {
+            let data: Vec<u8> = (0..K).map(|i| ((i * seed) & 1) as u8).collect();
+            let cw = encode(&data);
+            assert_eq!(cw.len(), N, "codeword length must always be N = {N}");
+        }
+    }
+
+    #[test]
+    fn encoded_data_high_positions_match_input_data() {
+        // The systematic-BCH invariant: data bits land at
+        // codeword positions [PARITY_BITS..N] unchanged.
+        let mut data = vec![0u8; K];
+        for (i, slot) in data.iter_mut().enumerate() {
+            *slot = ((i * 5 + 1) & 1) as u8;
+        }
+        let cw = encode(&data);
+        for (i, &d) in data.iter().enumerate() {
+            assert_eq!(
+                cw[PARITY_BITS + i],
+                d,
+                "data bit {i} (codeword pos {}) corrupted by encode",
+                PARITY_BITS + i
+            );
+        }
+    }
+
+    #[test]
+    fn decode_of_zero_data_codeword_recovers_zero_data() {
+        let data = vec![0u8; K];
+        let cw = encode(&data);
+        let (decoded, errs) = decode(&cw).expect("decode");
+        assert_eq!(decoded, data);
+        assert_eq!(errs, 0);
+    }
+
+    #[test]
+    fn decode_corrects_errors_at_codeword_boundaries() {
+        // BCH must correct bit flips at positions 0 and N-1
+        // (the lowest and highest valid positions).
+        let mut data = vec![0u8; K];
+        for (i, slot) in data.iter_mut().enumerate() {
+            *slot = ((i * 13) & 1) as u8;
+        }
+        let mut cw = encode(&data);
+        cw[0] ^= 1;
+        cw[N - 1] ^= 1;
+        let (decoded, errs) = decode(&cw).expect("decode");
+        assert_eq!(decoded, data);
+        assert_eq!(errs, 2);
+    }
+
+    #[test]
+    fn decode_corrects_burst_errors_within_t() {
+        // Adjacent bit flips — 4 consecutive — are within t=5.
+        let mut data = vec![0u8; K];
+        for (i, slot) in data.iter_mut().enumerate() {
+            *slot = ((i * 7) & 1) as u8;
+        }
+        let mut cw = encode(&data);
+        for &p in &[40, 41, 42, 43] {
+            cw[p] ^= 1;
+        }
+        let (decoded, errs) = decode(&cw).expect("decode");
+        assert_eq!(decoded, data);
+        assert_eq!(errs, 4);
+    }
+
+    #[test]
     fn rejects_uncorrectable_errors() {
         let mut data = vec![0u8; K];
         for (i, slot) in data.iter_mut().enumerate() {
