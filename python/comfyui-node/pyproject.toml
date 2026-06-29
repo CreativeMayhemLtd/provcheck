@@ -23,3 +23,8 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["provcheck_comfyui*"]
+
+[tool.setuptools.package-data]
+# Ship the web assets (logo + JS extension) so they install with
+# pip and ComfyUI can serve them under /extensions/provcheck-comfyui/.
+provcheck_comfyui = ["web/*", "web/img/*"]

@@ -332,7 +332,7 @@ pub enum WatermarkStatus {
 /// `provcheck-watermark`. The schema byte (currently always
 /// at index 3) selects how the rest of the payload is
 /// interpreted; today only schema 1 is in production use.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "code", rename_all = "snake_case")]
 pub enum WatermarkBrand {
     /// rAIdio.bot — payload `RAI` (`[82, 65, 73]`).
