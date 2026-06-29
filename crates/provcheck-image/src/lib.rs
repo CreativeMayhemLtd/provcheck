@@ -393,7 +393,7 @@ mod classify_bch5_tests {
     fn five_bit_errors_in_codeword_are_corrected_by_bch() {
         // Exactly t=5 errors must still be correctable.
         let mut bits = build_clean_bits(2);
-        for pos in [3, 17, 40, 61, 80] {
+        for &pos in &[3usize, 17, 40, 61, 80] {
             bits[pos] ^= 1;
         }
         let (status, brand) = classify_bch5(&bits);
@@ -408,7 +408,7 @@ mod classify_bch5_tests {
         // miscorrects into a wrong-magic-byte payload
         // (→ NotDetected). Either way, no false Detected.
         let mut bits = build_clean_bits(2);
-        for pos in [3, 17, 40, 61, 80, 95] {
+        for &pos in &[3usize, 17, 40, 61, 80, 95] {
             bits[pos] ^= 1;
         }
         let (status, _brand) = classify_bch5(&bits);
@@ -429,8 +429,8 @@ mod classify_bch5_tests {
         // Flip all 8 bits of the magic byte. BCH can correct at
         // most 5 of them, so the recovered magic will differ
         // from 0xA5 in at least 3 bits.
-        for pos in 0..8 {
-            bits[pos] ^= 1;
+        for bit in bits.iter_mut().take(8) {
+            *bit ^= 1;
         }
         let (status, _) = classify_bch5(&bits);
         assert_eq!(status, WatermarkStatus::NotDetected);
