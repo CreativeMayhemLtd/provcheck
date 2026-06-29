@@ -751,6 +751,70 @@ mod tests {
     }
 
     #[test]
+    fn vctk_rescale_preserves_length() {
+        for n in [1, 17, 100, 1000, 50_000] {
+            let y = vec![0.5_f32; n];
+            let r = vctk_rescale(&y);
+            assert_eq!(r.len(), n, "length-preservation broken at n={n}");
+        }
+    }
+
+    #[test]
+    fn vctk_rescale_handles_uniform_input_finite() {
+        // Constant non-zero input → rescale ratio is finite,
+        // output is non-NaN.
+        let y = vec![0.1_f32; 1000];
+        let r = vctk_rescale(&y);
+        assert!(r.iter().all(|s| s.is_finite()));
+    }
+
+    #[test]
+    fn vctk_rescale_does_not_change_sign_of_samples() {
+        // The rescale is a positive-scalar multiplication; signs
+        // must be preserved. Pin the contract (a future "absolute
+        // value" optimisation would break the carrier phase).
+        let y: Vec<f32> = (0..1000).map(|i| (i as f32 * 0.01).sin()).collect();
+        let r = vctk_rescale(&y);
+        for (orig, rescaled) in y.iter().zip(r.iter()) {
+            if *orig > 0.0 {
+                assert!(*rescaled > 0.0, "positive sample flipped");
+            } else if *orig < 0.0 {
+                assert!(*rescaled < 0.0, "negative sample flipped");
+            } else {
+                assert_eq!(*rescaled, 0.0, "zero sample became non-zero");
+            }
+        }
+    }
+
+    #[test]
+    fn reflect_pad_zero_pad_returns_original() {
+        let y = vec![1.0_f32, 2.0, 3.0];
+        assert_eq!(reflect_pad(&y, 0), vec![1.0, 2.0, 3.0]);
+    }
+
+    #[test]
+    fn reflect_pad_output_length_is_input_plus_twice_pad() {
+        let y = vec![1.0_f32; 10];
+        for pad in [0, 1, 5, 9] {
+            let padded = reflect_pad(&y, pad);
+            assert_eq!(padded.len(), y.len() + 2 * pad);
+        }
+    }
+
+    #[test]
+    fn reflect_pad_preserves_inner_samples_at_input_positions() {
+        // The original input bytes must land at positions
+        // [pad..pad+len] in the output — no transformation in
+        // the middle region.
+        let y = vec![1.0_f32, 2.0, 3.0, 4.0, 5.0];
+        let pad = 2;
+        let padded = reflect_pad(&y, pad);
+        for (i, &v) in y.iter().enumerate() {
+            assert_eq!(padded[pad + i], v, "input position {i} corrupted");
+        }
+    }
+
+    #[test]
     fn frame_count_matches_torch_for_known_input() {
         // For a waveform of WIN samples, after reflect-pad of
         // N_FFT/2 on each side we have WIN + N_FFT samples total.
