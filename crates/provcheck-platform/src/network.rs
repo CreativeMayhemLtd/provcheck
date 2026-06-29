@@ -295,3 +295,113 @@ fn url_encode(s: &str) -> String {
     }
     out
 }
+
+#[cfg(test)]
+mod url_encode_tests {
+    use super::url_encode;
+
+    #[test]
+    fn alphanumeric_passes_through_unchanged() {
+        assert_eq!(url_encode("abcXYZ012"), "abcXYZ012");
+    }
+
+    #[test]
+    fn rfc3986_unreserved_punctuation_passes_through() {
+        // Per RFC 3986 the "unreserved" set is alphanumeric +
+        // - _ . ~. None of those need percent-encoding.
+        assert_eq!(url_encode("a-b_c.d~e"), "a-b_c.d~e");
+    }
+
+    #[test]
+    fn space_is_percent_encoded() {
+        assert_eq!(url_encode("a b"), "a%20b");
+    }
+
+    #[test]
+    fn colon_is_percent_encoded() {
+        // Important for DID handling: did:plc:abc must encode
+        // its colons when interpolated into a URL.
+        assert_eq!(url_encode("did:plc:abc"), "did%3Aplc%3Aabc");
+    }
+
+    #[test]
+    fn slash_is_percent_encoded() {
+        // We're encoding URL components, not full URLs.
+        assert_eq!(url_encode("a/b"), "a%2Fb");
+    }
+
+    #[test]
+    fn at_sign_is_percent_encoded() {
+        assert_eq!(url_encode("user@host"), "user%40host");
+    }
+
+    #[test]
+    fn percent_sign_is_percent_encoded() {
+        // Double-encoding hazard: an already-encoded string
+        // should be re-encoded, not passed through. Caller's
+        // responsibility, but pin the behaviour.
+        assert_eq!(url_encode("%20"), "%2520");
+    }
+
+    #[test]
+    fn unicode_bytes_are_percent_encoded() {
+        // "é" is 2 bytes in UTF-8: 0xC3 0xA9. Each becomes %XX.
+        assert_eq!(url_encode("café"), "caf%C3%A9");
+    }
+
+    #[test]
+    fn empty_string_returns_empty() {
+        assert_eq!(url_encode(""), "");
+    }
+
+    #[test]
+    fn upper_hex_is_used_for_percent_encoding() {
+        // RFC 3986 says percent-encoded sequences SHOULD use
+        // upper-case hex digits. Pin the convention.
+        assert_eq!(url_encode(" "), "%20");
+        assert_eq!(url_encode("\n"), "%0A");
+    }
+}
+
+#[cfg(test)]
+mod resolve_handle_input_tests {
+    //! resolve_handle's network-touching paths need an HTTP
+    //! mock to test thoroughly. These pure-input tests cover
+    //! the call-site contract: a handle string flows in, a DID
+    //! string or an error message flows out. We can't exercise
+    //! the success branches without a mock server, but we CAN
+    //! catch the input-validation arms.
+
+    use super::resolve_handle;
+    use crate::AttestationConfig;
+
+    fn no_network_config() -> AttestationConfig {
+        // Default config points at real bsky.social by default;
+        // for these tests we want to redirect to localhost so any
+        // accidental network call hits 127.0.0.1 and fails fast
+        // rather than reaching the public network.
+        AttestationConfig {
+            bsky_api_override: Some("http://127.0.0.1:1".into()),
+            plc_directory_override: Some("http://127.0.0.1:1".into()),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn empty_handle_errors() {
+        let cfg = no_network_config();
+        // Empty handle is meaningless; either we trigger the
+        // network and fail there, or short-circuit. Either way
+        // the result is Err, not Ok with a wrong value, and not
+        // a panic.
+        let r = resolve_handle("", &cfg);
+        assert!(r.is_err(), "empty handle should fail, got {r:?}");
+    }
+
+    #[test]
+    fn handle_with_only_whitespace_errors() {
+        let cfg = no_network_config();
+        let r = resolve_handle("   ", &cfg);
+        assert!(r.is_err(), "whitespace handle should fail, got {r:?}");
+    }
+}
