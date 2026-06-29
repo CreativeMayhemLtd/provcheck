@@ -617,6 +617,172 @@ pub fn embed_identity_assertion(
 }
 
 #[cfg(test)]
+mod embed_identity_assertion_tests {
+    use super::embed_identity_assertion;
+    use super::SignError;
+    use provcheck_attestation_spec::{IDENTITY_ASSERTION_LABEL, IdentityClaim};
+
+    fn claim() -> IdentityClaim {
+        IdentityClaim::new("did:plc:abc", Some("creator.bsky.social".into()))
+    }
+
+    fn parse_assertions(json: &str) -> Vec<serde_json::Value> {
+        let v: serde_json::Value = serde_json::from_str(json).expect("parse");
+        v.get("assertions")
+            .and_then(|a| a.as_array())
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    fn find_identity_assertion(json: &str) -> Option<serde_json::Value> {
+        parse_assertions(json)
+            .into_iter()
+            .find(|a| a.get("label").and_then(|l| l.as_str()) == Some(IDENTITY_ASSERTION_LABEL))
+    }
+
+    #[test]
+    fn empty_object_manifest_gains_assertions_array_and_identity() {
+        let out = embed_identity_assertion("{}", &claim()).expect("ok");
+        let assertions = parse_assertions(&out);
+        assert_eq!(assertions.len(), 1, "must add exactly one assertion");
+        let identity = find_identity_assertion(&out).expect("must include identity assertion");
+        assert_eq!(
+            identity.get("label").and_then(|l| l.as_str()),
+            Some(IDENTITY_ASSERTION_LABEL)
+        );
+    }
+
+    #[test]
+    fn embedded_assertion_carries_did_in_data() {
+        let out = embed_identity_assertion("{}", &claim()).expect("ok");
+        let identity = find_identity_assertion(&out).expect("identity");
+        let did = identity
+            .get("data")
+            .and_then(|d| d.get("did"))
+            .and_then(|d| d.as_str());
+        assert_eq!(did, Some("did:plc:abc"));
+    }
+
+    #[test]
+    fn embedded_assertion_carries_handle_in_data_when_present() {
+        let out = embed_identity_assertion("{}", &claim()).expect("ok");
+        let identity = find_identity_assertion(&out).expect("identity");
+        let handle = identity
+            .get("data")
+            .and_then(|d| d.get("handle"))
+            .and_then(|d| d.as_str());
+        assert_eq!(handle, Some("creator.bsky.social"));
+    }
+
+    #[test]
+    fn embedded_assertion_omits_handle_when_absent_per_serde_default() {
+        // IdentityClaim::handle is #[serde(skip_serializing_if =
+        // "Option::is_none")] — a None handle must not appear as
+        // a "handle":null field, just be absent.
+        let no_handle = IdentityClaim::new("did:plc:abc", None);
+        let out = embed_identity_assertion("{}", &no_handle).expect("ok");
+        let identity = find_identity_assertion(&out).expect("identity");
+        assert!(
+            identity.get("data").and_then(|d| d.get("handle")).is_none(),
+            "missing handle must serialise as absent, not null"
+        );
+    }
+
+    #[test]
+    fn idempotent_replaces_existing_identity_assertion_not_duplicates() {
+        let first = embed_identity_assertion("{}", &claim()).expect("first");
+        let second_claim =
+            IdentityClaim::new("did:plc:NEW", Some("new.bsky.social".into()));
+        let second = embed_identity_assertion(&first, &second_claim).expect("second");
+        let assertions = parse_assertions(&second);
+        assert_eq!(
+            assertions.len(),
+            1,
+            "re-embed must REPLACE, not append a duplicate"
+        );
+        // The replaced assertion must carry the new DID.
+        let identity = find_identity_assertion(&second).expect("identity");
+        assert_eq!(
+            identity.get("data").and_then(|d| d.get("did")).and_then(|d| d.as_str()),
+            Some("did:plc:NEW")
+        );
+    }
+
+    #[test]
+    fn preserves_unrelated_assertions() {
+        // A manifest with an unrelated assertion (e.g. c2pa.actions)
+        // must keep that assertion intact when embed adds the
+        // identity assertion alongside.
+        let manifest = r#"{
+            "assertions": [
+                {"label": "c2pa.actions.v2", "data": {"actions": []}}
+            ]
+        }"#;
+        let out = embed_identity_assertion(manifest, &claim()).expect("ok");
+        let assertions = parse_assertions(&out);
+        assert_eq!(assertions.len(), 2, "must preserve the existing assertion");
+        let labels: Vec<&str> = assertions
+            .iter()
+            .filter_map(|a| a.get("label").and_then(|l| l.as_str()))
+            .collect();
+        assert!(labels.contains(&"c2pa.actions.v2"));
+        assert!(labels.contains(&IDENTITY_ASSERTION_LABEL));
+    }
+
+    #[test]
+    fn idempotent_replace_with_unrelated_assertions_preserved() {
+        // Re-embed must replace the existing identity assertion
+        // BUT keep any unrelated assertions in the array.
+        let manifest = r#"{
+            "assertions": [
+                {"label": "c2pa.actions.v2", "data": {"actions": []}},
+                {"label": "app.provcheck.identity", "data": {"did": "did:plc:OLD"}}
+            ]
+        }"#;
+        let new_claim = IdentityClaim::new("did:plc:NEW", None);
+        let out = embed_identity_assertion(manifest, &new_claim).expect("ok");
+        let assertions = parse_assertions(&out);
+        assert_eq!(assertions.len(), 2, "actions assertion must remain alongside replaced identity");
+        let identity = find_identity_assertion(&out).expect("identity");
+        assert_eq!(
+            identity.get("data").and_then(|d| d.get("did")).and_then(|d| d.as_str()),
+            Some("did:plc:NEW"),
+            "identity assertion must carry the new DID, not the old"
+        );
+    }
+
+    #[test]
+    fn rejects_malformed_json() {
+        let r = embed_identity_assertion("{not json", &claim());
+        assert!(matches!(r, Err(SignError::ManifestJson(_))));
+    }
+
+    #[test]
+    fn rejects_non_object_top_level() {
+        let r = embed_identity_assertion("[]", &claim());
+        assert!(matches!(r, Err(SignError::ManifestJson(_))));
+        let msg = format!("{}", r.err().unwrap());
+        assert!(msg.contains("not an object"));
+    }
+
+    #[test]
+    fn rejects_non_array_assertions_field() {
+        let manifest = r#"{"assertions": "this is not an array"}"#;
+        let r = embed_identity_assertion(manifest, &claim());
+        assert!(matches!(r, Err(SignError::ManifestJson(_))));
+        let msg = format!("{}", r.err().unwrap());
+        assert!(msg.contains("not an array"));
+    }
+
+    #[test]
+    fn output_is_valid_json_round_trip() {
+        let out = embed_identity_assertion("{}", &claim()).expect("ok");
+        let v: serde_json::Value = serde_json::from_str(&out).expect("parse");
+        assert!(v.is_object());
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::cert::{SubjectInfo, generate};
