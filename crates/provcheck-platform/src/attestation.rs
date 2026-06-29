@@ -339,3 +339,137 @@ fn attestation_failure_reason(att: &DidAttestation) -> String {
         }
     }
 }
+
+#[cfg(test)]
+mod attestation_config_tests {
+    use super::*;
+
+    // ----- AttestationConfig defaults ----------
+
+    #[test]
+    fn default_attestation_config_has_no_overrides() {
+        let cfg = AttestationConfig::default();
+        assert!(cfg.cache_dir.is_none());
+        assert!(!cfg.bypass_cache);
+        assert!(cfg.bsky_api_override.is_none());
+        assert!(cfg.plc_directory_override.is_none());
+        assert!(!cfg.use_http_for_well_known);
+    }
+
+    #[test]
+    fn default_attestation_options_are_empty() {
+        let opts = AttestationOptions::default();
+        assert!(opts.bsky_handle.is_none());
+        assert!(opts.did.is_none());
+        assert!(!opts.require_attested);
+        assert!(opts.cache_dir.is_none());
+        assert!(!opts.no_cache);
+    }
+
+    // ----- From<&AttestationOptions> for AttestationConfig ----------
+    //
+    // The CLI's options struct converts to the transport config.
+    // Pin the field mapping so a future maintainer can't silently
+    // drop a relevant option during the conversion.
+
+    #[test]
+    fn options_to_config_preserves_cache_dir() {
+        let opts = AttestationOptions {
+            cache_dir: Some(std::path::PathBuf::from("/tmp/cache")),
+            ..Default::default()
+        };
+        let cfg: AttestationConfig = (&opts).into();
+        assert_eq!(
+            cfg.cache_dir,
+            Some(std::path::PathBuf::from("/tmp/cache"))
+        );
+    }
+
+    #[test]
+    fn options_to_config_maps_no_cache_to_bypass_cache() {
+        let opts = AttestationOptions {
+            no_cache: true,
+            ..Default::default()
+        };
+        let cfg: AttestationConfig = (&opts).into();
+        assert!(cfg.bypass_cache);
+    }
+
+    #[test]
+    fn options_to_config_when_no_cache_is_false_leaves_bypass_false() {
+        let opts = AttestationOptions::default();
+        let cfg: AttestationConfig = (&opts).into();
+        assert!(!cfg.bypass_cache);
+    }
+
+    #[test]
+    fn options_to_config_does_not_set_test_overrides() {
+        // The CLI options must NEVER set bsky_api_override /
+        // plc_directory_override / use_http_for_well_known —
+        // those are test-only fields. If a future maintainer
+        // accidentally plumbs them through, this test catches it.
+        let opts = AttestationOptions {
+            bsky_handle: Some("creator.bsky.social".into()),
+            did: Some("did:plc:abc".into()),
+            require_attested: true,
+            no_cache: true,
+            ..Default::default()
+        };
+        let cfg: AttestationConfig = (&opts).into();
+        assert!(
+            cfg.bsky_api_override.is_none(),
+            "test-only override leaked into production config"
+        );
+        assert!(
+            cfg.plc_directory_override.is_none(),
+            "test-only override leaked into production config"
+        );
+        assert!(
+            !cfg.use_http_for_well_known,
+            "test-only override leaked into production config"
+        );
+    }
+
+    // ----- attestation_failure_reason ----------
+
+    #[test]
+    fn failure_reason_for_mismatch_names_signing_cert() {
+        let att = DidAttestation {
+            status: AttestationStatus::Mismatch,
+            did: "did:plc:abc".into(),
+            handle: None,
+            matched_fingerprint: None,
+            message: None,
+        };
+        let s = attestation_failure_reason(&att);
+        assert!(s.contains("signing certificate"));
+        assert!(s.contains("not attested"));
+    }
+
+    #[test]
+    fn failure_reason_for_not_published_names_signing_key_records() {
+        let att = DidAttestation {
+            status: AttestationStatus::NotPublished,
+            did: "did:plc:abc".into(),
+            handle: None,
+            matched_fingerprint: None,
+            message: None,
+        };
+        let s = attestation_failure_reason(&att);
+        assert!(s.contains("no signing-key records"));
+    }
+
+    #[test]
+    fn failure_reason_for_resolution_failed_names_did_resolution() {
+        let att = DidAttestation {
+            status: AttestationStatus::ResolutionFailed,
+            did: "did:plc:abc".into(),
+            handle: None,
+            matched_fingerprint: None,
+            message: None,
+        };
+        let s = attestation_failure_reason(&att);
+        assert!(s.contains("DID resolution"));
+        assert!(s.contains("failed"));
+    }
+}
