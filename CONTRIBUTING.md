@@ -48,16 +48,34 @@ tolerated.
 - Oxford commas everywhere.
 - Commit messages don't carry a `Co-Authored-By: Claude` trailer.
 
-## Release cadence
+## Release cadence + tag conventions
 
-Max one `v*` tag pushed per 24 hours. The release workflow's
-build matrix (Tauri x 3 OS + per-OS build minutes + macOS at 10x
-billing) is expensive — batch your changes into one tag rather
-than landing three patch tags in a row.
+**Two tag categories** — the release workflow distinguishes them
+via glob filter on `.github/workflows/release.yml`:
 
-Single-tag-per-day exceptions are reserved for production
-crashes or data-loss bugs. Document the exception in the tag's
-annotation message.
+- **`vX.Y.0` (major / minor release tags)** — fire the full
+  release matrix (Tauri x 3 OS + verifier + kit + SBOM + cargo
+  audit). Per-run cost is several hundred Actions unit-minutes
+  (macOS is 10x billed). Max one of these per 24 hours. Single-
+  tag-per-day exceptions reserved for production crashes or
+  data-loss bugs; document in the tag annotation.
+
+- **`vX.Y.Z` where Z > 0 (patch / iteration tags)** — do NOT
+  fire the release matrix. These exist as commit anchors only.
+  Use them freely during a pre-release iteration cycle (e.g.
+  v0.9.1, v0.9.2, ... during a test-coverage push). They land
+  in the dev repo, get test-coverage credit, but burn zero
+  Actions minutes.
+
+To **force a build** for a patch tag (e.g. you need release
+artefacts for v0.9.5), trigger the workflow manually via the
+`workflow_dispatch` input on the Actions UI and supply the tag
+name. This is the explicit-opt-in escape hatch for one-off
+patch ships.
+
+The release matrix and ship-day gates (clean-machine verify,
+README changelog row, SBOMs, cargo audit clean) still apply
+to every `vX.Y.0` tag without exception.
 
 ## Style + clippy
 

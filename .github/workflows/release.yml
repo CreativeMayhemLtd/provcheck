@@ -1,7 +1,9 @@
 name: Build release binaries
 
-# Fires when a `v<x.y.z>` tag is pushed to the private dev repo. Runs
-# the build on all three target OSes and uploads the platform archives
+# Fires when a `vX.Y.0` tag is pushed to the private dev repo (the
+# trailing `.0` gate skips patch / dev / iteration tags like v0.9.1,
+# v0.9.2, etc. — see CONTRIBUTING.md "Release cadence"). Runs the
+# build on all three target OSes and uploads the platform archives
 # as workflow artefacts, ready for `scripts/publish-release.sh` to
 # collect and ship to the public release repo.
 #
@@ -9,15 +11,24 @@ name: Build release binaries
 # repo — that's the maintainer's explicit gesture. See
 # `scripts/README.md` and the Milestone 4 notes in `README.md` for
 # the reasoning behind the manual-control release flow.
+#
+# Iteration / patch tags (e.g. v0.9.1 through v0.9.x during the pre-
+# v1.0 test-coverage push) deliberately do NOT fire the matrix —
+# they exist as commit anchors only. To force a build for a patch
+# tag, use the workflow_dispatch input below.
 
 on:
   push:
     tags:
-      - "v*"
+      # Major / minor release tags fire the full matrix.
+      # `v*.*.0` is a glob: each `*` matches anything except a slash,
+      # so v0.9.0, v0.10.0, v1.0.0 all match while v0.9.1, v0.9.2,
+      # v1.0.0-rc1 do NOT.
+      - "v*.*.0"
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag name to use in artefact filenames (e.g. v0.1.0)"
+        description: "Tag name to use in artefact filenames (e.g. v0.9.5)"
         required: true
         default: "v0.0.0-dev"
 
