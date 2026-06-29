@@ -255,6 +255,69 @@ mod tests {
     use super::*;
     use provcheck_attestation_spec::fingerprint_pem_chain;
 
+    // ----- SubjectInfo defaults ----------
+    //
+    // Pin the user-facing default strings — these appear in
+    // c2pa-rs's reader output, in third-party tools that walk
+    // the cert chain, and in operator screenshots. A silent
+    // bump would change what every locally-minted cert
+    // identifies itself as.
+
+    #[test]
+    fn subject_info_default_common_name_is_local_content_signer() {
+        assert_eq!(SubjectInfo::default().common_name, "Local Content Signer");
+    }
+
+    #[test]
+    fn subject_info_default_organisation_names_provcheck_kit() {
+        let s = SubjectInfo::default();
+        assert!(
+            s.organisation.contains("provcheck-kit"),
+            "default organisation should reference provcheck-kit, got: {}",
+            s.organisation
+        );
+    }
+
+    #[test]
+    fn subject_info_default_organisation_marks_user_generated() {
+        // The "(user-generated)" suffix signals to anyone reading
+        // the cert chain that this is not a vendor-issued cert —
+        // pin it explicitly.
+        let s = SubjectInfo::default();
+        assert!(
+            s.organisation.contains("user-generated"),
+            "default organisation should mark the cert as user-generated, got: {}",
+            s.organisation
+        );
+    }
+
+    #[test]
+    fn subject_info_default_ca_common_name_is_local_install_ca() {
+        assert_eq!(SubjectInfo::default().ca_common_name, "Local Install CA");
+    }
+
+    #[test]
+    fn subject_info_default_strings_are_non_empty() {
+        let s = SubjectInfo::default();
+        assert!(!s.common_name.is_empty());
+        assert!(!s.organisation.is_empty());
+        assert!(!s.ca_common_name.is_empty());
+    }
+
+    #[test]
+    fn subject_info_supports_explicit_override() {
+        // Operator-supplied custom values must round-trip
+        // through SubjectInfo unchanged.
+        let s = SubjectInfo {
+            common_name: "Custom CN".to_string(),
+            organisation: "Custom Org".to_string(),
+            ca_common_name: "Custom CA".to_string(),
+        };
+        assert_eq!(s.common_name, "Custom CN");
+        assert_eq!(s.organisation, "Custom Org");
+        assert_eq!(s.ca_common_name, "Custom CA");
+    }
+
     #[test]
     fn generates_chain_with_two_certificate_blocks() {
         let kp = generate(&SubjectInfo::default()).expect("generation succeeds");
