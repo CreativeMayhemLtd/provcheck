@@ -207,6 +207,74 @@ fn hex_lower(bytes: &[u8]) -> String {
 }
 
 #[cfg(test)]
+mod hex_lower_tests {
+    use super::hex_lower;
+
+    #[test]
+    fn empty_slice_returns_empty_string() {
+        assert_eq!(hex_lower(&[]), "");
+    }
+
+    #[test]
+    fn single_zero_byte_encodes_as_two_zero_chars() {
+        // The 2-char-per-byte invariant: 0x00 → "00", not "0".
+        assert_eq!(hex_lower(&[0]), "00");
+    }
+
+    #[test]
+    fn single_max_byte_encodes_lowercase() {
+        // 0xFF MUST be "ff", not "FF" — the lexicon pattern is
+        // strict lowercase.
+        assert_eq!(hex_lower(&[0xFF]), "ff");
+    }
+
+    #[test]
+    fn each_byte_contributes_exactly_two_chars() {
+        let bytes = [0xDE, 0xAD, 0xBE, 0xEF];
+        let out = hex_lower(&bytes);
+        assert_eq!(out.len(), bytes.len() * 2);
+    }
+
+    #[test]
+    fn round_trip_against_known_value() {
+        // sha256("") = e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+        // Use that to pin a specific 32-byte sequence.
+        let sha = [
+            0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14, 0x9a, 0xfb, 0xf4, 0xc8, 0x99,
+            0x6f, 0xb9, 0x24, 0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c, 0xa4, 0x95,
+            0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55,
+        ];
+        assert_eq!(
+            hex_lower(&sha),
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        );
+    }
+
+    #[test]
+    fn all_output_chars_match_lexicon_pattern() {
+        // Lexicon `[0-9a-f]{64}` — exhaust every possible byte
+        // and confirm no character outside that set appears.
+        let bytes: Vec<u8> = (0..=255).collect();
+        let out = hex_lower(&bytes);
+        for c in out.chars() {
+            assert!(
+                c.is_ascii_digit() || ('a'..='f').contains(&c),
+                "char {c:?} outside [0-9a-f]"
+            );
+        }
+    }
+
+    #[test]
+    fn output_length_is_always_double_input_length() {
+        // For any input length, output is exactly 2 * input.
+        for len in [0, 1, 7, 16, 32, 100] {
+            let bytes = vec![0u8; len];
+            assert_eq!(hex_lower(&bytes).len(), 2 * len, "len={len}");
+        }
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
