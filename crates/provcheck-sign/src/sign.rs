@@ -378,6 +378,159 @@ pub fn inspect_source(path: &std::path::Path) -> Option<SourceProvenance> {
     })
 }
 
+#[cfg(test)]
+mod default_action_for_tests {
+    use super::*;
+
+    fn fake_provenance() -> SourceProvenance {
+        SourceProvenance {
+            label: "test:label".into(),
+            signer: Some("Test Signer".into()),
+            claim_generator: Some("test-tool/1.0".into()),
+            title: None,
+            format: None,
+        }
+    }
+
+    #[test]
+    fn no_provenance_defaults_to_created() {
+        assert_eq!(default_action_for(None), SignAction::Created);
+    }
+
+    #[test]
+    fn existing_provenance_defaults_to_published() {
+        // Publisher-attestation case: source already has a
+        // C2PA chain, the signer's role is to vouch onward.
+        let p = fake_provenance();
+        assert_eq!(default_action_for(Some(&p)), SignAction::Published);
+    }
+
+    #[test]
+    fn provenance_with_minimal_fields_still_published() {
+        // Even a manifest with no signer / no claim_generator
+        // counts as "this file has provenance".
+        let p = SourceProvenance {
+            label: "minimal".into(),
+            signer: None,
+            claim_generator: None,
+            title: None,
+            format: None,
+        };
+        assert_eq!(default_action_for(Some(&p)), SignAction::Published);
+    }
+}
+
+#[cfg(test)]
+mod format_for_ingredient_tests {
+    use super::format_for_ingredient;
+    use std::path::Path;
+
+    #[test]
+    fn wav_maps_to_audio_wav() {
+        assert_eq!(format_for_ingredient(Path::new("a.wav")), "audio/wav");
+    }
+
+    #[test]
+    fn mp3_maps_to_audio_mpeg() {
+        assert_eq!(format_for_ingredient(Path::new("a.mp3")), "audio/mpeg");
+    }
+
+    #[test]
+    fn flac_maps_to_audio_flac() {
+        assert_eq!(format_for_ingredient(Path::new("a.flac")), "audio/flac");
+    }
+
+    #[test]
+    fn ogg_and_oga_both_map_to_audio_ogg() {
+        assert_eq!(format_for_ingredient(Path::new("a.ogg")), "audio/ogg");
+        assert_eq!(format_for_ingredient(Path::new("a.oga")), "audio/ogg");
+    }
+
+    #[test]
+    fn m4a_maps_to_audio_mp4() {
+        assert_eq!(format_for_ingredient(Path::new("a.m4a")), "audio/mp4");
+    }
+
+    #[test]
+    fn aac_maps_to_audio_aac() {
+        assert_eq!(format_for_ingredient(Path::new("a.aac")), "audio/aac");
+    }
+
+    #[test]
+    fn jpg_and_jpeg_both_map_to_image_jpeg() {
+        assert_eq!(format_for_ingredient(Path::new("a.jpg")), "image/jpeg");
+        assert_eq!(format_for_ingredient(Path::new("a.jpeg")), "image/jpeg");
+    }
+
+    #[test]
+    fn png_maps_to_image_png() {
+        assert_eq!(format_for_ingredient(Path::new("a.png")), "image/png");
+    }
+
+    #[test]
+    fn tif_and_tiff_both_map_to_image_tiff() {
+        assert_eq!(format_for_ingredient(Path::new("a.tif")), "image/tiff");
+        assert_eq!(format_for_ingredient(Path::new("a.tiff")), "image/tiff");
+    }
+
+    #[test]
+    fn webp_maps_to_image_webp() {
+        assert_eq!(format_for_ingredient(Path::new("a.webp")), "image/webp");
+    }
+
+    #[test]
+    fn mp4_and_m4v_both_map_to_video_mp4() {
+        assert_eq!(format_for_ingredient(Path::new("a.mp4")), "video/mp4");
+        assert_eq!(format_for_ingredient(Path::new("a.m4v")), "video/mp4");
+    }
+
+    #[test]
+    fn mov_maps_to_video_quicktime() {
+        assert_eq!(format_for_ingredient(Path::new("a.mov")), "video/quicktime");
+    }
+
+    #[test]
+    fn webm_maps_to_video_webm() {
+        assert_eq!(format_for_ingredient(Path::new("a.webm")), "video/webm");
+    }
+
+    #[test]
+    fn unknown_extension_falls_back_to_octet_stream() {
+        assert_eq!(
+            format_for_ingredient(Path::new("a.unknown")),
+            "application/octet-stream"
+        );
+    }
+
+    #[test]
+    fn no_extension_falls_back_to_octet_stream() {
+        assert_eq!(
+            format_for_ingredient(Path::new("README")),
+            "application/octet-stream"
+        );
+    }
+
+    #[test]
+    fn extension_lookup_is_case_insensitive() {
+        // Operators pass through paths from the filesystem; on
+        // Windows the case can be UPPER. Pin lowercase-normalisation.
+        assert_eq!(format_for_ingredient(Path::new("a.MP3")), "audio/mpeg");
+        assert_eq!(format_for_ingredient(Path::new("a.JpEg")), "image/jpeg");
+    }
+
+    #[test]
+    fn full_path_with_directory_is_handled() {
+        assert_eq!(
+            format_for_ingredient(Path::new("/a/b/c/song.mp3")),
+            "audio/mpeg"
+        );
+        assert_eq!(
+            format_for_ingredient(Path::new("C:\\Users\\creator\\song.wav")),
+            "audio/wav"
+        );
+    }
+}
+
 /// Pick the right default action for a source based on its
 /// provenance. Files with existing provenance default to
 /// `Published` (the publisher-attestation case); unsigned files
