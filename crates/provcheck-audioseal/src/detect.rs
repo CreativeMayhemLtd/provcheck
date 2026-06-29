@@ -218,6 +218,116 @@ fn regions_above_threshold(presence: &[f32], sample_rate: u32) -> Vec<(f32, f32)
 mod tests {
     use super::*;
 
+    // ----- Threshold + constant pins ----------
+
+    #[test]
+    fn presence_threshold_is_half() {
+        // 0.5 is the documented decision boundary for the
+        // per-sample presence probability. Pin so a future
+        // tuning pass leaves an explicit test update behind.
+        assert_eq!(PRESENCE_THRESHOLD, 0.5);
+    }
+
+    #[test]
+    fn min_region_samples_is_one_second_at_16khz() {
+        // 16_000 samples @ 16 kHz = 1 second. Pin.
+        assert_eq!(MIN_REGION_SAMPLES, 16_000);
+    }
+
+    // ----- pack_bits exhaustive bit-position coverage ----------
+    //
+    // pack_bits is the wire-format projection from per-bit
+    // probabilities to the 16-bit AudioSeal payload. Every bit
+    // position must land at the documented byte+bit slot.
+
+    #[test]
+    fn pack_each_bit_position_independently() {
+        // For each i in 0..16, setting only bp[i] above 0.5 must
+        // produce exactly one set bit at the documented position
+        // (byte = i/8, bit = 7 - i%8).
+        for i in 0..NBITS {
+            let mut bp = [0.0_f32; NBITS];
+            bp[i] = 1.0;
+            let packed = pack_bits(&bp);
+            let byte_idx = i / 8;
+            let bit_idx = 7 - (i % 8);
+            let expected = 1u8 << bit_idx;
+            assert_eq!(
+                packed[byte_idx], expected,
+                "bit {i} should land at byte {byte_idx}, bit {bit_idx}"
+            );
+            // Other byte should be untouched.
+            let other = 1 - byte_idx;
+            assert_eq!(packed[other], 0, "byte {other} should be 0 when only bit {i} is set");
+        }
+    }
+
+    #[test]
+    fn pack_threshold_is_strictly_greater_than_half() {
+        // `p > 0.5` is strict — exactly 0.5 must NOT set the
+        // bit. Pin the strictness explicitly.
+        let mut bp = [0.0_f32; NBITS];
+        bp[0] = 0.5;
+        assert_eq!(pack_bits(&bp), [0x00, 0x00]);
+    }
+
+    #[test]
+    fn pack_just_above_half_sets_bit() {
+        let mut bp = [0.0_f32; NBITS];
+        bp[0] = 0.5001;
+        assert_eq!(pack_bits(&bp), [0x80, 0x00]);
+    }
+
+    // ----- regions_above_threshold edge cases ----------
+
+    #[test]
+    fn regions_empty_presence_returns_empty() {
+        let regions = regions_above_threshold(&[], 16_000);
+        assert!(regions.is_empty());
+    }
+
+    #[test]
+    fn regions_all_below_threshold_returns_empty() {
+        // 4 seconds of zero presence.
+        let presence = vec![0.0_f32; 64_000];
+        let regions = regions_above_threshold(&presence, 16_000);
+        assert!(regions.is_empty());
+    }
+
+    #[test]
+    fn regions_unterminated_run_at_end_still_reported() {
+        // A run that reaches the end of the buffer (no trailing
+        // below-threshold sample to close it) must still appear
+        // if its length is >= MIN_REGION_SAMPLES.
+        let mut presence = vec![0.0_f32; 64_000];
+        // Last 2 seconds (32_000 samples) all above threshold.
+        for v in presence.iter_mut().skip(32_000) {
+            *v = 0.9;
+        }
+        let regions = regions_above_threshold(&presence, 16_000);
+        assert_eq!(regions.len(), 1);
+        let (start, end) = regions[0];
+        assert!((start - 2.0).abs() < 0.01, "got start={start}");
+        assert!((end - 4.0).abs() < 0.01, "got end={end}");
+    }
+
+    #[test]
+    fn regions_multiple_runs_each_reported() {
+        // Two long runs separated by a gap.
+        let mut presence = vec![0.0_f32; 96_000]; // 6 s @ 16 kHz
+        // Region 1: 0-1.5s
+        for v in presence.iter_mut().take(24_000) {
+            *v = 0.9;
+        }
+        // Gap: 1.5-3s (silent)
+        // Region 2: 3-4.5s
+        for v in presence.iter_mut().take(72_000).skip(48_000) {
+            *v = 0.9;
+        }
+        let regions = regions_above_threshold(&presence, 16_000);
+        assert_eq!(regions.len(), 2);
+    }
+
     #[test]
     fn pack_all_zero_bits_yields_zero_bytes() {
         let bp = [0.0_f32; NBITS];
