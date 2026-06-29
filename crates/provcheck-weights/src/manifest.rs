@@ -161,3 +161,126 @@ macro_rules! hex32 {
     }};
 }
 pub(crate) use hex32;
+
+#[cfg(test)]
+mod manifest_invariants {
+    use super::MANIFEST;
+
+    #[test]
+    fn manifest_is_non_empty() {
+        assert!(!MANIFEST.is_empty(), "manifest must list at least one weight");
+    }
+
+    #[test]
+    fn every_entry_has_consistent_filename_and_url_tail() {
+        // Convention: the URL's last path segment must equal the
+        // entry's filename. Without this invariant a caller can
+        // pull from a URL but cache it under a different name,
+        // and subsequent loads miss the cache silently.
+        for e in MANIFEST {
+            let tail = e
+                .url
+                .rsplit('/')
+                .next()
+                .expect("URL must have at least one path segment");
+            assert_eq!(
+                tail, e.filename,
+                "URL tail {tail:?} must equal filename {:?} for {}/{}",
+                e.filename, e.family, e.variant
+            );
+        }
+    }
+
+    #[test]
+    fn every_entry_has_https_url_to_the_public_mirror() {
+        // Defence in depth: weights MUST come from the public
+        // mirror's release asset URL, not from a random host.
+        for e in MANIFEST {
+            assert!(
+                e.url.starts_with(
+                    "https://github.com/CreativeMayhemLtd/provcheck/releases/download/"
+                ),
+                "weight {}/{} URL doesn't point at the public mirror: {}",
+                e.family,
+                e.variant,
+                e.url
+            );
+        }
+    }
+
+    #[test]
+    fn every_entry_has_a_nonzero_sha256() {
+        // All-zero SHA is the placeholder-not-populated signal;
+        // catch it before it ships.
+        for e in MANIFEST {
+            assert_ne!(
+                e.sha256,
+                [0u8; 32],
+                "weight {}/{} has placeholder all-zero SHA256",
+                e.family,
+                e.variant
+            );
+        }
+    }
+
+    #[test]
+    fn every_entry_has_a_nonzero_size() {
+        for e in MANIFEST {
+            assert!(
+                e.size_bytes > 0,
+                "weight {}/{} has zero size_bytes",
+                e.family,
+                e.variant
+            );
+        }
+    }
+
+    #[test]
+    fn family_variant_tuples_are_unique() {
+        // Two entries with the same (family, variant) would mean
+        // `entry()` returns the first one and the second is dead;
+        // detector calls would silently load the wrong file.
+        let mut seen = std::collections::HashSet::new();
+        for e in MANIFEST {
+            let key = (e.family, e.variant);
+            assert!(
+                seen.insert(key),
+                "duplicate (family, variant) tuple: {key:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn filenames_are_unique() {
+        // Two entries with the same filename land at the same
+        // cache path → cache collision, wrong bytes loaded.
+        let mut seen = std::collections::HashSet::new();
+        for e in MANIFEST {
+            assert!(
+                seen.insert(e.filename),
+                "duplicate filename in manifest: {}",
+                e.filename
+            );
+        }
+    }
+
+    #[test]
+    fn trustmark_family_has_both_decoder_and_encoder_variants() {
+        // The image-modality detect AND embed paths both need
+        // a trustmark weight; missing one means the modality
+        // half-works.
+        let families: Vec<_> = MANIFEST
+            .iter()
+            .filter(|e| e.family == "trustmark")
+            .map(|e| e.variant)
+            .collect();
+        assert!(
+            families.iter().any(|v| v.contains("decoder")),
+            "trustmark decoder variant missing from manifest"
+        );
+        assert!(
+            families.iter().any(|v| v.contains("encoder")),
+            "trustmark encoder variant missing from manifest"
+        );
+    }
+}

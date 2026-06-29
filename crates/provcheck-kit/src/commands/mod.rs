@@ -2617,6 +2617,82 @@ pub mod watermark {
     }
 
     #[cfg(test)]
+    mod parse_payload_hex_tests {
+        use super::parse_payload_hex;
+
+        #[test]
+        fn dfm_payload_round_trips() {
+            // doomscroll.fm: b"DFM\x01\x00" → "44464d0100"
+            let bytes = parse_payload_hex("44464d0100").expect("ok");
+            assert_eq!(bytes, [b'D', b'F', b'M', 0x01, 0x00]);
+        }
+
+        #[test]
+        fn rai_payload_round_trips() {
+            // rAIdio.bot: b"RAI\x01\x00" → "5241490100"
+            let bytes = parse_payload_hex("5241490100").expect("ok");
+            assert_eq!(bytes, [b'R', b'A', b'I', 0x01, 0x00]);
+        }
+
+        #[test]
+        fn whitespace_in_input_is_tolerated() {
+            // Operator-friendly: copy-pasted strings often pick up
+            // spaces. The parser strips them.
+            assert_eq!(
+                parse_payload_hex("5241 4901 00").expect("ok"),
+                [b'R', b'A', b'I', 0x01, 0x00]
+            );
+            assert_eq!(
+                parse_payload_hex("44 46 4d 01 00").expect("ok"),
+                [b'D', b'F', b'M', 0x01, 0x00]
+            );
+        }
+
+        #[test]
+        fn wrong_length_input_errors_with_count() {
+            let r = parse_payload_hex("4446");
+            assert!(r.is_err());
+            let msg = format!("{}", r.err().unwrap());
+            assert!(msg.contains("10 hex chars"), "expected length hint, got: {msg}");
+            assert!(msg.contains("got 4"), "expected got-count, got: {msg}");
+        }
+
+        #[test]
+        fn empty_input_errors() {
+            let r = parse_payload_hex("");
+            assert!(r.is_err());
+            let msg = format!("{}", r.err().unwrap());
+            assert!(msg.contains("got 0"), "expected got-0, got: {msg}");
+        }
+
+        #[test]
+        fn non_hex_chars_error_with_byte_position() {
+            // 'g' is not a valid hex digit; the parser names the
+            // byte index in the error chain.
+            let r = parse_payload_hex("4446gg0100");
+            assert!(r.is_err());
+            let msg = format!("{:#}", r.err().unwrap());
+            assert!(msg.contains("byte 2"), "expected byte index in error, got: {msg}");
+        }
+
+        #[test]
+        fn uppercase_hex_accepted() {
+            let bytes = parse_payload_hex("5241490100").expect("ok");
+            let upper = parse_payload_hex("5241490100".to_uppercase().as_str()).expect("ok");
+            assert_eq!(bytes, upper);
+        }
+
+        #[test]
+        fn mixed_case_hex_accepted() {
+            // u8::from_str_radix is case-insensitive for hex.
+            assert_eq!(
+                parse_payload_hex("5241AbcdEF").expect("ok"),
+                parse_payload_hex("5241abcdef").expect("ok")
+            );
+        }
+    }
+
+    #[cfg(test)]
     mod resolve_output_channels_tests {
         use super::{ChannelMode, resolve_output_channels};
 
