@@ -830,6 +830,116 @@ mod tests {
     }
 
     #[test]
+    fn letters_encoding_output_size_matches_message_dim_times_t_frames() {
+        // Wire-format invariant: output is exactly MESSAGE_DIM * T
+        // f32s. ONNX session.run rejects mismatched input lengths.
+        for t in [1, MESSAGE_LEN, 50, 100, 1000] {
+            let out = letters_encoding([0u8; 5], t);
+            assert_eq!(
+                out.len(),
+                MESSAGE_DIM * t,
+                "t_frames={t} produced wrong-length output"
+            );
+        }
+    }
+
+    #[test]
+    fn letters_encoding_is_one_hot_per_time_slot() {
+        // Each time slot must have EXACTLY one 1.0 value across
+        // the MESSAGE_DIM channels — that's what "one-hot" means.
+        // Without this invariant the encoder's message tensor is
+        // structurally invalid.
+        let payload = [0x44, 0x46, 0x4d, 0x01, 0x00];
+        let t_frames = 100;
+        let out = letters_encoding(payload, t_frames);
+        for t in 0..t_frames {
+            let mut count = 0;
+            for dim in 0..MESSAGE_DIM {
+                if out[dim * t_frames + t] == 1.0 {
+                    count += 1;
+                } else {
+                    assert_eq!(
+                        out[dim * t_frames + t],
+                        0.0,
+                        "non-binary value at dim={dim} t={t}"
+                    );
+                }
+            }
+            assert_eq!(count, 1, "expected 1-hot at t={t}, got {count} hot");
+        }
+    }
+
+    #[test]
+    fn letters_encoding_terminator_at_position_20_is_dim_0() {
+        // The terminator symbol is value 0, which lights up
+        // dim 0 in the one-hot encoding.
+        let payload = [0u8; 5];
+        let out = letters_encoding(payload, MESSAGE_LEN);
+        // Position 20 (terminator) — dim 0 should be hot.
+        let t = MESSAGE_LEN - 1;
+        // dim 0 at position t (terminator):
+        assert_eq!(out[t], 1.0, "terminator dim mismatch");
+        // All other dims at t=20 should be cold.
+        for dim in 1..MESSAGE_DIM {
+            assert_eq!(out[dim * MESSAGE_LEN + t], 0.0);
+        }
+    }
+
+    #[test]
+    fn letters_encoding_zero_payload_produces_all_dim_1_then_terminator() {
+        // payload = 0x00 → bit pairs 00 → +1 = 1. All 20 payload
+        // positions should be dim 1 hot.
+        let payload = [0u8; 5];
+        let out = letters_encoding(payload, MESSAGE_LEN);
+        for t in 0..(MESSAGE_LEN - 1) {
+            assert_eq!(
+                out[MESSAGE_LEN + t],
+                1.0,
+                "expected dim 1 hot at t={t} for zero-payload"
+            );
+        }
+    }
+
+    #[test]
+    fn letters_encoding_max_payload_produces_all_dim_4_then_terminator() {
+        // payload = 0xFF → bit pairs 11 → +1 = 4. All 20 payload
+        // positions should be dim 4 hot.
+        let payload = [0xFFu8; 5];
+        let out = letters_encoding(payload, MESSAGE_LEN);
+        for t in 0..(MESSAGE_LEN - 1) {
+            assert_eq!(
+                out[4 * MESSAGE_LEN + t],
+                1.0,
+                "expected dim 4 hot at t={t} for 0xFF-payload"
+            );
+        }
+    }
+
+    #[test]
+    fn letters_encoding_msb_first_per_byte() {
+        // Byte 0x44 = 0b01000100. MSB-first 2-bit chunks:
+        //   01, 00, 01, 00 → +1 → 2, 1, 2, 1.
+        // So out[2*T+0]=1, out[1*T+1]=1, out[2*T+2]=1, out[1*T+3]=1.
+        let payload = [0x44, 0, 0, 0, 0];
+        let t = MESSAGE_LEN;
+        let out = letters_encoding(payload, t);
+        assert_eq!(out[2 * t], 1.0, "byte 0 pair 0: expected sym 2");
+        assert_eq!(out[t + 1], 1.0, "byte 0 pair 1: expected sym 1");
+        assert_eq!(out[2 * t + 2], 1.0, "byte 0 pair 2: expected sym 2");
+        assert_eq!(out[t + 3], 1.0, "byte 0 pair 3: expected sym 1");
+    }
+
+    #[test]
+    fn letters_encoding_short_t_frames_truncates_correctly() {
+        // t_frames = 5 should cover the first 5 positions of the
+        // 21-symbol cycle and nothing more. Output length must
+        // be exactly MESSAGE_DIM * 5 regardless.
+        let payload = [0u8; 5];
+        let out = letters_encoding(payload, 5);
+        assert_eq!(out.len(), MESSAGE_DIM * 5);
+    }
+
+    #[test]
     fn letters_encoding_tiles_across_longer_t_frames() {
         // With t_frames = 2*MESSAGE_LEN, position 0 should equal
         // position MESSAGE_LEN (start of second tile).
