@@ -357,6 +357,133 @@ fn classify(conf: f32) -> (WatermarkStatus, Option<WatermarkBrand>) {
 mod tests {
     use super::*;
 
+    // ----- tokenize ----------
+
+    #[test]
+    fn tokenize_lowercases() {
+        let toks = tokenize("Hello World FOO");
+        assert_eq!(toks, vec!["hello", "world", "foo"]);
+    }
+
+    #[test]
+    fn tokenize_strips_punctuation_but_keeps_hyphens_and_underscores() {
+        // Identifiers and hyphenated words must survive — the
+        // marker may legitimately produce them.
+        let toks = tokenize("hello, world! it's a-b_c.");
+        assert_eq!(toks, vec!["hello", "world", "its", "a-b_c"]);
+    }
+
+    #[test]
+    fn tokenize_drops_empty_tokens() {
+        // Pure-punctuation chunks ("?!" "...") strip to empty
+        // strings; they must NOT appear in the token list.
+        let toks = tokenize("hello ?! ... world");
+        assert_eq!(toks, vec!["hello", "world"]);
+    }
+
+    #[test]
+    fn tokenize_empty_input_returns_empty_vec() {
+        assert!(tokenize("").is_empty());
+        assert!(tokenize("   ").is_empty());
+    }
+
+    #[test]
+    fn tokenize_preserves_alphanumerics() {
+        // Digits must survive (e.g. "v1.0" → "v10").
+        let toks = tokenize("v1.0 build 42a");
+        assert_eq!(toks, vec!["v10", "build", "42a"]);
+    }
+
+    // ----- erf math invariants ----------
+
+    #[test]
+    fn erf_at_zero_is_zero() {
+        // erf(0) = 0 exactly.
+        assert!(erf(0.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn erf_is_odd_function() {
+        // erf(-x) = -erf(x). Pin the symmetry.
+        for x in [0.1, 0.5, 1.0, 2.0, 3.0] {
+            let pos = erf(x);
+            let neg = erf(-x);
+            assert!((pos + neg).abs() < 1e-6, "erf({x}) + erf(-{x}) = {}", pos + neg);
+        }
+    }
+
+    #[test]
+    fn erf_bounded_in_minus_one_to_one() {
+        for x in [-3.0, -1.0, 0.0, 1.0, 3.0, 5.0] {
+            let y = erf(x);
+            assert!(y.abs() <= 1.0, "erf({x}) = {y} out of [-1, 1]");
+        }
+    }
+
+    #[test]
+    fn erf_at_one_matches_known_value() {
+        // erf(1) ≈ 0.8427007929 (textbook value). Pin within
+        // the A&S approximation's documented precision.
+        let r = erf(1.0);
+        assert!(
+            (r - 0.842_700_79_f64).abs() < 1e-5,
+            "erf(1) = {r} drifted from textbook 0.8427"
+        );
+    }
+
+    // ----- standard_normal_cdf ----------
+
+    #[test]
+    fn standard_normal_cdf_at_zero_is_half() {
+        // Φ(0) = 0.5 by symmetry.
+        let r = standard_normal_cdf(0.0);
+        assert!((r - 0.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn standard_normal_cdf_is_monotonic_increasing() {
+        let xs = [-3.0_f64, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0];
+        let mut prev = standard_normal_cdf(xs[0]);
+        for &x in &xs[1..] {
+            let next = standard_normal_cdf(x);
+            assert!(next > prev, "Φ not monotonic at x={x}: {prev} -> {next}");
+            prev = next;
+        }
+    }
+
+    #[test]
+    fn standard_normal_cdf_bounded_in_zero_to_one() {
+        for x in [-5.0, -1.0, 0.0, 1.0, 5.0] {
+            let r = standard_normal_cdf(x);
+            assert!((0.0..=1.0).contains(&r), "Φ({x}) = {r} out of [0, 1]");
+        }
+    }
+
+    // ----- classify ----------
+
+    #[test]
+    fn classify_returns_none_brand_always() {
+        // SynthID-text never carries a brand payload — the mark
+        // is in token choices, not embedded bytes. Pin the contract.
+        for conf in [0.0, 0.5, 0.7, 0.9, 1.0] {
+            let (_, brand) = classify(conf);
+            assert!(brand.is_none(), "expected None brand at conf={conf}");
+        }
+    }
+
+    #[test]
+    fn classify_uses_canonical_thresholds() {
+        // SynthID-text classify must use the canonical
+        // provcheck::confidence thresholds. Pin to catch any
+        // drift from a per-detector threshold override.
+        let (status_low, _) = classify(DEGRADED_THRESHOLD - 0.01);
+        let (status_mid, _) = classify(DEGRADED_THRESHOLD);
+        let (status_high, _) = classify(DETECTED_THRESHOLD);
+        assert!(matches!(status_low, WatermarkStatus::NotDetected));
+        assert!(matches!(status_mid, WatermarkStatus::Degraded));
+        assert!(matches!(status_high, WatermarkStatus::Detected));
+    }
+
     #[test]
     fn unmarked_random_text_scores_near_baseline() {
         let text = "The quick brown fox jumps over the lazy dog and \
