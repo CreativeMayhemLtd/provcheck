@@ -349,4 +349,96 @@ mod tests {
         // a typo from breaking interop.
         assert_eq!(IDENTITY_ASSERTION_LABEL, "app.provcheck.identity");
     }
+
+    // ----- v0.9.3 coverage additions ----------
+
+    #[test]
+    fn identity_claim_new_pins_current_schema_version() {
+        let c = IdentityClaim::new("did:plc:abc", Some("creator.bsky.social".into()));
+        assert_eq!(c.did, "did:plc:abc");
+        assert_eq!(c.handle.as_deref(), Some("creator.bsky.social"));
+        assert_eq!(c.version, Some(IDENTITY_CLAIM_SCHEMA_VERSION));
+    }
+
+    #[test]
+    fn identity_claim_schema_version_is_pinned_at_one() {
+        // v1 is the on-the-wire baseline. Bumping requires a
+        // verifier upgrade in the same release.
+        assert_eq!(IDENTITY_CLAIM_SCHEMA_VERSION, 1);
+    }
+
+    #[test]
+    fn allowed_algorithms_pins_the_membership_list() {
+        // Each entry is referenced by SigningKeyRecord wire format.
+        // Lock the exact membership so a future maintainer cannot
+        // silently demote or admit an algorithm without a test
+        // failure.
+        assert_eq!(
+            ALLOWED_ALGORITHMS,
+            &[
+                "ES256", "ES384", "ES512", "PS256", "PS384", "PS512", "RS256", "RS384",
+                "RS512", "Ed25519"
+            ]
+        );
+    }
+
+    #[test]
+    fn fingerprint_error_pem_parse_message_includes_inner() {
+        let e = FingerprintError::PemParse("bad base64".into());
+        let s = format!("{e}");
+        assert!(s.contains("PEM parse"));
+        assert!(s.contains("bad base64"));
+    }
+
+    #[test]
+    fn fingerprint_error_no_certificate_message_is_meaningful() {
+        let e = FingerprintError::NoCertificate;
+        let s = format!("{e}");
+        assert!(s.contains("CERTIFICATE"));
+    }
+
+    #[test]
+    fn fingerprint_pem_chain_rejects_empty_input() {
+        let r = fingerprint_pem_chain("");
+        assert!(matches!(r, Err(FingerprintError::NoCertificate)));
+    }
+
+    #[test]
+    fn fingerprint_pem_chain_rejects_garbled_input() {
+        let r = fingerprint_pem_chain("not pem at all");
+        // Acceptable outcomes: parse-failed-empty OR no-certificate.
+        // Load-bearing is "Err, not panic".
+        assert!(r.is_err());
+    }
+
+    #[test]
+    fn fingerprint_leaf_der_emits_canonical_format() {
+        let der = [0u8; 16];
+        let fp = fingerprint_leaf_der(&der);
+        assert!(fp.starts_with("sha256:"), "expected sha256: prefix, got {fp}");
+        // 7 ("sha256:") + 64 (lowercase hex) = 71 chars.
+        assert_eq!(fp.len(), 71);
+        let hex = &fp[7..];
+        assert!(
+            hex.chars().all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c)),
+            "non-lowercase-hex char in {fp}"
+        );
+    }
+
+    #[test]
+    fn fingerprint_leaf_der_deterministic_for_identical_input() {
+        let der = b"sample-der-bytes";
+        let a = fingerprint_leaf_der(der);
+        let b = fingerprint_leaf_der(der);
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn fingerprint_leaf_der_diverges_for_one_bit_change() {
+        let mut der = b"sample-der-bytes".to_vec();
+        let a = fingerprint_leaf_der(&der);
+        der[0] ^= 0x01;
+        let b = fingerprint_leaf_der(&der);
+        assert_ne!(a, b);
+    }
 }

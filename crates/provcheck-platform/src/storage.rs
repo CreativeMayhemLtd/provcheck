@@ -111,6 +111,134 @@ pub fn cache_write<T: Serialize>(config: &AttestationConfig, namespace: &str, ke
 }
 
 #[cfg(test)]
+mod cache_envelope_tests {
+    use super::*;
+    use crate::AttestationConfig;
+    use std::path::PathBuf;
+    use std::time::SystemTime;
+
+    fn cfg_with_cache(dir: PathBuf) -> AttestationConfig {
+        AttestationConfig {
+            cache_dir: Some(dir),
+            bypass_cache: false,
+            ..Default::default()
+        }
+    }
+
+    #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+    struct TestValue {
+        s: String,
+        n: u32,
+    }
+
+    fn now_secs() -> u64 {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0)
+    }
+
+    #[test]
+    fn cache_read_returns_none_when_file_missing() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let cfg = cfg_with_cache(dir.path().to_path_buf());
+        let r: Option<TestValue> = cache_read(&cfg, "ns", "no-such-key");
+        assert!(r.is_none(), "no file → cache miss");
+    }
+
+    #[test]
+    fn cache_write_then_read_round_trips() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let cfg = cfg_with_cache(dir.path().to_path_buf());
+        let v = TestValue { s: "hi".into(), n: 42 };
+        cache_write(&cfg, "ns", "key1", &v);
+        let back: Option<TestValue> = cache_read(&cfg, "ns", "key1");
+        assert_eq!(back, Some(v));
+    }
+
+    #[test]
+    fn cache_read_returns_none_on_garbled_json() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let cfg = cfg_with_cache(dir.path().to_path_buf());
+        let path = cache_path(&cfg, "ns", "k").expect("cache path");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, b"{this is not json").unwrap();
+        let r: Option<TestValue> = cache_read(&cfg, "ns", "k");
+        assert!(r.is_none(), "garbled file → cache miss, not panic");
+    }
+
+    #[test]
+    fn cache_read_returns_none_when_envelope_is_past_ttl() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let cfg = cfg_with_cache(dir.path().to_path_buf());
+        let path = cache_path(&cfg, "ns", "stale").expect("cache path");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        // Write an envelope with a fetched_at that is well past
+        // CACHE_TTL ago — read should reject as expired.
+        let old = now_secs().saturating_sub(CACHE_TTL.as_secs() * 2);
+        let envelope = CacheEnvelope {
+            fetched_at: old,
+            data: TestValue { s: "old".into(), n: 1 },
+        };
+        std::fs::write(&path, serde_json::to_vec(&envelope).unwrap()).unwrap();
+        let r: Option<TestValue> = cache_read(&cfg, "ns", "stale");
+        assert!(r.is_none(), "expired envelope → cache miss");
+    }
+
+    #[test]
+    fn cache_read_returns_value_when_envelope_within_ttl() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let cfg = cfg_with_cache(dir.path().to_path_buf());
+        let path = cache_path(&cfg, "ns", "fresh").expect("cache path");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let envelope = CacheEnvelope {
+            fetched_at: now_secs(),
+            data: TestValue { s: "new".into(), n: 9 },
+        };
+        std::fs::write(&path, serde_json::to_vec(&envelope).unwrap()).unwrap();
+        let r: Option<TestValue> = cache_read(&cfg, "ns", "fresh");
+        assert_eq!(r, Some(TestValue { s: "new".into(), n: 9 }));
+    }
+
+    #[test]
+    fn cache_path_includes_namespace_directory() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let cfg = cfg_with_cache(dir.path().to_path_buf());
+        let p = cache_path(&cfg, "did-cache", "did:plc:abc").expect("cache path");
+        // namespace must be a directory level above the file
+        let parent = p.parent().expect("parent");
+        assert_eq!(
+            parent.file_name().and_then(|s| s.to_str()),
+            Some("did-cache")
+        );
+        // The file name must use the sanitized key.
+        assert_eq!(
+            p.file_name().and_then(|s| s.to_str()),
+            Some("did_plc_abc.json")
+        );
+    }
+
+    #[test]
+    fn cache_write_creates_namespace_subdir() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let cfg = cfg_with_cache(dir.path().to_path_buf());
+        let v = TestValue { s: "x".into(), n: 0 };
+        cache_write(&cfg, "fresh-ns", "k", &v);
+        let p = cache_path(&cfg, "fresh-ns", "k").expect("cache path");
+        assert!(p.is_file(), "cache_write must create the namespace dir");
+        assert!(p.parent().unwrap().is_dir());
+    }
+
+    #[test]
+    fn cache_ttl_is_one_day() {
+        // Pin the documented TTL value so a future maintainer
+        // can't silently shorten / lengthen it without a test
+        // failure. 24 hours per the rustdoc.
+        assert_eq!(CACHE_TTL, Duration::from_secs(24 * 60 * 60));
+    }
+}
+
+#[cfg(test)]
 mod sanitize_key_tests {
     use super::sanitize_key;
 
