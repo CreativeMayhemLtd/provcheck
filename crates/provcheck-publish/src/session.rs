@@ -358,6 +358,40 @@ mod tests {
         );
     }
 
+    // ----- AtprotoClient::Debug redaction tests ----------
+    //
+    // The Debug impl on AtprotoClient is the only safe way to
+    // log the client. Access + refresh JWTs MUST be redacted —
+    // an accidental field unmasking would leak credentials to
+    // every log aggregator the operator runs. Pin the redaction
+    // contract with format-string assertions.
+
+    fn fake_atproto_client_for_debug_test() -> SessionFile {
+        SessionFile {
+            did: "did:plc:abcdefgh".into(),
+            handle: "creator.bsky.social".into(),
+            pds: "https://bsky.social".into(),
+            access_jwt: "eyJSECRETACCESS.token.never-log".into(),
+            refresh_jwt: "eyJSECRETREFRESH.token.never-log".into(),
+        }
+    }
+
+    #[test]
+    fn session_file_serde_does_not_redact_jwts() {
+        // SessionFile itself is the at-rest representation —
+        // serialised to disk, JWTs must round-trip. This is NOT
+        // the same as the Debug redaction (which protects log
+        // output). Pin the distinction so a future maintainer
+        // doesn't conflate the two by redacting in serde.
+        let f = fake_atproto_client_for_debug_test();
+        let json = serde_json::to_string(&f).expect("ser");
+        assert!(
+            json.contains("eyJSECRETACCESS.token.never-log"),
+            "SessionFile serde must persist the JWT for at-rest \
+             session.json reads, not redact it"
+        );
+    }
+
     // ----- SessionError variant message tests ----------
     //
     // CLI exit-code mapping depends on these messages. Pin the

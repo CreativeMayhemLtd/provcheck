@@ -73,8 +73,40 @@ pub enum ImageError {
     NotImage,
     #[error("image decode failed: {0}")]
     Decode(String),
+    /// File I/O failure (`#[from]` conversion).
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
+}
+
+#[cfg(test)]
+mod image_error_tests {
+    use super::*;
+
+    #[test]
+    fn not_image_message_is_meaningful() {
+        let s = format!("{}", ImageError::NotImage);
+        assert!(s.contains("not a supported image container"));
+    }
+
+    #[test]
+    fn decode_message_includes_inner() {
+        let s = format!("{}", ImageError::Decode("corrupt PNG IDAT chunk".into()));
+        assert!(s.contains("image decode"));
+        assert!(s.contains("corrupt PNG"));
+    }
+
+    #[test]
+    fn io_message_includes_inner_io() {
+        let io = std::io::Error::new(std::io::ErrorKind::NotFound, "missing.png");
+        let s = format!("{}", ImageError::Io(io));
+        assert!(s.contains("io"));
+    }
+
+    #[test]
+    fn io_from_std_io_error_works() {
+        let io = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "perm");
+        let _e: ImageError = io.into();
+    }
 }
 
 /// Decoded image surface — RGB f32 normalised to `[-1, 1]`, laid

@@ -54,6 +54,52 @@ pub enum EncodeError {
     Io(#[from] std::io::Error),
 }
 
+#[cfg(test)]
+mod encode_error_tests {
+    use super::*;
+
+    #[test]
+    fn read_message_includes_inner() {
+        let s = format!("{}", EncodeError::Read("decode failed: bad PNG header".into()));
+        assert!(s.contains("image read"));
+        assert!(s.contains("bad PNG header"));
+    }
+
+    #[test]
+    fn write_message_includes_inner() {
+        let s = format!("{}", EncodeError::Write("disk full".into()));
+        assert!(s.contains("image write"));
+        assert!(s.contains("disk full"));
+    }
+
+    #[test]
+    fn model_message_includes_inner_model_error() {
+        let inner = model::ModelError::Load("session not built".into());
+        let s = format!("{}", EncodeError::Model(inner));
+        assert!(s.contains("encoder model"));
+        assert!(s.contains("session not built"));
+    }
+
+    #[test]
+    fn io_message_includes_inner() {
+        let io = std::io::Error::new(std::io::ErrorKind::NotFound, "/no/such/path");
+        let s = format!("{}", EncodeError::Io(io));
+        assert!(s.contains("io"));
+    }
+
+    #[test]
+    fn io_from_std_io_error_works() {
+        let io = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "perm");
+        let _e: EncodeError = io.into();
+    }
+
+    #[test]
+    fn model_from_model_error_works() {
+        let inner = model::ModelError::Inference("op not supported".into());
+        let _e: EncodeError = inner.into();
+    }
+}
+
 /// Embed config for shape parity with the audio crates'
 /// `EmbedConfig`. v0.7 phase 7c. No knobs yet; future per-image
 /// tuning (mark strength, residual blur radius, region mask) slots
