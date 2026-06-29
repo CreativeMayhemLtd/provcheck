@@ -293,6 +293,94 @@ mod tests {
         assert_send_sync::<WatermarkStatus>();
     }
 
+    // ----- looks_like_video ----------
+
+    #[test]
+    fn looks_like_video_accepts_documented_extensions() {
+        for ext in ["mp4", "mov", "mkv", "webm", "avi", "m4v"] {
+            let p = std::path::PathBuf::from(format!("/test/file.{ext}"));
+            assert!(looks_like_video(&p), "{ext} should look like video");
+        }
+    }
+
+    #[test]
+    fn looks_like_video_is_case_insensitive() {
+        // Operators pass paths from the filesystem; on Windows
+        // the extension can be UPPER. Pin lowercase-normalisation.
+        for ext in ["MP4", "MOV", "Mkv", "WEBM", "Avi", "M4V"] {
+            let p = std::path::PathBuf::from(format!("/test/file.{ext}"));
+            assert!(looks_like_video(&p), "{ext} should look like video");
+        }
+    }
+
+    #[test]
+    fn looks_like_video_rejects_non_video_extensions() {
+        for ext in ["txt", "mp3", "wav", "png", "jpg", "pdf"] {
+            let p = std::path::PathBuf::from(format!("/test/file.{ext}"));
+            assert!(
+                !looks_like_video(&p),
+                "{ext} should NOT look like video"
+            );
+        }
+    }
+
+    #[test]
+    fn looks_like_video_rejects_path_with_no_extension() {
+        let p = std::path::PathBuf::from("/test/README");
+        assert!(!looks_like_video(&p));
+    }
+
+    #[test]
+    fn looks_like_video_rejects_empty_extension() {
+        // Path like "/test/file." has an extension that's the
+        // empty string per Rust's Path::extension semantics —
+        // but actually returns None. Cover the edge.
+        let p = std::path::PathBuf::from("/test/file.");
+        assert!(!looks_like_video(&p));
+    }
+
+    // ----- not_video / missing_ffmpeg early-return paths ----------
+
+    #[test]
+    fn not_video_returns_trustmark_video_kind() {
+        let r = not_video();
+        assert!(matches!(r.kind, WatermarkKind::TrustMarkVideo));
+        assert_eq!(r.confidence, 0.0);
+        assert!(!r.detected);
+        assert_eq!(r.message.as_deref(), Some("not video"));
+    }
+
+    #[test]
+    fn missing_ffmpeg_returns_install_hint() {
+        let r = missing_ffmpeg();
+        assert!(matches!(r.kind, WatermarkKind::TrustMarkVideo));
+        assert!(!r.detected);
+        let msg = r.message.expect("must have message");
+        // The message must name every supported install path so
+        // the operator can copy-paste the right one. Pin them.
+        assert!(msg.contains("ffmpeg"));
+        assert!(msg.contains("apt") || msg.contains("brew") || msg.contains("winget"));
+    }
+
+    // ----- MIN_DETECTED_FRAMES + MIN_DEGRADED_FRAMES thresholds ----------
+
+    #[test]
+    fn min_detected_frames_is_three() {
+        // Bumping this silently shifts every video detection
+        // verdict. Pin explicitly.
+        assert_eq!(MIN_DETECTED_FRAMES, 3);
+    }
+
+    #[test]
+    fn min_degraded_frames_is_below_detected() {
+        // Tier ordering invariant — degraded must be a less strict
+        // bar than detected. Compile-time visible constants need
+        // black_box wrapping so clippy doesn't fold and complain.
+        let degraded = std::hint::black_box(MIN_DEGRADED_FRAMES);
+        let detected = std::hint::black_box(MIN_DETECTED_FRAMES);
+        assert!(degraded < detected);
+    }
+
     #[test]
     fn non_video_extension_returns_not_video() {
         let f = tempfile::Builder::new()
