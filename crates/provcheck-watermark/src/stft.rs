@@ -117,6 +117,22 @@ pub enum StftError {
     TooShort,
 }
 
+#[cfg(test)]
+mod stft_error_tests {
+    use super::StftError;
+
+    #[test]
+    fn empty_message_is_meaningful() {
+        assert_eq!(format!("{}", StftError::Empty), "waveform is empty");
+    }
+
+    #[test]
+    fn too_short_message_names_the_constraint() {
+        let s = format!("{}", StftError::TooShort);
+        assert!(s.contains("STFT window"), "got: {s}");
+    }
+}
+
 /// Rescale `y` so that `mean(y²) == VCTK_AVG_ENERGY`, matching
 /// the Python encoder/decoder convention. If the input is
 /// effectively silent (`mean(y²)` near zero) we return a copy

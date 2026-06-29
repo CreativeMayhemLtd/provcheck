@@ -430,3 +430,70 @@ fn resample(src: &[f32], src_rate: u32, dst_rate: u32) -> Result<Vec<f32>, Strin
     }
     Ok(out)
 }
+
+#[cfg(test)]
+mod audio_error_tests {
+    use super::*;
+
+    #[test]
+    fn not_audio_message_is_meaningful() {
+        let s = format!("{}", AudioError::NotAudio);
+        assert!(s.contains("audio container"), "got: {s}");
+    }
+
+    #[test]
+    fn decode_error_includes_inner() {
+        let s = format!("{}", AudioError::Decode("symphonia eof".into()));
+        assert!(s.contains("audio decode"));
+        assert!(s.contains("symphonia eof"));
+    }
+
+    #[test]
+    fn resample_error_includes_inner() {
+        let s = format!("{}", AudioError::Resample("ratio rejected".into()));
+        assert!(s.contains("resample"));
+        assert!(s.contains("ratio rejected"));
+    }
+
+    #[test]
+    fn io_error_includes_inner() {
+        let io = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "no read");
+        let s = format!("{}", AudioError::Io(io));
+        assert!(s.contains("io"));
+        assert!(s.contains("no read"));
+    }
+
+    #[test]
+    fn io_from_std_io_error_works() {
+        // The #[from] impl must compile + dispatch.
+        let io = std::io::Error::new(std::io::ErrorKind::NotFound, "missing");
+        let _e: AudioError = io.into();
+    }
+
+    #[test]
+    fn decode_to_mono_44k1_on_missing_file_returns_io_error() {
+        let r = decode_to_mono_44k1(std::path::Path::new("/no/such/audio.wav"));
+        assert!(matches!(r, Err(AudioError::Io(_))));
+    }
+
+    #[test]
+    fn decode_to_stereo_44k1_on_missing_file_returns_io_error() {
+        let r = decode_to_stereo_44k1(std::path::Path::new("/no/such/audio.wav"));
+        assert!(matches!(r, Err(AudioError::Io(_))));
+    }
+
+    #[test]
+    fn stereo_decoded_struct_field_layout_pin() {
+        // StereoDecoded is a public type; pin its field
+        // layout so a future refactor doesn't accidentally
+        // rename or reorder fields without a test failure.
+        let s = StereoDecoded {
+            left: vec![1.0],
+            right: vec![2.0],
+            source_channels: 2,
+        };
+        assert_eq!(s.left.len(), 1);
+        assert_eq!(s.right.len(), 1);
+        assert_eq!(s.source_channels, 2);
+    }
+}
