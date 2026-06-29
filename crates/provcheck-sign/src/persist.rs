@@ -249,6 +249,96 @@ mod tests {
         }
     }
 
+    // ----- Path-helper invariants ----------
+    //
+    // Pin the on-disk layout so a future refactor can't silently
+    // move files around. Operators back these up by directory;
+    // a layout drift would break their backups.
+
+    #[test]
+    fn keys_dir_is_keys_subdir_of_base() {
+        let base = std::path::Path::new("/some/base");
+        assert_eq!(keys_dir(base), std::path::PathBuf::from("/some/base/keys"));
+    }
+
+    #[test]
+    fn chain_pem_path_is_signing_dot_pem_in_keys_dir() {
+        let base = std::path::Path::new("/some/base");
+        assert_eq!(
+            chain_pem_path(base),
+            std::path::PathBuf::from("/some/base/keys/signing.pem")
+        );
+    }
+
+    #[test]
+    fn identity_json_path_is_identity_dot_json_in_keys_dir() {
+        let base = std::path::Path::new("/some/base");
+        assert_eq!(
+            identity_json_path(base),
+            std::path::PathBuf::from("/some/base/keys/identity.json")
+        );
+    }
+
+    #[test]
+    fn age_key_path_is_signing_dot_key_dot_age_in_keys_dir() {
+        // The age-encrypted private key file. Path is documented;
+        // external tools (rage CLI, go age) read this format.
+        let base = std::path::Path::new("/some/base");
+        assert_eq!(
+            age_key_path(base),
+            std::path::PathBuf::from("/some/base/keys/signing.key.age")
+        );
+    }
+
+    #[test]
+    fn all_path_helpers_compose_under_keys_dir() {
+        // Cross-helper consistency: every per-file path must be
+        // inside keys_dir(). Catches a future helper that forgets
+        // to .join("keys").
+        let base = std::path::Path::new("/foo/bar");
+        let keys = keys_dir(base);
+        for p in [
+            chain_pem_path(base),
+            identity_json_path(base),
+            age_key_path(base),
+        ] {
+            assert_eq!(
+                p.parent(),
+                Some(keys.as_path()),
+                "{p:?} must live under keys_dir() {keys:?}"
+            );
+        }
+    }
+
+    // ----- PersistError Display contracts ----------
+
+    #[test]
+    fn data_dir_unavailable_display_mentions_platform_data_dir() {
+        let e = PersistError::DataDirUnavailable;
+        let s = format!("{e}");
+        assert!(s.contains("platform data directory"), "got: {s}");
+    }
+
+    #[test]
+    fn unsupported_schema_version_display_includes_both_numbers() {
+        let e = PersistError::UnsupportedSchemaVersion {
+            actual: 99,
+            supported: 1,
+        };
+        let s = format!("{e}");
+        assert!(s.contains("99"));
+        assert!(s.contains("1"));
+    }
+
+    #[test]
+    fn empty_chain_display_includes_path() {
+        let e = PersistError::EmptyChain {
+            path: std::path::PathBuf::from("/test/path"),
+        };
+        let s = format!("{e}");
+        assert!(s.contains("/test/path") || s.contains("test"));
+    }
+
     #[test]
     fn save_creates_keys_dir_and_files() {
         let dir = TempDir::new().expect("tempdir");
