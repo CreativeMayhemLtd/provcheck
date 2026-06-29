@@ -617,6 +617,92 @@ fn hann_window(n: usize) -> Vec<f32> {
 }
 
 #[cfg(test)]
+mod public_helper_tests {
+    use super::*;
+
+    // ----- compute_n_frames ----------
+    //
+    // The streaming primitives' frame budget gates the embed
+    // pipeline; pinning the documented formula here means a
+    // future hparams bump (N_FFT, HOP) flags up any caller that
+    // depended on a specific frame count.
+
+    #[test]
+    fn compute_n_frames_returns_zero_for_too_short_input() {
+        // < N_FFT samples → no full window can land → 0 frames.
+        assert_eq!(compute_n_frames(0), 0);
+        assert_eq!(compute_n_frames(N_FFT - 1), 0);
+    }
+
+    #[test]
+    fn compute_n_frames_returns_one_at_exact_n_fft() {
+        assert_eq!(compute_n_frames(N_FFT), 1);
+    }
+
+    #[test]
+    fn compute_n_frames_returns_one_until_first_hop() {
+        // Up to but not including N_FFT + HOP samples, only
+        // one window fits.
+        for len in N_FFT..(N_FFT + HOP) {
+            assert_eq!(
+                compute_n_frames(len),
+                1,
+                "len={len} should produce 1 frame"
+            );
+        }
+    }
+
+    #[test]
+    fn compute_n_frames_returns_two_at_n_fft_plus_hop() {
+        // First sample where a second hop fits.
+        assert_eq!(compute_n_frames(N_FFT + HOP), 2);
+    }
+
+    #[test]
+    fn compute_n_frames_grows_linearly_with_input_length() {
+        // For larger inputs the formula is 1 + (len - N_FFT) / HOP.
+        // Check on a 1-second waveform at 44.1 kHz.
+        let len = 44_100_usize;
+        let expected = 1 + (len - N_FFT) / HOP;
+        assert_eq!(compute_n_frames(len), expected);
+    }
+
+    // ----- streaming_utterance_norm ----------
+
+    #[test]
+    fn streaming_utterance_norm_rejects_empty_waveform() {
+        let r = streaming_utterance_norm(&[]);
+        assert!(matches!(r, Err(StftError::Empty)));
+    }
+
+    #[test]
+    fn streaming_utterance_norm_handles_short_waveform_via_padding() {
+        // Inputs shorter than one window are NOT rejected — the
+        // function pads to a window boundary then runs STFT on
+        // the padded buffer. Confirm the documented contract:
+        // returns Ok with a finite value rather than TooShort.
+        let waveform = vec![0.0_f32; N_FFT / 2];
+        let r = streaming_utterance_norm(&waveform);
+        assert!(
+            r.is_ok(),
+            "short waveform should be padded to fit at least one window, got {r:?}"
+        );
+        let norm = r.unwrap();
+        assert!(norm.is_finite(), "norm must be finite, got {norm}");
+    }
+
+    #[test]
+    fn streaming_utterance_norm_returns_finite_value_for_silence() {
+        // A long silent buffer should produce 0.0 norm (or a
+        // very small positive value due to fp), not NaN.
+        let waveform = vec![0.0_f32; N_FFT * 4];
+        let norm = streaming_utterance_norm(&waveform).expect("ok");
+        assert!(norm.is_finite(), "norm must be finite, got {norm}");
+        assert!(norm >= 0.0, "norm must be non-negative, got {norm}");
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
