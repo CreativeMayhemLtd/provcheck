@@ -363,6 +363,143 @@ fn denorm(v: f32) -> u8 {
 }
 
 #[cfg(test)]
+mod helper_tests {
+    use super::{chw_normalised_to_rgb_u8, denorm, resize_residual_chw};
+
+    // ----- denorm ----------
+    //
+    // denorm maps `[-1, 1]` f32 → `[0, 255]` u8 via
+    // `(v + 1) * 0.5 → clamp[0,1] → * 255 → round`.
+
+    #[test]
+    fn denorm_negative_one_maps_to_zero() {
+        assert_eq!(denorm(-1.0), 0);
+    }
+
+    #[test]
+    fn denorm_positive_one_maps_to_255() {
+        assert_eq!(denorm(1.0), 255);
+    }
+
+    #[test]
+    fn denorm_zero_maps_to_mid_grey() {
+        // 0 → (0+1)*0.5 → 0.5 → 0.5*255 = 127.5 → round → 128.
+        assert_eq!(denorm(0.0), 128);
+    }
+
+    #[test]
+    fn denorm_below_minus_one_clamps_to_zero() {
+        // Pixel residuals can over-shoot [-1, 1] before clamping;
+        // pin that we clamp at 0 rather than wrapping.
+        assert_eq!(denorm(-2.5), 0);
+        assert_eq!(denorm(-100.0), 0);
+    }
+
+    #[test]
+    fn denorm_above_one_clamps_to_255() {
+        assert_eq!(denorm(2.5), 255);
+        assert_eq!(denorm(100.0), 255);
+    }
+
+    #[test]
+    fn denorm_handles_nan_safely() {
+        // f32::NAN through (NaN + 1) * 0.5 → NaN. clamp(NaN, 0, 1)
+        // returns 0.0 per std (NaN propagates to 0, the lower
+        // bound). Pin that we don't panic and produce a black
+        // pixel rather than a wraparound u8.
+        let r = denorm(f32::NAN);
+        assert_eq!(r, 0, "NaN should produce a deterministic black pixel");
+    }
+
+    // ----- chw_normalised_to_rgb_u8 ----------
+
+    #[test]
+    fn chw_to_rgb_u8_produces_image_of_correct_dimensions() {
+        // 2x2 image, 3 channels, fully grey.
+        let area = 4_usize;
+        let chw = vec![0.0_f32; 3 * area];
+        let img = chw_normalised_to_rgb_u8(&chw, 2, 2);
+        assert_eq!(img.dimensions(), (2, 2));
+    }
+
+    #[test]
+    fn chw_to_rgb_u8_zeroes_produce_mid_grey_pixels() {
+        // 0 normalised value → mid-grey u8 (128). Verify the
+        // channel-interleave layout is right by sampling a
+        // single pixel.
+        let area = 4_usize;
+        let chw = vec![0.0_f32; 3 * area];
+        let img = chw_normalised_to_rgb_u8(&chw, 2, 2);
+        let pix = img.get_pixel(0, 0);
+        assert_eq!(pix[0], 128);
+        assert_eq!(pix[1], 128);
+        assert_eq!(pix[2], 128);
+    }
+
+    #[test]
+    fn chw_to_rgb_u8_distinguishes_per_channel_values() {
+        // 1x1 image. R = -1 (black), G = 0 (grey), B = +1 (white).
+        let chw = vec![-1.0, 0.0, 1.0];
+        let img = chw_normalised_to_rgb_u8(&chw, 1, 1);
+        let pix = img.get_pixel(0, 0);
+        assert_eq!(pix[0], 0, "R channel");
+        assert_eq!(pix[1], 128, "G channel");
+        assert_eq!(pix[2], 255, "B channel");
+    }
+
+    // ----- resize_residual_chw ----------
+
+    #[test]
+    fn resize_residual_chw_identity_size_returns_same_buffer() {
+        // 2x2 → 2x2 should preserve the input values (bilinear
+        // at integer-aligned grid points is identity).
+        let src = vec![1.0, 2.0, 3.0, 4.0]; // 1 channel for clarity
+        // Replicate to 3 channels so the function signature is happy.
+        let mut chw = Vec::with_capacity(12);
+        chw.extend(&src);
+        chw.extend(&src);
+        chw.extend(&src);
+        let out = resize_residual_chw(&chw, 2, 2, 2, 2);
+        // Same-size resize should produce the same values.
+        assert_eq!(out.len(), 12);
+        for (i, &v) in out.iter().enumerate() {
+            let expected = src[i % 4];
+            assert!(
+                (v - expected).abs() < 1e-5,
+                "out[{i}] = {v}, expected {expected}"
+            );
+        }
+    }
+
+    #[test]
+    fn resize_residual_chw_upsize_doubles_dimensions() {
+        // 2x2 → 4x4. Just check the output buffer size; values
+        // are bilinearly interpolated.
+        let chw = vec![0.0_f32; 3 * 4];
+        let out = resize_residual_chw(&chw, 2, 2, 4, 4);
+        assert_eq!(out.len(), 3 * 16);
+    }
+
+    #[test]
+    fn resize_residual_chw_downsize_halves_dimensions() {
+        let chw = vec![0.0_f32; 3 * 16];
+        let out = resize_residual_chw(&chw, 4, 4, 2, 2);
+        assert_eq!(out.len(), 3 * 4);
+    }
+
+    #[test]
+    fn resize_residual_chw_uniform_input_produces_uniform_output() {
+        // All values = 0.5; output must also be ~0.5 everywhere
+        // (no edge artefacts from bilinear interpolation).
+        let chw = vec![0.5_f32; 3 * 64];
+        let out = resize_residual_chw(&chw, 8, 8, 16, 16);
+        for v in out.iter() {
+            assert!((v - 0.5).abs() < 1e-5, "got {v}, expected 0.5");
+        }
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
