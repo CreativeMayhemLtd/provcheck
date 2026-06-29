@@ -179,6 +179,49 @@ mod tests {
         assert!(matches!(err, Error::Io(_)));
     }
 
+    // ----- Error variant message tests ----------
+    //
+    // The audit identified DidResolution / PdsAccess /
+    // AttestationFailed as variants no in-crate test constructs.
+    // The CLI maps each to a user-facing diagnostic; pin the
+    // surface so accidental message edits regress visibly.
+
+    #[test]
+    fn error_io_message_includes_inner() {
+        let io = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "perms");
+        let s = format!("{}", Error::Io(io));
+        assert!(s.contains("file not found"));
+        assert!(s.contains("perms"));
+    }
+
+    #[test]
+    fn error_invalid_trust_store_message_includes_inner() {
+        let s = format!("{}", Error::InvalidTrustStore("missing BEGIN".into()));
+        assert!(s.contains("invalid trust-store PEM"));
+        assert!(s.contains("missing BEGIN"));
+    }
+
+    #[test]
+    fn error_did_resolution_message_includes_inner() {
+        let s = format!("{}", Error::DidResolution("did:plc:xxx not found".into()));
+        assert!(s.contains("DID resolution"));
+        assert!(s.contains("did:plc:xxx"));
+    }
+
+    #[test]
+    fn error_pds_access_message_includes_inner() {
+        let s = format!("{}", Error::PdsAccess("503 from PDS".into()));
+        assert!(s.contains("PDS access"));
+        assert!(s.contains("503"));
+    }
+
+    #[test]
+    fn error_attestation_failed_message_includes_inner() {
+        let s = format!("{}", Error::AttestationFailed("fingerprint mismatch".into()));
+        assert!(s.contains("attestation processing"));
+        assert!(s.contains("fingerprint mismatch"));
+    }
+
     #[test]
     fn exit_code_maps_verified_state() {
         let mut r = unsigned_report(None);

@@ -42,6 +42,47 @@ pub enum SignError {
     C2pa(String),
 }
 
+#[cfg(test)]
+mod sign_error_tests {
+    use super::*;
+
+    #[test]
+    fn source_message_includes_inner_io() {
+        let io = std::io::Error::new(std::io::ErrorKind::NotFound, "source.mp3");
+        let s = format!("{}", SignError::Source(io));
+        assert!(s.contains("source asset"));
+        assert!(s.contains("source.mp3"));
+    }
+
+    #[test]
+    fn unknown_algorithm_quotes_value() {
+        let s = format!("{}", SignError::UnknownAlgorithm("ED25519".into()));
+        assert!(s.contains("ED25519"));
+        assert!(s.contains("SigningAlg"));
+    }
+
+    #[test]
+    fn signer_setup_includes_inner() {
+        let s = format!("{}", SignError::SignerSetup("missing cert".into()));
+        assert!(s.contains("c2pa signer"));
+        assert!(s.contains("missing cert"));
+    }
+
+    #[test]
+    fn manifest_json_includes_inner() {
+        let s = format!("{}", SignError::ManifestJson("trailing comma".into()));
+        assert!(s.contains("manifest JSON"));
+        assert!(s.contains("trailing comma"));
+    }
+
+    #[test]
+    fn c2pa_message_includes_inner() {
+        let s = format!("{}", SignError::C2pa("invalid PEM".into()));
+        assert!(s.contains("c2pa signing"));
+        assert!(s.contains("invalid PEM"));
+    }
+}
+
 /// What a successful signing call wrote.
 #[derive(Debug, Clone)]
 pub struct SignResult {

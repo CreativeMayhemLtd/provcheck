@@ -435,4 +435,55 @@ mod tests {
         let u = AtUri(format!("at://did:plc:test/{COLLECTION_NSID}/3jzfcijpj2z2a"));
         assert_eq!(u.rkey(), Some("3jzfcijpj2z2a"));
     }
+
+    // ----- RecordsError variant message tests ----------
+    //
+    // The audit identified all four RecordsError variants as
+    // having no Display test. The CLI maps these to user-facing
+    // exit-code messages; an accidental message edit would ship
+    // confusing diagnostics. Pin each variant's surface here.
+
+    #[test]
+    fn records_error_pds_rejected_message_includes_inner() {
+        let e = RecordsError::PdsRejected("rate-limit (429)".into());
+        let s = format!("{e}");
+        assert!(s.contains("PDS rejected"), "got: {s}");
+        assert!(s.contains("rate-limit (429)"), "got: {s}");
+    }
+
+    #[test]
+    fn records_error_http_message_includes_inner() {
+        let e = RecordsError::Http("tls handshake failed".into());
+        let s = format!("{e}");
+        assert!(s.contains("http"));
+        assert!(s.contains("tls handshake failed"));
+    }
+
+    #[test]
+    fn records_error_shape_message_includes_inner() {
+        let e = RecordsError::Shape("missing field `createdAt`".into());
+        let s = format!("{e}");
+        assert!(s.contains("record shape"));
+        assert!(s.contains("createdAt"));
+    }
+
+    #[test]
+    fn records_error_invalid_identifier_message_includes_inner() {
+        let e = RecordsError::InvalidIdentifier("not an NSID".into());
+        let s = format!("{e}");
+        assert!(s.contains("invalid atproto identifier"));
+        assert!(s.contains("not an NSID"));
+    }
+
+    #[test]
+    fn records_error_no_session_message_directs_to_login() {
+        let e = RecordsError::NoSession;
+        let s = format!("{e}");
+        // The CLI's exit-code-3 mapping depends on this message
+        // pointing the user at `kit login`. Pin the contract.
+        assert!(
+            s.contains("kit login"),
+            "NoSession message must direct user to `kit login`, got: {s}"
+        );
+    }
 }

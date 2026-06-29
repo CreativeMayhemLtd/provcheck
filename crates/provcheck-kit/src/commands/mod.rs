@@ -37,6 +37,33 @@ pub enum KitError {
     NotImplemented(&'static str),
 }
 
+#[cfg(test)]
+mod kit_error_tests {
+    use super::*;
+
+    #[test]
+    fn session_expired_directs_user_to_login() {
+        // CLI exit-code 3 mapping depends on this message.
+        let s = format!("{}", KitError::SessionExpired);
+        assert!(s.contains("kit login"), "got: {s}");
+    }
+
+    #[test]
+    fn io_message_includes_inner() {
+        let io = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "perms");
+        let s = format!("{}", KitError::Io(io));
+        assert!(s.contains("i/o"));
+        assert!(s.contains("perms"));
+    }
+
+    #[test]
+    fn not_implemented_message_includes_subcommand_name() {
+        let s = format!("{}", KitError::NotImplemented("publish"));
+        assert!(s.contains("not implemented"));
+        assert!(s.contains("publish"));
+    }
+}
+
 /// Top-level CLI shape.
 #[derive(Debug, Parser)]
 #[command(

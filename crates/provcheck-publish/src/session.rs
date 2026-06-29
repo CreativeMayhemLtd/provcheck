@@ -358,6 +358,64 @@ mod tests {
         );
     }
 
+    // ----- SessionError variant message tests ----------
+    //
+    // CLI exit-code mapping depends on these messages. Pin the
+    // surface so a future maintainer can't silently regress the
+    // user-facing diagnostic.
+
+    #[test]
+    fn session_error_expired_directs_user_to_login() {
+        let e = SessionError::SessionExpired;
+        let s = format!("{e}");
+        // exit code 3 in the CLI maps to "kit login" — pin it.
+        assert!(
+            s.contains("kit login"),
+            "SessionExpired must direct user to `kit login`, got: {s}"
+        );
+    }
+
+    #[test]
+    fn session_error_login_rejected_includes_inner() {
+        let e = SessionError::LoginRejected("wrong app password".into());
+        let s = format!("{e}");
+        assert!(s.contains("login rejected"));
+        assert!(s.contains("wrong app password"));
+    }
+
+    #[test]
+    fn session_error_http_includes_inner() {
+        let e = SessionError::Http("connection refused".into());
+        let s = format!("{e}");
+        assert!(s.contains("http"));
+        assert!(s.contains("connection refused"));
+    }
+
+    #[test]
+    fn session_error_format_includes_inner() {
+        let e = SessionError::Format("expected `did` field".into());
+        let s = format!("{e}");
+        assert!(s.contains("session.json shape"));
+        assert!(s.contains("did"));
+    }
+
+    #[test]
+    fn session_error_invalid_identifier_includes_inner() {
+        let e = SessionError::InvalidIdentifier("did:foo:bar".into());
+        let s = format!("{e}");
+        assert!(s.contains("session.json invalid identifier"));
+        assert!(s.contains("did:foo:bar"));
+    }
+
+    #[test]
+    fn session_error_io_from_std_io_error_works() {
+        // The `#[from]` impl on Io must compile + dispatch. If a
+        // future refactor breaks the From bound, this test fails
+        // at compile time.
+        let io = std::io::Error::new(std::io::ErrorKind::NotFound, "session.json");
+        let _e: SessionError = io.into();
+    }
+
     #[test]
     fn write_then_read_round_trips_through_disk() {
         let dir = TempDir::new().unwrap();
