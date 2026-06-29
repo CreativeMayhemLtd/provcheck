@@ -1,6 +1,6 @@
 [package]
 name = "provcheck-image"
-description = "Image-modality neural-watermark detection for provcheck (TrustMark scaffold; 7b wiring pending)."
+description = "Image-modality neural-watermark detection for provcheck (TrustMark-B via ort with BCH-5 ecosystem interop; full detect + embed)."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -14,13 +14,10 @@ readme.workspace = true
 name = "provcheck_image"
 
 [dependencies]
-# v0.7 phase 7a: scaffold only. The chosen first family is
-# TrustMark (Adobe, MIT-licensed code + weights). The ONNX
-# backend wires in at 7b; right now detect() pulls the weights
-# via provcheck-weights (the DLC pattern, so v0.7 ships with a
-# slim binary instead of bundled 60+ MB ONNX files via
-# include_bytes!()) but the actual inference is still a stub
-# until 7b-inference lands.
+# TrustMark-B (Adobe, MIT-licensed code + weights), wired
+# end-to-end via ort 2.x. Weights are pulled via
+# provcheck-weights (the DLC delivery pattern, keeping the kit
+# binary slim instead of include_bytes!()ing the 60+ MB ONNX).
 provcheck = { path = "../provcheck" }
 provcheck-weights = { path = "../provcheck-weights" }
 serde.workspace = true

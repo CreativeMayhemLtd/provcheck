@@ -12,19 +12,14 @@ key + brand registration can drop the package into their ComfyUI
 `custom_nodes/` directory and stamp every output. Released
 under Apache-2.0 alongside the rest of the FOSS provcheck core.
 
-**Status (v0.7.0 scaffold):** This crate ships as a scaffold so
-the redhat-the-provenance-market FOSS surface advertises the
-intent. The actual node implementation lands in v0.9 once the
-underlying `provcheck-kit stamp` CLI surface (v0.7.0) has had
-time to settle. Today's package contains:
+**Status (v0.9.0):** Fully wired. Each generated frame is saved
+to a temp PNG, shelled through `provcheck-kit stamp --no-sign
+--brand-id N`, and the marked PNG is read back as a tensor.
+Fails closed when `provcheck-kit` is missing from PATH (passes
+input through with a console warning) so render queues do not
+crash. Brand-id is clamped server-side as defence in depth.
 
-- `pyproject.toml` with the dep set the eventual node will need.
-- `provcheck_comfyui/__init__.py` exporting the
-  `NODE_CLASS_MAPPINGS` ComfyUI looks for.
-- `provcheck_comfyui/stamp_node.py` with the stub node returning
-  the input image unchanged plus a console message.
-
-## Install (when wired)
+## Install
 
 ```bash
 cd ~/ComfyUI/custom_nodes

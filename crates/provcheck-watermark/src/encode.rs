@@ -477,6 +477,21 @@ pub fn embed_and_verify(
     Ok((marked, result))
 }
 
+#[cfg(test)]
+mod embed_and_verify_tests {
+    use super::*;
+
+    #[test]
+    fn empty_waveform_surfaces_too_short() {
+        // Without weights installed we can't run the full embed,
+        // but the TooShort guard fires BEFORE any model load, so
+        // this test exercises the early-return path safely.
+        let r = embed_and_verify(&[], [0u8; 5], None);
+        assert!(matches!(r, Err(EncodeError::TooShort)));
+    }
+
+}
+
 /// Build the message tensor that the encoder ONNX expects.
 ///
 /// silentcipher's letters_encoding (model.py:62-81) takes a list of

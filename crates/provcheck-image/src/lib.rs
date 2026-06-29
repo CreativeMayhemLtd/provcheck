@@ -79,9 +79,11 @@ pub enum Error {
 
 /// Run image-modality watermark detection on the file at `path`.
 ///
-/// v0.7 phase 7a scaffold: returns `NotDetected` with message
-/// `"image detector not yet wired (v0.7 phase 7a stub)"` for every
-/// input. Phase 7b lands the actual TrustMark inference.
+/// Runs the TrustMark-B decoder ONNX over `ort` against the
+/// image at `path`, BCH-5 decodes the 96-bit shortened codeword,
+/// and surfaces the brand id and confidence. Returns a
+/// `NotDetected` result with a diagnostic message when the
+/// decoded payload does not match the provcheck magic-byte gate.
 ///
 /// The shape matches the audio sibling crates'
 /// [`detect`](provcheck_watermark::detect) so the kit's dispatch
@@ -170,12 +172,10 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
         }
     };
 
-    // v0.7 phase 7c: provcheck-internal "raw" payload format. If
-    // the first byte matches `PROVCHECK_RAW_MAGIC` and the version
-    // bits are `0b0000`, treat the next 5 bits as a brand id and
-    // report Detected. TrustMark BCH-5 ecosystem interop ships as
-    // a follow-up phase that swaps this magic-byte gate for the
-    // proper finite-field decode.
+    // BCH-5 ecosystem interop with the upstream Python TrustMark.
+    // `classify_bch5` runs the proper shortened-codeword reconstruction
+    // and finite-field decode, then gates the verdict on the
+    // recovered magic byte and version bits.
     let (status, brand) = classify_bch5(&result.bits);
     Ok(WatermarkResult {
         kind: WatermarkKind::TrustMark,

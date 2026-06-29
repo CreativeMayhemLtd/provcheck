@@ -33,6 +33,40 @@ pub(crate) const MAX_IMAGE_DIM: u32 = 8192;
 /// variable bit depth or alpha planes.
 pub(crate) const MAX_IMAGE_ALLOC: u64 = 256 * 1024 * 1024;
 
+#[cfg(test)]
+mod limit_tests {
+    use super::*;
+
+    #[test]
+    fn max_image_dim_bounds_memory_estimate() {
+        // Sanity-check: at MAX_IMAGE_DIM × MAX_IMAGE_DIM RGBA,
+        // peak raw-pixel allocation should not exceed
+        // MAX_IMAGE_ALLOC. If a future maintainer bumps either
+        // cap without rebalancing, this test catches it.
+        let pixels = u64::from(MAX_IMAGE_DIM) * u64::from(MAX_IMAGE_DIM);
+        let rgba_bytes = pixels * 4;
+        assert!(
+            rgba_bytes <= MAX_IMAGE_ALLOC,
+            "MAX_IMAGE_DIM ({MAX_IMAGE_DIM})² × 4 bytes/pixel = {rgba_bytes} \
+             exceeds MAX_IMAGE_ALLOC ({MAX_IMAGE_ALLOC})"
+        );
+    }
+
+    #[test]
+    fn max_image_dim_is_high_enough_for_real_content() {
+        // 4K UHD = 3840 × 2160. 8K UHD = 7680 × 4320. We need to
+        // pass at least 4K cleanly. 8K is borderline (4320 vs cap
+        // 8192 — clears with room). Capture this in a test so a
+        // future maintainer doesn't drop the cap below real
+        // creator output sizes. Constants are compile-time visible
+        // so we read into a runtime variable to dodge the
+        // constant-assertion lint.
+        let cap = std::hint::black_box(MAX_IMAGE_DIM);
+        assert!(cap >= 3840, "cap {cap} below 4K UHD width");
+        assert!(cap >= 4320, "cap {cap} below 8K UHD height");
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum ImageError {
     #[error("file is not a supported image container")]

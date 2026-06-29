@@ -109,3 +109,78 @@ pub fn cache_write<T: Serialize>(config: &AttestationConfig, namespace: &str, ke
         let _ = fs::write(&path, bytes);
     }
 }
+
+#[cfg(test)]
+mod sanitize_key_tests {
+    use super::sanitize_key;
+
+    #[test]
+    fn passthrough_for_alphanumeric() {
+        assert_eq!(sanitize_key("abc123"), "abc123");
+    }
+
+    #[test]
+    fn preserves_safe_punctuation() {
+        // Dash, underscore, and dot are filesystem-safe and
+        // common in DID method-specific identifiers.
+        assert_eq!(sanitize_key("a-b_c.d"), "a-b_c.d");
+    }
+
+    #[test]
+    fn replaces_did_colon() {
+        // The motivating case: did:plc:abc123 must round-trip.
+        // The `:` becomes `_`.
+        assert_eq!(sanitize_key("did:plc:abc123"), "did_plc_abc123");
+    }
+
+    #[test]
+    fn neutralises_path_traversal() {
+        // An attacker-controlled key cannot escape the namespace
+        // directory because '/' and '\\' are replaced with '_'.
+        // Dots are preserved (DIDs commonly include them), so
+        // '..' survives as literal dots, but no path separator
+        // remains — meaning the result cannot be a directory
+        // traversal token any filesystem will honour.
+        assert_eq!(sanitize_key("../../etc/passwd"), ".._.._etc_passwd");
+        assert_eq!(
+            sanitize_key("..\\..\\Windows\\System32"),
+            ".._.._Windows_System32"
+        );
+        // Confirm the load-bearing invariant: no path separators
+        // appear in any sanitised string.
+        for input in ["../../etc/passwd", "..\\..\\Windows\\System32"] {
+            let out = sanitize_key(input);
+            assert!(!out.contains('/'), "slash survived in {out}");
+            assert!(!out.contains('\\'), "backslash survived in {out}");
+        }
+    }
+
+    #[test]
+    fn neutralises_null_byte() {
+        // Null byte and other control bytes are also stripped.
+        assert_eq!(sanitize_key("file\0name"), "file_name");
+    }
+
+    #[test]
+    fn replaces_whitespace_and_special() {
+        assert_eq!(sanitize_key("a b\tc\nd"), "a_b_c_d");
+        assert_eq!(sanitize_key("a$b@c*d"), "a_b_c_d");
+    }
+
+    #[test]
+    fn replaces_unicode_with_underscore() {
+        // Non-ASCII characters are not in the allowlist.
+        assert_eq!(sanitize_key("café"), "caf_");
+    }
+
+    #[test]
+    fn empty_input_returns_empty() {
+        assert_eq!(sanitize_key(""), "");
+    }
+
+    #[test]
+    fn preserves_length() {
+        let key = "did:plc:zaaa";
+        assert_eq!(sanitize_key(key).len(), key.len());
+    }
+}

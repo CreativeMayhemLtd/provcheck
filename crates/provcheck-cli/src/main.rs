@@ -239,11 +239,11 @@ fn main() -> ExitCode {
         if let Ok(w) = provcheck_image::detect(&args.file) {
             report.watermarks.push(w);
         }
-        // v0.7 phase 7d (scaffold): video-modality dispatch.
+        // v0.9.0: video-modality dispatch (per-frame TrustMark via ffmpeg + temporal vote).
         if let Ok(w) = provcheck_video::detect(&args.file) {
             report.watermarks.push(w);
         }
-        // v0.7 phase 7e (scaffold): SynthID-text dispatch.
+        // v0.9.0: SynthID-text dispatch (Bayesian tournament-sampling z-score).
         if let Ok(w) = provcheck_synthid_text::detect(&args.file) {
             report.watermarks.push(w);
         }

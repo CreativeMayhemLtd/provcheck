@@ -133,19 +133,7 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
     let mean_conf =
         per_frame_confs.iter().copied().sum::<f32>() / per_frame_confs.len() as f32;
 
-    let winner = brand_votes.iter().max_by_key(|(_, v)| **v);
-    let (status, brand) = match winner {
-        Some((brand, &count)) if count >= MIN_DETECTED_FRAMES => {
-            (WatermarkStatus::Detected, Some(*brand))
-        }
-        // v0.9.0 audit §2.7: require >= MIN_DEGRADED_FRAMES, not
-        // just any_detected. Prevents a 1-of-30 spurious frame
-        // match from promoting to Degraded.
-        Some((brand, &count)) if count >= MIN_DEGRADED_FRAMES => {
-            (WatermarkStatus::Degraded, Some(*brand))
-        }
-        _ => (WatermarkStatus::NotDetected, None),
-    };
+    let (status, brand) = classify_votes(&brand_votes);
 
     Ok(WatermarkResult {
         kind: WatermarkKind::TrustMarkVideo,
@@ -197,6 +185,34 @@ fn missing_ffmpeg() -> WatermarkResult {
                 .into(),
         ),
         marked_regions: None,
+    }
+}
+
+/// Classify per-frame brand-id votes into a final
+/// `(status, brand)` verdict. Factored out so the threshold logic
+/// is table-testable without spinning up ffmpeg.
+///
+/// Rules:
+/// - `WatermarkStatus::Detected` if any brand has at least
+///   [`MIN_DETECTED_FRAMES`] votes.
+/// - `WatermarkStatus::Degraded` if any brand has at least
+///   [`MIN_DEGRADED_FRAMES`] votes (but not enough for Detected).
+/// - `WatermarkStatus::NotDetected` otherwise.
+///
+/// On ties the `BTreeMap` ordering (by `WatermarkBrand` variant
+/// order) determines the winner — deterministic, repeatable.
+fn classify_votes(
+    brand_votes: &BTreeMap<WatermarkBrand, usize>,
+) -> (WatermarkStatus, Option<WatermarkBrand>) {
+    let winner = brand_votes.iter().max_by_key(|(_, v)| **v);
+    match winner {
+        Some((brand, &count)) if count >= MIN_DETECTED_FRAMES => {
+            (WatermarkStatus::Detected, Some(*brand))
+        }
+        Some((brand, &count)) if count >= MIN_DEGRADED_FRAMES => {
+            (WatermarkStatus::Degraded, Some(*brand))
+        }
+        _ => (WatermarkStatus::NotDetected, None),
     }
 }
 
@@ -286,6 +302,94 @@ mod tests {
         let r = detect(f.path()).expect("detect");
         assert!(!r.detected);
         assert_eq!(r.message.as_deref(), Some("not video"));
+    }
+
+    #[test]
+    fn classify_votes_empty_returns_not_detected() {
+        let votes = BTreeMap::new();
+        let (status, brand) = classify_votes(&votes);
+        assert_eq!(status, WatermarkStatus::NotDetected);
+        assert_eq!(brand, None);
+    }
+
+    #[test]
+    fn classify_votes_single_vote_returns_not_detected() {
+        // 1 vote: below MIN_DEGRADED_FRAMES = 2 → no signal yet.
+        let mut votes = BTreeMap::new();
+        votes.insert(WatermarkBrand::Raidio, 1);
+        let (status, brand) = classify_votes(&votes);
+        assert_eq!(status, WatermarkStatus::NotDetected);
+        assert_eq!(brand, None);
+    }
+
+    #[test]
+    fn classify_votes_two_votes_returns_degraded() {
+        // 2 votes: clears MIN_DEGRADED_FRAMES = 2, below
+        // MIN_DETECTED_FRAMES = 3.
+        let mut votes = BTreeMap::new();
+        votes.insert(WatermarkBrand::Raidio, 2);
+        let (status, brand) = classify_votes(&votes);
+        assert_eq!(status, WatermarkStatus::Degraded);
+        assert_eq!(brand, Some(WatermarkBrand::Raidio));
+    }
+
+    #[test]
+    fn classify_votes_three_votes_returns_detected() {
+        // 3 votes: clears MIN_DETECTED_FRAMES = 3.
+        let mut votes = BTreeMap::new();
+        votes.insert(WatermarkBrand::Doomscroll, 3);
+        let (status, brand) = classify_votes(&votes);
+        assert_eq!(status, WatermarkStatus::Detected);
+        assert_eq!(brand, Some(WatermarkBrand::Doomscroll));
+    }
+
+    #[test]
+    fn classify_votes_thirty_votes_returns_detected() {
+        // Saturated: 30 votes for one brand → Detected.
+        let mut votes = BTreeMap::new();
+        votes.insert(WatermarkBrand::Vaideo, 30);
+        let (status, brand) = classify_votes(&votes);
+        assert_eq!(status, WatermarkStatus::Detected);
+        assert_eq!(brand, Some(WatermarkBrand::Vaideo));
+    }
+
+    #[test]
+    fn classify_votes_picks_majority_winner() {
+        // Two brands with different counts: majority wins.
+        let mut votes = BTreeMap::new();
+        votes.insert(WatermarkBrand::Raidio, 5);
+        votes.insert(WatermarkBrand::Doomscroll, 2);
+        let (status, brand) = classify_votes(&votes);
+        assert_eq!(status, WatermarkStatus::Detected);
+        assert_eq!(brand, Some(WatermarkBrand::Raidio));
+    }
+
+    #[test]
+    fn classify_votes_split_below_threshold_returns_not_detected() {
+        // Two brands each with 1 vote: neither clears the
+        // Degraded threshold individually → NotDetected.
+        let mut votes = BTreeMap::new();
+        votes.insert(WatermarkBrand::Raidio, 1);
+        votes.insert(WatermarkBrand::Doomscroll, 1);
+        let (status, brand) = classify_votes(&votes);
+        assert_eq!(status, WatermarkStatus::NotDetected);
+        assert_eq!(brand, None);
+    }
+
+    #[test]
+    fn classify_votes_tiebreak_is_deterministic() {
+        // Both brands have the same count → BTreeMap ordering
+        // (WatermarkBrand variant order) picks. Run twice and
+        // confirm we get the same winner — guards against
+        // accidental HashMap reintroduction.
+        let mut votes = BTreeMap::new();
+        votes.insert(WatermarkBrand::Doomscroll, 3);
+        votes.insert(WatermarkBrand::Raidio, 3);
+        let (status_a, brand_a) = classify_votes(&votes);
+        let (status_b, brand_b) = classify_votes(&votes);
+        assert_eq!(status_a, status_b);
+        assert_eq!(brand_a, brand_b);
+        assert_eq!(status_a, WatermarkStatus::Detected);
     }
 
     #[test]

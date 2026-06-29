@@ -289,25 +289,27 @@ pub enum WatermarkKind {
     SilentCipher,
     /// Meta's AudioSeal (ICML 2024). MIT-licensed code + model
     /// weights (relicensed from CC-BY-NC to full MIT on
-    /// 2024-04-02). Scaffolded in `provcheck-audioseal`.
+    /// 2024-04-02). Implemented in `provcheck-audioseal`.
     AudioSeal,
     /// WavMark (Chen et al., arXiv:2308.12770). MIT-licensed
     /// code, weights distributed via the `wavmark` PyPI
-    /// package under the same terms. Scaffolded in
+    /// package under the same terms. Implemented in
     /// `provcheck-wavmark`.
     WavMark,
-    /// TrustMark (Adobe / CAI, arXiv:2311.18297). Apache-2.0
-    /// claimed on code and weights — re-verified at 7b.
-    /// Image-modality watermarking, scaffolded in
-    /// `provcheck-image` (v0.7 phase 7a).
+    /// TrustMark (Adobe / CAI, arXiv:2311.18297). MIT-licensed
+    /// code and weights, BCH-5 ecosystem interop with the
+    /// upstream Python TrustMark, image-modality wired through
+    /// `ort`. Implemented in `provcheck-image`.
     TrustMark,
     /// TrustMark applied per-frame to a video, with temporal
-    /// majority-vote across the recovered brand ids. Scaffolded
-    /// in `provcheck-video` (v0.7 phase 7d).
+    /// majority-vote across the recovered brand ids.
+    /// Implemented in `provcheck-video` via ffmpeg shell-out.
     TrustMarkVideo,
-    /// Google SynthID-text — tournament-sampling logit-bias
-    /// watermark on LLM output. Apache-2.0 algorithm. Scaffolded
-    /// in `provcheck-synthid-text` (v0.7 phase 7e).
+    /// Google SynthID-text. Tournament-sampling Bayesian
+    /// detection over LLM-sampled tokens; pure-Rust SHA256
+    /// hash + Abramowitz-Stegun erf approximation for the
+    /// confidence transform. Apache-2.0 algorithm. Implemented
+    /// in `provcheck-synthid-text`.
     SynthIdText,
 }
 

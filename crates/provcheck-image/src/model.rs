@@ -18,10 +18,9 @@
 //!    means the model committed harder to each bit's decision, which
 //!    empirically tracks watermark presence.
 //!
-//! BCH-5 error correction + brand mapping are NOT in this phase.
-//! 7b ships the inference pipeline; brand mapping lands in a
-//! follow-up. Until then [`run_decoder`] returns the raw bits as
-//! a `Vec<u8>` and the caller's brand-id field stays `None`.
+//! [`run_decoder`] returns the raw 100-bit output; BCH-5 error
+//! correction + brand mapping happen one layer up in
+//! [`crate::classify_bch5`].
 
 use std::io::BufReader;
 use std::sync::{Mutex, OnceLock};
@@ -48,6 +47,34 @@ pub enum ModelError {
         "unexpected output shape: expected last axis of length {SECRET_LEN}, got shape {got:?}"
     )]
     OutputShape { got: Vec<usize> },
+}
+
+#[cfg(test)]
+mod model_error_tests {
+    use super::*;
+
+    #[test]
+    fn output_shape_message_includes_secret_len_and_actual_shape() {
+        // Detector pipeline gates on this message when the ONNX
+        // returns the wrong dimension. The message must surface
+        // both the expected SECRET_LEN and the actual shape so
+        // operators can diagnose model swaps without source diving.
+        let err = ModelError::OutputShape { got: vec![1, 50] };
+        let s = format!("{err}");
+        assert!(
+            s.contains(&format!("length {SECRET_LEN}")),
+            "expected message to name SECRET_LEN, got: {s}"
+        );
+        assert!(s.contains("[1, 50]"), "expected message to include shape, got: {s}");
+    }
+
+    #[test]
+    fn load_and_inference_messages_include_inner() {
+        let load = ModelError::Load("file not found".into());
+        let inf = ModelError::Inference("tensor mismatch".into());
+        assert!(format!("{load}").contains("file not found"));
+        assert!(format!("{inf}").contains("tensor mismatch"));
+    }
 }
 
 /// Output of one decoder pass.

@@ -192,13 +192,9 @@ pub struct DataDirOpt {
 }
 
 // ----------------------------------------------------------------
-// Command modules — one per subcommand.
-//
-// Bodies are stubs in this commit. Each `run(args)` returns
-// `KitError::NotImplemented` so the surface compiles, the dispatch
-// works end-to-end, and `kit --help` renders correctly. The
-// implementation passes flesh these out without changing the CLI
-// surface.
+// Command modules — one per subcommand. Each `run(args)` is the
+// real implementation; the surface compiled from the CLI dispatch
+// table here is the contract the user binary depends on.
 // ----------------------------------------------------------------
 
 // ----------------------------------------------------------------
@@ -2384,9 +2380,10 @@ pub mod watermark {
         Audioseal,
         /// WavMark 32-bit payload @ 16 kHz (16-bit fix pattern + 16-bit ECC brand ID).
         Wavmark,
-        /// TrustMark-B image watermark (Adobe / CAI). v0.7 phase 7c.
-        /// Provcheck-internal payload format; BCH-5 ecosystem interop
-        /// (Adobe TrustMark Python round-trip) lands in a follow-up.
+        /// TrustMark-B image watermark (Adobe / CAI). Wired with
+        /// full BCH-5 ecosystem interop, so a provcheck-stamped
+        /// image round-trips through Adobe's Python TrustMark and
+        /// vice versa.
         Image,
     }
 

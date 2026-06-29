@@ -91,8 +91,6 @@ const DEGRADED_THRESHOLD: f32 = 0.80;
 pub enum Error {
     #[error("file not found or unreadable: {0}")]
     Io(#[from] std::io::Error),
-    #[error("text decode failed: {0}")]
-    Utf8(#[from] std::string::FromUtf8Error),
 }
 
 /// Maximum file size we will load into memory for detection. Per
