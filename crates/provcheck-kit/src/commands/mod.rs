@@ -2616,6 +2616,44 @@ pub mod watermark {
         }
     }
 
+    #[cfg(test)]
+    mod resolve_output_channels_tests {
+        use super::{ChannelMode, resolve_output_channels};
+
+        #[test]
+        fn mono_mode_always_emits_mono() {
+            // Mono mode is the user saying "I want mono out".
+            // Source channel count is irrelevant.
+            assert_eq!(resolve_output_channels(ChannelMode::Mono, 1), 1);
+            assert_eq!(resolve_output_channels(ChannelMode::Mono, 2), 1);
+            assert_eq!(resolve_output_channels(ChannelMode::Mono, 6), 1);
+        }
+
+        #[test]
+        fn stereo_mode_always_emits_stereo() {
+            // Stereo mode forces stereo output. Mono input gets
+            // upmixed to two-channel.
+            assert_eq!(resolve_output_channels(ChannelMode::Stereo, 1), 2);
+            assert_eq!(resolve_output_channels(ChannelMode::Stereo, 2), 2);
+            assert_eq!(resolve_output_channels(ChannelMode::Stereo, 6), 2);
+        }
+
+        #[test]
+        fn auto_mode_matches_source_for_mono_and_stereo() {
+            assert_eq!(resolve_output_channels(ChannelMode::Auto, 1), 1);
+            assert_eq!(resolve_output_channels(ChannelMode::Auto, 2), 2);
+        }
+
+        #[test]
+        fn auto_mode_downmixes_multichannel_to_stereo() {
+            // Surround source (5.1, 7.1) → stereo. The kit's
+            // embed path doesn't carry > 2 channels.
+            assert_eq!(resolve_output_channels(ChannelMode::Auto, 3), 2);
+            assert_eq!(resolve_output_channels(ChannelMode::Auto, 6), 2);
+            assert_eq!(resolve_output_channels(ChannelMode::Auto, 8), 2);
+        }
+    }
+
     async fn embed_silentcipher(args: CliArgs) -> Result<()> {
         let payload = parse_payload_hex(&args.payload)?;
         let sdr_user = args.sdr_db;
@@ -3840,5 +3878,142 @@ pub mod stamp {
             action: None,
         };
         sign::run(sargs).await.context("stamp: sign step")
+    }
+
+    #[cfg(test)]
+    mod stamp_helper_tests {
+        use super::*;
+        use std::path::Path;
+
+        // ----- detect_modality coverage ----------
+
+        #[test]
+        fn detect_modality_classifies_audio_extensions() {
+            for ext in ["mp3", "wav", "flac", "m4a", "ogg", "opus", "aac", "mp4", "mov"] {
+                let p = std::path::PathBuf::from(format!("song.{ext}"));
+                let m = detect_modality(&p).unwrap_or_else(|e| {
+                    panic!("expected Audio for .{ext}, got {e:?}")
+                });
+                assert!(matches!(m, Modality::Audio), ".{ext} should be Audio");
+            }
+        }
+
+        #[test]
+        fn detect_modality_classifies_image_extensions() {
+            for ext in ["png", "jpg", "jpeg", "webp", "bmp", "gif", "tiff", "tif"] {
+                let p = std::path::PathBuf::from(format!("photo.{ext}"));
+                let m = detect_modality(&p).unwrap_or_else(|e| {
+                    panic!("expected Image for .{ext}, got {e:?}")
+                });
+                assert!(matches!(m, Modality::Image), ".{ext} should be Image");
+            }
+        }
+
+        #[test]
+        fn detect_modality_is_case_insensitive() {
+            // Operators in the wild use Photo.JPG and MUSIC.MP3.
+            // The lowercase normalisation is load-bearing UX.
+            let p = std::path::PathBuf::from("Photo.JPG");
+            assert!(matches!(detect_modality(&p).unwrap(), Modality::Image));
+            let p = std::path::PathBuf::from("MUSIC.MP3");
+            assert!(matches!(detect_modality(&p).unwrap(), Modality::Audio));
+        }
+
+        #[test]
+        fn detect_modality_errors_on_missing_extension() {
+            let p = std::path::PathBuf::from("README");
+            let r = detect_modality(&p);
+            assert!(r.is_err(), "no extension must error");
+            let msg = format!("{}", r.err().unwrap());
+            assert!(
+                msg.contains("no extension"),
+                "expected guidance message, got: {msg}"
+            );
+        }
+
+        #[test]
+        fn detect_modality_errors_on_unsupported_extension() {
+            let p = std::path::PathBuf::from("doc.pdf");
+            let r = detect_modality(&p);
+            assert!(r.is_err());
+            let msg = format!("{}", r.err().unwrap());
+            assert!(
+                msg.contains("unsupported"),
+                "expected diagnostic, got: {msg}"
+            );
+        }
+
+        #[test]
+        fn detect_modality_handles_full_path() {
+            // Not just bare filenames — any Path<...> with the
+            // right tail extension classifies correctly.
+            let p = Path::new("/long/path/to/some/file.flac");
+            assert!(matches!(detect_modality(p).unwrap(), Modality::Audio));
+            let p = Path::new("C:\\Users\\creator\\Pictures\\out.png");
+            assert!(matches!(detect_modality(p).unwrap(), Modality::Image));
+        }
+
+        // ----- brand_id_to_payload_hex coverage ----------
+
+        #[test]
+        fn brand_id_to_payload_hex_doomscroll_is_dfm() {
+            // brand_id 1 → b"DFM\x01\x00" → "44464d0100".
+            // Pinned per the function doc comment.
+            assert_eq!(brand_id_to_payload_hex(1), "44464d0100");
+        }
+
+        #[test]
+        fn brand_id_to_payload_hex_raidio_is_rai() {
+            // brand_id 2 → b"RAI\x01\x00" → "5241490100".
+            // Pinned per the function doc comment.
+            assert_eq!(brand_id_to_payload_hex(2), "5241490100");
+        }
+
+        #[test]
+        fn brand_id_to_payload_hex_vaideo_is_vai() {
+            // brand_id 3 → b"VAI\x01\x00" → "5641490100".
+            assert_eq!(brand_id_to_payload_hex(3), "5641490100");
+        }
+
+        #[test]
+        fn brand_id_to_payload_hex_unknown_falls_back_to_doomscroll() {
+            // Any brand id outside the registered set falls back to
+            // DFM. Pinned so a future maintainer doesn't change the
+            // fallback brand silently — that would re-tag
+            // unregistered creators under doomscroll.
+            for unknown in [0u8, 4, 5, 16, 31] {
+                assert_eq!(
+                    brand_id_to_payload_hex(unknown),
+                    "44464d0100",
+                    "unknown brand_id {unknown} fell back to wrong triplet"
+                );
+            }
+        }
+
+        #[test]
+        fn brand_id_to_payload_hex_is_always_10_chars() {
+            // 10 hex chars = 5 bytes = silentcipher payload size.
+            // Wire-format invariant.
+            for brand in 0u8..=31 {
+                assert_eq!(
+                    brand_id_to_payload_hex(brand).len(),
+                    10,
+                    "brand {brand} produced wrong-length hex"
+                );
+            }
+        }
+
+        #[test]
+        fn brand_id_to_payload_hex_is_lowercase() {
+            // The kit's hex parser is lenient but the canonical
+            // form is lowercase — pin it.
+            for brand in 0u8..=31 {
+                let h = brand_id_to_payload_hex(brand);
+                assert!(
+                    h.chars().all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c)),
+                    "brand {brand} hex contains non-lowercase: {h}"
+                );
+            }
+        }
     }
 }
