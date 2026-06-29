@@ -297,6 +297,147 @@ mod _send_sync_assertions {
 }
 
 #[cfg(test)]
+mod classify_bch5_tests {
+    use super::*;
+
+    /// Build a 100-bit decoded-bits vector that, when run through
+    /// classify_bch5, will hit the magic + brand match path.
+    ///
+    /// Encodes (magic=0xA5, brand=brand_id) via the same
+    /// shortened-BCH layout that encode::build_secret uses.
+    fn build_clean_bits(brand_id: u8) -> Vec<u8> {
+        let secret = encode::test_build_secret_for_bch5(brand_id);
+        secret.to_vec()
+    }
+
+    #[test]
+    fn short_input_returns_not_detected() {
+        let bits = vec![0u8; 99];
+        let (status, brand) = classify_bch5(&bits);
+        assert_eq!(status, WatermarkStatus::NotDetected);
+        assert_eq!(brand, None);
+    }
+
+    #[test]
+    fn wrong_version_bits_returns_not_detected() {
+        let mut bits = build_clean_bits(2);
+        // Corrupt version bits → no longer 0b0001.
+        bits[96] = 1;
+        bits[97] = 1;
+        bits[98] = 1;
+        bits[99] = 0;
+        let (status, brand) = classify_bch5(&bits);
+        assert_eq!(status, WatermarkStatus::NotDetected);
+        assert_eq!(brand, None);
+    }
+
+    #[test]
+    fn all_zero_version_bits_returns_not_detected() {
+        let mut bits = vec![0u8; 100];
+        bits[96] = 0;
+        bits[97] = 0;
+        bits[98] = 0;
+        bits[99] = 0;
+        let (status, brand) = classify_bch5(&bits);
+        assert_eq!(status, WatermarkStatus::NotDetected);
+        assert_eq!(brand, None);
+    }
+
+    #[test]
+    fn clean_doomscroll_payload_returns_detected_with_doomscroll() {
+        let bits = build_clean_bits(1);
+        let (status, brand) = classify_bch5(&bits);
+        assert_eq!(status, WatermarkStatus::Detected);
+        assert_eq!(brand, Some(WatermarkBrand::Doomscroll));
+    }
+
+    #[test]
+    fn clean_raidio_payload_returns_detected_with_raidio() {
+        let bits = build_clean_bits(2);
+        let (status, brand) = classify_bch5(&bits);
+        assert_eq!(status, WatermarkStatus::Detected);
+        assert_eq!(brand, Some(WatermarkBrand::Raidio));
+    }
+
+    #[test]
+    fn clean_vaideo_payload_returns_detected_with_vaideo() {
+        let bits = build_clean_bits(3);
+        let (status, brand) = classify_bch5(&bits);
+        assert_eq!(status, WatermarkStatus::Detected);
+        assert_eq!(brand, Some(WatermarkBrand::Vaideo));
+    }
+
+    #[test]
+    fn unknown_brand_id_returns_detected_with_no_brand() {
+        // brand_id 4 isn't in the known set (1/2/3). Magic byte
+        // passes → status=Detected; brand=None per the registry
+        // fall-through arm.
+        let bits = build_clean_bits(4);
+        let (status, brand) = classify_bch5(&bits);
+        assert_eq!(status, WatermarkStatus::Detected);
+        assert_eq!(brand, None);
+    }
+
+    #[test]
+    fn single_bit_error_in_data_is_corrected_by_bch() {
+        // BCH(127, 92, t=5) corrects up to 5 errors. Flipping
+        // one bit in the data half must NOT change the verdict.
+        let mut bits = build_clean_bits(2);
+        bits[3] ^= 1;
+        let (status, brand) = classify_bch5(&bits);
+        assert_eq!(status, WatermarkStatus::Detected);
+        assert_eq!(brand, Some(WatermarkBrand::Raidio));
+    }
+
+    #[test]
+    fn five_bit_errors_in_codeword_are_corrected_by_bch() {
+        // Exactly t=5 errors must still be correctable.
+        let mut bits = build_clean_bits(2);
+        for pos in [3, 17, 40, 61, 80] {
+            bits[pos] ^= 1;
+        }
+        let (status, brand) = classify_bch5(&bits);
+        assert_eq!(status, WatermarkStatus::Detected);
+        assert_eq!(brand, Some(WatermarkBrand::Raidio));
+    }
+
+    #[test]
+    fn six_bit_errors_exceed_bch_capacity_and_return_not_detected() {
+        // t+1=6 errors exceed the BCH correction capacity. The
+        // decoder either returns TooManyErrors (→ NotDetected) or
+        // miscorrects into a wrong-magic-byte payload
+        // (→ NotDetected). Either way, no false Detected.
+        let mut bits = build_clean_bits(2);
+        for pos in [3, 17, 40, 61, 80, 95] {
+            bits[pos] ^= 1;
+        }
+        let (status, _brand) = classify_bch5(&bits);
+        assert_eq!(status, WatermarkStatus::NotDetected);
+    }
+
+    #[test]
+    fn corrupted_magic_byte_in_clean_codeword_returns_not_detected() {
+        // Construct a codeword where the BCH decodes cleanly but
+        // the data-portion's magic byte isn't 0xA5. classify_bch5
+        // must reject. We achieve this by encoding a payload
+        // where the first byte is 0xFF (not the magic).
+        //
+        // The simplest way: take a clean codeword and flip the
+        // magic byte AFTER encoding. BCH may correct some bits
+        // back, but with enough flips the recovered magic ≠ 0xA5.
+        let mut bits = build_clean_bits(2);
+        // Flip all 8 bits of the magic byte. BCH can correct at
+        // most 5 of them, so the recovered magic will differ
+        // from 0xA5 in at least 3 bits.
+        for pos in 0..8 {
+            bits[pos] ^= 1;
+        }
+        let (status, _) = classify_bch5(&bits);
+        assert_eq!(status, WatermarkStatus::NotDetected);
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use std::io::Write;

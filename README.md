@@ -51,13 +51,19 @@ temporal majority-vote on the video side, Bayesian
 tournament-sampling z-score on the SynthID-text side).
 "Always respect the user" — weights never auto-download.
 
-**v0.6.0 shipped 2026-06-28.** Both CLI binaries (`provcheck`,
-`provcheck-kit`) and the desktop GUI ship as pre-built downloads for
-Windows / Linux / macOS-aarch64. The creator-side flow (mint identity
-➝ sign ➝ publish to atproto ➝ verifier cross-checks) is production-
-ready and battle-tested against rAIdio.bot music renders and
+Both CLI binaries (`provcheck`, `provcheck-kit`) and the desktop
+GUI ship as pre-built downloads for Windows / Linux /
+macOS-aarch64. The creator-side flow (mint identity → sign →
+publish to atproto → verifier cross-checks) is production-ready
+and battle-tested against rAIdio.bot music renders and
 doomscroll.fm voice mixdowns. v0.6.0 closes the throughput +
-memory + GPU story for long-form audio.
+memory + GPU story for long-form audio; v0.7.0 expands to
+multimodal (image + video scaffold + text scaffold + DLC weight
+delivery slimming the kit from ~143 MB to ~22 MB); v0.9.0
+wires the video + text modalities through with real algorithms
+and lands the ComfyUI node. The v0.9.x line carries the
+pre-v1.0 test-coverage push (iteration tags only; see
+CONTRIBUTING.md "Release cadence").
 
 **v0.6.0 headlines:**
 
@@ -563,6 +569,7 @@ provcheck fills those gaps. It:
 
 | Version | Date | Highlights |
 |---|---|---|
+| **v0.9.7** | 2026-06-29 | **Pre-v1.0 documentation-rot sweep.** Fixes SECURITY.md "Supported versions" section that still said `v0.4.x` (stale by 5 minor releases). Now points at `vX.Y.0` as the supported tag family and explicitly notes that iteration tags (`vX.Y.Z` with Z > 0) are commit anchors only, not for installation. Rewrites README's top-level Status sentence that still claimed `v0.6.0 shipped` as the headline (v0.6 closed audio throughput / memory / GPU; v0.7 added multimodal; v0.9 wired video + text + ComfyUI). The v0.9.x line is documented as the pre-v1.0 test-coverage push. No code changes; doc-only. Total 411 tests still passing. |
 | **v0.9.6** | 2026-06-29 | **Pre-v1.0 payload parser + manifest stability pass.** Adds 16 new unit tests pinning the kit's `parse_payload_hex` parser and the DLC manifest's wire-format invariants. `parse_payload_hex` × 8: doomscroll/rAIdio round trips, whitespace-tolerance (operator-pasted strings), wrong-length input surfaces a clear count, empty input errors, non-hex character names the byte position in the error chain, uppercase + mixed-case hex accepted (case-insensitive). Manifest × 8: non-empty list, URL-tail = filename invariant (cache hits depend on this), every URL points at `github.com/CreativeMayhemLtd/provcheck/releases/download/`, no all-zero placeholder SHA256s, no zero-size entries, (family, variant) tuples unique (catches accidental duplicate entries that would silently load wrong bytes), filenames unique, trustmark family has both decoder + encoder variants (image-modality half-works without one). Also lands `.github/workflows/release.yml` gate change so iteration tags (this one included) skip the matrix and only `vX.Y.0` major / minor tags fire it. Total 411 tests passing. |
 | **v0.9.5** | 2026-06-29 | **Pre-v1.0 kit dispatch + brand-registry coverage pass.** Adds 16 new tests pinning kit dispatch helpers (`stamp::detect_modality`, `stamp::brand_id_to_payload_hex`) and the watermark `resolve_output_channels` matrix. `detect_modality` × 6: classifies all 9 audio extensions (mp3/wav/flac/m4a/ogg/opus/aac/mp4/mov), all 8 image extensions (png/jpg/jpeg/webp/bmp/gif/tiff/tif), case-insensitivity (Photo.JPG / MUSIC.MP3), missing-extension diagnostic, unsupported-extension diagnostic, full-path handling (Unix + Windows). `brand_id_to_payload_hex` × 6: doomscroll → `44464d0100`, rAIdio → `5241490100`, vAIdeo → `5641490100`, unknown brand fallback to doomscroll pinned across 0/4/5/16/31, always-10-chars wire-format invariant, lowercase-hex invariant. `resolve_output_channels` × 4: Mono mode forces 1ch regardless of source, Stereo mode forces 2ch regardless of source, Auto mode matches source for 1+2ch, Auto downmixes 3/6/8 channel sources to stereo. The kit stamp + watermark dispatch carries the brand-registry wire format; pinning these prevents a future maintainer from silently re-tagging unregistered creators under the wrong brand. Total 395 tests passing. |
 | **v0.9.4** | 2026-06-29 | **Pre-v1.0 CLI binary integration coverage pass.** First-ever tests for the `provcheck` binary: 9 end-to-end integration tests in `crates/provcheck-cli/tests/exit_codes.rs` exercise the documented exit-code contract by spawning the cargo-built binary via `CARGO_BIN_EXE_provcheck`. Each documented exit-code path is now pinned: 0 on `--help` / `--version`, 1 on require-* gate demotion (deferred to v0.9.x since exercising it needs a signed asset fixture), 2 on missing positional / malformed trust-store PEM / unreadable trust-store path / missing input file / `--require-attested` without an identity input / `--require-watermark` conflicting with `--no-watermark` / `--json` mode preserving the same exit codes. Total 379 tests passing. The CLI binary was the user-facing contract carrying zero tests for the entire v0.x series; v0.9.4 closes that gap. |

@@ -102,6 +102,14 @@ fn build_data_payload(brand_id_5bit: u8) -> [u8; DATA_LEN] {
     data
 }
 
+/// Test-only re-export of [`build_secret`] for the lib-level
+/// `classify_bch5` unit tests. Lives here so the encode/decode
+/// path stays internally consistent.
+#[cfg(test)]
+pub(crate) fn test_build_secret_for_bch5(brand_id_5bit: u8) -> [u8; SECRET_LEN] {
+    build_secret(brand_id_5bit)
+}
+
 /// BCH-encode the 61-bit data payload + version into the 100-bit
 /// secret the TrustMark encoder ONNX expects.
 fn build_secret(brand_id_5bit: u8) -> [u8; SECRET_LEN] {

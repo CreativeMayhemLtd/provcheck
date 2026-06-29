@@ -16,11 +16,16 @@ PGP / Signal / encrypted reporting on request.
 
 ## Supported versions
 
-The latest published `v0.4.x` tag on
+The latest published `vX.Y.0` tag on
 [GitHub Releases](https://github.com/CreativeMayhemLtd/provcheck/releases)
 is the only supported version. We don't maintain backport branches.
 Earlier tags receive no security updates — if you're pinned to one,
 upgrade to track the current release line.
+
+Iteration tags (`vX.Y.Z` where Z > 0) land on the dev repo as
+commit anchors during the pre-release coverage push and do not
+have published GitHub Releases; they are not "supported" in any
+form and are not intended for installation.
 
 The release line is fast-moving by design (the project pre-dates
 v1.0); a security fix landing on `main` becomes the next patch tag,
