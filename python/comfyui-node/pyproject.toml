@@ -1,0 +1,25 @@
+[project]
+name = "provcheck-comfyui"
+version = "0.1.0"
+description = "ComfyUI nodes that stamp every generated image / audio output with provcheck app strings (TrustMark / silentcipher watermark + C2PA Content Credentials + atproto identity assertion)."
+authors = [{ name = "Christopher Neitzert", email = "chris@neitzert.com" }]
+license = "Apache-2.0"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.23",
+    "Pillow>=9.0",
+    "torch>=1.13",
+]
+
+[project.urls]
+Homepage = "https://github.com/CreativeMayhemLtd/provcheck"
+Source = "https://github.com/CreativeMayhemLtd/provcheck/tree/main/python/comfyui-node"
+
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["provcheck_comfyui*"]
