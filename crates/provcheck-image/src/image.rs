@@ -203,6 +203,98 @@ mod tests {
     use super::*;
     use std::io::Write;
 
+    // ----- decode early-exit branches ----------
+
+    #[test]
+    fn decode_returns_not_image_for_unrecognised_extension() {
+        let f = tempfile::Builder::new()
+            .suffix(".xyz")
+            .tempfile()
+            .expect("tempfile");
+        f.as_file().write_all(b"some random bytes").expect("write");
+        let r = decode(f.path());
+        assert!(matches!(r, Err(ImageError::NotImage)));
+    }
+
+    #[test]
+    fn decode_returns_not_image_for_audio_extension() {
+        // wav is NOT in the image allowlist even though some
+        // formats overlap with image's reader support. Pin.
+        let f = tempfile::Builder::new()
+            .suffix(".wav")
+            .tempfile()
+            .expect("tempfile");
+        f.as_file().write_all(b"RIFF...").expect("write");
+        let r = decode(f.path());
+        assert!(matches!(r, Err(ImageError::NotImage)));
+    }
+
+    #[test]
+    fn decode_returns_io_error_for_missing_file() {
+        let r = decode(std::path::Path::new("/no/such/file.png"));
+        assert!(matches!(r, Err(ImageError::Io(_))));
+    }
+
+    #[test]
+    fn decode_accepts_jpg_jpeg_webp_bmp_gif_tif_tiff_extensions() {
+        // We only verify the "extension accepted" gate; the
+        // decoder will fail downstream because the body isn't a
+        // valid image. The point is to pin which extensions
+        // pass the early gate vs which return NotImage.
+        for ext in ["jpg", "jpeg", "webp", "bmp", "gif", "tif", "tiff"] {
+            let f = tempfile::Builder::new()
+                .suffix(&format!(".{ext}"))
+                .tempfile()
+                .expect("tempfile");
+            f.as_file().write_all(b"not actually an image").expect("write");
+            let r = decode(f.path());
+            // Either Decode (passed the gate) or Io. NEVER NotImage.
+            assert!(
+                !matches!(r, Err(ImageError::NotImage)),
+                "ext .{ext} should pass the early gate, got: {r:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn decode_extension_lookup_is_case_insensitive() {
+        // .PNG must pass the gate (Windows operators have UPPER
+        // extensions all over). Body is junk so it'll fail later
+        // with Decode, not NotImage.
+        let f = tempfile::Builder::new()
+            .suffix(".PNG")
+            .tempfile()
+            .expect("tempfile");
+        f.as_file().write_all(b"junk").expect("write");
+        let r = decode(f.path());
+        assert!(
+            !matches!(r, Err(ImageError::NotImage)),
+            "uppercase .PNG should pass case-insensitive gate, got: {r:?}"
+        );
+    }
+
+    // ----- Constants ----------
+
+    #[test]
+    fn model_res_is_256() {
+        // The TrustMark model's input resolution. Bumping this
+        // requires re-training and changes every embed.
+        assert_eq!(MODEL_RES, 256);
+    }
+
+    #[test]
+    fn max_image_dim_is_8192() {
+        // Decompression-bomb guard from v0.9.0 audit §2.3. Pin
+        // explicitly so a future maintainer can't silently raise
+        // it past the documented threat-model boundary.
+        assert_eq!(MAX_IMAGE_DIM, 8192);
+    }
+
+    #[test]
+    fn max_image_alloc_is_256_megabytes() {
+        assert_eq!(MAX_IMAGE_ALLOC, 256 * 1024 * 1024);
+    }
+
     /// Generate a minimal 4×4 RGB PNG with a single channel pattern,
     /// decode it, and confirm: (a) the output tensor has the right
     /// shape `3 * MODEL_RES * MODEL_RES`, (b) values land in
