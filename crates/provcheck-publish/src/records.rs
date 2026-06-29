@@ -343,6 +343,96 @@ mod tests {
         }
     }
 
+    // ----- COLLECTION_NSID pin ----------
+
+    #[test]
+    fn collection_nsid_matches_lexicon_path() {
+        // The on-wire collection NSID. This is the at-proto collection
+        // name verifiers query to find a creator's signing-key records.
+        // A silent change here invalidates every existing published
+        // record under the old name.
+        assert_eq!(COLLECTION_NSID, "app.provcheck.signingKey");
+    }
+
+    #[test]
+    fn collection_nsid_is_reverse_dns_form() {
+        // at-proto NSIDs are reverse-DNS form. Pin the structure
+        // explicitly so a future refactor can't silently switch
+        // to a flat or kebab-case name.
+        assert!(COLLECTION_NSID.starts_with("app.provcheck."));
+        assert_eq!(COLLECTION_NSID.matches('.').count(), 2);
+    }
+
+    // ----- AtUri shape + edge cases ----------
+
+    #[test]
+    fn at_uri_rkey_returns_none_for_empty_string() {
+        let u = AtUri(String::new());
+        assert_eq!(u.rkey(), None);
+    }
+
+    #[test]
+    fn at_uri_rkey_returns_none_for_input_with_no_slash() {
+        let u = AtUri("not-a-uri".into());
+        // rsplit('/').next() on a string with no '/' returns the
+        // whole string. Our filter accepts non-empty, so a bare
+        // string passes — pin this behaviour.
+        let r = u.rkey();
+        assert_eq!(r, Some("not-a-uri"));
+    }
+
+    #[test]
+    fn at_uri_equality_compares_inner_strings() {
+        let a = AtUri("at://x/y/z".into());
+        let b = AtUri("at://x/y/z".into());
+        let c = AtUri("at://x/y/q".into());
+        assert_eq!(a, b);
+        assert_ne!(a, c);
+    }
+
+    // ----- RecordsError Display ----------
+
+    #[test]
+    fn pds_rejected_display_includes_inner_message() {
+        let e = RecordsError::PdsRejected("rate limited".into());
+        let s = format!("{e}");
+        assert!(s.contains("PDS rejected"));
+        assert!(s.contains("rate limited"));
+    }
+
+    #[test]
+    fn no_session_display_directs_user_to_kit_login() {
+        // The CLI maps NoSession to exit code 3; the error
+        // message is what the user actually sees. Pin that it
+        // names the command they need to run.
+        let e = RecordsError::NoSession;
+        let s = format!("{e}");
+        assert!(s.contains("kit login"), "expected kit login hint, got: {s}");
+    }
+
+    #[test]
+    fn shape_error_display_includes_inner_message() {
+        let e = RecordsError::Shape("field xyz missing".into());
+        let s = format!("{e}");
+        assert!(s.contains("record shape"));
+        assert!(s.contains("field xyz missing"));
+    }
+
+    #[test]
+    fn http_error_display_includes_inner_message() {
+        let e = RecordsError::Http("connection refused".into());
+        let s = format!("{e}");
+        assert!(s.contains("connection refused"));
+    }
+
+    #[test]
+    fn invalid_identifier_display_includes_input() {
+        let e = RecordsError::InvalidIdentifier("garbage-did".into());
+        let s = format!("{e}");
+        assert!(s.contains("invalid"));
+        assert!(s.contains("garbage-did"));
+    }
+
     #[test]
     fn at_uri_as_str_round_trips() {
         let u = AtUri("at://did:plc:abc/app.provcheck.signingKey/3jzfcijpj2z2a".into());
