@@ -482,6 +482,69 @@ mod audio_error_tests {
         assert!(matches!(r, Err(AudioError::Io(_))));
     }
 
+    // ----- resample helper ----------
+
+    #[test]
+    fn resample_identity_when_src_eq_dst_returns_same_length_ish() {
+        // Same in/out rate → ratio 1.0 → output length ≈ input.
+        // Tail-pad to chunk size adds at most chunk_size extra
+        // zero samples; pin "output close to input, never empty".
+        let src: Vec<f32> = (0..10000).map(|i| (i as f32 * 0.01).sin()).collect();
+        let out = resample(&src, 44_100, 44_100).expect("ok");
+        assert!(!out.is_empty());
+        assert!(
+            (out.len() as i64 - src.len() as i64).abs() < 4096,
+            "out.len()={} too far from src.len()={}",
+            out.len(),
+            src.len()
+        );
+    }
+
+    #[test]
+    fn resample_up_doubles_length_approximately() {
+        // 22050 → 44100 doubles. Pin the documented contract.
+        let src: Vec<f32> = (0..10000).map(|i| (i as f32 * 0.01).sin()).collect();
+        let out = resample(&src, 22_050, 44_100).expect("ok");
+        let ratio = out.len() as f32 / src.len() as f32;
+        assert!(
+            (ratio - 2.0).abs() < 0.5,
+            "expected ~2x output length, got ratio {ratio}"
+        );
+    }
+
+    #[test]
+    fn resample_down_halves_length_approximately() {
+        // 88200 → 44100 halves. Pin.
+        let src: Vec<f32> = (0..20000).map(|i| (i as f32 * 0.01).sin()).collect();
+        let out = resample(&src, 88_200, 44_100).expect("ok");
+        let ratio = out.len() as f32 / src.len() as f32;
+        assert!(
+            (ratio - 0.5).abs() < 0.25,
+            "expected ~0.5x output length, got ratio {ratio}"
+        );
+    }
+
+    #[test]
+    fn resample_returns_finite_samples_for_finite_input() {
+        // The resampler must never produce NaN/inf on finite
+        // input. Catches a future SincFixedIn config that
+        // silently divides by zero on edge cases.
+        let src: Vec<f32> = (0..10000).map(|i| (i as f32 * 0.01).sin()).collect();
+        let out = resample(&src, 48_000, 44_100).expect("ok");
+        for (i, &s) in out.iter().enumerate() {
+            assert!(s.is_finite(), "non-finite sample at index {i}: {s}");
+        }
+    }
+
+    #[test]
+    fn resample_short_input_below_chunk_size_works() {
+        // Input shorter than chunk_size (4096) takes only the
+        // tail-pad path. Pin that this still produces output.
+        let src: Vec<f32> = (0..100).map(|i| (i as f32 * 0.01).sin()).collect();
+        let out = resample(&src, 44_100, 44_100).expect("ok");
+        assert!(!out.is_empty());
+    }
+
     #[test]
     fn stereo_decoded_struct_field_layout_pin() {
         // StereoDecoded is a public type; pin its field
