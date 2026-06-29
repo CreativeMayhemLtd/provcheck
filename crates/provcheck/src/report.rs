@@ -689,6 +689,22 @@ mod tests {
     }
 
     #[test]
+    fn format_regions_uses_en_dash_not_hyphen() {
+        // Pin the en-dash (U+2013) — display convention across
+        // every region range. A future maintainer who "normalises"
+        // it to a hyphen would invalidate downstream parsers.
+        let regs = vec![(2.0, 14.0)];
+        let s = format_regions(&regs);
+        assert!(s.contains('\u{2013}'), "expected en-dash in {s}");
+        assert!(!s.contains('-'), "expected no hyphen in {s}");
+    }
+
+    #[test]
+    fn format_regions_empty_list_produces_empty_output() {
+        assert_eq!(format_regions(&[]), "");
+    }
+
+    #[test]
     fn format_regions_truncates_long_lists() {
         let regs = vec![
             (0.0, 5.0),
@@ -704,5 +720,126 @@ mod tests {
         assert!(s.contains("1:00\u{2013}1:05"));
         assert!(s.contains("(7 regions)"));
         assert!(s.contains('\u{2026}'), "expected ellipsis: {s}");
+    }
+}
+
+#[cfg(test)]
+mod report_serialization_tests {
+    use super::*;
+
+    fn minimal_unsigned_report() -> Report {
+        Report {
+            verified: false,
+            unsigned: true,
+            trusted: None,
+            failure_reason: None,
+            active_manifest: None,
+            signer: None,
+            signed_at: None,
+            claim_generator: None,
+            assertions: serde_json::Value::Null,
+            ingredient_count: 0,
+            format: None,
+            validation_errors: 0,
+            did_attestation: None,
+            identity: None,
+            parents: Vec::new(),
+            watermarks: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn exit_code_zero_when_verified() {
+        let mut r = minimal_unsigned_report();
+        r.verified = true;
+        assert_eq!(r.exit_code(), 0);
+    }
+
+    #[test]
+    fn exit_code_one_when_not_verified() {
+        let r = minimal_unsigned_report();
+        assert_eq!(r.exit_code(), 1);
+    }
+
+    #[test]
+    fn to_json_string_produces_pretty_indented_output() {
+        let r = minimal_unsigned_report();
+        let json = r.to_json_string().expect("ser");
+        // Pretty-printed → contains newlines + indentation.
+        assert!(json.contains('\n'));
+        assert!(json.contains("  "));
+    }
+
+    #[test]
+    fn to_json_string_includes_verified_field() {
+        let r = minimal_unsigned_report();
+        let json = r.to_json_string().expect("ser");
+        assert!(json.contains("\"verified\""));
+    }
+
+    #[test]
+    fn to_json_string_omits_empty_watermarks_vec() {
+        // watermarks: skip_serializing_if = "Vec::is_empty" per
+        // the field doc — empty vec must not produce a key.
+        let r = minimal_unsigned_report();
+        let json = r.to_json_string().expect("ser");
+        assert!(
+            !json.contains("\"watermarks\""),
+            "empty watermarks must be omitted: {json}"
+        );
+    }
+
+    #[test]
+    fn to_json_string_omits_empty_parents_vec() {
+        let r = minimal_unsigned_report();
+        let json = r.to_json_string().expect("ser");
+        assert!(
+            !json.contains("\"parents\""),
+            "empty parents must be omitted: {json}"
+        );
+    }
+
+    #[test]
+    fn to_json_string_round_trips_through_serde_json() {
+        let mut r = minimal_unsigned_report();
+        r.verified = true;
+        r.format = Some("audio/wav".into());
+        let json = r.to_json_string().expect("ser");
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("parse");
+        assert_eq!(parsed.get("verified").and_then(|v| v.as_bool()), Some(true));
+        assert_eq!(parsed.get("format").and_then(|v| v.as_str()), Some("audio/wav"));
+    }
+
+    #[test]
+    fn display_includes_unsigned_marker_for_unsigned_report() {
+        let r = minimal_unsigned_report();
+        let s = format!("{r}");
+        assert!(s.contains("[UNSIGNED]"), "got: {s}");
+    }
+
+    #[test]
+    fn display_includes_verified_marker_for_verified_report() {
+        let mut r = minimal_unsigned_report();
+        r.verified = true;
+        r.unsigned = false;
+        let s = format!("{r}");
+        assert!(s.contains("[VERIFIED]"), "got: {s}");
+    }
+
+    #[test]
+    fn display_includes_invalid_marker_when_not_verified_and_not_unsigned() {
+        let mut r = minimal_unsigned_report();
+        r.verified = false;
+        r.unsigned = false;
+        let s = format!("{r}");
+        assert!(s.contains("[INVALID]"), "got: {s}");
+    }
+
+    #[test]
+    fn display_includes_failure_reason_when_present() {
+        let mut r = minimal_unsigned_report();
+        r.failure_reason = Some("test failure reason".into());
+        let s = format!("{r}");
+        assert!(s.contains("test failure reason"), "got: {s}");
     }
 }
