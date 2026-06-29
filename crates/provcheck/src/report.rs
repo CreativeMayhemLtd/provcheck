@@ -724,6 +724,144 @@ mod tests {
 }
 
 #[cfg(test)]
+mod watermark_result_serialization_tests {
+    use super::*;
+
+    fn minimal_watermark_result() -> WatermarkResult {
+        WatermarkResult {
+            kind: WatermarkKind::SilentCipher,
+            status: WatermarkStatus::Detected,
+            detected: true,
+            confidence: 0.95,
+            payload: None,
+            brand: None,
+            message: None,
+            marked_regions: None,
+        }
+    }
+
+    #[test]
+    fn watermark_result_serialises_required_fields() {
+        let r = minimal_watermark_result();
+        let json = serde_json::to_string(&r).expect("ser");
+        assert!(json.contains("\"kind\""));
+        assert!(json.contains("\"status\""));
+        assert!(json.contains("\"detected\""));
+        assert!(json.contains("\"confidence\""));
+    }
+
+    #[test]
+    fn watermark_result_omits_none_payload() {
+        let r = minimal_watermark_result();
+        let json = serde_json::to_string(&r).expect("ser");
+        assert!(!json.contains("\"payload\""), "None payload should be omitted: {json}");
+    }
+
+    #[test]
+    fn watermark_result_omits_none_brand() {
+        let r = minimal_watermark_result();
+        let json = serde_json::to_string(&r).expect("ser");
+        assert!(!json.contains("\"brand\""), "None brand should be omitted: {json}");
+    }
+
+    #[test]
+    fn watermark_result_omits_none_message() {
+        let r = minimal_watermark_result();
+        let json = serde_json::to_string(&r).expect("ser");
+        assert!(!json.contains("\"message\""), "None message should be omitted: {json}");
+    }
+
+    #[test]
+    fn watermark_result_omits_none_marked_regions() {
+        let r = minimal_watermark_result();
+        let json = serde_json::to_string(&r).expect("ser");
+        assert!(
+            !json.contains("\"marked_regions\""),
+            "None marked_regions should be omitted: {json}"
+        );
+    }
+
+    #[test]
+    fn watermark_result_serialises_populated_payload() {
+        let mut r = minimal_watermark_result();
+        r.payload = Some(vec![0x52, 0x41, 0x49, 0x01, 0x00]);
+        let json = serde_json::to_string(&r).expect("ser");
+        assert!(json.contains("\"payload\""));
+    }
+
+    #[test]
+    fn watermark_status_uses_snake_case_on_wire() {
+        // Pin the snake_case rename — automation downstream may
+        // match on the string values.
+        let r = minimal_watermark_result();
+        let json = serde_json::to_string(&r).expect("ser");
+        assert!(json.contains("\"detected\""), "expected snake_case status, got: {json}");
+        // Now degraded path.
+        let mut r2 = r.clone();
+        r2.status = WatermarkStatus::Degraded;
+        let json = serde_json::to_string(&r2).expect("ser");
+        assert!(json.contains("\"status\":\"degraded\""), "got: {json}");
+        // Now not_detected — must use underscore, not camelCase
+        // or kebab-case.
+        let mut r3 = r.clone();
+        r3.status = WatermarkStatus::NotDetected;
+        let json = serde_json::to_string(&r3).expect("ser");
+        assert!(json.contains("\"status\":\"not_detected\""), "got: {json}");
+    }
+
+    #[test]
+    fn watermark_kind_uses_snake_case_on_wire() {
+        let mut r = minimal_watermark_result();
+        r.kind = WatermarkKind::TrustMarkVideo;
+        let json = serde_json::to_string(&r).expect("ser");
+        assert!(
+            json.contains("\"kind\":\"trust_mark_video\""),
+            "expected snake_case kind, got: {json}"
+        );
+    }
+
+    #[test]
+    fn watermark_brand_serialises_with_code_tag() {
+        let mut r = minimal_watermark_result();
+        r.brand = Some(WatermarkBrand::Raidio);
+        let json = serde_json::to_string(&r).expect("ser");
+        // The `tag = "code"` serde attr means brand serialises as
+        // {"code": "raidio"} not as a bare string.
+        assert!(json.contains("\"code\":\"raidio\""), "expected code-tagged brand, got: {json}");
+    }
+
+    #[test]
+    fn watermark_result_round_trips_through_serde() {
+        let mut r = minimal_watermark_result();
+        r.payload = Some(vec![1, 2, 3, 4, 5]);
+        r.brand = Some(WatermarkBrand::Doomscroll);
+        r.message = Some("test message".into());
+        r.marked_regions = Some(vec![(1.0, 2.5), (5.0, 7.5)]);
+        let json = serde_json::to_string(&r).expect("ser");
+        let back: WatermarkResult = serde_json::from_str(&json).expect("de");
+        assert_eq!(back.payload, r.payload);
+        assert_eq!(back.brand, r.brand);
+        assert_eq!(back.message, r.message);
+        assert_eq!(back.marked_regions, r.marked_regions);
+    }
+
+    #[test]
+    fn watermark_result_marked_regions_defaults_to_none_on_legacy_input() {
+        // Backward-compat: older verifier outputs lacked the
+        // marked_regions field. Deserialise must default it to
+        // None rather than failing.
+        let legacy = r#"{
+            "kind": "silent_cipher",
+            "status": "detected",
+            "detected": true,
+            "confidence": 0.9
+        }"#;
+        let r: WatermarkResult = serde_json::from_str(legacy).expect("legacy parse");
+        assert!(r.marked_regions.is_none());
+    }
+}
+
+#[cfg(test)]
 mod report_serialization_tests {
     use super::*;
 
