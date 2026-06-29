@@ -214,6 +214,90 @@ pub fn parse_algorithm(s: &str) -> Option<c2pa::SigningAlg> {
     })
 }
 
+#[cfg(test)]
+mod parse_algorithm_tests {
+    use super::parse_algorithm;
+    use c2pa::SigningAlg;
+
+    #[test]
+    fn parses_es256() {
+        assert_eq!(parse_algorithm("ES256"), Some(SigningAlg::Es256));
+    }
+
+    #[test]
+    fn parses_es384() {
+        assert_eq!(parse_algorithm("ES384"), Some(SigningAlg::Es384));
+    }
+
+    #[test]
+    fn parses_es512() {
+        assert_eq!(parse_algorithm("ES512"), Some(SigningAlg::Es512));
+    }
+
+    #[test]
+    fn parses_ps256() {
+        assert_eq!(parse_algorithm("PS256"), Some(SigningAlg::Ps256));
+    }
+
+    #[test]
+    fn parses_ps384() {
+        assert_eq!(parse_algorithm("PS384"), Some(SigningAlg::Ps384));
+    }
+
+    #[test]
+    fn parses_ps512() {
+        assert_eq!(parse_algorithm("PS512"), Some(SigningAlg::Ps512));
+    }
+
+    #[test]
+    fn parses_ed25519() {
+        assert_eq!(parse_algorithm("Ed25519"), Some(SigningAlg::Ed25519));
+    }
+
+    #[test]
+    fn rejects_lowercase_es256() {
+        // The lexicon (and ALLOWED_ALGORITHMS) is case-sensitive.
+        // A lowercase variant must not silently work.
+        assert_eq!(parse_algorithm("es256"), None);
+    }
+
+    #[test]
+    fn rejects_rs256() {
+        // RS256 is in ALLOWED_ALGORITHMS per the lexicon but c2pa
+        // does not expose it as a SigningAlg yet. Pin that
+        // parse_algorithm returns None for it, surfacing the gap
+        // as an explicit failure rather than a silent
+        // fallthrough.
+        assert_eq!(parse_algorithm("RS256"), None);
+    }
+
+    #[test]
+    fn rejects_empty_string() {
+        assert_eq!(parse_algorithm(""), None);
+    }
+
+    #[test]
+    fn rejects_unknown_algorithm() {
+        assert_eq!(parse_algorithm("HMACSHA1"), None);
+        assert_eq!(parse_algorithm("DSA"), None);
+    }
+
+    #[test]
+    fn every_parsable_value_is_in_attestation_spec_allowlist() {
+        // The 7 names we parse must be a subset of the lexicon's
+        // ALLOWED_ALGORITHMS. Silent drift would let the kit sign
+        // with an algorithm verifiers reject.
+        use provcheck_attestation_spec::ALLOWED_ALGORITHMS;
+        for alg in ["ES256", "ES384", "ES512", "PS256", "PS384", "PS512", "Ed25519"] {
+            assert!(parse_algorithm(alg).is_some(), "kit should parse {alg}");
+            assert!(
+                ALLOWED_ALGORITHMS.contains(&alg),
+                "{alg} must be in ALLOWED_ALGORITHMS"
+            );
+        }
+    }
+}
+
 /// What C2PA action to declare on the signed manifest. The kit picks
 /// a default based on whether the source already has provenance
 /// (see [`default_action_for`]); the caller may override.
