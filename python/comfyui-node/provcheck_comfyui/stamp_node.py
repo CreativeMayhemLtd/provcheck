@@ -113,6 +113,14 @@ class StampNode:
     CATEGORY = "image/postprocessing"
 
     def stamp(self, image: torch.Tensor, brand_id: int):
+        # v0.9.0 audit §3: ComfyUI's INPUT_TYPES min/max is
+        # client-side only. A malicious workflow JSON can pass any
+        # int. Clamp defensively here BEFORE handing the value to
+        # the kit subprocess.
+        try:
+            brand_id = max(0, min(31, int(brand_id)))
+        except (TypeError, ValueError):
+            brand_id = 2  # silent fall-back to RAIDIO default
         kit = _kit_on_path()
         if not kit:
             print(

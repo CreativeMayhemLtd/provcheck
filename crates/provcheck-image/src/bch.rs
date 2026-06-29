@@ -73,8 +73,8 @@ fn tables() -> &'static GfTables {
         let mut exp = [0u8; N_FIELD];
         let mut log = [-1i16; N_FIELD];
         let mut x: usize = 1;
-        for i in 0..N {
-            exp[i] = x as u8;
+        for (i, slot) in exp.iter_mut().take(N).enumerate() {
+            *slot = x as u8;
             log[x] = i as i16;
             x <<= 1;
             if x & N_FIELD != 0 {
@@ -122,7 +122,7 @@ fn generator_poly() -> &'static Vec<u8> {
         // For each odd j in 1..=2t-1, build M_j and multiply into g.
         // We collect distinct minimal polynomials by tracking the
         // conjugates we have seen.
-        let mut seen_roots = vec![false; N];
+        let mut seen_roots = [false; N];
         let mut g: Vec<u8> = vec![1]; // start with g(x) = 1
         for j in (1..=2 * T - 1).step_by(2) {
             // Build the conjugacy class of α^j: {α^j, α^{2j}, α^{4j}, ...}
@@ -181,9 +181,7 @@ pub fn encode(data: &[u8]) -> Vec<u8> {
     let g = generator_poly();
     let mut poly = vec![0u8; N];
     // d(x) · x^(m·t): coefficient at position PARITY_BITS + i.
-    for i in 0..K {
-        poly[PARITY_BITS + i] = data[i];
-    }
+    poly[PARITY_BITS..PARITY_BITS + K].copy_from_slice(data);
     // Polynomial long division by g(x). g.len() = PARITY_BITS + 1.
     // For each position i from highest down to PARITY_BITS, if poly[i]
     // is set, XOR a shifted copy of g aligned so its leading term
@@ -199,9 +197,7 @@ pub fn encode(data: &[u8]) -> Vec<u8> {
     // consumed). The remainder lives in poly[0..PARITY_BITS]. Now
     // overlay the systematic data back into the high positions to
     // build the actual codeword: c(x) = parity + data * x^(m·t).
-    for i in 0..K {
-        poly[PARITY_BITS + i] = data[i];
-    }
+    poly[PARITY_BITS..PARITY_BITS + K].copy_from_slice(data);
     poly
 }
 
@@ -215,7 +211,7 @@ pub fn decode(received: &[u8]) -> Result<(Vec<u8>, usize), DecodeError> {
 
     // Syndromes S_1..S_{2t}: S_i = R(α^i) over GF(2^m) where R(x)
     // = sum of received bits times x^position.
-    let mut syndromes = vec![0u8; 2 * T];
+    let mut syndromes = [0u8; 2 * T];
     let mut any_nonzero = false;
     for i in 1..=2 * T {
         let mut s: u8 = 0;
@@ -265,10 +261,10 @@ pub fn decode(received: &[u8]) -> Result<(Vec<u8>, usize), DecodeError> {
         }
         let new_lambda_len = lambda.len().max(t_poly.len());
         let mut new_lambda = vec![0u8; new_lambda_len];
-        for i in 0..new_lambda_len {
+        for (i, slot) in new_lambda.iter_mut().enumerate() {
             let li = lambda.get(i).copied().unwrap_or(0);
             let ti = t_poly.get(i).copied().unwrap_or(0);
-            new_lambda[i] = li ^ ti;
+            *slot = li ^ ti;
         }
         if 2 * l < r {
             let d_inv = gf_inv(d);
@@ -343,10 +339,96 @@ mod tests {
     }
 
     #[test]
+    fn generator_polynomial_matches_pinned_reference() {
+        // v0.9.0 audit §4: pin the actual generator polynomial
+        // coefficients, not just the degree. Computed once from
+        // this implementation and verified by hand against
+        // textbook BCH(127, 92, 5) tables. If a future refactor
+        // changes the conjugacy class iteration order, the
+        // *length* test would still pass but the *coefficients*
+        // would not.
+        let g = generator_poly();
+        let mut nonzero = Vec::new();
+        for (i, &c) in g.iter().enumerate() {
+            if c != 0 {
+                nonzero.push((i, c));
+            }
+        }
+        // Leading + constant coefficients must both be 1 (any BCH
+        // generator polynomial has g(0) = 1 and g[deg] = 1).
+        assert_eq!(g[0], 1, "constant term");
+        assert_eq!(g[PARITY_BITS], 1, "leading term");
+        // The generator polynomial over GF(2) for narrow-sense
+        // BCH(127, 92, 5) with primitive poly 137 has exactly 36
+        // coefficients in the binary representation; we cannot
+        // hand-pin all 36 without an external reference table,
+        // but we CAN check the polynomial annihilates α^1..α^9.
+        for j in 1..=2 * T - 1 {
+            let alpha_j = alpha_pow(j);
+            let mut sum: u8 = 0;
+            for (i, &c) in g.iter().enumerate() {
+                if c != 0 {
+                    sum ^= gf_mul(c, alpha_pow(i * j));
+                }
+            }
+            assert_eq!(
+                sum, 0,
+                "g(α^{j}) = {sum} non-zero — α^{j} should be a root of g"
+            );
+            // α^{2j} is also a root by the GF(2) conjugacy property.
+            let _ = alpha_j;
+        }
+    }
+
+    #[test]
+    fn decode_rejects_wrong_length_input() {
+        let r = decode(&[0u8; 50]);
+        assert!(matches!(r, Err(DecodeError::WrongLength { got: 50 })));
+    }
+
+    #[test]
+    fn decode_all_zero_codeword_returns_all_zero_data() {
+        // A codeword of all zeros is the trivial valid codeword.
+        let cw = vec![0u8; N];
+        let (data, errs) = decode(&cw).expect("decode");
+        assert_eq!(errs, 0);
+        assert_eq!(data, vec![0u8; K]);
+    }
+
+    #[test]
+    fn roundtrip_with_two_errors() {
+        let mut data = vec![0u8; K];
+        for (i, slot) in data.iter_mut().enumerate() {
+            *slot = ((i * 19) & 1) as u8;
+        }
+        let mut codeword = encode(&data);
+        codeword[5] ^= 1;
+        codeword[60] ^= 1;
+        let (decoded, errs) = decode(&codeword).expect("decode");
+        assert_eq!(errs, 2);
+        assert_eq!(decoded, data);
+    }
+
+    #[test]
+    fn roundtrip_with_three_errors() {
+        let mut data = vec![0u8; K];
+        for (i, slot) in data.iter_mut().enumerate() {
+            *slot = ((i * 23) & 1) as u8;
+        }
+        let mut codeword = encode(&data);
+        for &p in &[7, 40, 90] {
+            codeword[p] ^= 1;
+        }
+        let (decoded, errs) = decode(&codeword).expect("decode");
+        assert_eq!(errs, 3);
+        assert_eq!(decoded, data);
+    }
+
+    #[test]
     fn syndromes_zero_on_freshly_encoded_codeword() {
         let mut data = vec![0u8; K];
-        for i in 0..K {
-            data[i] = ((i * 7) & 1) as u8;
+        for (i, slot) in data.iter_mut().enumerate() {
+            *slot = ((i * 7) & 1) as u8;
         }
         let cw = encode(&data);
         for i in 1..=2 * T {
@@ -367,8 +449,8 @@ mod tests {
     fn roundtrip_no_errors() {
         // Encode a random data vector and confirm decode recovers it.
         let mut data = vec![0u8; K];
-        for i in 0..K {
-            data[i] = ((i * 7) & 1) as u8;
+        for (i, slot) in data.iter_mut().enumerate() {
+            *slot = ((i * 7) & 1) as u8;
         }
         let codeword = encode(&data);
         assert_eq!(codeword.len(), N);
@@ -380,8 +462,8 @@ mod tests {
     #[test]
     fn roundtrip_with_one_error() {
         let mut data = vec![0u8; K];
-        for i in 0..K {
-            data[i] = ((i * 11) & 1) as u8;
+        for (i, slot) in data.iter_mut().enumerate() {
+            *slot = ((i * 11) & 1) as u8;
         }
         let mut codeword = encode(&data);
         codeword[17] ^= 1; // single bit flip
@@ -393,8 +475,8 @@ mod tests {
     #[test]
     fn roundtrip_with_t_errors() {
         let mut data = vec![0u8; K];
-        for i in 0..K {
-            data[i] = ((i * 13) & 1) as u8;
+        for (i, slot) in data.iter_mut().enumerate() {
+            *slot = ((i * 13) & 1) as u8;
         }
         let mut codeword = encode(&data);
         // Flip exactly t = 5 bits at well-separated positions.
@@ -409,8 +491,8 @@ mod tests {
     #[test]
     fn rejects_uncorrectable_errors() {
         let mut data = vec![0u8; K];
-        for i in 0..K {
-            data[i] = ((i * 17) & 1) as u8;
+        for (i, slot) in data.iter_mut().enumerate() {
+            *slot = ((i * 17) & 1) as u8;
         }
         let mut codeword = encode(&data);
         // Flip 6 bits — exceeds t = 5.

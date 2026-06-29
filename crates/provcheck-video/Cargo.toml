@@ -1,6 +1,6 @@
 [package]
 name = "provcheck-video"
-description = "Video-modality watermark detection for provcheck (per-frame TrustMark + temporal voting; v0.7 phase 7d scaffold)."
+description = "Video-modality watermark detection for provcheck (per-frame TrustMark via ffmpeg shell-out + temporal majority vote)."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -17,6 +17,7 @@ name = "provcheck_video"
 provcheck = { path = "../provcheck" }
 provcheck-image = { path = "../provcheck-image" }
 provcheck-weights = { path = "../provcheck-weights" }
+tempfile = "3"
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

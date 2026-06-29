@@ -89,14 +89,14 @@ const VERSION_BCH5: [u8; 4] = [0, 0, 0, 1];
 /// Build the 61-bit BCH data payload: magic + brand id + zeros.
 fn build_data_payload(brand_id_5bit: u8) -> [u8; DATA_LEN] {
     let mut data = [0u8; DATA_LEN];
-    for i in 0..8 {
+    for (i, slot) in data.iter_mut().take(8).enumerate() {
         if (PROVCHECK_RAW_MAGIC >> (7 - i)) & 1 == 1 {
-            data[i] = 1;
+            *slot = 1;
         }
     }
-    for i in 0..5 {
+    for (i, slot) in data.iter_mut().skip(8).take(5).enumerate() {
         if (brand_id_5bit >> (4 - i)) & 1 == 1 {
-            data[8 + i] = 1;
+            *slot = 1;
         }
     }
     data
@@ -121,13 +121,10 @@ fn build_secret(brand_id_5bit: u8) -> [u8; SECRET_LEN] {
 
     let mut secret = [0u8; SECRET_LEN];
     // bits[0..DATA_LEN] = the 61 data bits (= codeword[ECC_LEN + SHORTEN_PAD..bch::N])
-    for i in 0..DATA_LEN {
-        secret[i] = codeword[ECC_LEN + SHORTEN_PAD + i];
-    }
+    secret[..DATA_LEN]
+        .copy_from_slice(&codeword[ECC_LEN + SHORTEN_PAD..ECC_LEN + SHORTEN_PAD + DATA_LEN]);
     // bits[DATA_LEN..PROTECTED_LEN] = the 35 ECC bits (= codeword[0..ECC_LEN])
-    for i in 0..ECC_LEN {
-        secret[DATA_LEN + i] = codeword[i];
-    }
+    secret[DATA_LEN..DATA_LEN + ECC_LEN].copy_from_slice(&codeword[..ECC_LEN]);
     // bits[PROTECTED_LEN..SECRET_LEN] = version = 0b0001
     secret[PROTECTED_LEN..].copy_from_slice(&VERSION_BCH5);
     secret
@@ -256,16 +253,26 @@ fn load_cover_chw_at_original_res(
     orig_w: u32,
     orig_h: u32,
 ) -> Result<Vec<f32>, EncodeError> {
-    let reader = image::ImageReader::open(src)
+    let mut reader = image::ImageReader::open(src)
         .map_err(|e| EncodeError::Read(format!("open: {e}")))?
         .with_guessed_format()
         .map_err(|e| EncodeError::Read(format!("format: {e}")))?;
+    // v0.9.0 audit §2.3: decompression-bomb guard. Same caps as
+    // the decoder side via the image module's constants.
+    let mut limits = image::Limits::default();
+    limits.max_image_width = Some(imgmod::MAX_IMAGE_DIM);
+    limits.max_image_height = Some(imgmod::MAX_IMAGE_DIM);
+    limits.max_alloc = Some(imgmod::MAX_IMAGE_ALLOC);
+    reader.limits(limits);
     let img = reader
         .decode()
         .map_err(|e| EncodeError::Read(format!("decode: {e}")))?;
     let rgb = img.to_rgb8();
     debug_assert_eq!(rgb.dimensions(), (orig_w, orig_h));
-    let area = (orig_w * orig_h) as usize;
+    // v0.9.0 audit §2.4: cast each operand to usize BEFORE
+    // multiplication to avoid silent u32 overflow on dimensions
+    // above ~65k (caught by MAX_IMAGE_DIM but defence in depth).
+    let area = (orig_w as usize) * (orig_h as usize);
     let mut chw = vec![0.0_f32; 3 * area];
     let w = orig_w as usize;
     for (x, y, pixel) in rgb.enumerate_pixels() {
@@ -280,13 +287,16 @@ fn load_cover_chw_at_original_res(
 
 /// CHW f32 in `[-1, 1]` → HWC u8 RGB image.
 fn chw_normalised_to_rgb_u8(chw: &[f32], w: u32, h: u32) -> RgbImage {
-    let area = (w * h) as usize;
+    // v0.9.0 audit §2.4: cast to usize first.
+    let w_usize = w as usize;
+    let h_usize = h as usize;
+    let area = w_usize * h_usize;
     let mut out: RgbImage = ImageBuffer::new(w, h);
-    for y in 0..h as usize {
-        for x in 0..w as usize {
-            let r = denorm(chw[y * w as usize + x]);
-            let g = denorm(chw[area + y * w as usize + x]);
-            let b = denorm(chw[2 * area + y * w as usize + x]);
+    for y in 0..h_usize {
+        for x in 0..w_usize {
+            let r = denorm(chw[y * w_usize + x]);
+            let g = denorm(chw[area + y * w_usize + x]);
+            let b = denorm(chw[2 * area + y * w_usize + x]);
             out.put_pixel(x as u32, y as u32, Rgb([r, g, b]));
         }
     }
@@ -315,27 +325,24 @@ mod tests {
 
             // Reconstruct the BCH codeword the classifier would.
             let mut received = vec![0u8; crate::bch::N];
-            for i in 0..ECC_LEN {
-                received[i] = secret[DATA_LEN + i];
-            }
-            for i in 0..DATA_LEN {
-                received[ECC_LEN + SHORTEN_PAD + i] = secret[i];
-            }
+            received[..ECC_LEN].copy_from_slice(&secret[DATA_LEN..DATA_LEN + ECC_LEN]);
+            received[ECC_LEN + SHORTEN_PAD..ECC_LEN + SHORTEN_PAD + DATA_LEN]
+                .copy_from_slice(&secret[..DATA_LEN]);
             let (data, errs) = crate::bch::decode(&received).expect("decode clean codeword");
             assert_eq!(errs, 0, "fresh codeword should have 0 errors");
             let payload = &data[SHORTEN_PAD..];
             assert_eq!(payload.len(), DATA_LEN);
             // Magic + brand should round-trip.
             let mut magic = 0u8;
-            for i in 0..8 {
-                if payload[i] == 1 {
+            for (i, &bit) in payload.iter().take(8).enumerate() {
+                if bit == 1 {
                     magic |= 1 << (7 - i);
                 }
             }
             assert_eq!(magic, PROVCHECK_RAW_MAGIC);
             let mut recovered_brand = 0u8;
-            for i in 0..5 {
-                if payload[8 + i] == 1 {
+            for (i, &bit) in payload.iter().skip(8).take(5).enumerate() {
+                if bit == 1 {
                     recovered_brand |= 1 << (4 - i);
                 }
             }

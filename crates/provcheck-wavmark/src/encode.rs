@@ -71,17 +71,6 @@ pub fn embed(waveform: &[f32], brand_id_5bit: u8) -> Result<Vec<f32>, EncodeErro
     Ok(out)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn empty_input_errors() {
-        let r = embed(&[], registry::BRAND_DOOMSCROLL);
-        assert!(matches!(r, Err(EncodeError::Empty)));
-    }
-}
-
 /// Shape-parity wrapper. Calls [`embed`] and ignores the config.
 /// v0.7 phase 7-pre.
 pub fn embed_with_config(
@@ -130,4 +119,15 @@ pub fn embed_stereo_with_config(
     _config: EmbedConfig,
 ) -> Result<(Vec<f32>, Vec<f32>), EncodeError> {
     embed_stereo(left, right, brand_id_5bit)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_input_errors() {
+        let r = embed(&[], registry::BRAND_DOOMSCROLL);
+        assert!(matches!(r, Err(EncodeError::Empty)));
+    }
 }

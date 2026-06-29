@@ -29,8 +29,11 @@
 //! external tool" surfaces in the kit. The dispatch chain stays
 //! intact; the verifier reports the absence rather than crashing.
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+
+use tempfile::TempDir;
 
 pub use provcheck::prelude::{WatermarkBrand, WatermarkKind, WatermarkResult, WatermarkStatus};
 
@@ -40,6 +43,14 @@ const SAMPLE_INTERVAL_SECS: u32 = 2;
 const MAX_FRAMES: usize = 30;
 /// Number of frames whose brand id must match for status=Detected.
 const MIN_DETECTED_FRAMES: usize = 3;
+/// Minimum frames whose brand id must match for status=Degraded.
+/// A single spurious 1-of-30 match no longer promotes to Degraded
+/// per v0.9.0 audit §2.7.
+const MIN_DEGRADED_FRAMES: usize = 2;
+/// Wall-clock ffmpeg cap (input read budget), seconds. Per
+/// v0.9.0 audit §3 prevents pathological input from chewing CPU
+/// before the first sampled frame.
+const FFMPEG_TIME_CAP_SECS: u32 = SAMPLE_INTERVAL_SECS * (MAX_FRAMES as u32);
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -59,11 +70,17 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
         return Ok(missing_ffmpeg());
     }
 
-    let tmp = make_tempdir()?;
-    let frames = match extract_frames(path, &tmp) {
+    // v0.9.0 audit §2.5 + §3: tempfile::TempDir uses O_EXCL +
+    // random suffix — no collision across concurrent processes,
+    // no symlink-overwrite risk on shared /tmp, and Drop-on-panic
+    // cleanup.
+    let tmp: TempDir = match TempDir::with_prefix("provcheck-video-frames-") {
+        Ok(t) => t,
+        Err(e) => return Err(Error::Io(e)),
+    };
+    let frames = match extract_frames(path, tmp.path()) {
         Ok(f) => f,
         Err(e) => {
-            cleanup_tempdir(&tmp);
             return Ok(WatermarkResult {
                 kind: WatermarkKind::TrustMarkVideo,
                 status: WatermarkStatus::NotDetected,
@@ -78,25 +95,22 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
     };
 
     let mut per_frame_confs = Vec::new();
-    let mut brand_votes: std::collections::HashMap<WatermarkBrand, usize> =
-        std::collections::HashMap::new();
-    let mut any_detected = false;
+    // v0.9.0 audit §4: BTreeMap for deterministic tiebreak.
+    let mut brand_votes: BTreeMap<WatermarkBrand, usize> = BTreeMap::new();
 
     for frame in &frames {
-        let r = match provcheck_image::detect(frame) {
-            Ok(r) => r,
-            Err(_) => continue,
+        let Ok(r) = provcheck_image::detect(frame) else {
+            continue;
         };
         per_frame_confs.push(r.confidence);
         if let Some(brand) = r.brand {
             *brand_votes.entry(brand).or_insert(0) += 1;
         }
-        if r.detected {
-            any_detected = true;
-        }
     }
 
-    cleanup_tempdir(&tmp);
+    // tmp dropped here regardless of return path (including panics
+    // inside the loop above).
+    drop(tmp);
 
     if per_frame_confs.is_empty() {
         return Ok(WatermarkResult {
@@ -124,7 +138,10 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
         Some((brand, &count)) if count >= MIN_DETECTED_FRAMES => {
             (WatermarkStatus::Detected, Some(*brand))
         }
-        Some((brand, _)) if any_detected => {
+        // v0.9.0 audit §2.7: require >= MIN_DEGRADED_FRAMES, not
+        // just any_detected. Prevents a 1-of-30 spurious frame
+        // match from promoting to Degraded.
+        Some((brand, &count)) if count >= MIN_DEGRADED_FRAMES => {
             (WatermarkStatus::Degraded, Some(*brand))
         }
         _ => (WatermarkStatus::NotDetected, None),
@@ -203,21 +220,6 @@ fn ffmpeg_on_path() -> bool {
         .unwrap_or(false)
 }
 
-fn make_tempdir() -> Result<PathBuf, Error> {
-    let base = std::env::temp_dir().join("provcheck-video-frames");
-    std::fs::create_dir_all(&base)?;
-    use std::sync::atomic::{AtomicUsize, Ordering};
-    static COUNTER: AtomicUsize = AtomicUsize::new(0);
-    let id = COUNTER.fetch_add(1, Ordering::Relaxed);
-    let dir = base.join(format!("call-{id:08x}"));
-    std::fs::create_dir_all(&dir)?;
-    Ok(dir)
-}
-
-fn cleanup_tempdir(dir: &Path) {
-    let _ = std::fs::remove_dir_all(dir);
-}
-
 fn extract_frames(src: &Path, dst: &Path) -> Result<Vec<PathBuf>, Error> {
     let pattern = dst.join("frame-%04d.png");
     let status = Command::new("ffmpeg")
@@ -225,6 +227,11 @@ fn extract_frames(src: &Path, dst: &Path) -> Result<Vec<PathBuf>, Error> {
             "-hide_banner",
             "-loglevel",
             "error",
+            // v0.9.0 audit §3: wall-clock cap so a fuzzed
+            // container can't chew CPU/RAM before the first
+            // sampled frame lands.
+            "-t",
+            &format!("{FFMPEG_TIME_CAP_SECS}"),
             "-i",
             &src.to_string_lossy(),
             "-vf",
@@ -258,13 +265,43 @@ fn extract_frames(src: &Path, dst: &Path) -> Result<Vec<PathBuf>, Error> {
 }
 
 #[cfg(test)]
-mod _send_sync_assertions {
-    fn assert_send_sync<T: Send + Sync>() {}
+mod tests {
+    use super::*;
+
     #[test]
     fn key_public_types_are_send_sync() {
-        assert_send_sync::<crate::WatermarkResult>();
-        assert_send_sync::<crate::WatermarkBrand>();
-        assert_send_sync::<crate::WatermarkKind>();
-        assert_send_sync::<crate::WatermarkStatus>();
+        fn assert_send_sync<T: Send + Sync>() {}
+        assert_send_sync::<WatermarkResult>();
+        assert_send_sync::<WatermarkBrand>();
+        assert_send_sync::<WatermarkKind>();
+        assert_send_sync::<WatermarkStatus>();
+    }
+
+    #[test]
+    fn non_video_extension_returns_not_video() {
+        let f = tempfile::Builder::new()
+            .suffix(".txt")
+            .tempfile()
+            .expect("tempfile");
+        let r = detect(f.path()).expect("detect");
+        assert!(!r.detected);
+        assert_eq!(r.message.as_deref(), Some("not video"));
+    }
+
+    #[test]
+    fn video_extension_without_ffmpeg_surfaces_clear_hint() {
+        // We can't UNINSTALL ffmpeg for the test, so this test
+        // is best-effort: if ffmpeg is on PATH, the test exercises
+        // the "ffmpeg failed on empty file" path instead, which
+        // still surfaces a message. Both branches return
+        // NotDetected without crashing.
+        let f = tempfile::Builder::new()
+            .suffix(".mp4")
+            .tempfile()
+            .expect("tempfile");
+        // Empty file, no valid video container.
+        let r = detect(f.path()).expect("detect");
+        assert!(!r.detected);
+        assert!(r.message.is_some());
     }
 }

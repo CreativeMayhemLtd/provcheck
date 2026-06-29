@@ -10,35 +10,47 @@
 //!
 //! ## Status
 //!
-//! v0.7 phase 7a: **scaffold only**. The chosen first family is
-//! [TrustMark](https://github.com/adobe/TrustMark) (Adobe / CAI,
-//! Apache-2.0 code and weights claimed). The ONNX backend wires
-//! in at phase 7b; right now [`detect`] returns the
-//! `NotDetected` stub for every input and [`encode::embed`]
-//! returns [`EncodeError::NotYetImplemented`].
+//! Fully wired as of v0.7.0 (detect) and v0.9.0 (encode with BCH-5
+//! ecosystem interop). The detector runs TrustMark-B (Adobe /
+//! Content Authenticity Initiative, MIT-licensed code + weights)
+//! via [`ort`] with the load-dynamic backend; release archives
+//! bundle the platform-specific onnxruntime so downloaded
+//! binaries work without operator setup. [`detect`] decodes a
+//! shortened-BCH(96, 61, t=5) payload, verifies the magic byte,
+//! and surfaces the recovered brand id; [`encode::embed`] runs
+//! the encoder ONNX through ort and writes a marked image via
+//! the residual + blend recipe ported from upstream
+//! `trustmark.py`.
 //!
 //! See [`docs/v0.7.0-roadmap/7a-image-watermark-survey.md`](https://github.com/CreativeMayhemLtd/provcheck/blob/main/docs/v0.7.0-roadmap/7a-image-watermark-survey.md)
 //! for the library-survey rationale.
 //!
 //! ## License posture
 //!
-//! Both the chosen family's code AND model weights must be
-//! permissively licensed per the workspace
+//! Both code AND model weights are permissively licensed per the
+//! workspace
 //! [`WATERMARK_LICENSE_POLICY.md`](https://github.com/CreativeMayhemLtd/provcheck/blob/main/WATERMARK_LICENSE_POLICY.md).
-//! TrustMark's Apache-2.0 status is verified at 7b's wiring
-//! commit; if it falls through the survey calls out DCT-DWT
-//! classical methods as a no-weights-license-risk fallback.
+//! TrustMark-B's MIT status was re-verified at v0.7.0; weights
+//! ship via the DLC delivery pattern (`provcheck-kit weights
+//! install trustmark`).
 //!
-//! ## Pipeline (target shape for 7b)
+//! ## Pipeline
 //!
-//! 1. [`image`] decodes the container (PNG, JPEG, WebP) via the
-//!    `image` crate, normalises to an f32 tensor in the model's
-//!    expected colourspace.
-//! 2. [`detect::detect`] (7b) runs the TrustMark decoder ONNX
-//!    via tract and recovers the 100-bit payload.
-//! 3. [`brand`] (7b) dispatches on payload bytes the same way
-//!    the audio side does — re-using
-//!    [`provcheck::report::WatermarkBrand`].
+//! 1. [`image`] decodes the container (PNG, JPEG, WebP, BMP, GIF,
+//!    TIFF) via the `image` crate with a decompression-bomb cap
+//!    of 8192 x 8192 / 256 MB alloc, then resizes to 256 x 256
+//!    RGB f32 in `[-1, 1]` CHW layout.
+//! 2. [`detect`] runs the TrustMark decoder ONNX via ort and
+//!    recovers 100 raw bits, then [`bch`] performs the
+//!    BCH(96, 61, t=5) error correction to recover the 61-bit
+//!    data payload.
+//! 3. The magic byte + version bits gate the result; brand id
+//!    routes through [`provcheck::report::WatermarkBrand`].
+//! 4. [`encode::embed`] is the inverse pipeline: builds the
+//!    61-bit data payload, BCH-encodes to a 96-bit shortened
+//!    codeword + 4 version bits, feeds the encoder ONNX, blends
+//!    the residual back into the original-resolution image, and
+//!    writes the marked output.
 
 use std::path::Path;
 
@@ -220,17 +232,12 @@ fn classify_bch5(bits: &[u8]) -> (WatermarkStatus, Option<WatermarkBrand>) {
     //   pos[35..66] = SHORTEN_PAD zero bits
     //   pos[66..127] = 61 data bits
     let mut received = vec![0u8; crate::bch::N];
-    for i in 0..35 {
-        received[i] = bits[61 + i];
-    }
+    received[..35].copy_from_slice(&bits[61..96]);
     // pos[35..66] stays zero (the shortening pad).
-    for i in 0..61 {
-        received[66 + i] = bits[i];
-    }
+    received[66..66 + 61].copy_from_slice(&bits[..61]);
 
-    let (data, _errs) = match crate::bch::decode(&received) {
-        Ok(r) => r,
-        Err(_) => return (WatermarkStatus::NotDetected, None),
+    let Ok((data, _errs)) = crate::bch::decode(&received) else {
+        return (WatermarkStatus::NotDetected, None);
     };
     // `data` is the 92-bit BCH input that was encoded. Strip the
     // 31 leading zero pads to get the 61 data bits.
@@ -238,8 +245,8 @@ fn classify_bch5(bits: &[u8]) -> (WatermarkStatus, Option<WatermarkBrand>) {
 
     // Magic byte at the head.
     let mut magic = 0u8;
-    for i in 0..8 {
-        if payload[i] == 1 {
+    for (i, &bit) in payload.iter().take(8).enumerate() {
+        if bit == 1 {
             magic |= 1 << (7 - i);
         }
     }
@@ -248,8 +255,8 @@ fn classify_bch5(bits: &[u8]) -> (WatermarkStatus, Option<WatermarkBrand>) {
     }
     // Brand id at bits 8..13 of the recovered data.
     let mut brand_id = 0u8;
-    for i in 0..5 {
-        if payload[8 + i] == 1 {
+    for (i, &bit) in payload.iter().skip(8).take(5).enumerate() {
+        if bit == 1 {
             brand_id |= 1 << (4 - i);
         }
     }
@@ -312,15 +319,19 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "requires network to download TrustMark weights from the public GH release"]
-    fn image_extension_returns_weights_pending_stub() {
+    #[ignore = "needs trustmark weights cached locally; gated to skip on CI"]
+    fn image_extension_surfaces_not_cached_when_weights_absent() {
+        // Without the trustmark weights installed the detector
+        // returns a NotCached error message rather than running
+        // the ONNX inference. This is the "respect the user"
+        // behavior — no surprise downloads, clean instruction
+        // for the operator on what to install.
         let f = tempfile_with_ext("png", b"\x89PNG\r\n\x1a\nfake");
         let r = detect(f.path()).expect("detect");
-        assert!(!r.detected);
         let msg = r.message.as_deref().unwrap_or("");
         assert!(
-            msg.starts_with("image detector wiring pending"),
-            "got message: {msg}"
+            msg.contains("weights install trustmark") || msg.contains("not installed"),
+            "expected NotCached install hint, got: {msg}"
         );
     }
 

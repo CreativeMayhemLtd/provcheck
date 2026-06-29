@@ -1,6 +1,6 @@
 [package]
 name = "provcheck-synthid-text"
-description = "Google SynthID-text detection for provcheck (v0.7 phase 7e scaffold)."
+description = "Google SynthID-text Bayesian tournament-sampling detection for provcheck."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

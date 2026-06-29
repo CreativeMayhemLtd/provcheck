@@ -21,6 +21,18 @@ use image::{GenericImageView, ImageReader};
 /// against the real decoder on 2026-06-28.
 pub(crate) const MODEL_RES: u32 = 256;
 
+/// Max image dimension (width or height) we will decode. Crafted
+/// PNG/TIFF / etc. can declare absurdly large dimensions; the
+/// `image` crate honours them and allocates accordingly. Cap at
+/// 8192 to bound peak memory at ~256 MB for any 4-byte/pixel
+/// format. Creator outputs above this are out of scope for the
+/// in-browser-marker use case. See v0.9.0 audit §2.3.
+pub(crate) const MAX_IMAGE_DIM: u32 = 8192;
+/// Max total allocation the image decoder is allowed to perform.
+/// Belt-and-braces alongside `MAX_IMAGE_DIM` for formats with
+/// variable bit depth or alpha planes.
+pub(crate) const MAX_IMAGE_ALLOC: u64 = 256 * 1024 * 1024;
+
 #[derive(Debug, thiserror::Error)]
 pub enum ImageError {
     #[error("file is not a supported image container")]
@@ -70,10 +82,21 @@ pub fn decode(path: &Path) -> Result<DecodedImage, ImageError> {
         return Err(ImageError::NotImage);
     }
 
-    let reader = ImageReader::open(path)
+    let mut reader = ImageReader::open(path)
         .map_err(|e| ImageError::Decode(format!("open: {e}")))?
         .with_guessed_format()
         .map_err(|e| ImageError::Decode(format!("format probe: {e}")))?;
+    // Decompression-bomb guard. A crafted PNG/TIFF can allocate
+    // gigabytes before any size check fires. Cap dimensions to
+    // 8192 × 8192 (~256 MB for 4-byte RGBA) and total alloc to
+    // 256 MB — comfortably above any reasonable creator output,
+    // comfortably below memory-pressure thresholds on modest
+    // hosts. See v0.9.0 audit §2.3.
+    let mut limits = image::Limits::default();
+    limits.max_image_width = Some(MAX_IMAGE_DIM);
+    limits.max_image_height = Some(MAX_IMAGE_DIM);
+    limits.max_alloc = Some(MAX_IMAGE_ALLOC);
+    reader.limits(limits);
     let img = reader
         .decode()
         .map_err(|e| ImageError::Decode(format!("decode: {e}")))?;

@@ -107,11 +107,16 @@ pub struct Report {
 
     /// Neural-watermark detection results. Always empty from
     /// the core `verify_with_options` path — populated only by
-    /// callers that invoked one or more detectors (the
-    /// silentcipher detector lives in `provcheck-watermark`;
-    /// future sibling crates will add AudioSeal, WavMark, and
-    /// any other FOSS-licensed families) and pushed each
-    /// result into this vec.
+    /// callers that invoked one or more detectors. The shipped
+    /// detector families are: silentcipher (audio, 44.1 kHz)
+    /// in `provcheck-watermark`, AudioSeal (audio, 16 kHz) in
+    /// `provcheck-audioseal`, WavMark (audio, 16 kHz) in
+    /// `provcheck-wavmark`, TrustMark-B (image) in
+    /// `provcheck-image`, per-frame TrustMark + temporal vote
+    /// (video) in `provcheck-video`, and SynthID-text
+    /// (Bayesian tournament-sampling) in
+    /// `provcheck-synthid-text`. Callers push results into
+    /// this vec.
     ///
     /// Independent of C2PA: these signals corroborate or
     /// contradict the manifest rather than relying on the same
@@ -205,9 +210,9 @@ pub struct DidAttestation {
 /// only finds watermarks embedded by its matching encoder.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WatermarkResult {
-    /// Which detector family ran. For now, always
-    /// `SilentCipher`. New variants will arrive when additional
-    /// detector families (AudioSeal, SynthID, …) are added.
+    /// Which detector family ran. Six variants currently ship:
+    /// `SilentCipher`, `AudioSeal`, `WavMark`, `TrustMark`,
+    /// `TrustMarkVideo`, and `SynthIdText`.
     pub kind: WatermarkKind,
 
     /// Tri-state quality of the detection:
@@ -332,7 +337,7 @@ pub enum WatermarkStatus {
 /// `provcheck-watermark`. The schema byte (currently always
 /// at index 3) selects how the rest of the payload is
 /// interpreted; today only schema 1 is in production use.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(tag = "code", rename_all = "snake_case")]
 pub enum WatermarkBrand {
     /// rAIdio.bot — payload `RAI` (`[82, 65, 73]`).

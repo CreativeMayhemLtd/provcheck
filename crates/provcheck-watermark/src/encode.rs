@@ -97,6 +97,12 @@ pub enum EncodeError {
     Stft(#[from] crate::stft::StftError),
     #[error("input waveform is too short to embed (need at least one full window)")]
     TooShort,
+    /// Caller passed mismatched left/right channel lengths to a
+    /// stereo embed entry point. Distinct from `Inference` so
+    /// callers can tell user-input bugs apart from model-internal
+    /// failures. Added in the v0.9.0 audit pass.
+    #[error("stereo embed: left ({left} samples) and right ({right} samples) have different lengths")]
+    StereoLengthMismatch { left: usize, right: usize },
 }
 
 /// Embed configuration knobs threaded through the encode pipeline.
@@ -320,6 +326,12 @@ pub fn embed_with_config(
 /// [`EmbedConfig`] `max_parallel_chunks` field is ignored. Use this
 /// path when peak host RAM matters more than wall clock; use
 /// [`embed_with_config`] when wall clock matters more.
+/// Streaming variant of [`embed_with_config`]. NOTE: the
+/// `EmbedConfig` parameter is currently ignored — the streaming
+/// path's chunk-by-chunk shape makes the existing config knobs
+/// (e.g. `max_parallel_chunks`) inapplicable. Future config knobs
+/// specific to streaming (chunk size, ring-buffer depth) will
+/// land here. Documented per v0.9.0 audit §3.
 pub fn embed_streaming_with_config(
     waveform: &[f32],
     payload: [u8; 5],
@@ -425,11 +437,10 @@ pub fn embed_stereo_with_config(
     config: EmbedConfig,
 ) -> Result<(Vec<f32>, Vec<f32>), EncodeError> {
     if left.len() != right.len() {
-        return Err(EncodeError::Inference(format!(
-            "stereo embed: left ({}) and right ({}) have different lengths",
-            left.len(),
-            right.len()
-        )));
+        return Err(EncodeError::StereoLengthMismatch {
+            left: left.len(),
+            right: right.len(),
+        });
     }
     let l = embed_with_config(left, payload, message_sdr_db, config)?;
     let r = embed_with_config(right, payload, message_sdr_db, config)?;

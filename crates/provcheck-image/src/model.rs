@@ -36,7 +36,7 @@ use crate::image::{DecodedImage, MODEL_RES};
 pub const SECRET_LEN: usize = 100;
 
 /// Number of bytes needed to pack `SECRET_LEN` bits.
-pub const SECRET_BYTES: usize = (SECRET_LEN + 7) / 8;
+pub const SECRET_BYTES: usize = SECRET_LEN.div_ceil(8);
 
 #[derive(Debug, thiserror::Error)]
 pub enum ModelError {
@@ -108,8 +108,8 @@ fn encoder_model() -> Result<&'static Mutex<Session>, ModelError> {
 
 /// Run the TrustMark-B encoder on a 256×256 cover image plus a
 /// 100-bit secret. Returns the stego image at 256×256 in
-/// `[-1, 1]` CHW layout. Caller is responsible for the residual
-/// + blend + resize-to-original-size dance per upstream
+/// `[-1, 1]` CHW layout. Caller is responsible for the residual,
+/// blend, and resize-to-original-size dance per upstream
 /// `trustmark.py`'s encoder path.
 ///
 /// v0.7 phase 7c.
