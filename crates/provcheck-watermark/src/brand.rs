@@ -95,6 +95,110 @@ pub fn classify(valid: bool, confidence: f32) -> WatermarkStatus {
 mod tests {
     use super::*;
 
+    // ----- Brand payload constants ----------
+    //
+    // Pin every PAYLOAD_* constant exactly. These are the
+    // production payloads the embedder writes; a typo here
+    // (e.g. a `b'V' -> b'B'` slip) silently breaks every
+    // downstream verifier.
+
+    #[test]
+    fn payload_raidio_is_rai_schema1_reserved0() {
+        assert_eq!(PAYLOAD_RAIDIO, [b'R', b'A', b'I', 0x01, 0x00]);
+    }
+
+    #[test]
+    fn payload_doomscroll_is_dfm_schema1_reserved0() {
+        assert_eq!(PAYLOAD_DOOMSCROLL, [b'D', b'F', b'M', 0x01, 0x00]);
+    }
+
+    #[test]
+    fn payload_vaideo_is_vai_schema1_reserved0() {
+        assert_eq!(PAYLOAD_VAIDEO, [b'V', b'A', b'I', 0x01, 0x00]);
+    }
+
+    #[test]
+    fn payload_constants_round_trip_through_parse_brand() {
+        // PAYLOAD_RAIDIO → parse_brand → Raidio. Symmetric for
+        // each constant. Catches an accidental drift between
+        // the PAYLOAD_* table and the parser's BRAND_* table.
+        assert_eq!(parse_brand(PAYLOAD_RAIDIO), Some(WatermarkBrand::Raidio));
+        assert_eq!(
+            parse_brand(PAYLOAD_DOOMSCROLL),
+            Some(WatermarkBrand::Doomscroll)
+        );
+        assert_eq!(parse_brand(PAYLOAD_VAIDEO), Some(WatermarkBrand::Vaideo));
+    }
+
+    #[test]
+    fn payload_constants_all_use_schema_byte_one() {
+        // The PAYLOAD_* table's [3] is the schema version. Pin
+        // that every shipped constant lives in schema 1 (the
+        // only currently-documented schema).
+        for (name, payload) in [
+            ("RAIDIO", PAYLOAD_RAIDIO),
+            ("DOOMSCROLL", PAYLOAD_DOOMSCROLL),
+            ("VAIDEO", PAYLOAD_VAIDEO),
+        ] {
+            assert_eq!(
+                payload[SCHEMA_BYTE_INDEX], 1,
+                "PAYLOAD_{name} must use schema version 1"
+            );
+        }
+    }
+
+    #[test]
+    fn payload_constants_all_use_reserved_byte_zero() {
+        // The reserved byte is documented as always-zero.
+        for (name, payload) in [
+            ("RAIDIO", PAYLOAD_RAIDIO),
+            ("DOOMSCROLL", PAYLOAD_DOOMSCROLL),
+            ("VAIDEO", PAYLOAD_VAIDEO),
+        ] {
+            assert_eq!(
+                payload[4], 0,
+                "PAYLOAD_{name} reserved byte must be 0"
+            );
+        }
+    }
+
+    #[test]
+    fn schema_byte_index_is_three() {
+        // The tagged-union key position. Pin so a future
+        // schema-2 work doesn't accidentally shift it.
+        assert_eq!(SCHEMA_BYTE_INDEX, 3);
+    }
+
+    // ----- parse_brand edge cases ----------
+
+    #[test]
+    fn parse_brand_lowercase_ascii_is_unknown_not_a_known_brand() {
+        // Case-sensitive registry — "rai" is NOT Raidio.
+        let r = parse_brand([b'r', b'a', b'i', 1, 0]);
+        match r {
+            Some(WatermarkBrand::UnknownAscii { letters }) => {
+                assert_eq!(letters, [b'r', b'a', b'i']);
+            }
+            other => panic!("expected UnknownAscii, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_brand_zero_schema_returns_unknown_schema() {
+        // Schema 0 is reserved / not yet a real schema. Must
+        // surface as UnknownSchema.
+        let r = parse_brand([b'R', b'A', b'I', 0, 0]);
+        assert_eq!(r, Some(WatermarkBrand::UnknownSchema { schema: 0 }));
+    }
+
+    #[test]
+    fn parse_brand_max_schema_byte_returns_unknown_schema() {
+        // 0xFF must not silently fall through to schema-1
+        // behaviour.
+        let r = parse_brand([b'R', b'A', b'I', 0xFF, 0]);
+        assert_eq!(r, Some(WatermarkBrand::UnknownSchema { schema: 0xFF }));
+    }
+
     #[test]
     fn rai_payload_maps_to_raidio() {
         assert_eq!(
