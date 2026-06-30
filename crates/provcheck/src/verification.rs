@@ -377,3 +377,108 @@ fn evaluate_trust(reader: &c2pa::Reader) -> Option<bool> {
     }
     None
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ----- VerifyOptions::default ----------
+
+    #[test]
+    fn verify_options_default_has_no_trust_store() {
+        let opts = VerifyOptions::default();
+        assert!(opts.trust_store_pem.is_none());
+    }
+
+    #[test]
+    fn verify_options_default_does_not_require_trusted() {
+        // The website's FAQ documents this contract: by default
+        // the verifier reports what the crypto says without
+        // demoting based on trust-anchor membership. Pin so a
+        // future maintainer doesn't silently flip the default
+        // (which would change every `provcheck file.wav` exit
+        // code on signed-but-not-trust-anchored content).
+        let opts = VerifyOptions::default();
+        assert!(!opts.require_trusted);
+    }
+
+    // ----- is_identity_label ----------
+    //
+    // c2pa-rs sometimes decorates assertion labels with `__<suffix>`
+    // disambiguators when a hash collision occurs. The producer
+    // always writes the bare label; the verifier must accept both
+    // shapes. Pin both branches plus the dot-suffix variant.
+
+    #[test]
+    fn is_identity_label_accepts_bare_label() {
+        assert!(is_identity_label(
+            provcheck_attestation_spec::IDENTITY_ASSERTION_LABEL
+        ));
+    }
+
+    #[test]
+    fn is_identity_label_accepts_double_underscore_suffix() {
+        let decorated = format!(
+            "{}__abc123",
+            provcheck_attestation_spec::IDENTITY_ASSERTION_LABEL
+        );
+        assert!(is_identity_label(&decorated));
+    }
+
+    #[test]
+    fn is_identity_label_accepts_dot_suffix() {
+        let decorated = format!(
+            "{}.v2",
+            provcheck_attestation_spec::IDENTITY_ASSERTION_LABEL
+        );
+        assert!(is_identity_label(&decorated));
+    }
+
+    #[test]
+    fn is_identity_label_rejects_unrelated_label() {
+        assert!(!is_identity_label("c2pa.actions.v2"));
+        assert!(!is_identity_label("some.other.assertion"));
+        assert!(!is_identity_label(""));
+    }
+
+    #[test]
+    fn is_identity_label_rejects_prefix_match_without_separator() {
+        // The label "app.provcheck.identityXX" (no separator)
+        // must NOT match — only `__` and `.` are documented
+        // suffixes. Pin the strict-separator contract.
+        let prefix = format!(
+            "{}XX",
+            provcheck_attestation_spec::IDENTITY_ASSERTION_LABEL
+        );
+        assert!(!is_identity_label(&prefix));
+    }
+
+    #[test]
+    fn is_identity_label_rejects_substring_inside_label() {
+        // The label substring inside a longer string (not as
+        // prefix) must NOT match.
+        let inside = format!(
+            "x.{}",
+            provcheck_attestation_spec::IDENTITY_ASSERTION_LABEL
+        );
+        assert!(!is_identity_label(&inside));
+    }
+
+    // ----- verify() error paths ----------
+
+    #[test]
+    fn verify_missing_file_returns_io_error() {
+        let r = verify(Path::new("/no/such/file/abcxyz.wav"));
+        assert!(matches!(r, Err(Error::Io(_))));
+    }
+
+    #[test]
+    fn verify_with_invalid_trust_store_pem_returns_invalid_trust_store_error() {
+        let opts = VerifyOptions {
+            trust_store_pem: Some("clearly not a PEM".into()),
+            require_trusted: false,
+        };
+        let r = verify_with_options(Path::new("any.wav"), &opts);
+        assert!(matches!(r, Err(Error::InvalidTrustStore(_))));
+    }
+}
