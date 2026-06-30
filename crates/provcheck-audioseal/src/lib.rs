@@ -219,6 +219,94 @@ mod tests {
     use super::*;
     use std::io::Write;
 
+    // ----- classify ----------
+
+    #[test]
+    fn classify_at_detected_threshold_is_detected() {
+        assert!(matches!(
+            classify(CONFIDENCE_DETECTED_THRESHOLD),
+            WatermarkStatus::Detected
+        ));
+    }
+
+    #[test]
+    fn classify_at_degraded_threshold_is_degraded() {
+        assert!(matches!(
+            classify(CONFIDENCE_DEGRADED_THRESHOLD),
+            WatermarkStatus::Degraded
+        ));
+    }
+
+    #[test]
+    fn classify_below_degraded_is_not_detected() {
+        assert!(matches!(
+            classify(CONFIDENCE_DEGRADED_THRESHOLD - 0.01),
+            WatermarkStatus::NotDetected
+        ));
+    }
+
+    #[test]
+    fn classify_just_below_detected_is_degraded() {
+        assert!(matches!(
+            classify(CONFIDENCE_DETECTED_THRESHOLD - 0.01),
+            WatermarkStatus::Degraded
+        ));
+    }
+
+    // ----- looks_like_audio ----------
+
+    #[test]
+    fn looks_like_audio_accepts_documented_extensions() {
+        for ext in [
+            "mp3", "mp4", "wav", "flac", "aac", "m4a", "m4b", "mov", "ogg",
+            "oga", "opus", "wma", "aiff", "aif",
+        ] {
+            let p = std::path::PathBuf::from(format!("/test/file.{ext}"));
+            assert!(looks_like_audio(&p), "{ext} should look like audio");
+        }
+    }
+
+    #[test]
+    fn looks_like_audio_rejects_image_and_text_extensions() {
+        for ext in ["png", "jpg", "gif", "txt", "md", "html"] {
+            let p = std::path::PathBuf::from(format!("/test/file.{ext}"));
+            assert!(
+                !looks_like_audio(&p),
+                "{ext} should NOT look like audio"
+            );
+        }
+    }
+
+    #[test]
+    fn looks_like_audio_is_case_insensitive() {
+        // Windows paths can be UPPER. Pin lowercase normalisation.
+        for ext in ["WAV", "MP3", "FlAc"] {
+            let p = std::path::PathBuf::from(format!("/test/file.{ext}"));
+            assert!(looks_like_audio(&p), "{ext} should pass case-insensitive");
+        }
+    }
+
+    #[test]
+    fn looks_like_audio_rejects_no_extension() {
+        let p = std::path::PathBuf::from("/test/README");
+        assert!(!looks_like_audio(&p));
+    }
+
+    // ----- not_detected helper ----------
+
+    #[test]
+    fn not_detected_helper_sets_audioseal_kind_and_zero_confidence() {
+        let r = not_detected("some reason");
+        assert!(matches!(r.kind, WatermarkKind::AudioSeal));
+        assert!(matches!(r.status, WatermarkStatus::NotDetected));
+        assert_eq!(r.confidence, 0.0);
+        assert!(!r.detected);
+        assert!(r.payload.is_none());
+        assert!(r.brand.is_none());
+        assert!(r.marked_regions.is_none());
+        assert_eq!(r.message.as_deref(), Some("some reason"));
+    }
+
     #[test]
     fn missing_file_is_io_error() {
         let err = detect(Path::new("does_not_exist_audioseal_42.wav")).unwrap_err();
