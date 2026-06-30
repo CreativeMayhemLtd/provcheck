@@ -682,6 +682,57 @@ mod tests {
     }
 
     #[test]
+    fn detect_returns_silentcipher_kind_for_non_audio() {
+        // The dispatch contract: every NotDetected result from
+        // this crate carries WatermarkKind::SilentCipher (not a
+        // generic Unknown). Pin so a future refactor that swaps
+        // the not_detected helper keeps emitting the correct kind.
+        let mut f = tempfile::Builder::new().suffix(".png").tempfile().unwrap();
+        f.write_all(b"\x89PNG\r\n\x1a\n").unwrap();
+        let r = detect(f.path()).unwrap();
+        assert!(matches!(r.kind, WatermarkKind::SilentCipher));
+    }
+
+    #[test]
+    fn detect_no_extension_returns_not_audio() {
+        // A file with no extension can't pass the looks_like_audio
+        // gate. Pin: NotDetected, message="not audio".
+        let f = tempfile::NamedTempFile::new().expect("tempfile");
+        let r = detect(f.path()).unwrap();
+        assert!(!r.detected);
+        assert_eq!(r.message.as_deref(), Some("not audio"));
+    }
+
+    #[test]
+    fn detect_text_extension_returns_not_audio() {
+        let mut f = tempfile::Builder::new().suffix(".txt").tempfile().unwrap();
+        f.write_all(b"some text content").unwrap();
+        let r = detect(f.path()).unwrap();
+        assert!(!r.detected);
+        assert_eq!(r.message.as_deref(), Some("not audio"));
+    }
+
+    #[test]
+    fn detect_pdf_extension_returns_not_audio() {
+        let mut f = tempfile::Builder::new().suffix(".pdf").tempfile().unwrap();
+        f.write_all(b"%PDF-1.4").unwrap();
+        let r = detect(f.path()).unwrap();
+        assert!(!r.detected);
+        assert_eq!(r.message.as_deref(), Some("not audio"));
+    }
+
+    #[test]
+    fn detect_zero_confidence_on_not_audio() {
+        // Every not_detected path must produce confidence == 0.0,
+        // not the "no result" sentinel of 0.5 some Python ports
+        // use. Pin the contract.
+        let mut f = tempfile::Builder::new().suffix(".png").tempfile().unwrap();
+        f.write_all(b"\x89PNG").unwrap();
+        let r = detect(f.path()).unwrap();
+        assert_eq!(r.confidence, 0.0);
+    }
+
+    #[test]
     fn fake_wav_with_audio_extension_decodes_cleanly_to_not_detected() {
         // A file with `.wav` extension but no real wave data
         // makes it past the extension sniff but symphonia
