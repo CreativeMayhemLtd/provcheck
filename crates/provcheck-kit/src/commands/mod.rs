@@ -5,8 +5,8 @@
 //! function that does the work. `main.rs` dispatches based on the
 //! [`Command`] enum.
 //!
-//! Two commands intentionally print a "no-op for v0.3.0" line and
-//! exit 0: `lock` and `unlock`. They exist on the CLI surface for
+//! Two commands intentionally print a "no-op" line and exit 0:
+//! `lock` and `unlock`. They exist on the CLI surface for
 //! forward-compatibility with a future kit-agent daemon that would
 //! own cross-process passphrase caching; until that daemon ships,
 //! each `kit` invocation drops its in-process [`SecretCache`] at
@@ -446,14 +446,18 @@ pub mod init {
                     .context("store key in encrypted file")?;
             }
             KeyProviderKind::Yubikey { .. } => {
-                // Yubikey backend lands in P2; init for a Yubikey
-                // identity goes through a different code path entirely
-                // (no software-keypair generation). This arm exists so
-                // the compiler keeps every match exhaustive.
+                // Init for a Yubikey identity goes through a
+                // different code path entirely (no software-
+                // keypair generation; the key is minted on-device).
+                // This arm exists so the compiler keeps every match
+                // exhaustive. Reaching it indicates an upstream
+                // dispatch bug.
                 bail!(
-                    "Yubikey-backed identity init is not yet wired in this \
-                     build. Use `kit init --backend keychain` or wait for \
-                     v0.5.0 P2."
+                    "internal error: software-keypair init arm reached \
+                     for a Yubikey-backed identity. The Yubikey path \
+                     mints the key on-device and must not pass through \
+                     this branch. Re-run `kit init --backend yubikey` \
+                     and file an issue if this persists."
                 );
             }
         }
@@ -520,7 +524,7 @@ pub mod init {
         };
 
         eprintln!(
-            "Detected Yubikey serial {serial}. v0.5.0 generates the key on \
+            "Detected Yubikey serial {serial}. The key will be generated on \
              PIV slot 0x9c (Digital Signature) with PinPolicy::Always."
         );
         eprintln!();
