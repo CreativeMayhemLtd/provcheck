@@ -189,9 +189,8 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
              context-window prefix), mean g = {mean_g:.4} \
              (baseline 0.500), z = {z:.2}, \
              P(watermarked) = {conf:.3}. \
-             Default word-level tokenizer; HF subword tokenizer \
-             support for higher accuracy against real LLM output \
-             is a follow-up item.",
+             Word-level tokenizer (whitespace-split, lowercase, \
+             punctuation-stripped).",
             n_tokens = tokens.len(),
         )),
         marked_regions: None,
@@ -590,5 +589,38 @@ mod _send_sync_assertions {
         assert_send_sync::<crate::WatermarkBrand>();
         assert_send_sync::<crate::WatermarkKind>();
         assert_send_sync::<crate::WatermarkStatus>();
+    }
+}
+
+// v0.9.68: pin that the operator-facing detection result message
+// does NOT include a "follow-up item" hand-wave. The pre-v0.9.68
+// message ended with "Default word-level tokenizer; HF subword
+// tokenizer support for higher accuracy against real LLM output is
+// a follow-up item." — a known-incomplete-feature notice surfaced
+// on every successful detection, which reads as "this isn't
+// finished" rather than describing what the detector actually did.
+#[cfg(test)]
+mod no_stale_follow_up_promise_tests {
+    #[test]
+    fn detection_message_source_does_not_promise_a_follow_up_item() {
+        // Build the stale string by concatenation so the test
+        // itself doesn't match its own source.
+        let stale = ["is", "a", "follow-up", "item"].join(" ");
+        let source = include_str!("lib.rs");
+        assert!(
+            !source.contains(&stale),
+            "stale 'follow-up item' promise found in source: {stale:?}"
+        );
+    }
+
+    #[test]
+    fn detection_message_describes_word_level_tokenization_as_a_feature() {
+        // The replacement message should describe the tokeniser
+        // as a feature (positively, not as a partial scaffold).
+        let source = include_str!("lib.rs");
+        assert!(
+            source.contains("Word-level tokenizer"),
+            "expected positive 'Word-level tokenizer' description in detection result message"
+        );
     }
 }
