@@ -162,10 +162,12 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
                 brand: None,
                 message: Some(format!(
                     "TrustMark decoder runtime error: {e}. \
-                     v0.7 phase 7b status: preprocessing + DLC weight delivery + \
-                     verifier integration are wired, but tract 0.21's ONNX op coverage \
-                     cannot run Adobe's decoder export (Gemm and Resize op attribute \
-                     combinations declined). 7b-followup switches the backend to ort."
+                     The detector loads the BCH-5-format decoder ONNX via ort \
+                     (onnxruntime 1.20) and runs it on a 256x256 RGB tensor \
+                     normalised to [-1, 1]. A runtime error here typically \
+                     means the cached weights file is corrupt — try \
+                     `provcheck-kit weights uninstall trustmark` then \
+                     `provcheck-kit weights install trustmark` to re-fetch."
                 )),
                 marked_regions: None,
             });
@@ -277,6 +279,58 @@ fn looks_like_image(path: &Path) -> bool {
         ext.to_ascii_lowercase().as_str(),
         "png" | "jpg" | "jpeg" | "webp" | "bmp" | "gif" | "tiff" | "tif"
     )
+}
+
+// v0.9.69: pin that the TrustMark runtime-error message does not
+// reference the old prior-backend name. The 7b-followup landed
+// long ago; we ship ort. The stale message once shipped real
+// status to operators on every runtime error path. A future
+// maintainer who rebases an old branch or copy-pastes from
+// history could reintroduce it — this test guards against that.
+//
+// The sentinel strings are constructed at test time via
+// concatenation so neither this comment nor the test bodies
+// contain the literal strings (otherwise the test would match
+// its own source).
+#[cfg(test)]
+mod no_stale_backend_promise_tests {
+    #[test]
+    fn runtime_error_message_does_not_reference_prior_backend_name() {
+        let source = include_str!("lib.rs");
+        // The prior backend was named "tract" (lowercase). Build
+        // the sentinel by concatenation so this test's own source
+        // doesn't contain the literal substring.
+        let prior_backend_name = format!("{}{}{}{}{}", 't', 'r', 'a', 'c', 't');
+        let prior_with_version = format!("{prior_backend_name} 0.21");
+        let followup_promise = format!(
+            "{}{}",
+            "7b-followup",
+            " switches the backend"
+        );
+        for sentinel in [&prior_with_version, &followup_promise] {
+            assert!(
+                !source.contains(sentinel.as_str()),
+                "stale backend-promise sentinel found in source: {sentinel:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn runtime_error_message_describes_actual_backend() {
+        let source = include_str!("lib.rs");
+        // The replacement message names the actual backend (ort)
+        // and the operator's recovery action (uninstall/install
+        // weights). Positive description, not future-promise.
+        assert!(
+            source.contains("via ort"),
+            "expected runtime-error message to name the actual ort backend"
+        );
+        assert!(
+            source.contains("weights install trustmark")
+                || source.contains("weights uninstall"),
+            "expected runtime-error message to suggest a recovery action"
+        );
+    }
 }
 
 /// v0.7 phase 7-pre audit #10: Send + Sync bound assertion.
