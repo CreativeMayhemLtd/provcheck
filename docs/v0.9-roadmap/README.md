@@ -15,37 +15,77 @@ a paywall.
 
 ## Phases (target)
 
-### 9a — Detection slot architecture (FOSS plumbing)
+### 9a — Detection slot architecture (FOSS plumbing) — SHIPPED across v0.9.71..73
 
 The architectural slot that v1.0's AI-detection DLC will fill.
 Pure plumbing in v0.9 — no classifier weights, no detection logic.
-What lands:
+What landed:
 
-- `provcheck-detect` crate with the trait + tagged-union types
-  (`DetectionFamily { Image, Audio, Video, Text }`,
-  `DetectionResult { confidence, family, model_id, version }`).
-- Verifier dispatch: pluggable `Vec<Box<dyn Detector>>` slot in
-  `provcheck::report::Report`.
-- CLI surface: `provcheck --detect ai` flag toggles the detection
-  pass; no-op stub today.
-- Documentation contract: "where the paid DLC plugs in". Public
-  spec so third-party detectors can implement the trait if they
-  want to ship their own family.
+- ✓ **v0.9.71**: `provcheck-detect` crate (FOSS Apache-2.0,
+  `#![forbid(unsafe_code)]`, ships no model weights). Types:
+  `DetectionFamily { Audio, Image, Video, Text }`,
+  `DetectionStatus { Detected, Degraded, NotDetected,
+  NotApplicable, Error }`,
+  `DetectionResult { detector, family, status, detected,
+  confidence, model_id, version, message }`, `DetectorError
+  { ModelNotInstalled, Inference, Io }`. `Detector` trait
+  (`Send + Sync`, object-safe so `Vec<Box<dyn Detector>>`
+  works). `DetectorRegistry` (the dispatch layer: `register` +
+  `run_all`, errors project onto `DetectionResult { status:
+  Error, ... }`, never short-circuits).
+- ✓ **v0.9.72**: Verifier dispatch wired through
+  `provcheck::report::Report::detections: Vec<DetectionResult>`.
+  The detectors themselves live in a `DetectorRegistry` the
+  caller owns; the report carries the per-detector results.
+  Empty for the core `verify_with_options` path; populated by
+  callers that register detectors and call `run_all`. Backward-
+  compat `serde(default)` so legacy Report JSON parses.
+- ✓ **v0.9.73**: CLI surface — `provcheck --detect ai` flag
+  parses, constructs `DetectorRegistry::new()`, reads the asset,
+  runs `run_all` over the registry, pushes results into
+  `report.detections`. The FOSS core registers ZERO detectors, so
+  without an operator-supplied detector the flag is a documented
+  no-op. The flag exists so operator scripts wired against a
+  paid DLC pack or operator-supplied open-source wrapper crate
+  can request the detection pass via a stable surface.
+- ✓ **Documentation contract**: see
+  [`../public-api-stability.md`](../public-api-stability.md) for
+  the trait stability matrix and
+  [`../semver-policy.md`](../semver-policy.md) for the wire-format
+  rules every DLC pack consumes.
 
-### 9b — Streaming deepfake detection (FOSS plumbing; detector models are paid DLC OR operator-supplied open source)
+### 9b — Streaming deepfake detection (FOSS plumbing; detector models are paid DLC OR operator-supplied open source) — SHIPPED across v0.9.74..75
 
 Per user direction 2026-06-28: "in v9 we want streaming detection
 of deepfakes, for voice and video".
 
-- `provcheck-stream-deepfake` crate with the streaming intake
-  pipeline (PCM chunk feeder for audio; frame batch feeder for
-  video). **This crate is FOSS Apache-2.0.**
+- ✓ **v0.9.74 + v0.9.75**: `provcheck-stream-detect` crate (FOSS
+  Apache-2.0, `#![forbid(unsafe_code)]`, ships no model weights).
+  Note the final name dropped "deepfake" since the trait the
+  pipeline holds works for any AI-content detector, not just
+  deepfake-specific ones. Audio half (v0.9.74): PCM chunk feeder
+  via `AudioStreamingPipeline` + `AudioStreamConfig`
+  (sample_rate, window_samples, hop_samples, history_capacity).
+  Video half (v0.9.75): frame batch feeder via
+  `VideoStreamingPipeline` + `VideoStreamConfig` (window_frames,
+  hop_frames, history_capacity) + `VideoFrame` (pts_secs +
+  opaque encoded bytes). Length-prefixed frame concatenation
+  (big-endian u32 per frame) is the wire format detectors
+  receive.
 - Rolling-window detection confidence with configurable hop /
   window sizes.
-- GUI surface for live monitoring (microphone, screen capture,
-  RTSP feed input adapters).
-- Library API for callers that want to plug the detector into
-  their own transport (Discord bot, broadcaster overlay, etc.).
+- ⏳ GUI surface for live monitoring (microphone, screen
+  capture, RTSP feed input adapters) — deferred to v1.x; the
+  library API is the v0.9 deliverable, GUI integration is a
+  desktop-app-specific wiring task that sits in front of the
+  existing Tauri surface.
+- ✓ Library API for callers that want to plug the detector into
+  their own transport (Discord bot, broadcaster overlay, etc.) —
+  the public crate IS the library API. Operators construct a
+  `DetectorRegistry`, register their detector implementation,
+  feed `AudioStreamingPipeline::feed` or
+  `VideoStreamingPipeline::feed_frame`, and drain
+  `WindowedVerdict`s.
 - **Detector model arch + weights are NOT shipped by provcheck.**
   v0.9 ships the plumbing + a stub detector that returns "model
   not installed". Concrete detectors plug in via the
