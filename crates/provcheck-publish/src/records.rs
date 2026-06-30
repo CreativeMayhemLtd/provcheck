@@ -576,4 +576,77 @@ mod tests {
             "NoSession message must direct user to `kit login`, got: {s}"
         );
     }
+
+    // ----- map_xrpc_err substring routing ----------
+    //
+    // map_xrpc_err is the bridge from atrium's generic XRPC
+    // Error<E> to our typed RecordsError. It substring-matches
+    // on common patterns to surface meaningful distinctions to
+    // the CLI. Pin each documented routing branch so a future
+    // tightening doesn't accidentally re-route a session-
+    // expired error to a 400-rejected bucket.
+
+    #[test]
+    fn map_xrpc_err_invalid_token_routes_to_http_with_session_hint() {
+        let e = super::map_xrpc_err("XRPCError: invalid_token (expired)");
+        match e {
+            RecordsError::Http(msg) => {
+                assert!(msg.contains("session may have expired"));
+                assert!(msg.contains("invalid_token"));
+            }
+            other => panic!("expected Http with session hint, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn map_xrpc_err_session_substring_routes_to_http() {
+        let e = super::map_xrpc_err("session refresh failed");
+        assert!(matches!(e, RecordsError::Http(_)));
+    }
+
+    #[test]
+    fn map_xrpc_err_expired_substring_routes_to_http() {
+        let e = super::map_xrpc_err("auth token expired");
+        assert!(matches!(e, RecordsError::Http(_)));
+    }
+
+    #[test]
+    fn map_xrpc_err_invalid_request_routes_to_pds_rejected() {
+        let e = super::map_xrpc_err("invalid_request: malformed body");
+        assert!(matches!(e, RecordsError::PdsRejected(_)));
+    }
+
+    #[test]
+    fn map_xrpc_err_400_routes_to_pds_rejected() {
+        let e = super::map_xrpc_err("HTTP 400: bad request");
+        assert!(matches!(e, RecordsError::PdsRejected(_)));
+    }
+
+    #[test]
+    fn map_xrpc_err_conflict_routes_to_pds_rejected() {
+        // record-already-exists comes back with "conflict".
+        let e = super::map_xrpc_err("XRPC conflict: record exists");
+        assert!(matches!(e, RecordsError::PdsRejected(_)));
+    }
+
+    #[test]
+    fn map_xrpc_err_unknown_message_routes_to_http() {
+        // Default branch — anything not matching the documented
+        // substrings becomes generic Http.
+        let e = super::map_xrpc_err("DNS resolution failed");
+        assert!(matches!(e, RecordsError::Http(_)));
+    }
+
+    #[test]
+    fn map_xrpc_err_is_case_insensitive() {
+        // The function lowercases the message before checking.
+        // Pin so a future "strip lowercase" optimisation can't
+        // silently break the mapping on a mixed-case provider.
+        let e1 = super::map_xrpc_err("Invalid_Token");
+        let e2 = super::map_xrpc_err("INVALID_TOKEN");
+        let e3 = super::map_xrpc_err("invalid_token");
+        for e in [e1, e2, e3] {
+            assert!(matches!(e, RecordsError::Http(_)));
+        }
+    }
 }
