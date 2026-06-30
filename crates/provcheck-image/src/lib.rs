@@ -451,6 +451,70 @@ mod tests {
         f
     }
 
+    // ----- looks_like_image extension allowlist ----------
+
+    #[test]
+    fn looks_like_image_accepts_documented_extensions() {
+        for ext in ["png", "jpg", "jpeg", "webp", "bmp", "gif", "tiff", "tif"] {
+            let p = std::path::PathBuf::from(format!("/test/file.{ext}"));
+            assert!(looks_like_image(&p), "{ext} should look like image");
+        }
+    }
+
+    #[test]
+    fn looks_like_image_rejects_audio_extensions() {
+        // Audio extensions must NOT pass the image gate. Catches
+        // an accidental allowlist merge with the audio crate.
+        for ext in ["mp3", "wav", "flac", "aac", "ogg", "m4a"] {
+            let p = std::path::PathBuf::from(format!("/test/file.{ext}"));
+            assert!(!looks_like_image(&p), "{ext} should NOT look like image");
+        }
+    }
+
+    #[test]
+    fn looks_like_image_rejects_text_extensions() {
+        for ext in ["txt", "md", "json", "html"] {
+            let p = std::path::PathBuf::from(format!("/test/file.{ext}"));
+            assert!(!looks_like_image(&p), "{ext} should NOT look like image");
+        }
+    }
+
+    #[test]
+    fn looks_like_image_is_case_insensitive() {
+        for ext in ["PNG", "JpEg", "Webp"] {
+            let p = std::path::PathBuf::from(format!("/test/file.{ext}"));
+            assert!(looks_like_image(&p), "{ext} should pass case-insensitive");
+        }
+    }
+
+    #[test]
+    fn looks_like_image_rejects_no_extension() {
+        assert!(!looks_like_image(std::path::Path::new("/test/README")));
+    }
+
+    #[test]
+    fn looks_like_image_extension_list_matches_image_decode_allowlist() {
+        // The detect-side allowlist (looks_like_image) MUST be a
+        // strict subset of (or equal to) the decode-side allowlist
+        // in image::decode. An asymmetry would mean detect accepts
+        // a file that decode then rejects with NotImage. Walk every
+        // extension we accept and confirm the decode-side accepts
+        // it too (no NotImage — body is junk but the gate must pass).
+        use std::io::Write;
+        for ext in ["png", "jpg", "jpeg", "webp", "bmp", "gif", "tiff", "tif"] {
+            let mut f = tempfile::Builder::new()
+                .suffix(&format!(".{ext}"))
+                .tempfile()
+                .expect("tempfile");
+            f.write_all(b"junk-not-an-image").expect("write");
+            let r = crate::image::decode(f.path());
+            assert!(
+                !matches!(r, Err(crate::image::ImageError::NotImage)),
+                "looks_like_image accepts .{ext} but decode rejects it as NotImage"
+            );
+        }
+    }
+
     #[test]
     fn non_image_extension_is_rejected() {
         let f = tempfile_with_ext("wav", b"fake-wav-bytes");
