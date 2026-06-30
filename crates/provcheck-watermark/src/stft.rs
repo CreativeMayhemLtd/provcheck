@@ -133,6 +133,76 @@ mod stft_error_tests {
     }
 }
 
+#[cfg(test)]
+mod waveform_to_carrier_tests {
+    use super::*;
+
+    #[test]
+    fn empty_waveform_returns_empty_error() {
+        let r = waveform_to_carrier(&[]);
+        assert!(matches!(r, Err(StftError::Empty)));
+    }
+
+    #[test]
+    fn carrier_layout_is_freq_bins_times_n_frames() {
+        // Output is laid out as [bin][t] → flat length must
+        // equal FREQ_BINS * n_frames. Pin the contract.
+        let waveform: Vec<f32> = (0..44100).map(|i| (i as f32 * 0.01).sin()).collect();
+        let (carrier, n_frames) = waveform_to_carrier(&waveform).expect("ok");
+        assert_eq!(carrier.len(), FREQ_BINS * n_frames);
+    }
+
+    #[test]
+    fn carrier_values_are_finite() {
+        // The magnitude computation `(re² + im²).sqrt()` must
+        // never produce NaN or inf on a well-formed input.
+        let waveform: Vec<f32> = (0..10_000).map(|i| (i as f32 * 0.01).sin()).collect();
+        let (carrier, _) = waveform_to_carrier(&waveform).expect("ok");
+        for (i, &v) in carrier.iter().enumerate() {
+            assert!(v.is_finite(), "non-finite carrier value at index {i}: {v}");
+        }
+    }
+
+    #[test]
+    fn carrier_values_are_non_negative() {
+        // STFT magnitude is `sqrt(re² + im²)` ≥ 0. A negative
+        // value would indicate an unintentional sign-flip in
+        // the magnitude path.
+        let waveform: Vec<f32> = (0..10_000).map(|i| (i as f32 * 0.01).sin()).collect();
+        let (carrier, _) = waveform_to_carrier(&waveform).expect("ok");
+        for (i, &v) in carrier.iter().enumerate() {
+            assert!(v >= 0.0, "negative magnitude at index {i}: {v}");
+        }
+    }
+
+    #[test]
+    fn carrier_has_at_least_one_nonzero_for_nontrivial_input() {
+        // A pure tone must produce at least one nonzero
+        // magnitude bin somewhere. Catches a future bug that
+        // would zero the carrier silently.
+        let waveform: Vec<f32> = (0..44100).map(|i| (i as f32 * 0.1).sin()).collect();
+        let (carrier, _) = waveform_to_carrier(&waveform).expect("ok");
+        let max = carrier.iter().copied().fold(0.0_f32, f32::max);
+        assert!(max > 0.0, "carrier all-zero on nontrivial input");
+    }
+
+    #[test]
+    fn waveform_length_affects_n_frames() {
+        // Longer input must produce at least as many frames as
+        // a shorter input — the always-pad invariant means
+        // even short inputs land at least one frame.
+        let short: Vec<f32> = (0..WIN).map(|i| (i as f32 * 0.01).sin()).collect();
+        let long: Vec<f32> = (0..WIN * 4).map(|i| (i as f32 * 0.01).sin()).collect();
+        let (_, n_short) = waveform_to_carrier(&short).expect("ok");
+        let (_, n_long) = waveform_to_carrier(&long).expect("ok");
+        assert!(
+            n_long > n_short,
+            "longer input ({} samples) must produce more frames than shorter ({} samples), got {} vs {}",
+            long.len(), short.len(), n_long, n_short
+        );
+    }
+}
+
 /// Rescale `y` so that `mean(y²) == VCTK_AVG_ENERGY`, matching
 /// the Python encoder/decoder convention. If the input is
 /// effectively silent (`mean(y²)` near zero) we return a copy
