@@ -1,0 +1,44 @@
+name: comfyui-node
+
+on:
+  push:
+    paths:
+      - "python/comfyui-node/**"
+      - ".github/workflows/comfyui-node.yml"
+  pull_request:
+    paths:
+      - "python/comfyui-node/**"
+      - ".github/workflows/comfyui-node.yml"
+
+jobs:
+  pytest:
+    name: pytest (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # ComfyUI itself supports 3.10+. We test the lower bound
+        # and a current-stable release to catch typing / syntax
+        # regressions across the supported window.
+        python: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install package + test deps
+        run: |
+          python -m pip install --upgrade pip
+          # The package itself + pytest. Torch CPU wheel is the
+          # cheapest option for a CI runner that only needs to
+          # exercise the wrapper layer; the real watermark math
+          # never runs (kit is mocked in every test).
+          pip install --index-url https://download.pytorch.org/whl/cpu torch
+          pip install -e python/comfyui-node
+          pip install pytest
+
+      - name: pytest python/comfyui-node/tests/
+        run: pytest python/comfyui-node/tests/ -v

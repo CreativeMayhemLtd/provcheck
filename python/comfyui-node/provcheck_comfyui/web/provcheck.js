@@ -15,7 +15,8 @@ app.registerExtension({
     name: "provcheck.stamp",
 
     async beforeRegisterNodeDef(nodeType, nodeData) {
-        if (nodeData.name !== "ProvcheckStamp") return;
+        // Apply the same branding to both image + audio nodes.
+        if (nodeData.name !== "ProvcheckStamp" && nodeData.name !== "ProvcheckStampAudio") return;
 
         // Augment the node's title bar with a logo + link.
         const origDrawForeground = nodeType.prototype.onDrawForeground;

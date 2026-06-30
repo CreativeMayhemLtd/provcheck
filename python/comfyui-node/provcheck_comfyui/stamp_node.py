@@ -16,9 +16,19 @@ detectors. This keeps a creator's render queue from crashing when
 the kit is not installed.
 
 The node is brand-agnostic: the ``brand_id`` input picks one of
-the registry brands (1 = doomscroll, 2 = rAIdio, 3 = vAIdeo, etc.).
-A creator running their own pipeline picks the brand id matching
-their atproto identity.
+the registry brands. **The default of ``2`` reflects the public
+mirror's published registry (RAIDIO); creators who registered
+their own brand in their own atproto signing-key record pick
+their own id.** No id is "preferred" — the node ships a default
+for ergonomic reasons only.
+
+C2PA signing: ``sign`` input is a bool, default ``False`` because
+signing requires ``provcheck-kit init`` (a local signing identity)
+to have been run upstream. When ``sign=True`` and the local
+identity is missing, the kit errors out and the node falls back
+to passthrough with a clear warning. ``sign=True`` does NOT
+publish to atproto; that's a separate ``kit publish`` step
+post-render.
 """
 
 from __future__ import annotations
@@ -32,6 +42,14 @@ from pathlib import Path
 import numpy as np
 import torch
 from PIL import Image
+
+
+# Default per-frame subprocess timeout (seconds). Operators can
+# raise this via the ``timeout_secs`` node input when running on
+# slow hosts (CPU-only TrustMark embed of a high-res image can
+# legitimately take > 60 s).
+DEFAULT_TIMEOUT_SECS = 120
+MAX_TIMEOUT_SECS = 600
 
 
 def _kit_on_path() -> str | None:
@@ -52,30 +70,47 @@ def _png_to_tensor(path: Path) -> torch.Tensor:
     return torch.from_numpy(arr)
 
 
-def _stamp_one(kit: str, brand_id: int, src: Path, dst: Path) -> tuple[bool, str]:
-    """Shell out to provcheck-kit. Returns (ok, message)."""
+def _stamp_one(
+    kit: str,
+    brand_id: int,
+    src: Path,
+    dst: Path,
+    sign: bool,
+    timeout_secs: int,
+) -> tuple[bool, str]:
+    """Shell out to provcheck-kit stamp. Returns (ok, message).
+
+    ``sign`` controls whether the C2PA signing step runs. When
+    ``False`` the kit is invoked with ``--no-sign`` (watermark
+    only). When ``True`` the kit attempts to sign with the local
+    identity; if no identity is initialised the kit returns a
+    non-zero exit and this function reports the failure so the
+    caller can fall back to passthrough.
+    """
+    argv = [
+        kit,
+        "stamp",
+        str(src),
+        "-o",
+        str(dst),
+        "--brand-id",
+        str(brand_id),
+        "--overwrite",
+    ]
+    if not sign:
+        argv.append("--no-sign")
     try:
         proc = subprocess.run(
-            [
-                kit,
-                "stamp",
-                str(src),
-                "-o",
-                str(dst),
-                "--brand-id",
-                str(brand_id),
-                "--no-sign",  # signing requires kit init; opt-in via separate node
-                "--overwrite",
-            ],
+            argv,
             capture_output=True,
             text=True,
-            timeout=120,
+            timeout=timeout_secs,
         )
         if proc.returncode != 0:
             return False, f"kit exit {proc.returncode}: {proc.stderr.strip()[:200]}"
         return True, "ok"
     except subprocess.TimeoutExpired:
-        return False, "kit timed out (>120s)"
+        return False, f"kit timed out (>{timeout_secs}s)"
     except FileNotFoundError as e:
         return False, f"kit not executable: {e}"
 
@@ -85,8 +120,14 @@ class StampNode:
 
     Inputs:
       ``image`` — IMAGE tensor batch from upstream.
-      ``brand_id`` — 5-bit brand id (1..31). 1 = doomscroll,
-        2 = rAIdio, 3 = vAIdeo, others = creator-registered.
+      ``brand_id`` — 5-bit brand id (0..31). Default 2 reflects
+        the public mirror's RAIDIO registration; creators with
+        their own atproto-published brand pick their own id.
+      ``sign`` — when True, also run the C2PA signing step using
+        the local identity. Requires ``provcheck-kit init`` to
+        have been run. When False (default), watermark only.
+      ``timeout_secs`` — per-frame subprocess timeout. Default
+        120s; raise to 600s for slow hosts or high-res inputs.
 
     Output:
       ``stamped_image`` — same shape as input. Each batch frame
@@ -105,6 +146,18 @@ class StampNode:
                     {"default": 2, "min": 0, "max": 31, "step": 1},
                 ),
             },
+            "optional": {
+                "sign": ("BOOLEAN", {"default": False}),
+                "timeout_secs": (
+                    "INT",
+                    {
+                        "default": DEFAULT_TIMEOUT_SECS,
+                        "min": 5,
+                        "max": MAX_TIMEOUT_SECS,
+                        "step": 5,
+                    },
+                ),
+            },
         }
 
     RETURN_TYPES = ("IMAGE",)
@@ -112,7 +165,13 @@ class StampNode:
     FUNCTION = "stamp"
     CATEGORY = "image/postprocessing"
 
-    def stamp(self, image: torch.Tensor, brand_id: int):
+    def stamp(
+        self,
+        image: torch.Tensor,
+        brand_id: int,
+        sign: bool = False,
+        timeout_secs: int = DEFAULT_TIMEOUT_SECS,
+    ):
         # v0.9.0 audit §3: ComfyUI's INPUT_TYPES min/max is
         # client-side only. A malicious workflow JSON can pass any
         # int. Clamp defensively here BEFORE handing the value to
@@ -121,6 +180,12 @@ class StampNode:
             brand_id = max(0, min(31, int(brand_id)))
         except (TypeError, ValueError):
             brand_id = 2  # silent fall-back to RAIDIO default
+        try:
+            timeout_secs = max(5, min(MAX_TIMEOUT_SECS, int(timeout_secs)))
+        except (TypeError, ValueError):
+            timeout_secs = DEFAULT_TIMEOUT_SECS
+        sign = bool(sign)
+
         kit = _kit_on_path()
         if not kit:
             print(
@@ -139,7 +204,7 @@ class StampNode:
                 src = tdpath / f"frame-{i:04d}.png"
                 dst = tdpath / f"frame-{i:04d}.stamped.png"
                 _tensor_to_png(image[i], src)
-                ok, msg = _stamp_one(kit, brand_id, src, dst)
+                ok, msg = _stamp_one(kit, brand_id, src, dst, sign, timeout_secs)
                 if ok and dst.exists():
                     out_frames.append(_png_to_tensor(dst))
                 else:
@@ -149,8 +214,10 @@ class StampNode:
                     )
                     out_frames.append(image[i])
         stacked = torch.stack(out_frames, dim=0)
+        mode = "signed + watermarked" if sign else "watermarked"
         print(
-            f"[provcheck-comfyui] StampNode: stamped {batch} frame(s) "
-            f"with brand_id={brand_id} via {os.path.basename(kit)}."
+            f"[provcheck-comfyui] StampNode: {mode} {batch} frame(s) "
+            f"with brand_id={brand_id} via {os.path.basename(kit)} "
+            f"(timeout {timeout_secs}s/frame)."
         )
         return (stacked,)

@@ -13,17 +13,20 @@ desktop app and turns every node placement into a small piece
 of first-class advertising for the project.
 """
 
+from .stamp_audio_node import StampAudioNode
 from .stamp_node import StampNode
 
 NODE_CLASS_MAPPINGS = {
     "ProvcheckStamp": StampNode,
+    "ProvcheckStampAudio": StampAudioNode,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    # The display name carries the Creative Mayhem brand so the
+    # The display names carry the Creative Mayhem brand so the
     # node sidebar surfaces it on every browse, not just when the
-    # node is placed.
-    "ProvcheckStamp": "Stamp (provcheck • Creative Mayhem)",
+    # nodes are placed.
+    "ProvcheckStamp": "Stamp Image (provcheck • Creative Mayhem)",
+    "ProvcheckStampAudio": "Stamp Audio (provcheck • Creative Mayhem)",
 }
 
 # ComfyUI serves static files from this directory under
@@ -36,4 +39,6 @@ __all__ = [
     "NODE_CLASS_MAPPINGS",
     "NODE_DISPLAY_NAME_MAPPINGS",
     "WEB_DIRECTORY",
+    "StampAudioNode",
+    "StampNode",
 ]
