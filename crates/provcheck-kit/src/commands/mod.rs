@@ -3250,6 +3250,52 @@ mod tests {
         }
     }
 
+    // ----- normalise_fingerprint additional edges ----------
+
+    #[test]
+    fn normalise_fingerprint_accepts_minimum_8_chars() {
+        // The documented inclusive lower bound for "ambiguous
+        // but useful prefix match". Pin so a future tighten
+        // doesn't silently break short-prefix lookups.
+        let r = super::normalise_fingerprint("abcdef01");
+        assert!(r.is_ok(), "8-char hex prefix must be accepted");
+        assert_eq!(r.unwrap(), "abcdef01");
+    }
+
+    #[test]
+    fn normalise_fingerprint_rejects_7_chars_just_below_min() {
+        let r = super::normalise_fingerprint("abcdef0");
+        assert!(r.is_err());
+    }
+
+    #[test]
+    fn normalise_fingerprint_rejects_65_chars_just_above_max() {
+        let r = super::normalise_fingerprint(&"a".repeat(65));
+        assert!(r.is_err());
+    }
+
+    #[test]
+    fn normalise_fingerprint_accepts_64_chars_at_max() {
+        let r = super::normalise_fingerprint(&"a".repeat(64));
+        assert!(r.is_ok());
+        assert_eq!(r.unwrap().len(), 64);
+    }
+
+    #[test]
+    fn normalise_fingerprint_round_trips_idempotently() {
+        let once = super::normalise_fingerprint("sha256:abcdef0123456789").expect("ok");
+        let twice = super::normalise_fingerprint(&once).expect("ok");
+        assert_eq!(once, twice);
+    }
+
+    #[test]
+    fn normalise_fingerprint_empty_string_is_too_short() {
+        let r = super::normalise_fingerprint("");
+        assert!(r.is_err());
+        let msg = r.unwrap_err();
+        assert!(msg.contains("short"));
+    }
+
     #[test]
     fn is_session_expired_catches_direct_kit_error() {
         let err = anyhow::Error::from(KitError::SessionExpired);
