@@ -10,7 +10,8 @@ CVEs and license compliance issues against a build.
 
 ## What we ship
 
-Per release tag, in two formats:
+Per release tag (`vX.Y.0` only — iteration tags do NOT ship release
+artefacts), in two formats:
 
 | File | Format | Standard | Tooling input |
 |---|---|---|---|
@@ -65,19 +66,19 @@ npm sbom --sbom-format=cyclonedx > provcheck-gui-frontend.cdx.json
 curl -X PUT https://your-dt-server/api/v1/bom \
   -H "X-Api-Key: $DT_API_KEY" \
   -F "project=<your-project-id>" \
-  -F "bom=@provcheck-v0.3.5.cdx.json"
+  -F "bom=@provcheck-vX.Y.Z.cdx.json"
 ```
 
 ### Trivy
 
 ```bash
-trivy sbom provcheck-v0.3.5.cdx.json
+trivy sbom provcheck-vX.Y.Z.cdx.json
 ```
 
 ### Grype
 
 ```bash
-grype sbom:provcheck-v0.3.5.spdx.json
+grype sbom:provcheck-vX.Y.Z.spdx.json
 ```
 
 ### GitHub Advanced Security
@@ -91,27 +92,27 @@ CycloneDX components live under `.components[]`. Each has a `name`,
 `version`, `purl` (Package URL identifier), and licence info:
 
 ```bash
-jq '.components[] | {name, version, purl}' provcheck-v0.3.5.cdx.json
-jq '.components[] | select(.licenses[]?.license.id == "GPL-3.0")' provcheck-v0.3.5.cdx.json
+jq '.components[] | {name, version, purl}' provcheck-vX.Y.Z.cdx.json
+jq '.components[] | select(.licenses[]?.license.id == "GPL-3.0")' provcheck-vX.Y.Z.cdx.json
 ```
 
 SPDX components live under `.packages[]`:
 
 ```bash
-jq '.packages[] | {name, versionInfo, licenseConcluded}' provcheck-v0.3.5.spdx.json
+jq '.packages[] | {name, versionInfo, licenseConcluded}' provcheck-vX.Y.Z.spdx.json
 ```
 
 ## Verify SBOM integrity
 
 ```bash
-sha256sum -c provcheck-v0.3.5.cdx.json.sha256
-sha256sum -c provcheck-v0.3.5.spdx.json.sha256
+sha256sum -c provcheck-vX.Y.Z.cdx.json.sha256
+sha256sum -c provcheck-vX.Y.Z.spdx.json.sha256
 ```
 
 The `.sha256` sidecars are produced inside the same workflow step that
 emits the SBOM, on a GitHub Actions hosted runner. If you want
 stronger supply-chain attestation (signed SBOM, SLSA provenance),
-file an issue — Sigstore + SLSA L3 is on the roadmap but not in v0.3.x.
+file an issue — Sigstore + SLSA L3 is on the roadmap but not in v0.9.x.
 
 ## Why we ship both CycloneDX *and* SPDX
 
@@ -135,7 +136,7 @@ The same script CI uses lives at `scripts/generate-sbom.sh`:
 
 ```bash
 cargo install cargo-sbom
-./scripts/generate-sbom.sh v0.3.5 my-out-dir
+./scripts/generate-sbom.sh vX.Y.Z my-out-dir
 ```
 
 This produces the same files CI uploads. If a downstream tool reports

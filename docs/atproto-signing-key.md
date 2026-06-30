@@ -1,7 +1,10 @@
 # `app.provcheck.signingKey` — atproto-anchored C2PA signing-key attestation
 
-**Status:** v0.3 (provcheck v0.3.0). The wire format is stable; future
-revisions will preserve backward compatibility unless explicitly noted.
+**Status:** wire format stable since provcheck v0.3.0; tracked under the
+project's [public-API stability matrix](./public-api-stability.md) +
+[semver policy](./semver-policy.md). Field additions land as
+`#[serde(default, skip_serializing_if = "Option::is_none")]`; field
+removals require a major version bump.
 
 **Audience:** Engineers building a publisher (signs media + writes
 attestation records) or a verifier (reads media + checks attestation
