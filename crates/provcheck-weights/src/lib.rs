@@ -268,6 +268,99 @@ fn leak(s: &str) -> &'static str {
 mod tests {
     use super::*;
 
+    // ----- entry() lookup ----------
+
+    #[test]
+    fn entry_silentcipher_encoder_is_present() {
+        let r = entry("silentcipher", "encoder");
+        assert!(r.is_ok(), "silentcipher/encoder must be in manifest");
+    }
+
+    #[test]
+    fn entry_silentcipher_decoder_is_present() {
+        let r = entry("silentcipher", "decoder");
+        assert!(r.is_ok(), "silentcipher/decoder must be in manifest");
+    }
+
+    #[test]
+    fn entry_audioseal_present_for_both_variants() {
+        // Detector + generator variants. `gen` is a reserved
+        // keyword in edition 2024 — avoid it as an identifier.
+        let detector = entry("audioseal", "detector");
+        let generator = entry("audioseal", "generator");
+        assert!(detector.is_ok(), "audioseal/detector must be in manifest");
+        assert!(generator.is_ok(), "audioseal/generator must be in manifest");
+    }
+
+    #[test]
+    fn entry_wavmark_present_for_documented_variants() {
+        for variant in ["encoder", "decoder", "fc-weights", "fc-back-weights"] {
+            let r = entry("wavmark", variant);
+            assert!(r.is_ok(), "wavmark/{variant} must be in manifest");
+        }
+    }
+
+    #[test]
+    fn entry_unknown_family_with_known_variant_still_errors() {
+        // "encoder" exists for silentcipher; "nope/encoder"
+        // must still error.
+        let r = entry("nope-not-a-family", "encoder");
+        assert!(matches!(r, Err(Error::UnknownWeight { .. })));
+    }
+
+    #[test]
+    fn entry_known_family_with_unknown_variant_errors() {
+        let r = entry("silentcipher", "nonexistent-variant");
+        assert!(matches!(r, Err(Error::UnknownWeight { .. })));
+    }
+
+    #[test]
+    fn entry_error_carries_input_strings() {
+        let r = entry("missing-family", "missing-variant");
+        match r {
+            Err(Error::UnknownWeight { family, variant }) => {
+                assert_eq!(family, "missing-family");
+                assert_eq!(variant, "missing-variant");
+            }
+            other => panic!("expected UnknownWeight, got {other:?}"),
+        }
+    }
+
+    // ----- hex helper ----------
+
+    #[test]
+    fn hex_empty_input_is_empty_string() {
+        assert_eq!(hex(&[]), "");
+    }
+
+    #[test]
+    fn hex_is_lowercase_only() {
+        // Mirrors the hex_lower contract in attestation-spec.
+        // Pin lowercase explicitly.
+        let s = hex(&[0xDE, 0xAD, 0xBE, 0xEF]);
+        assert_eq!(s, "deadbeef");
+        assert!(!s.chars().any(|c| c.is_ascii_uppercase()));
+    }
+
+    #[test]
+    fn hex_two_chars_per_byte() {
+        for n in [0usize, 1, 7, 32] {
+            let bytes = vec![0u8; n];
+            assert_eq!(hex(&bytes).len(), 2 * n);
+        }
+    }
+
+    // ----- WeightCacheState shape ----------
+
+    #[test]
+    fn weight_cache_state_is_copy() {
+        // WeightCacheState is Copy per its derive; pin so a
+        // future refactor that adds a non-Copy field has to
+        // confront this test.
+        fn assert_copy<T: Copy>() {}
+        assert_copy::<WeightCacheState>();
+    }
+
     #[test]
     fn manifest_has_trustmark_entries() {
         // v1 manifest ships TrustMark-B decoder + encoder.
