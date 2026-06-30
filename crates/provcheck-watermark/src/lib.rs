@@ -448,6 +448,23 @@ mod tests {
     use super::*;
     use std::io::Write;
 
+    // ----- detect_from_mono_44k1 input validation ----------
+
+    #[test]
+    fn detect_from_mono_44k1_empty_waveform_returns_zero_samples_message() {
+        // Empty waveform short-circuits via StftError::Empty
+        // before any model load. The user-facing message is the
+        // operator's only debugging clue for the "I handed in
+        // silence" case.
+        let r = detect_from_mono_44k1(&[]).expect("not Err");
+        assert!(matches!(r.status, WatermarkStatus::NotDetected));
+        let msg = r.message.expect("must have message");
+        assert!(
+            msg.contains("zero samples"),
+            "expected 'zero samples' guidance, got: {msg}"
+        );
+    }
+
     // ----- pack_partial_logits ----------
 
     #[test]

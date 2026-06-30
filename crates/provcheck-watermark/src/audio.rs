@@ -482,6 +482,35 @@ mod audio_error_tests {
         assert!(matches!(r, Err(AudioError::Io(_))));
     }
 
+    // ----- AAC priming constant pin ----------
+    //
+    // The AAC priming workaround was the v0.5.3 hotfix for
+    // public issue #24. Without the documented 1024-sample
+    // default, AAC-in-MP4/M4A detection returned conf 0.000.
+    // Pin the constant explicitly so a future maintainer can't
+    // silently "simplify" the workaround away.
+
+    #[test]
+    fn aac_default_priming_samples_is_1024() {
+        assert_eq!(AAC_DEFAULT_PRIMING_SAMPLES, 1024);
+    }
+
+    #[test]
+    fn aac_default_priming_matches_canonical_aac_encoder_delay() {
+        // Canonical AAC encoder delay is 2048 samples per the
+        // standard, but the LC-AAC profile we encounter in MP4
+        // containers from Apple's encoder consistently uses
+        // 1024 (half-frame) priming. Pin the half-frame value.
+        // (The 2048 vs 1024 ambiguity is exactly the trap that
+        // caused issue #24.)
+        let half_frame = std::hint::black_box(AAC_DEFAULT_PRIMING_SAMPLES);
+        let full_frame: u32 = 2048;
+        assert!(
+            half_frame == full_frame / 2,
+            "documented half-frame priming: {half_frame} vs full_frame {full_frame}"
+        );
+    }
+
     // ----- resample helper ----------
 
     #[test]
