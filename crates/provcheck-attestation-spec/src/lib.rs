@@ -275,6 +275,131 @@ mod hex_lower_tests {
 }
 
 #[cfg(test)]
+mod identity_claim_and_constants_tests {
+    use super::*;
+
+    // ----- ALLOWED_ALGORITHMS contents ----------
+
+    #[test]
+    fn allowed_algorithms_contains_all_documented_jws_algs() {
+        // Pin every JWS alg the publisher MAY emit.
+        for alg in [
+            "ES256", "ES384", "ES512", "PS256", "PS384", "PS512",
+            "RS256", "RS384", "RS512", "Ed25519",
+        ] {
+            assert!(
+                ALLOWED_ALGORITHMS.contains(&alg),
+                "{alg} should be in ALLOWED_ALGORITHMS"
+            );
+        }
+    }
+
+    #[test]
+    fn allowed_algorithms_has_exactly_ten_entries() {
+        // Length pin so a future addition lands with an explicit
+        // test update (catches a silent expansion that lets
+        // verifiers accept records under a weaker algorithm).
+        assert_eq!(ALLOWED_ALGORITHMS.len(), 10);
+    }
+
+    #[test]
+    fn allowed_algorithms_rejects_hmac_family() {
+        // Symmetric-key algs must not appear — the C2PA chain is
+        // public-key only.
+        for alg in ["HS256", "HS384", "HS512", "none"] {
+            assert!(
+                !ALLOWED_ALGORITHMS.contains(&alg),
+                "{alg} must NOT be allowed"
+            );
+        }
+    }
+
+    // ----- IDENTITY_ASSERTION_LABEL pin ----------
+
+    #[test]
+    fn identity_assertion_label_is_reverse_dns_form() {
+        // Pin the label literal so a future maintainer can't
+        // silently rename the C2PA assertion — verifiers query
+        // by this exact string.
+        assert_eq!(IDENTITY_ASSERTION_LABEL, "app.provcheck.identity");
+        assert!(IDENTITY_ASSERTION_LABEL.starts_with("app.provcheck."));
+    }
+
+    #[test]
+    fn identity_claim_schema_version_is_one() {
+        assert_eq!(IDENTITY_CLAIM_SCHEMA_VERSION, 1);
+    }
+
+    // ----- IdentityClaim::new + serde ----------
+
+    #[test]
+    fn identity_claim_new_sets_current_schema_version() {
+        let c = IdentityClaim::new("did:plc:abc", None);
+        assert_eq!(c.version, Some(IDENTITY_CLAIM_SCHEMA_VERSION));
+    }
+
+    #[test]
+    fn identity_claim_new_preserves_did_and_handle() {
+        let c = IdentityClaim::new("did:plc:abc", Some("alice.bsky.social".into()));
+        assert_eq!(c.did, "did:plc:abc");
+        assert_eq!(c.handle.as_deref(), Some("alice.bsky.social"));
+    }
+
+    #[test]
+    fn identity_claim_new_with_none_handle_leaves_handle_none() {
+        let c = IdentityClaim::new("did:plc:abc", None);
+        assert!(c.handle.is_none());
+    }
+
+    #[test]
+    fn identity_claim_serde_omits_none_handle() {
+        // skip_serializing_if = "Option::is_none" on handle.
+        let c = IdentityClaim::new("did:plc:abc", None);
+        let json = serde_json::to_string(&c).expect("ser");
+        assert!(
+            !json.contains("\"handle\""),
+            "None handle should be omitted: {json}"
+        );
+    }
+
+    #[test]
+    fn identity_claim_serde_omits_none_version() {
+        // Backward-compat: producers SHOULD send version=Some(1)
+        // but a None version (older shipped builds) must not
+        // serialise as null.
+        let c = IdentityClaim {
+            did: "did:plc:abc".into(),
+            handle: None,
+            version: None,
+        };
+        let json = serde_json::to_string(&c).expect("ser");
+        assert!(
+            !json.contains("\"version\""),
+            "None version should be omitted: {json}"
+        );
+    }
+
+    #[test]
+    fn identity_claim_deserialises_legacy_record_without_version() {
+        // Backward-compat: old records without a version field
+        // must deserialise (version defaults to None).
+        let legacy = r#"{"did":"did:plc:abc"}"#;
+        let c: IdentityClaim = serde_json::from_str(legacy).expect("legacy parse");
+        assert_eq!(c.did, "did:plc:abc");
+        assert!(c.handle.is_none());
+        assert!(c.version.is_none());
+    }
+
+    #[test]
+    fn identity_claim_round_trips_through_serde() {
+        let original = IdentityClaim::new("did:plc:xyz", Some("bob.bsky.social".into()));
+        let json = serde_json::to_string(&original).expect("ser");
+        let back: IdentityClaim = serde_json::from_str(&json).expect("de");
+        assert_eq!(back, original);
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
