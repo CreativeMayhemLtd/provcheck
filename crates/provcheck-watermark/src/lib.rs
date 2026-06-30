@@ -448,6 +448,102 @@ mod tests {
     use super::*;
     use std::io::Write;
 
+    // ----- regions_from_tile_quality coverage ----------
+
+    #[test]
+    fn regions_from_tile_quality_empty_input_returns_empty() {
+        assert!(regions_from_tile_quality(&[]).is_empty());
+    }
+
+    #[test]
+    fn regions_from_tile_quality_all_below_threshold_returns_empty() {
+        let tq = vec![0.1_f32; 100];
+        assert!(regions_from_tile_quality(&tq).is_empty());
+    }
+
+    #[test]
+    fn regions_from_tile_quality_short_run_below_min_seconds_filtered() {
+        // A run of N tiles spans
+        // `N * MESSAGE_LEN * HOP / SAMPLE_RATE` seconds. With
+        // MESSAGE_LEN=21, HOP=2048, SAMPLE_RATE=44100 → ~0.975s
+        // per tile. Min region is 2.0s so we need >=3 tiles.
+        // Build a 2-tile run; it must be filtered.
+        let mut tq = vec![0.1_f32; 20];
+        tq[5] = 0.9;
+        tq[6] = 0.9;
+        let regions = regions_from_tile_quality(&tq);
+        assert!(regions.is_empty(), "2-tile run should be filtered");
+    }
+
+    #[test]
+    fn regions_from_tile_quality_long_run_above_min_reported() {
+        // 5 tiles above threshold → ~4.9s run, above MIN_REGION_SECONDS.
+        let mut tq = vec![0.1_f32; 20];
+        for tile in tq.iter_mut().take(10).skip(5) {
+            *tile = 0.9;
+        }
+        let regions = regions_from_tile_quality(&tq);
+        assert_eq!(regions.len(), 1, "long run should produce 1 region");
+        let (start, end) = regions[0];
+        assert!(end > start, "region must have positive duration");
+    }
+
+    #[test]
+    fn regions_from_tile_quality_unterminated_run_at_end_handled() {
+        // A run that reaches the end of tile_quality (no
+        // trailing below-threshold tile to close it) must
+        // still be reported if its length passes the threshold.
+        let mut tq = vec![0.1_f32; 20];
+        // Last 10 tiles above threshold.
+        for tile in tq.iter_mut().skip(10) {
+            *tile = 0.9;
+        }
+        let regions = regions_from_tile_quality(&tq);
+        assert_eq!(regions.len(), 1);
+    }
+
+    #[test]
+    fn regions_from_tile_quality_threshold_is_inclusive() {
+        // Hot is `q >= TILE_QUALITY_THRESHOLD`, not `>`. A value
+        // exactly at threshold is hot. Pin the comparison.
+        let mut tq = vec![0.0_f32; 20];
+        // 5 tiles exactly at threshold → should pass length gate.
+        for tile in tq.iter_mut().take(10).skip(5) {
+            *tile = TILE_QUALITY_THRESHOLD;
+        }
+        let regions = regions_from_tile_quality(&tq);
+        assert_eq!(regions.len(), 1, "tiles AT threshold count as hot");
+    }
+
+    // ----- Threshold constant pins ----------
+
+    #[test]
+    fn tile_quality_threshold_is_documented_value() {
+        assert_eq!(TILE_QUALITY_THRESHOLD, 0.55);
+    }
+
+    #[test]
+    fn min_region_seconds_is_two_seconds() {
+        assert_eq!(MIN_REGION_SECONDS, 2.0);
+    }
+
+    #[test]
+    fn early_exit_threshold_is_above_detected() {
+        // Pin "early-exit threshold is high enough that we don't
+        // risk downgrading Detected to Degraded" — must be above
+        // the brand-classify Detected threshold of 0.70. Hide
+        // constants in black_box for clippy.
+        let early = std::hint::black_box(EARLY_EXIT_THRESHOLD);
+        assert!(early > 0.70);
+    }
+
+    #[test]
+    fn early_exit_min_frames_is_four_tiles() {
+        // 4 tiles of redundancy before per-position mode-vote
+        // is meaningful enough to trust an early-exit decision.
+        assert_eq!(EARLY_EXIT_MIN_FRAMES, hparams::MESSAGE_LEN * 4);
+    }
+
     #[test]
     fn audio_extension_sniff_recognises_common_formats() {
         for ext in ["mp3", "WAV", "Flac", "m4a", "ogg", "opus", "aif"] {
