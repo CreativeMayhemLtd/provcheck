@@ -143,6 +143,7 @@ fn public_api_stability_lists_every_publishable_crate() {
         "provcheck-synthid-text",
         "provcheck-weights",
         "provcheck-detect",
+        "provcheck-stream-detect",
         "provcheck-platform",
     ] {
         assert!(

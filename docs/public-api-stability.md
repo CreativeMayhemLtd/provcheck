@@ -24,6 +24,7 @@ and know what we promise.
 | `provcheck-synthid-text`       | Stable: `detect`           | Word-tokenizer + Bayesian z-score   |
 | `provcheck-weights`            | Stable: `entry`, `load_if_cached`, `download`, `MANIFEST` | Cache layout, family/variant names |
 | `provcheck-detect`             | **Stable** (trait + types). v1.0 plumbing — ships no model weights | `Detector` trait, `DetectorRegistry`, `DetectionFamily`, `DetectionStatus`, `DetectionResult`, `DetectorError` |
+| `provcheck-stream-detect`      | **Stable**. Rolling-window streaming intake on top of `provcheck-detect`. Ships no model weights | `AudioStreamConfig`, `AudioStreamingPipeline`, `WindowedVerdict`, `StreamError` |
 | `provcheck-platform`           | Stable: attestation entry points + `AttestationConfig` / `AttestationOptions` |
 
 **Unstable / internal** items are either marked `#[doc(hidden)]`,
@@ -148,6 +149,9 @@ intend to push to crates.io once we ship v1.0:
   operators implement against to wire in their own AI-content
   detector (commercial paid-DLC pack OR existing open-source
   third-party detector)
+- `provcheck-stream-detect` — yes; rolling-window streaming
+  intake for live audio (microphone, screen capture, RTSP feed)
+  on top of the `provcheck-detect` Detector trait
 - `provcheck-platform`, `provcheck-sign`, `provcheck-publish`,
   `provcheck-weights` — yes; they're the load-bearing pieces
 

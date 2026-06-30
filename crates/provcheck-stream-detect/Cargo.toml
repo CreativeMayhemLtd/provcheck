@@ -1,0 +1,20 @@
+[package]
+name = "provcheck-stream-detect"
+description = "Streaming intake pipeline for AI-content detection in provcheck. PCM chunk feeder (audio) + frame batch feeder (video) + rolling-window detection confidence aggregation. The classifier itself is bring-your-own via the provcheck-detect Detector trait — this crate ships the intake plumbing only, no model weights. v0.9-roadmap section 9b."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+
+[lib]
+name = "provcheck_stream_detect"
+
+[dependencies]
+provcheck-detect = { path = "../provcheck-detect" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
