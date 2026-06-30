@@ -1210,11 +1210,11 @@ pub mod remove_recovery_recipient {
 // ----------------------------------------------------------------
 //
 // These exist on the CLI surface for future-compatibility with an
-// agent-daemon mode. v0.3.0 has no daemon: each `kit` invocation
-// is a fresh process that drops its SecretCache at exit. Both
-// commands print an honest "no-op for v1" rather than pretending
-// to do something. When a daemon ships these become the actual
-// hooks.
+// agent-daemon mode. The kit has no daemon today: each `kit`
+// invocation is a fresh process that drops its SecretCache at
+// exit. Both commands print an honest "no-op" rather than
+// pretending to do something. When a daemon ships these become
+// the actual hooks.
 
 pub mod lock {
     use super::DataDirOpt;

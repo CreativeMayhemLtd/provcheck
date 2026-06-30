@@ -13,7 +13,8 @@ key + brand registration can drop the package into their ComfyUI
 `custom_nodes/` directory and stamp every output. Released under
 Apache-2.0 alongside the rest of the FOSS provcheck core.
 
-**Status (v0.9.77):** Fully wired for both image and audio.
+**Status (v0.9.84):** Fully wired for both image and audio,
+example workflows shipped, pytest matrix in CI.
 - **Stamp Image** (`ProvcheckStamp`): saves each tensor to a
   temp PNG, shells through `provcheck-kit stamp`, reads the
   stamped PNG back as a tensor. TrustMark-B watermark via the
@@ -36,6 +37,13 @@ Apache-2.0 alongside the rest of the FOSS provcheck core.
 - Both nodes accept an optional `timeout_secs` input (default
   120, range 5–600) so operators on slow hosts can extend the
   per-frame / per-clip subprocess timeout.
+- Three example workflows ship under `workflows/`
+  (`stamp_image_minimal.json`, `stamp_audio_minimal.json`,
+  `stamp_signed_image.json`). Drag-and-drop loadable; see
+  `workflows/README.md`.
+- 22 pytest tests cover all wrapper failure modes. CI workflow
+  (`.github/workflows/comfyui-node.yml`) runs the matrix on
+  Python 3.10 + 3.12 on every push that touches the package.
 
 ## Install
 
