@@ -64,6 +64,92 @@ mod kit_error_tests {
     }
 }
 
+// v0.9.64: pin that operator-facing "deferred feature" messages
+// do not embed a specific landed-in version. The previous
+// messages claimed "v0.3.0 / v0.5.1 / v0.5.0 P3" — once we
+// shipped past those, the messages were lying to users about
+// when a feature would land. The fix is to describe the
+// workaround, not promise a version.
+#[cfg(test)]
+mod no_stale_version_promises_tests {
+    // Operate on the captured stderr from running the lock/
+    // unlock async fns. Since they're async we test them via
+    // a small tokio runtime.
+
+    fn capture_lock_stderr() -> String {
+        let args = super::lock::CliArgs {
+            data_dir: super::DataDirOpt { data_dir: None },
+        };
+        // The function writes to stderr via eprintln!; we can't
+        // capture that without a test harness. Instead, we test
+        // the user-facing strings by checking the source — they
+        // are stable string literals not produced by interpolation.
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap();
+        // run() returns Ok(()) — exit cleanly
+        rt.block_on(super::lock::run(args)).expect("lock no-op");
+        // The message we actually pin lives below in the
+        // _message_source_does_not_promise tests.
+        String::new()
+    }
+
+    fn capture_unlock_stderr() -> String {
+        let args = super::unlock::CliArgs {
+            data_dir: super::DataDirOpt { data_dir: None },
+        };
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap();
+        rt.block_on(super::unlock::run(args)).expect("unlock no-op");
+        String::new()
+    }
+
+    #[test]
+    fn lock_command_exits_clean() {
+        // The no-op command must exit Ok — the CLI exit-code
+        // contract is that "successfully did nothing" is exit 0.
+        let _ = capture_lock_stderr();
+    }
+
+    #[test]
+    fn unlock_command_exits_clean() {
+        let _ = capture_unlock_stderr();
+    }
+
+    #[test]
+    fn deferred_message_source_does_not_promise_landed_version() {
+        // Pin by walking the source — a future maintainer who
+        // reintroduces a `lands in v0.X.Y` style sentinel in any
+        // user-facing deferred-feature message will trip this
+        // test.
+        //
+        // Build the stale tokens by string concatenation so the
+        // test itself does not contain the literal substring
+        // (which would make the test self-defeating — it would
+        // match its own source).
+        let lands = ["lands", "in"].join(" ");
+        let v_dot_three = format!("v0{}3", '.');
+        let v_dot_five_p3 = format!("v0{}5{}0 P3", '.', '.');
+        let v_dot_five_one = format!("v0{}5{}1", '.', '.');
+
+        let source = include_str!("mod.rs");
+        // Sentinels to look for: kit-agent rationale tied to a
+        // dotted version, or the two specific "lands in vX" hooks
+        // that we removed in v0.9.64.
+        let s1 = format!("{} (no kit-agent", v_dot_three);
+        let s2 = format!("{} {}", lands, v_dot_five_one);
+        let s3 = format!("{} {}", lands, v_dot_five_p3);
+
+        for stale in [&s1, &s2, &s3] {
+            assert!(
+                !source.contains(stale.as_str()),
+                "stale version-promise sentinel found in source: {stale:?}"
+            );
+        }
+    }
+}
+
 /// Top-level CLI shape.
 #[derive(Debug, Parser)]
 #[command(
@@ -463,9 +549,10 @@ pub mod init {
             create_on_device(serial, &pin, None, &SubjectInfo::default()).map_err(|e| {
                 anyhow::anyhow!("create-on-device: {e}").context(
                     "If management-key auth failed, you've already changed it from \
-                     factory default. v0.5.0's kit init only supports the factory \
-                     management key; use ykman to mint the keypair directly, then \
-                     restore via `kit import-yubikey` (lands in v0.5.1).",
+                     factory default. `kit init --backend yubikey` only supports \
+                     the factory management key; use ykman to mint the keypair \
+                     directly, then `kit init --backend yubikey --serial <N> \
+                     --slot 9c` against the pre-minted key.",
                 )
             })?;
 
@@ -1138,10 +1225,10 @@ pub mod lock {
 
     pub async fn run(_args: CliArgs) -> Result<()> {
         eprintln!(
-            "kit lock: no-op for v0.3.0 (no kit-agent daemon yet — each \
-             `kit` invocation drops its SecretCache when the process \
-             exits). The command exists so future flows that add a \
-             daemon don't have to change the CLI surface."
+            "kit lock: no-op (no kit-agent daemon yet — each `kit` \
+             invocation drops its SecretCache when the process exits). \
+             The command exists so future flows that add a daemon \
+             don't have to change the CLI surface."
         );
         Ok(())
     }
@@ -1160,8 +1247,8 @@ pub mod unlock {
 
     pub async fn run(_args: CliArgs) -> Result<()> {
         eprintln!(
-            "kit unlock: no-op for v0.3.0 (no kit-agent daemon yet — \
-             cross-process passphrase caching arrives with the daemon)."
+            "kit unlock: no-op (no kit-agent daemon yet — cross-process \
+             passphrase caching arrives with the daemon)."
         );
         Ok(())
     }
@@ -2022,13 +2109,17 @@ pub mod rotate {
             KeyProviderKind::Yubikey { .. } => {
                 // Yubikey rotation requires generating the key on-
                 // device, not in software — the staging path above
-                // generated a software keypair. Yubikey rotation lands
-                // in P3 via `kit rotate --backend yubikey` taking a
-                // different code path. For now, refuse cleanly.
+                // generated a software keypair. Yubikey rotation is
+                // a follow-up; the workaround is documented below.
                 bail!(
-                    "Yubikey-backed identities require `kit rotate \
-                     --backend yubikey` (lands in v0.5.0 P3). A plain \
-                     `kit rotate` can't generate a key on-device."
+                    "Yubikey-backed identities cannot rotate via a plain \
+                     `kit rotate` — a software keypair can't replace the \
+                     on-device PIV key. Workaround until on-device \
+                     rotation lands: use ykman to mint a fresh keypair \
+                     on a new slot, then `kit init --backend yubikey \
+                     --serial <N> --slot <new-slot>` to register it, \
+                     then `kit revoke --fingerprint <old-fingerprint>` \
+                     to tombstone the old record."
                 );
             }
         }
