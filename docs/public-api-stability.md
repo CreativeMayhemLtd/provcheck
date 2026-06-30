@@ -24,7 +24,7 @@ and know what we promise.
 | `provcheck-synthid-text`       | Stable: `detect`           | Word-tokenizer + Bayesian z-score   |
 | `provcheck-weights`            | Stable: `entry`, `load_if_cached`, `download`, `MANIFEST` | Cache layout, family/variant names |
 | `provcheck-detect`             | **Stable** (trait + types). v1.0 plumbing — ships no model weights | `Detector` trait, `DetectorRegistry`, `DetectionFamily`, `DetectionStatus`, `DetectionResult`, `DetectorError` |
-| `provcheck-stream-detect`      | **Stable**. Rolling-window streaming intake on top of `provcheck-detect`. Ships no model weights | `AudioStreamConfig`, `AudioStreamingPipeline`, `WindowedVerdict`, `StreamError` |
+| `provcheck-stream-detect`      | **Stable**. Rolling-window streaming intake on top of `provcheck-detect`. Audio (PCM) + video (frame batch). Ships no model weights | `AudioStreamConfig`, `AudioStreamingPipeline`, `VideoStreamConfig`, `VideoStreamingPipeline`, `VideoFrame`, `WindowedVerdict`, `StreamError` |
 | `provcheck-platform`           | Stable: attestation entry points + `AttestationConfig` / `AttestationOptions` |
 
 **Unstable / internal** items are either marked `#[doc(hidden)]`,
