@@ -448,6 +448,87 @@ mod tests {
     use super::*;
     use std::io::Write;
 
+    // ----- pack_partial_logits ----------
+
+    #[test]
+    fn pack_partial_logits_zero_consumed_returns_empty_vec() {
+        let full = vec![0.0_f32; hparams::MESSAGE_DIM * 10];
+        let p = pack_partial_logits(&full, 10, 0);
+        assert!(p.is_empty());
+    }
+
+    #[test]
+    fn pack_partial_logits_full_consumed_round_trips() {
+        // When t_consumed == t_frames the partial buffer must
+        // bit-identically equal the full buffer.
+        let t_frames = 20;
+        let mut full = vec![0.0_f32; hparams::MESSAGE_DIM * t_frames];
+        for (i, slot) in full.iter_mut().enumerate() {
+            *slot = i as f32 * 0.5;
+        }
+        let p = pack_partial_logits(&full, t_frames, t_frames);
+        assert_eq!(p, full);
+    }
+
+    #[test]
+    fn pack_partial_logits_partial_consumed_preserves_per_dim_prefix() {
+        // For t_consumed < t_frames, the partial buffer must
+        // contain only the FIRST t_consumed columns of each dim.
+        // The pack must NOT carry over any of the zero-suffix
+        // tail.
+        let t_frames = 20;
+        let t_consumed = 7;
+        let mut full = vec![0.0_f32; hparams::MESSAGE_DIM * t_frames];
+        // Fill each dim with its dim index for its consumed range.
+        for dim in 0..hparams::MESSAGE_DIM {
+            for t in 0..t_consumed {
+                full[dim * t_frames + t] = dim as f32 + 100.0;
+            }
+        }
+        let p = pack_partial_logits(&full, t_frames, t_consumed);
+        assert_eq!(p.len(), hparams::MESSAGE_DIM * t_consumed);
+        for dim in 0..hparams::MESSAGE_DIM {
+            for t in 0..t_consumed {
+                assert_eq!(
+                    p[dim * t_consumed + t],
+                    dim as f32 + 100.0,
+                    "pack mismatch at dim={dim} t={t}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn pack_partial_logits_output_layout_matches_message_dim_times_consumed() {
+        // Pin the output length contract: MESSAGE_DIM * t_consumed.
+        // decode_logits asserts on this; if pack ever returns the
+        // wrong shape the decoder panics with a confusing message.
+        let full = vec![0.0_f32; hparams::MESSAGE_DIM * 100];
+        for t in [0, 1, 7, 50, 100] {
+            let p = pack_partial_logits(&full, 100, t);
+            assert_eq!(
+                p.len(),
+                hparams::MESSAGE_DIM * t,
+                "t_consumed={t} produced wrong-length output"
+            );
+        }
+    }
+
+    // ----- not_detected helper (silentcipher) ----------
+
+    #[test]
+    fn not_detected_helper_sets_silentcipher_kind() {
+        let r = not_detected("test reason");
+        assert!(matches!(r.kind, WatermarkKind::SilentCipher));
+        assert!(matches!(r.status, WatermarkStatus::NotDetected));
+        assert!(!r.detected);
+        assert_eq!(r.confidence, 0.0);
+        assert!(r.payload.is_none());
+        assert!(r.brand.is_none());
+        assert!(r.marked_regions.is_none());
+        assert_eq!(r.message.as_deref(), Some("test reason"));
+    }
+
     // ----- regions_from_tile_quality coverage ----------
 
     #[test]
