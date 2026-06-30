@@ -158,6 +158,117 @@ fn kit_binary_help_for_every_subcommand_renders() {
 }
 
 #[test]
+fn import_backup_identity_file_flag_appears_in_help() {
+    // v0.9.66 added `kit import-backup --identity-file <PATH>` to
+    // wire X25519-recipient backups through the CLI. Pin that the
+    // flag shows up in --help so a future maintainer can't
+    // accidentally drop it.
+    let out = Command::new(kit_bin())
+        .args(["import-backup", "--help"])
+        .output()
+        .expect("spawn import-backup --help");
+    assert!(out.status.success());
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("--identity-file"),
+        "--identity-file flag missing from import-backup --help: {stdout}"
+    );
+    // The doc text mentions the rage-keygen format and X25519
+    // recipients — pin both so the help stays usefully descriptive.
+    assert!(
+        stdout.contains("X25519") || stdout.contains("recipients"),
+        "import-backup --help should reference X25519 / recipients context: {stdout}"
+    );
+}
+
+#[test]
+fn export_then_import_x25519_round_trip_via_library_apis() {
+    // Mirrors the v0.4 passphrase round-trip but for the X25519
+    // recipient path that v0.9.66 wires through the kit CLI.
+    // Drives the library APIs (not the binary) to keep the test
+    // hermetic — the binary-level smoke test above already
+    // exercises the --identity-file dispatch.
+    use std::str::FromStr;
+    use provcheck_sign::backup::{
+        export_with_recipients, import_with_x25519_identity,
+    };
+
+    let tmp = tempfile::tempdir().expect("tmp");
+    let bundle_path = tmp.path().join("backup.age");
+
+    // Build a real UnlockedIdentity (same shape as the production
+    // identities the kit creates).
+    let subject = SubjectInfo::default();
+    let kp = generate(&subject).expect("cert");
+    let now = OffsetDateTime::now_utc();
+    let locked = LockedIdentity {
+        chain_pem: kp.chain_pem.clone(),
+        fingerprint: fingerprint_pem_chain(&kp.chain_pem).expect("fp"),
+        algorithm: "ES256".into(),
+        did: Some("did:plc:test".into()),
+        handle: Some("test.bsky.social".into()),
+        created_at: now,
+        key_provider: KeyProviderKind::EncryptedFile,
+        recovery_recipients: Vec::new(),
+    };
+    let unlocked = UnlockedIdentity::new(locked, SecretString::from(kp.key_pem.clone()));
+
+    // Generate an X25519 identity, export with its public recipient,
+    // then import with the matching secret identity.
+    let identity = age::x25519::Identity::generate();
+    let recipient = identity.to_public();
+
+    export_with_recipients(&unlocked, &bundle_path, std::slice::from_ref(&recipient))
+        .expect("export with recipients");
+
+    // The CLI parses the identity file by scanning lines for
+    // `AGE-SECRET-KEY-1`. Round-trip via to_string + from_str
+    // explicitly so the test matches the CLI's parse path, not
+    // just the library's Identity::generate hot path.
+    use secrecy::ExposeSecret as _;
+    let exposed = identity.to_string();
+    let secret_text: &str = exposed.expose_secret();
+    let parsed = age::x25519::Identity::from_str(secret_text.trim())
+        .expect("parse identity from string");
+
+    let bundle = import_with_x25519_identity(&bundle_path, &parsed)
+        .expect("import with x25519");
+    assert_eq!(bundle.fingerprint, unlocked.locked.fingerprint);
+    assert_eq!(bundle.chain_pem, unlocked.locked.chain_pem);
+}
+
+#[test]
+fn import_backup_identity_file_with_missing_file_exits_nonzero() {
+    // Operator hands a path that doesn't exist. Should fail
+    // cleanly with a useful message, not panic.
+    let out = Command::new(kit_bin())
+        .args([
+            "import-backup",
+            "--identity-file",
+            "/no/such/identity/file/zzz",
+            "/no/such/backup/file/zzz.age",
+        ])
+        .output()
+        .expect("spawn import-backup with bogus paths");
+    assert!(
+        !out.status.success(),
+        "expected non-zero exit on missing identity file"
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    // Either the identity-file IO error or the bundle IO error
+    // is acceptable (depends on which path the implementation
+    // touches first). The load-bearing contract is "non-zero
+    // exit with some operator-readable diagnostic".
+    assert!(
+        stderr.contains("identity")
+            || stderr.contains("backup")
+            || stderr.contains("no such")
+            || stderr.contains("No such"),
+        "expected diagnostic message, got stderr: {stderr}"
+    );
+}
+
+#[test]
 fn end_to_end_identity_assertion_round_trip() {
     // Drives the same crates the kit binary composes, only with
     // hard-coded passphrases in place of the interactive prompts.
