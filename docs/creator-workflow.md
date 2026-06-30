@@ -203,7 +203,7 @@ backend only — the OS keychain handles batching natively via
 
 For pipelines that watermark many files in a row, `kit serve`
 amortises the silentcipher model load across all requests in a
-single worker session. Cold-start tract optimisation runs once
+single worker session. Cold-start `ort` session setup runs once
 (~3 seconds), not once per file.
 
 ```bash
@@ -234,8 +234,10 @@ through `ort` 2.x's CUDA Execution Provider. A 56-min stereo
 episode embed drops from 29 minutes (4-wide CPU) to about 6.6
 minutes on an NVIDIA 3090.
 
-The default download stays a single tract-only CPU binary. The
-CUDA build is opt-in:
+The default download is a single CPU-only binary that uses
+`ort`'s bundled CPU backend (the platform-specific
+`onnxruntime` shared lib ships in the release archive). The
+CUDA build is opt-in and built from source on the render host:
 
 ```bash
 # Build from source on the render host:

@@ -46,11 +46,14 @@ provcheck reports on three orthogonal claims about a file:
 2. **Identity attestation (atproto).** Has the signer published this
    cert fingerprint to their atproto DID? Is the bsky handle on the
    file really backed by the person who signed it?
-3. **Neural watermark (silentcipher today; AudioSeal + WavMark slots
-   scaffolded).** Does the audio carry a brand-stamp embedded by a
-   known generator at render time? The watermark survives
-   transcoding, MP3 re-encode, even mild post-processing — so it
-   shows up even if someone strips the C2PA manifest.
+3. **Neural watermark.** Six detector families ship live in v0.9:
+   silentcipher + AudioSeal + WavMark on audio, TrustMark-B on
+   images, per-frame TrustMark + temporal majority-vote on video,
+   and Bayesian tournament-sampling z-score for SynthID-text on
+   text. Does the file carry a brand-stamp embedded by a known
+   generator at render time? Watermarks survive transcoding,
+   lossy re-encode, and mild post-processing — so they show up
+   even if someone strips the C2PA manifest.
 
 These signals are independent. Any subset can pass or fail. A
 reasonable file might be C2PA-signed but not attested (creator didn't
@@ -116,8 +119,8 @@ Drag a file into the GUI or run `provcheck <file>`. Output:
 [watermarks]
   silentcipher: detected — doomscroll.fm (72% confidence)
     payload: 44464d0100
-  audioseal: n/a (implementation pending — see crate docs)
-  wavmark: n/a (implementation pending — see crate docs)
+  audioseal: not detected
+  wavmark: not detected
 [assertions]
   c2pa.actions.v2 = {"actions":[{"action":"c2pa.created","softwareAgent":"doomscroll.fm/3.0",...}]}
   com.doomscroll.broadcast = {"broadcast":"Doomscroll.fm",...}
@@ -125,8 +128,12 @@ Drag a file into the GUI or run `provcheck <file>`. Output:
 
 Each section is independent: VERIFIED is the C2PA signature;
 `attested by` is the atproto cross-check; the `[watermarks]` block
-is silentcipher's verdict. JSON output (`--json`) emits a stable
-schema for ingestion pipelines.
+shows every detector's verdict. The detectors that ship live as
+of v0.9 are silentcipher / AudioSeal / WavMark for audio,
+TrustMark-B for images, per-frame TrustMark with temporal
+majority-vote for video, and SynthID-text for text — each runs
+independently and reports its own verdict. JSON output (`--json`)
+emits a stable schema for ingestion pipelines.
 
 Stricter modes turn each signal into a hard gate:
 
@@ -269,7 +276,7 @@ thin CLI on top.
 | Local-only (no upload) | yes | yes | no (web upload) |
 | Cross-platform desktop GUI | yes (Win/Mac/Linux) | no (CLI only) | no (web only) |
 | atproto identity binding | yes | no | no |
-| Neural watermark detection | yes (silentcipher live; more scaffolded) | no | no |
+| Neural watermark detection | yes (six families live: silentcipher / AudioSeal / WavMark on audio, TrustMark-B on image + video, SynthID-text on text) | no | no |
 | Bundleable inside other tools | yes (Apache-2.0, single binary) | yes (Apache-2.0) | no |
 | SBOMs ship by default | yes | no | n/a |
 | Open spec for the identity binding | yes ([`docs/atproto-signing-key.md`](./atproto-signing-key.md)) | n/a | n/a |
