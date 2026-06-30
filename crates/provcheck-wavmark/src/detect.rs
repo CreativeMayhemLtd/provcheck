@@ -213,6 +213,86 @@ fn contiguous_hit_regions(
 mod tests {
     use super::*;
 
+    // ----- aggregate_lower_payload ----------
+
+    #[test]
+    fn aggregate_lower_payload_all_zero_bits_yields_zero_bytes() {
+        // No bit above 0.5 → all zero output.
+        let bits = [0.0_f32; NUM_BITS];
+        let hits = vec![(0, bits)];
+        assert_eq!(aggregate_lower_payload(&hits), [0x00, 0x00]);
+    }
+
+    #[test]
+    fn aggregate_lower_payload_all_one_bits_yields_ff_ff() {
+        // Every bit above threshold → 0xFFFF on output.
+        let bits = [1.0_f32; NUM_BITS];
+        let hits = vec![(0, bits)];
+        assert_eq!(aggregate_lower_payload(&hits), [0xFF, 0xFF]);
+    }
+
+    #[test]
+    fn aggregate_lower_payload_msb_first_byte0_bit0() {
+        // The lower 16 bits start at FIX_PATTERN_LEN. Setting
+        // bit FIX_PATTERN_LEN (the MSB of byte 0) above 0.5
+        // should produce 0x80, 0x00.
+        let mut bits = [0.0_f32; NUM_BITS];
+        bits[FIX_PATTERN_LEN] = 1.0;
+        let hits = vec![(0, bits)];
+        assert_eq!(aggregate_lower_payload(&hits), [0x80, 0x00]);
+    }
+
+    #[test]
+    fn aggregate_lower_payload_averages_across_hits() {
+        // Two hits, both half-strength on bit 0. Average is
+        // 0.5 (the inclusive threshold) — sets the bit.
+        let mut bits_a = [0.0_f32; NUM_BITS];
+        bits_a[FIX_PATTERN_LEN] = 0.4;
+        let mut bits_b = [0.0_f32; NUM_BITS];
+        bits_b[FIX_PATTERN_LEN] = 0.6;
+        let hits = vec![(0, bits_a), (100, bits_b)];
+        // Average = 0.5 ≥ 0.5 → bit set.
+        let out = aggregate_lower_payload(&hits);
+        assert_eq!(out[0], 0x80);
+    }
+
+    #[test]
+    fn aggregate_lower_payload_below_threshold_does_not_set_bit() {
+        // Sub-threshold average must not set the bit.
+        let mut bits = [0.0_f32; NUM_BITS];
+        bits[FIX_PATTERN_LEN] = 0.49;
+        let hits = vec![(0, bits)];
+        assert_eq!(aggregate_lower_payload(&hits), [0x00, 0x00]);
+    }
+
+    // ----- matches_fix_pattern boundary ----------
+
+    #[test]
+    fn matches_fix_pattern_uses_inclusive_half_threshold() {
+        // bits[i] >= 0.5 counts as 1. Pin so a future
+        // tightening (`> 0.5`) doesn't silently shift the
+        // detection floor.
+        let mut bits = [0.0_f32; NUM_BITS];
+        // Build pattern bits at exactly 0.5 — all should count.
+        for (i, &p) in WAVMARK_FIX_PATTERN.iter().enumerate() {
+            bits[i] = if p == 1 { 0.5 } else { 0.0 };
+        }
+        assert!(matches_fix_pattern(&bits));
+    }
+
+    #[test]
+    fn matches_fix_pattern_rejects_bit_just_below_threshold() {
+        let mut bits = [0.0_f32; NUM_BITS];
+        // The pattern requires bit 0 = 1 (assume yes; if not,
+        // pick another known-1 bit). Just below 0.5 should fail.
+        let known_one = WAVMARK_FIX_PATTERN.iter().position(|&p| p == 1).expect("pattern has at least one 1");
+        for (i, &p) in WAVMARK_FIX_PATTERN.iter().enumerate() {
+            bits[i] = if p == 1 { 1.0 } else { 0.0 };
+        }
+        bits[known_one] = 0.499;
+        assert!(!matches_fix_pattern(&bits));
+    }
+
     #[test]
     fn fix_pattern_matches_exact() {
         let mut bits = [0.0_f32; NUM_BITS];
