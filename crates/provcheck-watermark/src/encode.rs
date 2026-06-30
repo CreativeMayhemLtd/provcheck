@@ -798,6 +798,61 @@ fn build_model() -> Result<Runnable, String> {
 mod tests {
     use super::*;
 
+    // ----- DEFAULT_MESSAGE_SDR_DB pin ----------
+
+    #[test]
+    fn default_message_sdr_db_is_30() {
+        // v0.5.2 lowered the default from 47 → 30 dB after the
+        // codec-survival sweep. Pin so a future maintainer can't
+        // silently bump it back to 47 (which was the training
+        // default but couldn't survive lossy delivery codecs).
+        assert_eq!(DEFAULT_MESSAGE_SDR_DB, 30.0);
+    }
+
+    #[test]
+    fn default_message_sdr_db_is_finite_and_positive() {
+        let sdr = std::hint::black_box(DEFAULT_MESSAGE_SDR_DB);
+        assert!(sdr.is_finite());
+        assert!(sdr > 0.0);
+    }
+
+    #[test]
+    fn default_message_sdr_db_is_below_training_value() {
+        // Sanity: must be less than the 47.0 silentcipher
+        // training default. If it ever drifts above, we've lost
+        // the delivery-codec-survival fix from v0.5.2.
+        let sdr = std::hint::black_box(DEFAULT_MESSAGE_SDR_DB);
+        let training_default: f32 = 47.0;
+        assert!(
+            sdr < training_default,
+            "default SDR drifted up to training value {sdr} >= {training_default}"
+        );
+    }
+
+    // ----- MESSAGE_BAND_SIZE pin ----------
+
+    #[test]
+    fn message_band_size_is_1024() {
+        // The encoder's `nn.Linear` output dimension. This is
+        // the second axis of the projected `[MESSAGE_BAND_SIZE, T]`
+        // tensor that's then zero-padded up to FREQ_BINS before
+        // being added to the carrier. Bumping requires re-training
+        // (Linear weights are MESSAGE_BAND_SIZE×MESSAGE_DIM, so a
+        // shape mismatch fires loudly via debug_assert at runtime).
+        assert_eq!(MESSAGE_BAND_SIZE, 1024);
+    }
+
+    #[test]
+    fn message_band_size_is_below_freq_bins() {
+        // MESSAGE_BAND_SIZE < FREQ_BINS — the encoder only
+        // modulates the low-frequency band (1024 bins out of
+        // FREQ_BINS=2049). Above that we zero-pad. Pin the
+        // inequality.
+        let band = std::hint::black_box(MESSAGE_BAND_SIZE);
+        let freq = std::hint::black_box(FREQ_BINS);
+        assert!(band < freq, "band {band} must be below FREQ_BINS {freq}");
+    }
+
     #[test]
     fn letters_encoding_for_dfm_payload_matches_expected_symbols() {
         // DFM payload: 0x44, 0x46, 0x4d, 0x01, 0x00
