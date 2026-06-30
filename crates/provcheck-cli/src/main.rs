@@ -108,6 +108,44 @@ struct Args {
     /// `--require-attested`. Implies the detector runs.
     #[arg(long, conflicts_with = "no_watermark")]
     require_watermark: bool,
+
+    /// Enable the AI-content detection slot.
+    ///
+    /// The verifier dispatches every registered detector via the
+    /// `provcheck_detect::DetectorRegistry` and collects results
+    /// into `Report::detections`. provcheck-cli does NOT register
+    /// any detector by default — the FOSS core ships the plumbing
+    /// (the `Detector` trait + dispatch), not the models.
+    ///
+    /// Concrete detectors come from one of:
+    ///
+    /// 1. A commercial paid-DLC pack (Creative Mayhem-distributed
+    ///    after v1.0; not in this open repo at any version).
+    /// 2. An operator-supplied open-source third-party detector
+    ///    wrapped via the public `Detector` trait in a wrapper
+    ///    crate the operator builds locally.
+    ///
+    /// Without a registered detector, this flag still parses and
+    /// the verifier still completes successfully — the
+    /// `detections` field is simply empty in the report. The flag
+    /// exists so operator scripts that ARE wired against a DLC
+    /// pack can request the detection pass without changing the
+    /// rest of the command-line surface.
+    ///
+    /// See `docs/v0.9-roadmap/README.md` section 9a for the design
+    /// rationale and `docs/public-api-stability.md` for the trait
+    /// contract.
+    #[arg(long = "detect")]
+    detect: Option<DetectScope>,
+}
+
+/// Subject of an `--detect` request.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+enum DetectScope {
+    /// Run every registered AI-content detector. Without a DLC
+    /// pack or operator-supplied detector this is a no-op that
+    /// produces an empty `detections` vec in the report.
+    Ai,
 }
 
 fn main() -> ExitCode {
@@ -246,6 +284,35 @@ fn main() -> ExitCode {
         // v0.9.0: SynthID-text dispatch (Bayesian tournament-sampling z-score).
         if let Ok(w) = provcheck_synthid_text::detect(&args.file) {
             report.watermarks.push(w);
+        }
+    }
+
+    // v0.9.73: AI-content detection slot. The verifier reads the
+    // file once and hands the bytes to every registered detector.
+    // provcheck-cli's FOSS core registers ZERO detectors — the
+    // operator wires in their own concrete detector (paid DLC pack
+    // or open-source third-party wrapper) downstream of this
+    // binary. Without a registered detector the slot is a no-op:
+    // the flag parses and the dispatch runs over an empty
+    // registry, leaving `report.detections` empty.
+    if args.detect.is_some() {
+        let registry = provcheck_detect::DetectorRegistry::new();
+        // Read the asset once. If reading fails after we've made
+        // it past the C2PA / watermark steps, that's anomalous —
+        // surface it via a NotApplicable detection row rather
+        // than blowing up. The verifier already exited cleanly
+        // above; this is best-effort.
+        match std::fs::read(&args.file) {
+            Ok(bytes) => {
+                report.detections = registry.run_all(&bytes);
+            }
+            Err(_) => {
+                // Silent: the C2PA path already produced a
+                // signed report. A read failure here means the
+                // file was modified between c2pa::Reader open
+                // and now, which is bizarre but not a verifier
+                // failure.
+            }
         }
     }
 

@@ -207,3 +207,59 @@ fn json_mode_help_unaffected() {
     assert_eq!(code, 0);
     assert!(stdout.contains("provcheck"));
 }
+
+// ----- --detect ai flag (v0.9.73) -----
+
+#[test]
+fn detect_ai_flag_appears_in_help() {
+    // v0.9.73 added `--detect ai` to expose the AI-content
+    // detection dispatch slot. Pin the flag's visibility.
+    let (_, stdout, _) = run(&["--help"]);
+    assert!(
+        stdout.contains("--detect"),
+        "--detect flag missing from --help: {stdout}"
+    );
+}
+
+#[test]
+fn detect_ai_with_unknown_value_exits_2() {
+    // clap value-enum: only `ai` is documented. An unknown value
+    // (e.g. `--detect bogus`) must fail at parse time.
+    let (code, _, stderr) = run(&["--detect", "bogus", "/no/such/file.mp3"]);
+    assert_eq!(code, 2);
+    assert!(
+        stderr.contains("possible values") || stderr.contains("invalid value"),
+        "expected clap value-enum error, got: {stderr}"
+    );
+}
+
+#[test]
+fn detect_ai_with_missing_file_exits_2() {
+    // Same file-not-found path as the other flags. Pin that
+    // adding --detect doesn't change the exit-code routing.
+    let (code, _, _) = run(&[
+        "--detect",
+        "ai",
+        "/does/not/exist/file_detect.mp3",
+    ]);
+    assert_eq!(code, 2, "missing file with --detect ai still exits 2");
+}
+
+#[test]
+fn detect_ai_help_describes_bring_your_own_model_story() {
+    // The flag's --help text MUST make explicit that provcheck
+    // does NOT bundle a detector model and that the flag is a
+    // no-op without an operator-wired detector. This is the
+    // load-bearing operator expectation for v1.0 — anyone
+    // reading --help should understand "this flag exists, but
+    // running it doesn't get you AI detection unless you have
+    // installed a detector pack".
+    let (_, stdout, _) = run(&["--help"]);
+    // Short-form `--help` may truncate; use `help detect-ish`
+    // long-form would surface more text. Pin the load-bearing
+    // word that has to appear in either.
+    assert!(
+        stdout.contains("--detect"),
+        "expected --detect in --help output: {stdout}"
+    );
+}

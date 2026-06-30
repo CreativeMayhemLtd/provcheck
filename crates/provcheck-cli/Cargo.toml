@@ -26,4 +26,9 @@ provcheck-wavmark = { path = "../provcheck-wavmark" }
 provcheck-image = { path = "../provcheck-image" }
 provcheck-video = { path = "../provcheck-video" }
 provcheck-synthid-text = { path = "../provcheck-synthid-text" }
+
+# v0.9.73: AI-content detection dispatch via `--detect ai` flag.
+# The FOSS core ships the plumbing only; concrete detectors come
+# from a paid DLC pack or operator-supplied open-source wrapper.
+provcheck-detect = { path = "../provcheck-detect" }
 clap = { workspace = true }
