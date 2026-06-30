@@ -236,6 +236,86 @@ mod manifest_invariants {
     }
 
     #[test]
+    fn every_entry_url_targets_same_release_tag() {
+        // All manifest entries must point at the SAME release tag
+        // (currently weights-v1). Mismatched tags mean some
+        // weights upgrade while others lag, breaking model
+        // compatibility silently.
+        let tags: std::collections::HashSet<_> = MANIFEST
+            .iter()
+            .filter_map(|e| {
+                let prefix = "https://github.com/CreativeMayhemLtd/provcheck/releases/download/";
+                e.url
+                    .strip_prefix(prefix)
+                    .and_then(|s| s.split('/').next())
+            })
+            .collect();
+        assert_eq!(
+            tags.len(),
+            1,
+            "all weights must share a release tag; saw: {tags:?}"
+        );
+    }
+
+    #[test]
+    fn every_entry_filename_includes_family_name() {
+        // Convention: the filename starts with the family name
+        // (e.g. `silentcipher-encoder-v1.onnx` for the
+        // `silentcipher/encoder` entry). Catches a future
+        // refactor that renames a file without updating the
+        // family.
+        for e in MANIFEST {
+            assert!(
+                e.filename.contains(e.family),
+                "filename {:?} should mention family {}",
+                e.filename,
+                e.family
+            );
+        }
+    }
+
+    #[test]
+    fn every_entry_url_is_https_not_http() {
+        for e in MANIFEST {
+            assert!(
+                e.url.starts_with("https://"),
+                "weight {}/{} URL must be https, got {}",
+                e.family,
+                e.variant,
+                e.url
+            );
+        }
+    }
+
+    #[test]
+    fn every_entry_family_and_variant_are_non_empty() {
+        for e in MANIFEST {
+            assert!(!e.family.is_empty(), "empty family in manifest entry");
+            assert!(
+                !e.variant.is_empty(),
+                "empty variant in manifest for family {}",
+                e.family
+            );
+        }
+    }
+
+    #[test]
+    fn every_entry_family_uses_lowercase_kebab_or_alpha() {
+        // Defensive: family names appear in CLI subcommand args,
+        // cache paths, and error messages. Pin lowercase ASCII +
+        // hyphen so a future entry with mixed case can't slip in.
+        for e in MANIFEST {
+            for c in e.family.chars() {
+                assert!(
+                    c.is_ascii_lowercase() || c == '-' || c.is_ascii_digit(),
+                    "family {:?} contains non-lowercase-ascii-kebab char {c:?}",
+                    e.family
+                );
+            }
+        }
+    }
+
+    #[test]
     fn family_variant_tuples_are_unique() {
         // Two entries with the same (family, variant) would mean
         // `entry()` returns the first one and the second is dead;
