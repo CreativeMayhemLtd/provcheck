@@ -2690,6 +2690,53 @@ pub mod watermark {
                 parse_payload_hex("5241abcdef").expect("ok")
             );
         }
+
+        #[test]
+        fn all_zeros_payload_round_trips() {
+            // Edge corner of the 40-bit space.
+            assert_eq!(parse_payload_hex("0000000000").expect("ok"), [0u8; 5]);
+        }
+
+        #[test]
+        fn all_ones_payload_round_trips() {
+            // Other edge corner.
+            assert_eq!(parse_payload_hex("ffffffffff").expect("ok"), [0xFFu8; 5]);
+        }
+
+        #[test]
+        fn tabs_and_newlines_also_tolerated_as_whitespace() {
+            // is_whitespace catches \t and \n, not just spaces.
+            // Copy-paste from shell pipes is a common operator
+            // workflow; pin the broader whitespace acceptance.
+            let with_tabs = "44\t46\t4d\t01\t00";
+            let with_newline = "44\n46\n4d\n01\n00";
+            assert_eq!(
+                parse_payload_hex(with_tabs).expect("ok"),
+                [b'D', b'F', b'M', 0x01, 0x00]
+            );
+            assert_eq!(
+                parse_payload_hex(with_newline).expect("ok"),
+                [b'D', b'F', b'M', 0x01, 0x00]
+            );
+        }
+
+        #[test]
+        fn nine_chars_just_below_required_length_errors() {
+            // 9 chars — one below the documented 10. Pin the
+            // strict-length boundary.
+            let r = parse_payload_hex("123456789");
+            assert!(r.is_err());
+            let msg = format!("{}", r.err().unwrap());
+            assert!(msg.contains("got 9"));
+        }
+
+        #[test]
+        fn eleven_chars_just_above_required_length_errors() {
+            let r = parse_payload_hex("1234567890a");
+            assert!(r.is_err());
+            let msg = format!("{}", r.err().unwrap());
+            assert!(msg.contains("got 11"));
+        }
     }
 
     #[cfg(test)]
