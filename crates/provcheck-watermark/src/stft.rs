@@ -134,6 +134,81 @@ mod stft_error_tests {
 }
 
 #[cfg(test)]
+mod effective_sample_tests {
+    use super::*;
+
+    #[test]
+    fn middle_region_returns_raw_waveform_value() {
+        // Inside the pad-offset middle region, effective_sample
+        // returns the actual sample (the hot path).
+        let waveform = vec![1.0_f32, 2.0, 3.0, 4.0, 5.0];
+        let pad = 2;
+        let n = waveform.len();
+        for i in 0..n {
+            let v = effective_sample(pad + i, &waveform, n, pad);
+            assert_eq!(v, waveform[i], "mid region at offset {i}");
+        }
+    }
+
+    #[test]
+    fn head_region_mirrors_around_zero() {
+        // Head reflection should mirror around index 0 of the
+        // waveform without duplicating waveform[0]. For position
+        // i in [0, pad), the source index is pad-i clamped.
+        let waveform = vec![10.0_f32, 20.0, 30.0, 40.0, 50.0];
+        let pad = 3;
+        let n = waveform.len();
+        // Pad position 0 → src = pad - 0 = 3 → waveform[3] = 40.
+        assert_eq!(effective_sample(0, &waveform, n, pad), 40.0);
+        // Pad position 1 → src = 2 → waveform[2] = 30.
+        assert_eq!(effective_sample(1, &waveform, n, pad), 30.0);
+        // Pad position 2 → src = 1 → waveform[1] = 20.
+        assert_eq!(effective_sample(2, &waveform, n, pad), 20.0);
+    }
+
+    #[test]
+    fn tail_region_mirrors_around_last_index() {
+        // Tail reflection: y[2n - 2 - (i - pad)] clamped.
+        let waveform = vec![1.0_f32, 2.0, 3.0, 4.0, 5.0];
+        let pad = 2;
+        let n = waveform.len();
+        // First tail position: i = pad + n = 7. off = 5.
+        //   src = 2*5 - 2 - 5 = 3 → waveform[3] = 4.0
+        assert_eq!(effective_sample(pad + n, &waveform, n, pad), 4.0);
+        // Next tail: i = pad + n + 1 = 8. off = 6.
+        //   src = 10 - 2 - 6 = 2 → waveform[2] = 3.0
+        assert_eq!(effective_sample(pad + n + 1, &waveform, n, pad), 3.0);
+    }
+
+    #[test]
+    fn out_of_band_indices_do_not_panic() {
+        // The function uses saturating_sub for index math, so
+        // a huge index doesn't underflow. Pin the no-panic
+        // contract — the actual returned value is implementation-
+        // defined (clamps to a waveform[0]-like value), but the
+        // load-bearing invariant is "no panic, no UB".
+        let waveform = vec![1.0_f32, 2.0, 3.0];
+        let pad = 2;
+        let n = waveform.len();
+        let r = effective_sample(usize::MAX / 2, &waveform, n, pad);
+        assert!(r.is_finite(), "huge index produced non-finite result: {r}");
+    }
+
+    #[test]
+    fn returns_finite_for_all_indices_in_legal_range() {
+        // For any reasonable index in the padded region, the
+        // result must be finite (not NaN, not inf).
+        let waveform: Vec<f32> = (0..100).map(|i| i as f32).collect();
+        let n = waveform.len();
+        let pad = 50;
+        for i in 0..(n + 2 * pad) {
+            let v = effective_sample(i, &waveform, n, pad);
+            assert!(v.is_finite(), "non-finite at i={i}: {v}");
+        }
+    }
+}
+
+#[cfg(test)]
 mod waveform_to_carrier_tests {
     use super::*;
 
