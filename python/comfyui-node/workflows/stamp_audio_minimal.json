@@ -1,0 +1,56 @@
+{
+  "last_node_id": 3,
+  "last_link_id": 2,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "LoadAudio",
+      "pos": [40, 200],
+      "size": [320, 100],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "outputs": [{ "name": "AUDIO", "type": "AUDIO", "links": [1] }],
+      "properties": { "Node name for S&R": "LoadAudio" },
+      "widgets_values": ["example.wav"]
+    },
+    {
+      "id": 2,
+      "type": "ProvcheckStampAudio",
+      "pos": [420, 200],
+      "size": [310, 130],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [{ "name": "audio", "type": "AUDIO", "link": 1 }],
+      "outputs": [
+        { "name": "stamped_audio", "type": "AUDIO", "links": [2] }
+      ],
+      "properties": { "Node name for S&R": "ProvcheckStampAudio" },
+      "widgets_values": [2, false, 120]
+    },
+    {
+      "id": 3,
+      "type": "SaveAudio",
+      "pos": [780, 200],
+      "size": [240, 100],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [{ "name": "audio", "type": "AUDIO", "link": 2 }],
+      "outputs": [],
+      "properties": { "Node name for S&R": "SaveAudio" },
+      "widgets_values": ["provcheck_stamped"]
+    }
+  ],
+  "links": [
+    [1, 1, 0, 2, 0, "AUDIO"],
+    [2, 2, 0, 3, 0, "AUDIO"]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "provcheck_example": "Minimal audio stamp: LoadAudio -> ProvcheckStampAudio -> SaveAudio. Replace 'example.wav' with any clip in your ComfyUI input directory; SaveAudio writes 'provcheck_stamped_NNNNN_.wav' to the ComfyUI output directory. The ProvcheckStampAudio widgets_values are [brand_id=2, sign=false, timeout_secs=120]. Edit them in the node UI."
+  },
+  "version": 0.4
+}

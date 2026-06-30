@@ -111,18 +111,40 @@ of deepfakes, for voice and video".
   free; the detection is bring-your-own (paid DLC OR open-source
   third-party).
 
-### 9c — ComfyUI node (FOSS, wires in v0.9)
+### 9c — ComfyUI node (FOSS, wires in v0.9) — SHIPPED across v0.9.0..77 + v0.9.80
 
 Per user direction 2026-06-28: "we want to do a comfyui node
 where the user can basically apply the app strings to their
 outputs in comfyui and include this in the open source for 1.0.0".
 
-- `python/comfyui-node/` package scaffolded today (v0.7.0).
-- v0.9 wires the actual subprocess call to `provcheck-kit stamp`,
-  handles tensor save / load, and ships example workflows.
-- Brand-agnostic — works for any creator with their own atproto
-  identity + signing key + brand registration.
-- Apache-2.0 alongside the rest of the FOSS surface.
+- ✓ `python/comfyui-node/` package — scaffolded in v0.7.0, fully
+  wired in v0.9.0 (subprocess call to `provcheck-kit stamp`,
+  PNG tensor save / load).
+- ✓ v0.9.77: audio variant (`StampAudioNode`) lands. AUDIO dict
+  in → temp 16-bit PCM WAV → `provcheck-kit stamp` (auto-routes
+  silentcipher) → WAV back → AUDIO dict out. Mono + stereo
+  round-trip pinned by tests within int16 precision.
+- ✓ v0.9.77: optional `sign: BOOLEAN` input on both nodes.
+  Default `False` (watermark only). When `True`, the kit attempts
+  C2PA signing with the local identity; sign failure → fail-closed
+  passthrough with console warning.
+- ✓ v0.9.77: optional `timeout_secs: INT` (5..600, default 120)
+  on both nodes for slow-host operators.
+- ✓ v0.9.77: GitHub Actions workflow (`comfyui-node.yml`) runs
+  pytest matrix on Python 3.10 + 3.12. 22 tests cover wrapper
+  failure modes + WAV round-trip.
+- ✓ v0.9.80: three example workflow JSON files under
+  `python/comfyui-node/workflows/` plus a README explaining how
+  to use them. `stamp_image_minimal.json` (LoadImage → Stamp →
+  PreviewImage), `stamp_audio_minimal.json` (LoadAudio →
+  StampAudio → SaveAudio), `stamp_signed_image.json` (LoadImage
+  → Stamp(sign=True) → SaveImage). All target ComfyUI's
+  `version: 0.4` workflow schema.
+- ✓ Brand-agnostic — works for any creator with their own atproto
+  identity + signing key + brand registration. The README's
+  `brand_id = 2` default is documented as an ergonomic choice,
+  not a normative preference.
+- ✓ Apache-2.0 alongside the rest of the FOSS surface.
 
 ### 9d — Codec-robust silentcipher checkpoint
 

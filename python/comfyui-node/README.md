@@ -115,6 +115,18 @@ list and how to register your own.
   verification; if you need a verify-step node in a ComfyUI
   graph, file an issue.
 
+## Example workflows
+
+Three JSON workflows ship under `workflows/`:
+
+- `stamp_image_minimal.json` — `LoadImage` → `ProvcheckStamp` → `PreviewImage`
+- `stamp_audio_minimal.json` — `LoadAudio` → `ProvcheckStampAudio` → `SaveAudio`
+- `stamp_signed_image.json` — `LoadImage` → `ProvcheckStamp(sign=True)` → `SaveImage`
+
+Drag any of them onto the ComfyUI canvas to load. See
+`workflows/README.md` for what you should expect to see in the
+console + how to swap the placeholder inputs for your own files.
+
 ## Tests
 
 ```bash
