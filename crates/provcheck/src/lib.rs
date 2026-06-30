@@ -241,4 +241,58 @@ mod tests {
         let err = verify_with_options(Path::new("any.wav"), &opts).unwrap_err();
         assert!(matches!(err, Error::InvalidTrustStore(_)));
     }
+
+    // ----- sanity_check_pem direct coverage ----------
+    //
+    // The PEM check is the gate that prevents a malformed
+    // trust-store input from confusing c2pa's loader. Pin every
+    // documented rejection path.
+
+    #[test]
+    fn sanity_check_pem_accepts_well_formed_certificate_block() {
+        let pem = "-----BEGIN CERTIFICATE-----\naGVsbG8=\n-----END CERTIFICATE-----\n";
+        assert!(sanity_check_pem(pem).is_ok());
+    }
+
+    #[test]
+    fn sanity_check_pem_rejects_input_with_no_begin_marker() {
+        let pem = "some random text\n-----END CERTIFICATE-----\n";
+        let r = sanity_check_pem(pem);
+        assert!(matches!(r, Err(Error::InvalidTrustStore(_))));
+        let msg = format!("{}", r.unwrap_err());
+        assert!(msg.contains("BEGIN CERTIFICATE"));
+    }
+
+    #[test]
+    fn sanity_check_pem_rejects_input_with_no_end_marker() {
+        let pem = "-----BEGIN CERTIFICATE-----\naGVsbG8=\nno-end-marker\n";
+        let r = sanity_check_pem(pem);
+        assert!(matches!(r, Err(Error::InvalidTrustStore(_))));
+        let msg = format!("{}", r.unwrap_err());
+        assert!(msg.contains("END CERTIFICATE"));
+    }
+
+    #[test]
+    fn sanity_check_pem_rejects_empty_input() {
+        let r = sanity_check_pem("");
+        assert!(matches!(r, Err(Error::InvalidTrustStore(_))));
+    }
+
+    #[test]
+    fn sanity_check_pem_accepts_chain_with_multiple_certs() {
+        // Multiple BEGIN/END blocks — chain bundles are common
+        // for full-chain trust stores. Pin that this passes.
+        let pem = "-----BEGIN CERTIFICATE-----\naA==\n-----END CERTIFICATE-----\n\
+                   -----BEGIN CERTIFICATE-----\nbB==\n-----END CERTIFICATE-----\n";
+        assert!(sanity_check_pem(pem).is_ok());
+    }
+
+    #[test]
+    fn sanity_check_pem_rejects_private_key_only_input() {
+        // A PEM that's ONLY private keys (no CERTIFICATE block)
+        // is wrong for a trust store. Pin rejection.
+        let pem = "-----BEGIN PRIVATE KEY-----\naA==\n-----END PRIVATE KEY-----\n";
+        let r = sanity_check_pem(pem);
+        assert!(matches!(r, Err(Error::InvalidTrustStore(_))));
+    }
 }
