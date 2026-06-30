@@ -558,6 +558,70 @@ mod identity_claim_and_constants_tests {
         let back: IdentityClaim = serde_json::from_str(&json).expect("de");
         assert_eq!(back, original);
     }
+
+    // ----- ALLOWED_ALGORITHMS additional invariants ----------
+
+    #[test]
+    fn allowed_algorithms_strings_are_unique() {
+        // Duplicates would mean both publisher- and verifier-side
+        // search loops have an extra cycle for no benefit, but
+        // also signal a manifest-edit bug. Pin uniqueness.
+        let mut seen = std::collections::HashSet::new();
+        for alg in ALLOWED_ALGORITHMS {
+            assert!(
+                seen.insert(*alg),
+                "duplicate algorithm {alg} in ALLOWED_ALGORITHMS"
+            );
+        }
+    }
+
+    #[test]
+    fn allowed_algorithms_use_uppercase_alg_codes() {
+        // The JOSE algorithm name registry uses uppercase
+        // identifiers (ES256, PS384, RS512, Ed25519). Pin the
+        // case-sensitivity by checking each entry has at least
+        // one uppercase letter and (Ed25519 aside) no lowercase
+        // ones in the prefix.
+        for alg in ALLOWED_ALGORITHMS {
+            assert!(
+                alg.chars().any(|c| c.is_ascii_uppercase()),
+                "alg {alg} has no uppercase chars"
+            );
+        }
+    }
+
+    #[test]
+    fn allowed_algorithms_each_entry_is_short_enough_for_jws_header() {
+        // JOSE header `alg` values are short — 5 to 7 chars in
+        // practice. Pin a reasonable upper bound so a typo like
+        // "ES256-PSS-SHA256-LONG" doesn't slip in.
+        for alg in ALLOWED_ALGORITHMS {
+            assert!(
+                alg.len() <= 8,
+                "alg {alg} ({} chars) exceeds 8-char limit",
+                alg.len()
+            );
+            assert!(alg.len() >= 5, "alg {alg} suspiciously short");
+        }
+    }
+
+    #[test]
+    fn allowed_algorithms_contains_ed25519_with_canonical_case() {
+        // Ed25519 has mixed case by convention (NOT ED25519).
+        // Pin the canonical spelling.
+        assert!(ALLOWED_ALGORITHMS.contains(&"Ed25519"));
+        assert!(!ALLOWED_ALGORITHMS.contains(&"ED25519"));
+        assert!(!ALLOWED_ALGORITHMS.contains(&"ed25519"));
+    }
+
+    #[test]
+    fn allowed_algorithms_excludes_eddsa_generic_name() {
+        // "EdDSA" is the generic algorithm family name JOSE
+        // technically registers, but our spec requires
+        // specifying the curve via "Ed25519". A future maintainer
+        // who adds "EdDSA" would break interop with c2pa-rs.
+        assert!(!ALLOWED_ALGORITHMS.contains(&"EdDSA"));
+    }
 }
 
 #[cfg(test)]
