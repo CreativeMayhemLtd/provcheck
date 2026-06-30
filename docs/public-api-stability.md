@@ -23,6 +23,7 @@ and know what we promise.
 | `provcheck-video`              | Stable: `detect`           | Per-frame TrustMark + temporal vote |
 | `provcheck-synthid-text`       | Stable: `detect`           | Word-tokenizer + Bayesian z-score   |
 | `provcheck-weights`            | Stable: `entry`, `load_if_cached`, `download`, `MANIFEST` | Cache layout, family/variant names |
+| `provcheck-detect`             | **Stable** (trait + types). v1.0 plumbing — ships no model weights | `Detector` trait, `DetectorRegistry`, `DetectionFamily`, `DetectionStatus`, `DetectionResult`, `DetectorError` |
 | `provcheck-platform`           | Stable: attestation entry points + `AttestationConfig` / `AttestationOptions` |
 
 **Unstable / internal** items are either marked `#[doc(hidden)]`,
@@ -143,6 +144,10 @@ intend to push to crates.io once we ship v1.0:
 - `provcheck-watermark`, `provcheck-audioseal`, `provcheck-wavmark`,
   `provcheck-image`, `provcheck-video`, `provcheck-synthid-text`
   — yes, for ecosystem integrators
+- `provcheck-detect` — yes; the public Detector trait that
+  operators implement against to wire in their own AI-content
+  detector (commercial paid-DLC pack OR existing open-source
+  third-party detector)
 - `provcheck-platform`, `provcheck-sign`, `provcheck-publish`,
   `provcheck-weights` — yes; they're the load-bearing pieces
 

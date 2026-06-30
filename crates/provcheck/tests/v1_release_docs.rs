@@ -142,6 +142,7 @@ fn public_api_stability_lists_every_publishable_crate() {
         "provcheck-video",
         "provcheck-synthid-text",
         "provcheck-weights",
+        "provcheck-detect",
         "provcheck-platform",
     ] {
         assert!(

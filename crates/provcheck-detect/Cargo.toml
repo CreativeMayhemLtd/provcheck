@@ -1,0 +1,19 @@
+[package]
+name = "provcheck-detect"
+description = "AI-content detection trait for provcheck. Defines the contract operators implement against to plug in their own deepfake / anti-spoofing / AI-generated-content classifier. This crate is FOSS plumbing only and ships no model weights — detector models are bring-your-own (commercial paid DLC after v1.0 or an existing open-source third-party detector wrapped by the operator)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+
+[lib]
+name = "provcheck_detect"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
