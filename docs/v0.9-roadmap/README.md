@@ -32,23 +32,44 @@ What lands:
   spec so third-party detectors can implement the trait if they
   want to ship their own family.
 
-### 9b — Streaming deepfake detection (FOSS scaffold)
+### 9b — Streaming deepfake detection (FOSS plumbing; detector models are paid DLC OR operator-supplied open source)
 
 Per user direction 2026-06-28: "in v9 we want streaming detection
 of deepfakes, for voice and video".
 
 - `provcheck-stream-deepfake` crate with the streaming intake
   pipeline (PCM chunk feeder for audio; frame batch feeder for
-  video).
+  video). **This crate is FOSS Apache-2.0.**
 - Rolling-window detection confidence with configurable hop /
   window sizes.
 - GUI surface for live monitoring (microphone, screen capture,
   RTSP feed input adapters).
 - Library API for callers that want to plug the detector into
   their own transport (Discord bot, broadcaster overlay, etc.).
-- **The actual classifier weights / model arch stays in v1.0's
-  paid DLC.** v0.9 ships the plumbing + a stub detector that
-  returns "model not installed" until the DLC unlocks it.
+- **Detector model arch + weights are NOT shipped by provcheck.**
+  v0.9 ships the plumbing + a stub detector that returns "model
+  not installed". Concrete detectors plug in via the
+  `Detector` trait two ways:
+
+  1. **Commercial paid-DLC detectors** (the high-margin upsell):
+     Creative Mayhem ships commercial detector packs as paid DLC
+     after v1.0. The first such pack is sourced from the
+     doomscroll.fm pipeline and is NOT in this public repo at
+     any version. Distribution + activation mechanism is itself
+     part of the v1.0 paid surface.
+  2. **Operator-supplied open-source detectors**: the `Detector`
+     trait is public so an operator can implement it against
+     any open-source detector available in the wild (e.g.
+     existing FOSS audio-deepfake classifiers from research
+     groups). provcheck does NOT ship those FOSS detectors
+     either — the operator brings their own weights and
+     implements the trait against them. The trait is the
+     contract; the model is the operator's choice.
+
+  Do not characterise the deepfake-detection capability as
+  "free" or "shipped" anywhere in v1.0 copy. The plumbing is
+  free; the detection is bring-your-own (paid DLC OR open-source
+  third-party).
 
 ### 9c — ComfyUI node (FOSS, wires in v0.9)
 
@@ -91,11 +112,17 @@ cross-check. Adding a per-asset record:
 Revisit in v0.9 if there is a concrete use case the C2PA + DID
 combination cannot serve.
 
-## Out of scope for v0.9 (lands in v1.0)
+## Out of scope for v0.9 (lands in v1.0, OR is never shipped)
 
-- Actual AI-detection classifier weights / model arch (paid DLC).
-- Anti-spoofing + deepfake classification logic (paid DLC).
-- DLC packaging + activation mechanism.
+- **Paid DLC packaging + activation mechanism** for commercial
+  detector packs (Creative Mayhem-distributed).
+- **Commercial detector model packs** (paid DLC; sourced
+  separately, not in this public repo).
+- **Bundled FOSS deepfake detector models**: provcheck does NOT
+  ship classifier weights for deepfake / anti-spoofing detection
+  in either the FOSS core or the paid DLC layer. The FOSS layer
+  ships the `Detector` trait + streaming intake; operators wire
+  their own model in.
 
 ## Related memory
 

@@ -29,15 +29,28 @@ you run `publish` or `verify`.
 
 ## Status
 
-**v0.9.0 shipped 2026-06-29.** Video and SynthID-text detection
-now run real algorithms — per-frame TrustMark + temporal vote
-on the video side, Bayesian tournament-sampling z-score on the
-text side. The ComfyUI node is live, shelling out to
-`provcheck-kit stamp` per generation, brand-agnostic for any
-creator running their own pipeline. The CUDA EP fallback bug
-from public issue #32 is fixed; default CPU builds unaffected.
+**v0.9.0 shipped 2026-06-29.** Video and SynthID-text **watermark**
+detection now run real algorithms — per-frame TrustMark + temporal
+vote on the video side, Bayesian tournament-sampling z-score on
+the text side. (These are watermark detectors — TrustMark by Adobe,
+SynthID-text by Google. They detect content that was deliberately
+marked at generation time. They are NOT deepfake detectors.) The
+ComfyUI node is live, shelling out to `provcheck-kit stamp` per
+generation, brand-agnostic for any creator running their own
+pipeline. The CUDA EP fallback bug from public issue #32 is fixed;
+default CPU builds unaffected.
+
+Deepfake detection (asking "is this AI-generated even without a
+watermark?") is a separate problem and not shipped in this repo
+at any version. The v0.9 plumbing exposes a `Detector` trait so
+operators can wire their own classifier (commercial pack as
+paid DLC after v1.0, or an existing open-source third-party
+detector — bring-your-own-model either way). See
+`docs/v0.9-roadmap/README.md` section 9b for the precise contract.
+
 "Redhat the provenance market" — every newly-added user-facing
-surface is in the Apache-2.0 FOSS core.
+surface for watermark detection + provenance signing is in the
+Apache-2.0 FOSS core.
 
 **v0.7.0 shipped 2026-06-28.** Multimodal expansion: image
 watermarking (TrustMark-B by Adobe / Content Authenticity
@@ -569,6 +582,7 @@ provcheck fills those gaps. It:
 
 | Version | Date | Highlights |
 |---|---|---|
+| **v0.9.70** | 2026-06-30 | **Pre-v1.0 task #155 docs trio lands + deepfake-detection framing fix.** Three new release-contract docs in `docs/`: `public-api-stability.md` (the v1.0 stability matrix per crate; what semver covers; CLI binary surface + exit codes; what we will NOT do; crates we publish to crates.io), `semver-policy.md` (versioning rules; MSRV bump policy; wire-format change categories; patch-release scope; yanking criteria), `release-process.md` (mechanical checklist for every `vX.Y.0` tag: workspace builds clean → tests pass → cargo audit clean → README changelog row → three-file version bump → SBOMs → clean-machine verify → public-API check → tag → matrix → crates.io publish in dependency order → public-mirror sync → post-release memory note + rollback rules). New integration test `crates/provcheck/tests/v1_release_docs.rs` (+9 tests) pins doc existence, sibling cross-links between all three docs (catches a future file rename that breaks navigation), the v*.*.0 release-matrix glob reference, the MSRV bump time window, and the publishable-crates list completeness invariant. **Deepfake-detection framing fix**: external review correctly flagged that v0.7-era copy could read as if deepfake detection ships free in the FOSS core. It does NOT. Watermark detectors (TrustMark image/video, silentcipher/AudioSeal/WavMark audio, SynthID-text text) DO ship FOSS — they detect content that was deliberately marked at generation time. Deepfake detection (does this content come from an AI even WITHOUT a watermark?) is bring-your-own-model: commercial detector packs ship as paid DLC after v1.0 (Creative Mayhem distribution), OR operators wire their own open-source third-party detector via the FOSS `Detector` trait. provcheck does not bundle ANY deepfake detector model in either the FOSS core or the paid DLC layer — only the plumbing. Updated v0.9-roadmap section 9b + README Status section to make the distinction explicit. Memory rule `feedback_no_commercial_models_in_repo` added to lock the policy across future sessions. Workspace clippy clean. |
 | **v0.9.69** | 2026-06-30 | **Pre-v1.0 TrustMark runtime-error message — drop stale tract-backend status, ship ort reality + recovery action.** Every runtime error from the TrustMark image decoder used to surface the message "v0.7 phase 7b status: preprocessing + DLC weight delivery + verifier integration are wired, but tract 0.21's ONNX op coverage cannot run Adobe's decoder export... 7b-followup switches the backend to ort." The 7b-followup landed long ago (per `provcheck-image::model` docs) and we ship ort 1.20 — operators hitting a runtime error were reading a status report from the v0.7 era describing a past problem with a past backend, not actionable guidance. **New message**: names the actual ort backend, describes what the detector loads (the BCH-5 decoder ONNX on a 256x256 RGB tensor normalised to [-1, 1]), and gives the operator a concrete recovery action (`provcheck-kit weights uninstall trustmark && provcheck-kit weights install trustmark` to re-fetch corrupt cached weights). **Regression pins** (+2 tests): source-walking test that fails if a future maintainer reintroduces the prior-backend name + version, or the "7b-followup switches the backend" promise (sentinel strings built via char-by-char concatenation so the test source itself doesn't match). Positive check: replacement message names "via ort" + the recovery command. Workspace clippy clean, image now at 86 tests. |
 | **v0.9.68** | 2026-06-30 | **Pre-v1.0 SynthID-text detection-result message — drop "follow-up item" stale promise on the hot path.** Every successful SynthID-text detection used to end the operator-facing result message with "Default word-level tokenizer; HF subword tokenizer support for higher accuracy against real LLM output is a follow-up item." This was a known-incomplete-feature notice baked into the hot path — every detection report read "this isn't finished" rather than describing what the detector actually did. The word-level tokenizer is itself a legitimate, complete detection scheme (whitespace-split + lowercase + punctuation-strip; pinned via the 14 v0.9.32 tokenize/erf/Φ/classify tests) — it's not a partial implementation. Replaced the message with a positive description: `"Word-level tokenizer (whitespace-split, lowercase, punctuation-stripped)."` **Regression pins** (+2 tests): source-walking test that fails if a future maintainer reintroduces a "is a follow-up item" sentinel anywhere in the crate (builds the stale string by concatenation so it doesn't match its own source), and a positive check that the replacement message stays positively-worded. Operators running detection now see what the tool DID, not what it might-eventually-do. Workspace clippy clean, synthid-text now at 21 tests. |
 | **v0.9.67** | 2026-06-30 | **Pre-v1.0 end-to-end coverage for v0.9.66's X25519 import-backup path.** Adds 3 new integration tests to `crates/provcheck-kit/tests/smoke.rs` (was 6, now 9): `import_backup_identity_file_flag_appears_in_help` — pins the new `--identity-file <PATH>` flag shows up in `kit import-backup --help` with X25519/recipients context, so a future maintainer can't accidentally drop it. `import_backup_identity_file_with_missing_file_exits_nonzero` — operator hands a non-existent identity path → non-zero exit with operator-readable diagnostic (not a panic). `export_then_import_x25519_round_trip_via_library_apis` — exercises the library export → string-format identity (matches the CLI's line-scan path) → from_str parse → import_with_x25519_identity round-trip end-to-end, confirming fingerprint + chain_pem preservation. Together with the existing library-level `x25519_round_trip_preserves_all_fields` test, the X25519 recovery-recipient backup story is now covered both inside-out (library) and outside-in (CLI dispatch). Workspace clippy clean, kit lib + smoke tests all green. |
