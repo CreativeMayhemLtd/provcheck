@@ -275,6 +275,167 @@ mod hex_lower_tests {
 }
 
 #[cfg(test)]
+mod signing_key_record_serde_tests {
+    use super::*;
+
+    fn minimal_record() -> SigningKeyRecord {
+        SigningKeyRecord {
+            created_at: "2026-06-30T12:00:00Z".into(),
+            fingerprint: "sha256:abcd".to_string() + &"ef".repeat(30),
+            algorithm: "ES256".into(),
+            label: None,
+            valid_from: None,
+            valid_until: None,
+            superseded_by: None,
+        }
+    }
+
+    // ----- Lexicon rename pins ----------
+    //
+    // The on-wire JSON uses camelCase keys matching the lexicon
+    // (`createdAt`, `validFrom`, `validUntil`, `supersededBy`).
+    // Our Rust fields use snake_case. The `#[serde(rename)]`
+    // attrs are the bridge — pin every one explicitly. A silent
+    // drift (someone removes a rename, or renames the wrong
+    // field) would break every published record.
+
+    #[test]
+    fn serialises_created_at_as_camel_case() {
+        let r = minimal_record();
+        let json = serde_json::to_string(&r).expect("ser");
+        assert!(
+            json.contains("\"createdAt\""),
+            "expected camelCase createdAt, got: {json}"
+        );
+        assert!(
+            !json.contains("\"created_at\""),
+            "snake_case created_at must not appear"
+        );
+    }
+
+    #[test]
+    fn serialises_valid_from_as_camel_case_when_present() {
+        let mut r = minimal_record();
+        r.valid_from = Some("2026-07-01T00:00:00Z".into());
+        let json = serde_json::to_string(&r).expect("ser");
+        assert!(
+            json.contains("\"validFrom\""),
+            "expected camelCase validFrom, got: {json}"
+        );
+    }
+
+    #[test]
+    fn serialises_valid_until_as_camel_case_when_present() {
+        let mut r = minimal_record();
+        r.valid_until = Some("2027-01-01T00:00:00Z".into());
+        let json = serde_json::to_string(&r).expect("ser");
+        assert!(
+            json.contains("\"validUntil\""),
+            "expected camelCase validUntil, got: {json}"
+        );
+    }
+
+    #[test]
+    fn serialises_superseded_by_as_camel_case_when_present() {
+        let mut r = minimal_record();
+        r.superseded_by = Some("at://did:plc:abc/app.provcheck.signingKey/xyz".into());
+        let json = serde_json::to_string(&r).expect("ser");
+        assert!(
+            json.contains("\"supersededBy\""),
+            "expected camelCase supersededBy, got: {json}"
+        );
+    }
+
+    // ----- skip_serializing_if pins ----------
+
+    #[test]
+    fn omits_none_label() {
+        let r = minimal_record();
+        let json = serde_json::to_string(&r).expect("ser");
+        assert!(
+            !json.contains("\"label\""),
+            "None label should be omitted: {json}"
+        );
+    }
+
+    #[test]
+    fn omits_none_valid_from() {
+        let r = minimal_record();
+        let json = serde_json::to_string(&r).expect("ser");
+        assert!(
+            !json.contains("\"validFrom\""),
+            "None validFrom should be omitted: {json}"
+        );
+    }
+
+    #[test]
+    fn omits_none_valid_until() {
+        let r = minimal_record();
+        let json = serde_json::to_string(&r).expect("ser");
+        assert!(
+            !json.contains("\"validUntil\""),
+            "None validUntil should be omitted: {json}"
+        );
+    }
+
+    #[test]
+    fn omits_none_superseded_by() {
+        let r = minimal_record();
+        let json = serde_json::to_string(&r).expect("ser");
+        assert!(
+            !json.contains("\"supersededBy\""),
+            "None supersededBy should be omitted: {json}"
+        );
+    }
+
+    // ----- Required fields always present ----------
+
+    #[test]
+    fn always_emits_created_at_fingerprint_and_algorithm() {
+        let r = minimal_record();
+        let json = serde_json::to_string(&r).expect("ser");
+        assert!(json.contains("\"createdAt\""));
+        assert!(json.contains("\"fingerprint\""));
+        assert!(json.contains("\"algorithm\""));
+    }
+
+    // ----- Round-trip ----------
+
+    #[test]
+    fn signing_key_record_round_trips_through_serde() {
+        let original = SigningKeyRecord {
+            created_at: "2026-06-30T12:00:00Z".into(),
+            fingerprint: format!("sha256:{}", "ab".repeat(32)),
+            algorithm: "ES256".into(),
+            label: Some("test label".into()),
+            valid_from: Some("2026-07-01T00:00:00Z".into()),
+            valid_until: Some("2027-07-01T00:00:00Z".into()),
+            superseded_by: Some("at://did:plc:abc/coll/rkey".into()),
+        };
+        let json = serde_json::to_string(&original).expect("ser");
+        let back: SigningKeyRecord = serde_json::from_str(&json).expect("de");
+        assert_eq!(back, original);
+    }
+
+    #[test]
+    fn deserialises_legacy_record_without_optional_fields() {
+        // Pin backward-compat: a record with only the required
+        // fields must parse, with all the optional fields
+        // defaulting to None.
+        let legacy = r#"{
+            "createdAt": "2026-06-30T12:00:00Z",
+            "fingerprint": "sha256:abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+            "algorithm": "ES256"
+        }"#;
+        let r: SigningKeyRecord = serde_json::from_str(legacy).expect("legacy parse");
+        assert!(r.label.is_none());
+        assert!(r.valid_from.is_none());
+        assert!(r.valid_until.is_none());
+        assert!(r.superseded_by.is_none());
+    }
+}
+
+#[cfg(test)]
 mod identity_claim_and_constants_tests {
     use super::*;
 

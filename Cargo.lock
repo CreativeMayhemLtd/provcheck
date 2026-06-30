@@ -3778,7 +3778,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck"
-version = "0.9.39"
+version = "0.9.40"
 dependencies = [
  "c2pa",
  "hound",
@@ -3792,7 +3792,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-attestation-spec"
-version = "0.9.39"
+version = "0.9.40"
 dependencies = [
  "pem",
  "serde",
@@ -3803,7 +3803,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-audioseal"
-version = "0.9.39"
+version = "0.9.40"
 dependencies = [
  "anyhow",
  "hound",
@@ -3821,7 +3821,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-cli"
-version = "0.9.39"
+version = "0.9.40"
 dependencies = [
  "clap",
  "provcheck",
@@ -3837,7 +3837,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-examples"
-version = "0.9.39"
+version = "0.9.40"
 dependencies = [
  "anyhow",
  "c2pa",
@@ -3847,7 +3847,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-image"
-version = "0.9.39"
+version = "0.9.40"
 dependencies = [
  "image",
  "ndarray",
@@ -3862,7 +3862,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-kit"
-version = "0.9.39"
+version = "0.9.40"
 dependencies = [
  "anyhow",
  "c2pa",
@@ -3889,7 +3889,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-platform"
-version = "0.9.39"
+version = "0.9.40"
 dependencies = [
  "c2pa",
  "dirs",
@@ -3909,7 +3909,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-publish"
-version = "0.9.39"
+version = "0.9.40"
 dependencies = [
  "atrium-api",
  "atrium-identity",
@@ -3926,7 +3926,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-sign"
-version = "0.9.39"
+version = "0.9.40"
 dependencies = [
  "age",
  "c2pa",
@@ -3952,7 +3952,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-synthid-text"
-version = "0.9.39"
+version = "0.9.40"
 dependencies = [
  "provcheck",
  "serde",
@@ -3963,7 +3963,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-video"
-version = "0.9.39"
+version = "0.9.40"
 dependencies = [
  "provcheck",
  "provcheck-image",
@@ -3976,7 +3976,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-watermark"
-version = "0.9.39"
+version = "0.9.40"
 dependencies = [
  "anyhow",
  "hound",
@@ -3998,7 +3998,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-wavmark"
-version = "0.9.39"
+version = "0.9.40"
 dependencies = [
  "anyhow",
  "hound",
@@ -4016,7 +4016,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-weights"
-version = "0.9.39"
+version = "0.9.40"
 dependencies = [
  "dirs",
  "sha2",
