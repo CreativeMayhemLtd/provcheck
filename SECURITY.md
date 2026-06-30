@@ -139,11 +139,42 @@ relevant surfaces are:
 - `provcheck-platform` — fetches `app.provcheck.signingKey` records
   over HTTPS to atproto PDSes. Cache lives under the platform-
   appropriate data dir; never executes downloaded content.
-- The watermark detectors run pure-Rust ONNX inference via
-  `tract-onnx` against ONNX files embedded into the binary at
-  compile time (`include_bytes!`). No runtime model loading from
-  disk or network; no opportunity for model-substitution attacks
-  against a deployed binary.
+- The watermark detectors run ONNX inference via `ort`
+  (onnxruntime 1.20 with the `load-dynamic` feature; the
+  platform-specific CPU shared lib is bundled in the release
+  archive). v0.7 phase 7b-followup migrated from `tract-onnx`
+  to `ort` for the image-modality decoder; the audio detectors
+  (silentcipher, AudioSeal, WavMark) followed in the same line.
+- Detector weights ship as **download-on-demand DLC** from the
+  `weights-v1` GitHub Release on the public mirror, NOT as
+  `include_bytes!` blobs. This is the v0.8 phase 8a change that
+  dropped the kit binary from ~143 MB to ~22 MB. The download +
+  install flow:
+  1. The kit binary embeds a compile-time `MANIFEST` table
+     (`crates/provcheck-weights/src/manifest.rs`) of every
+     weight: family name, variant name, file name, public-mirror
+     URL, SHA256 hash, and expected size in bytes.
+  2. On first detector call, `provcheck-weights::load_if_cached`
+     looks for the weight in the platform cache dir
+     (`dirs::cache_dir() / provcheck`). If missing, the verifier
+     surfaces `Error::NotCached` and refuses to run; the operator
+     installs via `provcheck-kit weights install <family>` which
+     downloads to a tempfile, hashes it, compares to the MANIFEST
+     SHA, and renames into the cache atomically only if the hash
+     matches.
+  3. On subsequent calls, the cached file is re-hashed against
+     the MANIFEST entry before being handed to ort. A
+     post-install bit-flip on disk surfaces as SHA mismatch and
+     a clean error, not a silent substitution.
+- **Model-substitution attack surface**: an attacker would need
+  to either (a) compromise the binary's compile-time MANIFEST
+  table (covered by the platform's binary-integrity story —
+  GitHub-signed release artefacts on Windows / macOS, distro
+  package signatures on Linux), or (b) produce a weight file
+  that collides with the SHA-256 hash of a legitimate weight
+  (computationally infeasible). The DLC delivery model does NOT
+  introduce a new substitution surface beyond what the binary's
+  integrity already covers.
 
 Things we explicitly do NOT do:
 
