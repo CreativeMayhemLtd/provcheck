@@ -798,6 +798,91 @@ fn build_model() -> Result<Runnable, String> {
 mod tests {
     use super::*;
 
+    // ----- extract_carrier_chunk ----------
+    //
+    // The chunked-extract helper lets the encoder iterate over
+    // long-form audio without materialising the full carrier
+    // copy in memory. Wrong column-slice math here corrupts every
+    // chunked embed; pin it.
+
+    #[test]
+    fn extract_carrier_chunk_full_range_round_trips() {
+        // When t_start=0 and chunk_t=t_frames, the chunk must
+        // equal the input bit-identically.
+        let t_frames = 10;
+        let mut carrier = vec![0.0_f32; FREQ_BINS * t_frames];
+        for (i, slot) in carrier.iter_mut().enumerate() {
+            *slot = i as f32 * 0.1;
+        }
+        let chunk = extract_carrier_chunk(&carrier, t_frames, 0, t_frames);
+        assert_eq!(chunk, carrier);
+    }
+
+    #[test]
+    fn extract_carrier_chunk_output_size_matches_freq_bins_times_chunk_t() {
+        // Layout contract: output is exactly FREQ_BINS * chunk_t
+        // f32s. The encoder's ONNX session asserts on this.
+        let carrier = vec![0.0_f32; FREQ_BINS * 100];
+        for t_start in [0, 10, 50] {
+            for chunk_t in [1, 5, 20] {
+                let chunk = extract_carrier_chunk(&carrier, 100, t_start, chunk_t);
+                assert_eq!(
+                    chunk.len(),
+                    FREQ_BINS * chunk_t,
+                    "t_start={t_start} chunk_t={chunk_t} produced wrong-length output"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn extract_carrier_chunk_preserves_per_bin_values() {
+        // For each bin b, the chunk's row b must equal the
+        // carrier's row b sliced at [t_start..t_start+chunk_t].
+        let t_frames = 20;
+        let mut carrier = vec![0.0_f32; FREQ_BINS * t_frames];
+        // Fill bin 100's row with 0,1,...,19.
+        for t in 0..t_frames {
+            carrier[100 * t_frames + t] = t as f32;
+        }
+        let t_start = 5;
+        let chunk_t = 8;
+        let chunk = extract_carrier_chunk(&carrier, t_frames, t_start, chunk_t);
+        for t in 0..chunk_t {
+            assert_eq!(
+                chunk[100 * chunk_t + t],
+                (t_start + t) as f32,
+                "bin-100 column mismatch at t={t}"
+            );
+        }
+    }
+
+    #[test]
+    fn extract_carrier_chunk_first_chunk_starts_at_zero() {
+        // The first chunk (t_start=0) reads from the very
+        // start of each bin's row.
+        let t_frames = 30;
+        let mut carrier = vec![0.0_f32; FREQ_BINS * t_frames];
+        // Mark bin 0 with a sentinel at column 0.
+        carrier[0] = 42.0;
+        let chunk = extract_carrier_chunk(&carrier, t_frames, 0, 5);
+        assert_eq!(chunk[0], 42.0);
+    }
+
+    #[test]
+    fn extract_carrier_chunk_tail_chunk_reads_correct_columns() {
+        // The last chunk (t_start = t_frames - chunk_t) must
+        // read the FINAL chunk_t columns of each bin.
+        let t_frames = 30;
+        let chunk_t = 7;
+        let t_start = t_frames - chunk_t;
+        let mut carrier = vec![0.0_f32; FREQ_BINS * t_frames];
+        // Sentinel at the very last column of bin 0.
+        carrier[t_frames - 1] = 99.0;
+        let chunk = extract_carrier_chunk(&carrier, t_frames, t_start, chunk_t);
+        assert_eq!(chunk[chunk_t - 1], 99.0);
+    }
+
     // ----- DEFAULT_MESSAGE_SDR_DB pin ----------
 
     #[test]
