@@ -179,11 +179,19 @@ stage container:
 
 ```dockerfile
 FROM debian:bookworm-slim
-ARG PROVCHECK_VERSION=v0.3.6
+# Pin to a specific release tag (see the public Releases page).
+# Bump deliberately; do NOT use `latest` in production builds.
+ARG PROVCHECK_VERSION=vX.Y.0
 RUN apt-get update && apt-get install -y curl ca-certificates && rm -rf /var/lib/apt/lists/*
 RUN curl -L "https://github.com/CreativeMayhemLtd/provcheck/releases/download/${PROVCHECK_VERSION}/provcheck-kit-${PROVCHECK_VERSION}-linux-x86_64.tar.gz" \
   | tar -xzf - --strip-components=1 -C /usr/local/bin/
 ```
+
+Replace `vX.Y.0` with a real tag from
+[the Releases page](https://github.com/CreativeMayhemLtd/provcheck/releases).
+We pin in the example rather than chase `latest` because a render
+pipeline that silently auto-upgrades the kit can shift watermark
+parameters under you (e.g. the v0.5.2 SDR-default change).
 
 At render time:
 
@@ -226,11 +234,19 @@ stamped this file. The content might still be authentic; it just
 doesn't carry the signal. provcheck reports `[UNSIGNED]` and exits 1
 — it does NOT claim "fake."
 
-**What a watermark detection means.** Audio bytes carry a recognised
-brand-stamp from a known generator. silentcipher's payload includes
-a brand identifier, so the verifier can say "this audio was produced
-by tool X" even when C2PA has been stripped. Detection confidence is
-reported as a percentage; we recommend treating <50% as ambiguous.
+**What a watermark detection means.** The file's bytes carry a
+recognised brand-stamp embedded by a known generator at render
+time. Six detector families ship live in v0.9: silentcipher /
+AudioSeal / WavMark on audio, TrustMark-B on images, per-frame
+TrustMark + temporal majority-vote on video, and Bayesian
+tournament-sampling z-score for SynthID-text on text. Audio +
+image watermarks survive lossy re-encoding (codec, bitrate,
+mild post-processing) — so the signal shows up even when C2PA
+has been stripped. Each detector reports its own confidence;
+the canonical thresholds are `Detected >= 0.70`, `Degraded ∈
+[0.50, 0.70)`, `NotDetected < 0.50` (per
+`provcheck::confidence`). Confidence < 0.50 is ambiguous and
+the verifier reports NotDetected.
 
 ## Architecture mental model
 
@@ -248,8 +264,11 @@ reported as a percentage; we recommend treating <50% as ambiguous.
                               |
                               v
                     +-- watermark layer --+
-                    | silentcipher decode | -- brand verdict
-                    | + classifier        |
+                    | silentcipher /      |
+                    | AudioSeal /         |
+                    | WavMark / TrustMark | -- brand verdicts
+                    | image+video /       |    (one per family)
+                    | SynthID-text        |
                     +---------------------+
                               |
                               v
