@@ -993,6 +993,93 @@ mod tests {
         );
     }
 
+    // ----- waveform_to_spectrum / spectrum_to_waveform error paths ----------
+
+    #[test]
+    fn waveform_to_spectrum_empty_input_returns_empty_error() {
+        let r = waveform_to_spectrum(&[]);
+        assert!(matches!(r, Err(StftError::Empty)));
+    }
+
+    #[test]
+    fn spectrum_to_waveform_zero_frames_returns_too_short() {
+        // A Spectrum with n_frames=0 must error rather than
+        // try to set up an IstftStreamer with no frames.
+        let empty_spec = Spectrum {
+            magnitude: Vec::new(),
+            phase: Vec::new(),
+            n_frames: 0,
+            n_samples_input: 0,
+        };
+        let r = spectrum_to_waveform(&empty_spec);
+        assert!(matches!(r, Err(StftError::TooShort)));
+    }
+
+    #[test]
+    fn istft_streamer_new_zero_frames_errors() {
+        // The IstftStreamer constructor also rejects n_frames=0.
+        let r = IstftStreamer::new(0, 0);
+        assert!(r.is_err());
+    }
+
+    #[test]
+    fn waveform_to_spectrum_returns_correct_n_samples_input() {
+        // n_samples_input on the Spectrum struct is the
+        // tail-pad-rounded input length. The contract:
+        // raw_len + (WIN - raw_len % WIN) = next multiple of WIN.
+        // Pin so a future refactor of the tail-pad math doesn't
+        // silently shift the contract.
+        let waveform: Vec<f32> = (0..10_000).map(|i| (i as f32 * 0.01).sin()).collect();
+        let spec = waveform_to_spectrum(&waveform).expect("ok");
+        let tail = WIN - (waveform.len() % WIN);
+        let expected = waveform.len() + tail;
+        assert_eq!(spec.n_samples_input, expected);
+    }
+
+    #[test]
+    fn waveform_to_spectrum_returns_consistent_n_frames() {
+        // n_frames on the Spectrum must match compute_n_frames
+        // on the padded length. Pin the math.
+        let waveform: Vec<f32> = (0..50_000).map(|i| (i as f32 * 0.01).sin()).collect();
+        let spec = waveform_to_spectrum(&waveform).expect("ok");
+        let pad = N_FFT / 2;
+        let padded_len = spec.n_samples_input + 2 * pad;
+        let expected = compute_n_frames(padded_len);
+        assert_eq!(spec.n_frames, expected);
+    }
+
+    #[test]
+    fn waveform_to_spectrum_magnitude_and_phase_have_matching_layout() {
+        // Both buffers must be FREQ_BINS * n_frames f32s; the
+        // streaming iSTFT depends on the matching length.
+        let waveform: Vec<f32> = (0..10_000).map(|i| (i as f32 * 0.01).sin()).collect();
+        let spec = waveform_to_spectrum(&waveform).expect("ok");
+        assert_eq!(spec.magnitude.len(), FREQ_BINS * spec.n_frames);
+        assert_eq!(spec.phase.len(), FREQ_BINS * spec.n_frames);
+    }
+
+    #[test]
+    fn waveform_to_spectrum_magnitude_is_non_negative() {
+        // STFT magnitude is `sqrt(re² + im²)` ≥ 0. Pin the
+        // non-negativity invariant.
+        let waveform: Vec<f32> = (0..10_000).map(|i| (i as f32 * 0.01).sin()).collect();
+        let spec = waveform_to_spectrum(&waveform).expect("ok");
+        for (i, &m) in spec.magnitude.iter().enumerate() {
+            assert!(m >= 0.0, "negative magnitude at {i}: {m}");
+        }
+    }
+
+    #[test]
+    fn waveform_to_spectrum_phase_is_finite() {
+        // Phase uses atan2 which is always finite for finite
+        // inputs (-π to π). Pin no-NaN/inf in the output.
+        let waveform: Vec<f32> = (0..10_000).map(|i| (i as f32 * 0.01).sin()).collect();
+        let spec = waveform_to_spectrum(&waveform).expect("ok");
+        for (i, &p) in spec.phase.iter().enumerate() {
+            assert!(p.is_finite(), "non-finite phase at {i}: {p}");
+        }
+    }
+
     #[test]
     fn spectrum_round_trips_within_f32_tolerance() {
         // Synthesise a few seconds of mixed sines; pass through
