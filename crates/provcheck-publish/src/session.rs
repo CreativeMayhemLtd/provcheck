@@ -310,6 +310,64 @@ mod tests {
         }
     }
 
+    // ----- SessionError Display ----------
+
+    #[test]
+    fn session_expired_display_directs_user_to_kit_login() {
+        // The CLI maps SessionExpired to exit code 3; the user's
+        // only debugging hint is the error message. Pin that it
+        // names the command.
+        let s = format!("{}", SessionError::SessionExpired);
+        assert!(
+            s.contains("kit login"),
+            "expected 'kit login' guidance, got: {s}"
+        );
+        assert!(s.contains("expired"));
+    }
+
+    #[test]
+    fn login_rejected_display_includes_inner_message() {
+        let s = format!("{}", SessionError::LoginRejected("bad password".into()));
+        assert!(s.contains("login rejected"));
+        assert!(s.contains("bad password"));
+    }
+
+    #[test]
+    fn http_error_display_includes_inner() {
+        let s = format!("{}", SessionError::Http("DNS failure".into()));
+        assert!(s.contains("DNS failure"));
+    }
+
+    #[test]
+    fn io_error_display_includes_inner() {
+        let io = std::io::Error::new(std::io::ErrorKind::NotFound, "missing");
+        let e = SessionError::Io(io);
+        let s = format!("{}", e);
+        assert!(s.contains("io"));
+        assert!(s.contains("missing"));
+    }
+
+    #[test]
+    fn io_from_std_io_error_works() {
+        // The #[from] impl must compile and dispatch correctly.
+        let io = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "denied");
+        let _e: SessionError = io.into();
+    }
+
+    #[test]
+    fn format_error_display_includes_inner() {
+        let s = format!("{}", SessionError::Format("missing did field".into()));
+        assert!(s.contains("session.json shape"));
+        assert!(s.contains("missing did field"));
+    }
+
+    #[test]
+    fn invalid_identifier_display_includes_input() {
+        let s = format!("{}", SessionError::InvalidIdentifier("garbage-did".into()));
+        assert!(s.contains("invalid"));
+        assert!(s.contains("garbage-did"));
+    }
+
     #[test]
     fn session_file_round_trips_through_json() {
         let f = fake_session_file();
