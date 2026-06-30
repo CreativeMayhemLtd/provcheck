@@ -26,6 +26,12 @@ thiserror.workspace = true
 # verifier paths read assertions a publisher might produce.
 provcheck-attestation-spec = { path = "../provcheck-attestation-spec" }
 
+# v0.9.72: detector dispatch types. Report.detections carries the
+# results of any AI-content classifier the operator wired in via the
+# `Detector` trait. The verifier produces an empty vec on its own;
+# the kit / GUI / a downstream consumer populates it.
+provcheck-detect = { path = "../provcheck-detect" }
+
 [dev-dependencies]
 # Generate test certificates at test-run time — matches rAIdio.bot's
 # per-install CA + EE pattern so fixtures reflect real-world use.

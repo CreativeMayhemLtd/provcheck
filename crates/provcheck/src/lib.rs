@@ -119,6 +119,7 @@ fn unsigned_report(reason: Option<String>) -> prelude::Report {
         identity: None,
         parents: Vec::new(),
         watermarks: Vec::new(),
+        detections: Vec::new(),
     }
 }
 

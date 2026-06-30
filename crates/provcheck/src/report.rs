@@ -130,6 +130,35 @@ pub struct Report {
     /// indistinguishable output.
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub watermarks: Vec<WatermarkResult>,
+
+    /// AI-content detection results from the v0.9 detector
+    /// dispatch slot. Always empty from the core
+    /// `verify_with_options` path — populated only by callers
+    /// that registered detectors via
+    /// [`provcheck_detect::DetectorRegistry`] and ran them
+    /// against the asset.
+    ///
+    /// Distinct from [`watermarks`](Self::watermarks): watermark
+    /// detectors find marks the producer deliberately embedded
+    /// at generation time; AI-content detectors classify content
+    /// that may not carry any watermark (deepfake / anti-spoofing
+    /// / synthetic-voice classifiers). Both vectors can populate
+    /// independently for the same asset.
+    ///
+    /// provcheck ships NO bundled detector model. The
+    /// `provcheck-detect` crate provides the trait + dispatch
+    /// types; concrete detectors land via:
+    /// - **Paid DLC packs** (Creative Mayhem-distributed after
+    ///   v1.0; first pack sourced from the doomscroll.fm
+    ///   pipeline).
+    /// - **Operator-supplied open-source detectors** wrapped via
+    ///   the public [`provcheck_detect::Detector`] trait.
+    ///
+    /// Omitted from JSON when empty so a build with no
+    /// registered detectors produces the same output as a build
+    /// with the slot disabled.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub detections: Vec<provcheck_detect::DetectionResult>,
 }
 
 /// A single parent manifest in the active manifest's chain. Each
@@ -883,6 +912,7 @@ mod report_serialization_tests {
             identity: None,
             parents: Vec::new(),
             watermarks: Vec::new(),
+            detections: Vec::new(),
         }
     }
 
@@ -935,6 +965,61 @@ mod report_serialization_tests {
             !json.contains("\"parents\""),
             "empty parents must be omitted: {json}"
         );
+    }
+
+    #[test]
+    fn to_json_string_omits_empty_detections_vec() {
+        // v0.9.72: detections is empty for the offline verify
+        // path. Pin the skip_serializing_if invariant.
+        let r = minimal_unsigned_report();
+        let json = r.to_json_string().expect("ser");
+        assert!(
+            !json.contains("\"detections\""),
+            "empty detections must be omitted: {json}"
+        );
+    }
+
+    #[test]
+    fn populated_detections_serialise_under_detections_key() {
+        let mut r = minimal_unsigned_report();
+        r.detections = vec![provcheck_detect::DetectionResult {
+            detector: "test-detector".into(),
+            family: provcheck_detect::DetectionFamily::Audio,
+            status: provcheck_detect::DetectionStatus::NotDetected,
+            detected: false,
+            confidence: 0.1,
+            model_id: None,
+            version: None,
+            message: None,
+        }];
+        let json = r.to_json_string().expect("ser");
+        assert!(json.contains("\"detections\""));
+        assert!(json.contains("test-detector"));
+        // family snake_case pinned
+        assert!(json.contains("\"audio\""));
+    }
+
+    #[test]
+    fn detections_default_deserialises_to_empty_on_legacy_report() {
+        // Backward-compat: a JSON Report from before v0.9.72
+        // (no `detections` field) must deserialise with an
+        // empty detections vec.
+        let legacy = r#"{
+            "verified": false,
+            "unsigned": true,
+            "trusted": null,
+            "failure_reason": null,
+            "active_manifest": null,
+            "signer": null,
+            "signed_at": null,
+            "claim_generator": null,
+            "assertions": null,
+            "ingredient_count": 0,
+            "format": null,
+            "validation_errors": 0
+        }"#;
+        let r: Report = serde_json::from_str(legacy).expect("legacy parse");
+        assert!(r.detections.is_empty());
     }
 
     #[test]

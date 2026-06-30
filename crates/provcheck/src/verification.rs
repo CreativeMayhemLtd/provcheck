@@ -110,6 +110,7 @@ pub fn verify_with_options(path: &Path, opts: &VerifyOptions) -> Result<Report, 
                 identity: None,
                 parents: Vec::new(),
                 watermarks: Vec::new(),
+                detections: Vec::new(),
             });
         }
         Err(e) => return Err(Error::C2pa(e)),
@@ -275,6 +276,7 @@ pub fn verify_with_options(path: &Path, opts: &VerifyOptions) -> Result<Report, 
         identity,
         parents,
         watermarks: Vec::new(),
+        detections: Vec::new(),
     })
 }
 
