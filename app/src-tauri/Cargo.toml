@@ -7,7 +7,7 @@
 
 [package]
 name = "provcheck-app"
-version = "0.9.62"
+version = "0.9.63"
 description = "Drag-drop GUI for provcheck — verify C2PA Content Credentials."
 edition = "2024"
 rust-version = "1.85"

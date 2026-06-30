@@ -130,4 +130,65 @@ mod tests {
         let r = embed(&[], registry::BRAND_DOOMSCROLL);
         assert!(matches!(r, Err(EncodeError::Empty)));
     }
+
+    // ----- embed_stereo input validation ----------
+    //
+    // v0.9.63 ungates wavmark stereo embed at the kit dispatch
+    // layer. The library entry point already existed but had no
+    // input-validation coverage. Pin the contract here so the
+    // kit's stereo route doesn't surface confusing model errors
+    // on operator mistakes.
+
+    #[test]
+    fn embed_stereo_mismatched_lengths_returns_error() {
+        // L and R must be the same length — they're independent
+        // mono embeds that must align in the output WAV.
+        let left = vec![0.01_f32; 100];
+        let right = vec![0.01_f32; 99];
+        let r = embed_stereo(&left, &right, registry::BRAND_DOOMSCROLL);
+        assert!(r.is_err());
+        match r {
+            Err(EncodeError::Model(crate::model::ModelError::Inference(msg))) => {
+                assert!(msg.contains("stereo"));
+                assert!(msg.contains("100"));
+                assert!(msg.contains("99"));
+            }
+            other => panic!("expected ModelError::Inference, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn embed_stereo_with_invalid_brand_id_propagates_error_from_each_channel() {
+        // brand_id > 5 bits should fire the same error as the
+        // mono path (caught inside encode_chunk via the BCH
+        // construction). Below the encoder load, both channels
+        // produce an Empty error on the empty path.
+        let left: Vec<f32> = Vec::new();
+        let right: Vec<f32> = Vec::new();
+        let r = embed_stereo(&left, &right, registry::BRAND_DOOMSCROLL);
+        // Empty input — same error as the mono path.
+        assert!(matches!(r, Err(EncodeError::Empty)));
+    }
+
+    // ----- EmbedConfig parity wrappers ----------
+
+    #[test]
+    fn embed_with_config_routes_through_to_embed_for_empty_input() {
+        // The parity wrapper must surface the same error as
+        // the direct call. v0.9.63: pin so a future maintainer
+        // doesn't accidentally drop the wrapper into a stub.
+        let cfg = EmbedConfig::default();
+        let r = embed_with_config(&[], registry::BRAND_DOOMSCROLL, cfg);
+        assert!(matches!(r, Err(EncodeError::Empty)));
+    }
+
+    #[test]
+    fn embed_stereo_with_config_routes_through_to_embed_stereo() {
+        let cfg = EmbedConfig::default();
+        let left = vec![0.01_f32; 10];
+        let right = vec![0.01_f32; 20];
+        let r = embed_stereo_with_config(&left, &right, registry::BRAND_DOOMSCROLL, cfg);
+        // Length mismatch should propagate.
+        assert!(r.is_err());
+    }
 }

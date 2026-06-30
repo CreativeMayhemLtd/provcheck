@@ -2999,25 +2999,36 @@ pub mod watermark {
                 registry::ID_MASK
             );
         }
-        if matches!(args.channels, ChannelMode::Stereo) {
-            bail!("--channels stereo is not yet supported for --kind wavmark; pass --channels mono or use silentcipher/audioseal");
-        }
 
         eprintln!(
             "provcheck-kit: decoding {} (wavmark)",
             args.input.display()
         );
+
+        // v0.9.63: wavmark stereo dispatch lands. Mirrors the
+        // audioseal path: decode the full stereo, decide whether
+        // to embed two-channel or downmix-to-mono based on
+        // --channels + source channel count, then route through
+        // the matching wavmark embed entry point.
         let input = args.input.clone();
-        let waveform = tokio::task::spawn_blocking(move || wm_audio::decode_to_mono_16k(&input))
-            .await
-            .context("join audio decode task")?
-            .with_context(|| format!("decode {}", args.input.display()))?;
-        let duration_s = waveform.len() as f32 / wm_audio::SAMPLE_RATE as f32;
+        let mode = args.channels;
+        let stereo =
+            tokio::task::spawn_blocking(move || wm_audio::decode_to_stereo_16k(&input))
+                .await
+                .context("join audio decode task")?
+                .with_context(|| format!("decode {}", args.input.display()))?;
+        let source_channels = stereo.source_channels;
+        let duration_s = stereo.left.len() as f32 / wm_audio::SAMPLE_RATE as f32;
+        let out_channels = resolve_output_channels(mode, source_channels);
         eprintln!(
-            "provcheck-kit:   {} samples ({:.2} s @ {} Hz mono)",
-            waveform.len(),
+            "provcheck-kit:   {} samples ({:.2} s @ {} Hz, source {} channel{}, output {} channel{})",
+            stereo.left.len(),
             duration_s,
-            wm_audio::SAMPLE_RATE
+            wm_audio::SAMPLE_RATE,
+            source_channels,
+            if source_channels == 1 { "" } else { "s" },
+            out_channels,
+            if out_channels == 1 { "" } else { "s" },
         );
 
         eprintln!(
@@ -3026,10 +3037,33 @@ pub mod watermark {
         );
         let brand_id = args.brand_id;
         let t0 = Instant::now();
-        let marked = tokio::task::spawn_blocking(move || wm_encode::embed(&waveform, brand_id))
+        let (marked_l, marked_r): (Vec<f32>, Option<Vec<f32>>) = if out_channels == 2 {
+            let left = stereo.left;
+            let right = stereo.right;
+            let (l, r) = tokio::task::spawn_blocking(move || {
+                wm_encode::embed_stereo(&left, &right, brand_id)
+            })
             .await
             .context("join embed task")?
-            .context("wavmark embed failed")?;
+            .context("wavmark stereo embed failed")?;
+            (l, Some(r))
+        } else {
+            let mono = if source_channels >= 2 {
+                stereo
+                    .left
+                    .iter()
+                    .zip(stereo.right.iter())
+                    .map(|(l, r)| (l + r) * 0.5)
+                    .collect::<Vec<f32>>()
+            } else {
+                stereo.left
+            };
+            let m = tokio::task::spawn_blocking(move || wm_encode::embed(&mono, brand_id))
+                .await
+                .context("join embed task")?
+                .context("wavmark embed failed")?;
+            (m, None)
+        };
         let embed_elapsed = t0.elapsed();
         eprintln!(
             "provcheck-kit:   embed wall-clock {:.2?} ({:.2}x real-time)",
@@ -3037,7 +3071,13 @@ pub mod watermark {
             embed_elapsed.as_secs_f32() / duration_s.max(1e-6)
         );
 
-        write_wav(&args.output, &marked, None, wm_audio::SAMPLE_RATE).await?;
+        write_wav(
+            &args.output,
+            marked_l.as_slice(),
+            marked_r.as_deref(),
+            wm_audio::SAMPLE_RATE,
+        )
+        .await?;
 
         if args.verify_after_embed && !args.no_verify_after_embed {
             verify_after_embed(&args.output, Kind::Wavmark).await?;
