@@ -47,6 +47,11 @@ provcheck-wavmark = { path = "../provcheck-wavmark" }
 # via ffmpeg if a compressed format is needed.
 hound = "3"
 
+# v0.9.66: X25519 identity-file parsing for `kit import-backup
+# --identity-file <PATH>`. Matches the version pinned by
+# provcheck-sign so the recipient/identity types interop.
+age = "0.11"
+
 # CLI plumbing
 clap = { workspace = true }
 anyhow = { workspace = true }

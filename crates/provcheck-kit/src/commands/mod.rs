@@ -12,13 +12,13 @@
 //! each `kit` invocation drops its in-process [`SecretCache`] at
 //! exit, so there's nothing for these commands to act on.
 //!
-//! `export-backup --use-recovery-recipients` writes X25519-
-//! encrypted bundles, but `import-backup` currently only handles
-//! passphrase-encrypted ones (X25519 identity-file input is the
-//! follow-up); the bundle round-trip with the passphrase path is
-//! covered end-to-end. PKCS#12 export is also follow-up — see
-//! [`provcheck_sign::backup::export_pkcs12_deferred`] for the
-//! explicit deferral rationale.
+//! `export-backup --use-recovery-recipients` writes X25519-encrypted
+//! bundles; `import-backup --identity-file <PATH>` restores them.
+//! Default (no `--identity-file`) takes a passphrase, matching the
+//! default `export-backup` mode. Both round-trips are covered
+//! end-to-end. PKCS#12 export is the one explicitly deferred backup
+//! flavour — see [`provcheck_sign::backup::export_pkcs12_deferred`]
+//! for the rationale.
 
 use clap::{Args, Parser, Subcommand};
 use std::path::PathBuf;
@@ -1432,7 +1432,7 @@ pub mod import_backup {
     use clap::Args;
     use secrecy::SecretString;
 
-    use provcheck_sign::backup::import_with_passphrase;
+    use provcheck_sign::backup::{import_with_passphrase, import_with_x25519_identity};
     use provcheck_sign::persist::{default_dir, load_locked, save_public_artefacts};
     use provcheck_sign::providers::{AgeFileProvider, KeyProvider, KeychainProvider};
     use provcheck_sign::types::KeyProviderKind;
@@ -1457,6 +1457,15 @@ pub mod import_backup {
         /// directory.
         #[arg(long)]
         pub overwrite: bool,
+
+        /// Path to an age X25519 identity file (e.g. `~/.age/key.txt`,
+        /// or rage-keygen's output). Use when restoring a backup
+        /// that was exported with `--use-recovery-recipients` (the
+        /// X25519-recipient path) rather than the default passphrase
+        /// path. The file must contain exactly one `AGE-SECRET-KEY-1…`
+        /// line; multi-identity files are not yet supported.
+        #[arg(long, value_name = "PATH")]
+        pub identity_file: Option<PathBuf>,
     }
 
     pub async fn run(args: CliArgs) -> Result<()> {
@@ -1474,19 +1483,45 @@ pub mod import_backup {
             );
         }
 
-        // Prompt for the backup passphrase. X25519-encrypted bundles
-        // would need a separate flag + identity-file input — deferred
-        // to a follow-up; passphrase covers the most common case
-        // (`kit export-backup` defaults to passphrase-only).
-        eprintln!("Decrypting backup at {}…", args.bundle.display());
-        let mut unlock = unlock_passphrase();
-        let pass: SecretString = unlock(provcheck_sign::providers::UnlockPrompt::passphrase(
-            "backup", 1,
-        ))
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
-
-        let bundle =
-            import_with_passphrase(&args.bundle, pass).context("decrypt + parse backup")?;
+        // v0.9.66: wire X25519-recipient backups through the CLI.
+        // Branch on --identity-file. The library has supported
+        // `import_with_x25519_identity` since v0.4; only the CLI
+        // surface was missing.
+        let bundle = if let Some(ref id_path) = args.identity_file {
+            use std::str::FromStr;
+            eprintln!(
+                "Decrypting backup at {} with X25519 identity {}…",
+                args.bundle.display(),
+                id_path.display()
+            );
+            let id_text = std::fs::read_to_string(id_path)
+                .with_context(|| format!("read identity file {}", id_path.display()))?;
+            // Pick the first AGE-SECRET-KEY-1 line (rage-keygen's
+            // standard format prefixes the actual key with comment
+            // lines, so a line-by-line scan is more robust than a
+            // whole-file parse).
+            let secret_line = id_text
+                .lines()
+                .find(|line| line.starts_with("AGE-SECRET-KEY-1"))
+                .ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "{} contains no AGE-SECRET-KEY-1 line; \
+                         expected rage-keygen format",
+                        id_path.display()
+                    )
+                })?;
+            let identity = age::x25519::Identity::from_str(secret_line.trim())
+                .map_err(|e| anyhow::anyhow!("parse identity: {e}"))?;
+            import_with_x25519_identity(&args.bundle, &identity)
+                .context("decrypt + parse backup with X25519 identity")?
+        } else {
+            eprintln!("Decrypting backup at {}…", args.bundle.display());
+            let mut unlock = unlock_passphrase();
+            let pass: SecretString =
+                unlock(provcheck_sign::providers::UnlockPrompt::passphrase("backup", 1))
+                    .map_err(|e| anyhow::anyhow!("{e}"))?;
+            import_with_passphrase(&args.bundle, pass).context("decrypt + parse backup")?
+        };
         let backend = if args.age_file {
             KeyProviderKind::EncryptedFile
         } else {
