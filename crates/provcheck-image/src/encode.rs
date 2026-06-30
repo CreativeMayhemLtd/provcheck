@@ -364,12 +364,107 @@ fn denorm(v: f32) -> u8 {
 
 #[cfg(test)]
 mod helper_tests {
-    use super::{chw_normalised_to_rgb_u8, denorm, resize_residual_chw};
+    use super::{
+        DATA_LEN, ECC_LEN, PROTECTED_LEN, PROVCHECK_RAW_MAGIC, SHORTEN_PAD, VERSION_BCH5, bch,
+        build_data_payload, chw_normalised_to_rgb_u8, denorm, resize_residual_chw,
+    };
 
     // ----- denorm ----------
     //
     // denorm maps `[-1, 1]` f32 → `[0, 255]` u8 via
     // `(v + 1) * 0.5 → clamp[0,1] → * 255 → round`.
+
+    // ----- build_data_payload ----------
+
+    #[test]
+    fn build_data_payload_length_is_data_len() {
+        // The data payload must be exactly DATA_LEN = 61 bits.
+        let p = build_data_payload(0);
+        assert_eq!(p.len(), DATA_LEN);
+    }
+
+    #[test]
+    fn build_data_payload_starts_with_provcheck_magic() {
+        // First 8 bits MUST be the PROVCHECK_RAW_MAGIC byte
+        // (0xA5 = 0b10100101), MSB-first. This is what
+        // classify_bch5 uses to detect that the decoded BCH
+        // payload is one of OURS vs random noise.
+        let p = build_data_payload(0);
+        for (i, slot) in p.iter().enumerate().take(8) {
+            let expected = (PROVCHECK_RAW_MAGIC >> (7 - i)) & 1;
+            assert_eq!(
+                *slot, expected,
+                "magic bit {i} mismatch: got {slot} expected {expected}"
+            );
+        }
+    }
+
+    #[test]
+    fn build_data_payload_carries_brand_id_at_documented_position() {
+        // Bits 8..13 carry the 5-bit brand id, MSB-first.
+        let p = build_data_payload(0b00001); // doomscroll
+        // Bit 8 = MSB of 0b00001 = 0
+        assert_eq!(p[8], 0);
+        // Bit 12 = LSB of 0b00001 = 1
+        assert_eq!(p[12], 1);
+
+        let p2 = build_data_payload(0b11111); // all-set
+        for (i, slot) in p2.iter().enumerate().take(13).skip(8) {
+            assert_eq!(*slot, 1, "expected all brand bits set at i={i}");
+        }
+    }
+
+    #[test]
+    fn build_data_payload_pads_tail_with_zeros() {
+        // Bits 13..DATA_LEN must be zero (reserved space).
+        let p = build_data_payload(0b11111);
+        for (i, v) in p.iter().enumerate().skip(13) {
+            assert_eq!(*v, 0, "expected zero tail at i={i}, got {v}");
+        }
+    }
+
+    #[test]
+    fn build_data_payload_brand_id_only_uses_5_bits() {
+        // The function takes u8 but uses only bits 0..5 of the
+        // input. Higher bits MUST be ignored — pin so a future
+        // caller passing 0xFF doesn't silently overflow into
+        // the reserved tail.
+        let p_high = build_data_payload(0xFF);
+        let p_low = build_data_payload(0b00011111);
+        // The 5-bit-effective brand portion should match.
+        for i in 8..13 {
+            assert_eq!(p_high[i], p_low[i], "brand bit {i} differs");
+        }
+    }
+
+    // ----- PROVCHECK_RAW_MAGIC pin ----------
+
+    #[test]
+    fn provcheck_raw_magic_is_0xa5() {
+        // Wire-format pin. Bumping this breaks every existing
+        // marked image.
+        assert_eq!(PROVCHECK_RAW_MAGIC, 0xA5);
+    }
+
+    #[test]
+    fn version_bch5_is_0b0001() {
+        // The 4 version bits the encoder writes — pin them.
+        assert_eq!(VERSION_BCH5, [0, 0, 0, 1]);
+    }
+
+    // ----- Layout constants ----------
+
+    #[test]
+    fn data_layout_constants_are_self_consistent() {
+        // PROTECTED_LEN = DATA_LEN + ECC_LEN. Compile-time-derived
+        // but pin via test in case someone "simplifies" later.
+        assert_eq!(PROTECTED_LEN, DATA_LEN + ECC_LEN);
+    }
+
+    #[test]
+    fn shorten_pad_equals_bch_k_minus_data_len() {
+        assert_eq!(SHORTEN_PAD, bch::K - DATA_LEN);
+    }
 
     #[test]
     fn denorm_negative_one_maps_to_zero() {
