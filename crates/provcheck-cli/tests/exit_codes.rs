@@ -138,3 +138,72 @@ fn require_watermark_with_no_watermark_exits_2() {
         "expected clap conflict message, got stderr={stderr}"
     );
 }
+
+// ----- additional exit-code paths ----------
+
+#[test]
+fn h_short_help_exits_0() {
+    let (code, _, _) = run(&["-h"]);
+    assert_eq!(code, 0, "-h must exit 0");
+}
+
+#[test]
+fn unknown_flag_exits_2() {
+    let (code, _, stderr) = run(&["--no-such-flag-zzz", "/any/file.mp3"]);
+    assert_eq!(code, 2, "unknown flag must exit 2; stderr={stderr}");
+}
+
+#[test]
+fn help_prints_to_stdout_not_stderr() {
+    // Operators piping --help to less / grep need stdout. Pin
+    // that --help isn't accidentally routed to stderr.
+    let (_code, stdout, _) = run(&["--help"]);
+    assert!(
+        stdout.contains("provcheck"),
+        "--help must produce text on stdout"
+    );
+}
+
+#[test]
+fn require_attested_with_did_only_passes_preflight() {
+    // The preflight checks that at least one of bsky-handle /
+    // did / auto-identity is set. With --did set, the preflight
+    // passes; we then hit the file-not-found path (exit 2)
+    // rather than the preflight failure. Confirm the message is
+    // not the preflight one.
+    let (code, _, stderr) = run(&[
+        "--require-attested",
+        "--did",
+        "did:plc:abc",
+        "/no/such/file.mp3",
+    ]);
+    assert_eq!(code, 2);
+    assert!(
+        !stderr.contains("--require-attested needs"),
+        "preflight should pass with --did present; stderr={stderr}"
+    );
+}
+
+#[test]
+fn require_attested_with_handle_only_passes_preflight() {
+    let (code, _, stderr) = run(&[
+        "--require-attested",
+        "--bsky-handle",
+        "alice.bsky.social",
+        "/no/such/file.mp3",
+    ]);
+    assert_eq!(code, 2);
+    assert!(
+        !stderr.contains("--require-attested needs"),
+        "preflight should pass with --bsky-handle present; stderr={stderr}"
+    );
+}
+
+#[test]
+fn json_mode_help_unaffected() {
+    // --help wins over --json: putting --json before --help
+    // still prints help.
+    let (code, stdout, _) = run(&["--json", "--help"]);
+    assert_eq!(code, 0);
+    assert!(stdout.contains("provcheck"));
+}
