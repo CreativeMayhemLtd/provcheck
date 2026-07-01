@@ -3282,6 +3282,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "is-docker"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "928bae27f42bc99b60d9ac7334e3a21d10ad8f1835a4e12ec3ec0464765ed1b3"
+dependencies = [
+ "once_cell",
+]
+
+[[package]]
+name = "is-wsl"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "173609498df190136aa7dea1a91db051746d339e18476eed5ca40521f02d7aa5"
+dependencies = [
+ "is-docker",
+ "once_cell",
+]
+
+[[package]]
 name = "is_terminal_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4335,6 +4354,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08d65885ee38876c4f86fa503fb49d7b507c2b62552df7c70b2fce627e06381"
 
 [[package]]
+name = "open"
+version = "5.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cd8d3b65c44123a56e0133d2cd06ce4361bd3ca99d41198b2f25e3c3db9b8b4a"
+dependencies = [
+ "is-wsl",
+ "libc",
+]
+
+[[package]]
 name = "openssl"
 version = "0.10.81"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5032,7 +5061,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck"
-version = "0.9.88"
+version = "1.1.0"
 dependencies = [
  "c2pa",
  "provcheck-attestation-spec",
@@ -5044,9 +5073,10 @@ dependencies = [
 
 [[package]]
 name = "provcheck-app"
-version = "0.9.88"
+version = "1.1.0"
 dependencies = [
  "keyring",
+ "open",
  "provcheck",
  "provcheck-attestation-spec",
  "provcheck-audioseal",
@@ -5068,7 +5098,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-attestation-spec"
-version = "0.9.88"
+version = "1.1.0"
 dependencies = [
  "pem",
  "serde",
@@ -5078,7 +5108,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-audioseal"
-version = "0.9.88"
+version = "1.1.0"
 dependencies = [
  "hound",
  "provcheck",
@@ -5094,7 +5124,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-detect"
-version = "0.9.88"
+version = "1.1.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -5103,7 +5133,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-image"
-version = "0.9.88"
+version = "1.1.0"
 dependencies = [
  "image",
  "ndarray",
@@ -5117,7 +5147,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-platform"
-version = "0.9.88"
+version = "1.1.0"
 dependencies = [
  "c2pa",
  "dirs 5.0.1",
@@ -5134,7 +5164,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-publish"
-version = "0.9.88"
+version = "1.1.0"
 dependencies = [
  "atrium-api",
  "atrium-identity",
@@ -5150,7 +5180,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-sign"
-version = "0.9.88"
+version = "1.1.0"
 dependencies = [
  "age",
  "c2pa",
@@ -5173,7 +5203,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-synthid-text"
-version = "0.9.88"
+version = "1.1.0"
 dependencies = [
  "provcheck",
  "serde",
@@ -5184,7 +5214,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-video"
-version = "0.9.88"
+version = "1.1.0"
 dependencies = [
  "provcheck",
  "provcheck-image",
@@ -5197,7 +5227,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-watermark"
-version = "0.9.88"
+version = "1.1.0"
 dependencies = [
  "hound",
  "provcheck",
@@ -5215,7 +5245,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-wavmark"
-version = "0.9.88"
+version = "1.1.0"
 dependencies = [
  "hound",
  "provcheck",
@@ -5230,7 +5260,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-weights"
-version = "0.9.88"
+version = "1.1.0"
 dependencies = [
  "dirs 5.0.1",
  "sha2",

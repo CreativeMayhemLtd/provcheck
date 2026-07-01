@@ -56,6 +56,18 @@ const $footerHint     = document.getElementById("footer-hint");
 const $footerActions  = document.getElementById("footer-actions");
 const $aboutCard      = document.getElementById("about-card");
 
+// v1.1.0 Watermark-tab handles. Own drop zone + own loading + own
+// result surface, using the shared renderWatermarks() function
+// with a target-element parameter (see the refactor below).
+const $wmDropzone       = document.getElementById("wm-dropzone");
+const $wmChooseBtn      = document.getElementById("wm-choose-btn");
+const $wmLoading        = document.getElementById("wm-loading");
+const $wmLoadingFile    = document.getElementById("wm-loading-file");
+const $wmResult         = document.getElementById("wm-result");
+const $wmResultFile     = document.getElementById("wm-result-file");
+const $wmWatermarks     = document.getElementById("wm-watermarks");
+const $wmAnother        = document.getElementById("wm-another");
+
 let lastReport = null;
 let lastFilePath = null;
 
@@ -241,32 +253,36 @@ function formatAttestationLabel(att) {
   return "this identity";
 }
 
-function renderWatermarks(list) {
+function renderWatermarks(list, target, opts) {
+  // v1.1.0: `target` defaults to the Verify tab's $watermarks div,
+  // but the Watermark tab passes $wmWatermarks so the same badge-
+  // build logic renders in both places. `opts.detectionRan` is a
+  // hint for the empty-state text — Verify tab passes the checkbox
+  // state, Watermark tab always passes true (its whole purpose is
+  // to run detection).
+  target = target || $watermarks;
+  const detectionRan = opts && "detectionRan" in opts
+    ? opts.detectionRan
+    : ($idWatermark && $idWatermark.checked);
+  target.innerHTML = "";
   // One badge per detector that ran. Four per-badge states:
   //   detected   → green check, brand name + confidence %
   //   degraded   → amber check, brand name + "(degraded)" + %
   //   undetected → red x, "no mark detected"
   //   skipped    → dim dash, e.g. "not audio" or "model error"
-  $watermarks.innerHTML = "";
-  // v1.1.0 UX fix: when the user opted IN to watermark detection
-  // (checkbox on = default) but the backend returned zero results,
-  // show a "no watermarks detected" line instead of hiding the
-  // block entirely. Silent-hide made the user think detection
-  // never ran. When the user opts OUT (checkbox off), the backend
-  // sends an empty list and we DO want to hide.
   if (!Array.isArray(list) || list.length === 0) {
-    if ($idWatermark && $idWatermark.checked) {
-      $watermarks.hidden = false;
+    if (detectionRan) {
+      target.hidden = false;
       const emptyEl = document.createElement("div");
       emptyEl.className = "watermarks-empty";
       emptyEl.textContent = "No watermarks detected in any of the six shipped families (silentcipher, AudioSeal, WavMark, TrustMark image, TrustMark video, SynthID-text).";
-      $watermarks.appendChild(emptyEl);
+      target.appendChild(emptyEl);
     } else {
-      $watermarks.hidden = true;
+      target.hidden = true;
     }
     return;
   }
-  $watermarks.hidden = false;
+  target.hidden = false;
   // Pick a shared timeline extent across all detectors so the
   // strips line up visually — if AudioSeal reports a mark at
   // 0:15–0:45 and WavMark at 0:10–0:50 on the same 60-second file,
@@ -284,7 +300,7 @@ function renderWatermarks(list) {
   }
   const extent = maxEnd > 0 ? maxEnd * 1.05 : 0;
   for (const wm of list) {
-    $watermarks.appendChild(buildWatermarkBadge(wm, extent));
+    target.appendChild(buildWatermarkBadge(wm, extent));
   }
 }
 
@@ -440,6 +456,54 @@ async function verifyPath(path) {
   }
 }
 
+// ---- Watermark tab (v1.1.0) ----------------------------------------------
+
+function showWmEmpty() {
+  $wmDropzone.hidden = false;
+  $wmLoading.hidden = true;
+  $wmResult.hidden = true;
+  $wmDropzone.classList.remove("drag-over");
+}
+
+function showWmLoading(displayName) {
+  $wmDropzone.hidden = true;
+  $wmLoading.hidden = false;
+  $wmResult.hidden = true;
+  $wmLoadingFile.textContent = displayName;
+}
+
+function showWmResult(report, path) {
+  $wmDropzone.hidden = true;
+  $wmLoading.hidden = true;
+  $wmResult.hidden = false;
+  $wmResultFile.textContent = prettyPath(path);
+  // The Watermark tab's detection ALWAYS ran (that's the tab's job) —
+  // pass detectionRan: true so the shared render function shows the
+  // "no marks found" empty state instead of hiding the block.
+  renderWatermarks(
+    report && report.watermarks,
+    $wmWatermarks,
+    { detectionRan: true },
+  );
+}
+
+async function watermarkPath(path) {
+  showWmLoading(prettyPath(path));
+  try {
+    const resp = await invoke("watermark_only", { path });
+    if (!resp.ok) {
+      showWmResult({ watermarks: [] }, path);
+      return;
+    }
+    showWmResult(resp.report, path);
+  } catch (e) {
+    // Match the Verify tab's tolerance for errors: show the tab's
+    // result surface anyway with an empty list, so the user isn't
+    // stuck at a spinner.
+    showWmResult({ watermarks: [] }, path);
+  }
+}
+
 // ---- Identity (bsky handle / DID) persistence ----------------------------
 
 const IDENTITY_STORAGE_KEY = "provcheck.identity";
@@ -589,35 +653,54 @@ $copyJson.addEventListener("click", async () => {
 TAURI.event.listen("tauri://drag-drop", (event) => {
   const p = event.payload;
   $dropzone.classList.remove("drag-over");
+  if ($wmDropzone) $wmDropzone.classList.remove("drag-over");
   const $signDz = document.getElementById("sign-dropzone");
   if ($signDz) $signDz.classList.remove("drag-over");
   if (!p || !Array.isArray(p.paths) || p.paths.length === 0) return;
-  if (activeTab() === "sign") {
+  const tab = activeTab();
+  if (tab === "sign") {
     if (typeof window.signOnDrop === "function") window.signOnDrop(p.paths[0]);
+  } else if (tab === "watermark") {
+    watermarkPath(p.paths[0]);
   } else {
+    // Verify tab (or the Detect / Keys tabs — those don't own a
+    // drop zone, so we fall back to Verify's flow which is the
+    // most-generally-useful default when the user drops from
+    // an unfocused surface).
     verifyPath(p.paths[0]);
   }
 });
 TAURI.event.listen("tauri://drag-enter", () => {
   $dropzone.classList.add("drag-over");
+  if ($wmDropzone) $wmDropzone.classList.add("drag-over");
   const $signDz = document.getElementById("sign-dropzone");
   if ($signDz) $signDz.classList.add("drag-over");
 });
 TAURI.event.listen("tauri://drag-over", () => {
   $dropzone.classList.add("drag-over");
+  if ($wmDropzone) $wmDropzone.classList.add("drag-over");
   const $signDz = document.getElementById("sign-dropzone");
   if ($signDz) $signDz.classList.add("drag-over");
 });
 TAURI.event.listen("tauri://drag-leave", () => {
   $dropzone.classList.remove("drag-over");
+  if ($wmDropzone) $wmDropzone.classList.remove("drag-over");
   const $signDz = document.getElementById("sign-dropzone");
   if ($signDz) $signDz.classList.remove("drag-over");
 });
 
 function activeTab() {
-  return document.getElementById("tab-sign").classList.contains("is-active")
-    ? "sign"
-    : "verify";
+  // v1.1.0: extended for Watermark + Detect tabs. The Sign tab's
+  // check remains structurally in place (an early `refreshSignTab`
+  // caller relied on it). Detect tab is a static empty state that
+  // doesn't consume dropped files, so it isn't a drop-dispatch
+  // target — but the return value is still needed for tab-state
+  // reads elsewhere.
+  if (document.getElementById("tab-sign").classList.contains("is-active")) return "sign";
+  if (document.getElementById("tab-watermark").classList.contains("is-active")) return "watermark";
+  if (document.getElementById("tab-detect").classList.contains("is-active")) return "detect";
+  if (document.getElementById("tab-keys").classList.contains("is-active")) return "keys";
+  return "verify";
 }
 
 // Footer example links — low-cost stub that explains where to grab
@@ -918,9 +1001,13 @@ showEmpty();
 const SIGN_HANDLE_KEY = "provcheck.sign.handle";
 
 const $tabVerifyBtn = document.getElementById("tab-verify-btn");
+const $tabWatermarkBtn = document.getElementById("tab-watermark-btn");
+const $tabDetectBtn = document.getElementById("tab-detect-btn");
 const $tabKeysBtn = document.getElementById("tab-keys-btn");
 const $tabSignBtn = document.getElementById("tab-sign-btn");
 const $paneVerify = document.getElementById("tab-verify");
+const $paneWatermark = document.getElementById("tab-watermark");
+const $paneDetect = document.getElementById("tab-detect");
 const $paneKeys = document.getElementById("tab-keys");
 const $paneSign = document.getElementById("tab-sign");
 
@@ -1015,18 +1102,28 @@ let signSkipPublish = false;    // user clicked "skip and sign locally"
 
 function activateTab(name) {
   const isVerify = name === "verify";
+  const isWatermark = name === "watermark";
+  const isDetect = name === "detect";
   const isKeys = name === "keys";
   const isSign = name === "sign";
   $tabVerifyBtn.classList.toggle("is-active", isVerify);
+  $tabWatermarkBtn.classList.toggle("is-active", isWatermark);
+  $tabDetectBtn.classList.toggle("is-active", isDetect);
   $tabKeysBtn.classList.toggle("is-active", isKeys);
   $tabSignBtn.classList.toggle("is-active", isSign);
   $tabVerifyBtn.setAttribute("aria-selected", String(isVerify));
+  $tabWatermarkBtn.setAttribute("aria-selected", String(isWatermark));
+  $tabDetectBtn.setAttribute("aria-selected", String(isDetect));
   $tabKeysBtn.setAttribute("aria-selected", String(isKeys));
   $tabSignBtn.setAttribute("aria-selected", String(isSign));
   $paneVerify.classList.toggle("is-active", isVerify);
+  $paneWatermark.classList.toggle("is-active", isWatermark);
+  $paneDetect.classList.toggle("is-active", isDetect);
   $paneKeys.classList.toggle("is-active", isKeys);
   $paneSign.classList.toggle("is-active", isSign);
   $paneVerify.hidden = !isVerify;
+  $paneWatermark.hidden = !isWatermark;
+  $paneDetect.hidden = !isDetect;
   $paneKeys.hidden = !isKeys;
   $paneSign.hidden = !isSign;
   if (isKeys) refreshKeysTab();
@@ -1034,8 +1131,35 @@ function activateTab(name) {
 }
 
 $tabVerifyBtn.addEventListener("click", () => activateTab("verify"));
+$tabWatermarkBtn.addEventListener("click", () => activateTab("watermark"));
+$tabDetectBtn.addEventListener("click", () => activateTab("detect"));
 $tabKeysBtn.addEventListener("click", () => activateTab("keys"));
 $tabSignBtn.addEventListener("click", () => activateTab("sign"));
+
+// Watermark-tab file-picker + reset buttons. Reuse Verify tab's
+// openFilePicker (which nudges the user to drag on non-Tauri paths).
+$wmChooseBtn.addEventListener("click", openFilePicker);
+$wmAnother.addEventListener("click", showWmEmpty);
+
+// External-URL click interceptor. Tauri 2 sandboxes `target="_blank"`
+// anchors, so provcheck.ai / creativemayhem.com links in the top bar
+// (and any `[data-external]` link in the Detect tab or elsewhere) go
+// nowhere by default. Delegate on document.body and IPC to the
+// backend's open_url command, which shells out to the platform URL
+// handler. Ignore modifier-clicks so a middle-click still no-ops
+// rather than double-open.
+document.body.addEventListener("click", (e) => {
+  if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+  const a = e.target && e.target.closest ? e.target.closest("a[href]") : null;
+  if (!a) return;
+  const href = a.getAttribute("href") || "";
+  if (!(href.startsWith("http://") || href.startsWith("https://"))) return;
+  e.preventDefault();
+  invoke("open_url", { url: href }).catch(() => {
+    // Silent — the frontend has no meaningful recourse. The backend
+    // logs the error via its Result return.
+  });
+});
 
 // ---- State dispatch --------------------------------------------------------
 

@@ -23,6 +23,132 @@ use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
 
 // ============================================================================
+// Tab-specific commands (v1.1.0)
+// ============================================================================
+
+/// Watermark tab entry point. Runs every one of the six detector
+/// families the workspace ships against the input file. Reuses the
+/// full `verify` flow to fill the Report shell — the Watermark tab's
+/// UI reads `report.watermarks` and ignores the C2PA fields — but
+/// this keeps the JSON envelope byte-identical to what
+/// `verify_file` returns so the frontend can share render code.
+#[tauri::command]
+async fn watermark_only(path: String) -> VerifyResponse {
+    let path = PathBuf::from(path);
+    tauri::async_runtime::spawn_blocking(move || match verify(&path) {
+        Ok(mut report) => {
+            push_all_watermarks(&path, &mut report);
+            VerifyResponse {
+                ok: true,
+                error: None,
+                report: Some(report),
+            }
+        }
+        Err(e) => VerifyResponse {
+            ok: false,
+            error: Some(e.to_string()),
+            report: None,
+        },
+    })
+    .await
+    .unwrap_or_else(|e| VerifyResponse {
+        ok: false,
+        error: Some(format!("watermark_only task panicked: {e}")),
+        report: None,
+    })
+}
+
+/// Detect tab entry point. Runs the `provcheck-detect` registry
+/// against the input file. The FOSS core registers ZERO detectors —
+/// the trait is public plumbing for a paid-DLC pack (Creative Mayhem
+/// v1.x roadmap) OR an operator-supplied third-party detector wrapper
+/// (Apache-2.0 crate). Absent either, this returns an empty
+/// `detections` list and the Detect tab's UI shows an educational
+/// empty-state explaining bring-your-own.
+///
+/// Even so, the command exists so the frontend has a stable IPC hook
+/// that becomes real the moment an operator drops a wrapper crate in
+/// and registers a detector.
+#[tauri::command]
+async fn detect_only(path: String) -> VerifyResponse {
+    let path = PathBuf::from(path);
+    tauri::async_runtime::spawn_blocking(move || match verify(&path) {
+        Ok(report) => {
+            // Registry construction lives here so an operator-supplied
+            // wrapper crate can grow this file with detector registrations
+            // without touching the tab wiring:
+            //   let mut reg = provcheck_detect::DetectorRegistry::new();
+            //   reg.register(Box::new(SomeDetector::default()));
+            //   let bytes = std::fs::read(&path).unwrap_or_default();
+            //   report.detections = reg.run_all(&bytes);
+            // FOSS core: zero detectors registered → detections stays
+            // empty, frontend renders the "bring your own" educational
+            // empty-state.
+            VerifyResponse {
+                ok: true,
+                error: None,
+                report: Some(report),
+            }
+        }
+        Err(e) => VerifyResponse {
+            ok: false,
+            error: Some(e.to_string()),
+            report: None,
+        },
+    })
+    .await
+    .unwrap_or_else(|e| VerifyResponse {
+        ok: false,
+        error: Some(format!("detect_only task panicked: {e}")),
+        report: None,
+    })
+}
+
+/// External URL opener. Tauri 2 sandboxes the webview; anchor tags
+/// with `target="_blank"` are dropped on the floor by default. The
+/// frontend intercepts external anchor clicks and IPC's them here.
+/// `open::that` resolves the platform's default URL handler
+/// (Windows: `cmd /c start`, macOS: `open`, Linux: `xdg-open`).
+#[tauri::command]
+fn open_url(url: String) -> Result<(), String> {
+    // Defensive check: refuse anything that isn't http/https so a
+    // malicious frontend can't shell-exec `file:///` or a data-URL
+    // via this path. The GUI's own copy uses http(s) links only.
+    if !(url.starts_with("http://") || url.starts_with("https://")) {
+        return Err(format!("refusing to open non-http(s) URL: {url}"));
+    }
+    open::that(url.as_str()).map_err(|e| format!("open failed: {e}"))
+}
+
+// ============================================================================
+// Shared: run every watermark detector family the workspace ships and
+// push each Ok() into the report. Used by verify_file (as one part of
+// the CLI-parity verify flow) and by watermark_only (as the entire
+// dispatch of the dedicated Watermark tab).
+// ============================================================================
+
+fn push_all_watermarks(path: &Path, report: &mut Report) {
+    if let Ok(w) = provcheck_watermark::detect(path) {
+        report.watermarks.push(w);
+    }
+    if let Ok(w) = provcheck_audioseal::detect(path) {
+        report.watermarks.push(w);
+    }
+    if let Ok(w) = provcheck_wavmark::detect(path) {
+        report.watermarks.push(w);
+    }
+    if let Ok(w) = provcheck_image::detect(path) {
+        report.watermarks.push(w);
+    }
+    if let Ok(w) = provcheck_video::detect(path) {
+        report.watermarks.push(w);
+    }
+    if let Ok(w) = provcheck_synthid_text::detect(path) {
+        report.watermarks.push(w);
+    }
+}
+
+// ============================================================================
 // verify_file — existing CLI-parity verify (UNCHANGED contract)
 // ============================================================================
 
@@ -77,35 +203,16 @@ async fn verify_file(
         match verify_result {
             Ok(mut report) => {
                 if run_watermark {
-                    // Try every one of the six detector families the
-                    // workspace ships. Each detector's `detect(&path)`
-                    // is authoritative about whether it applies to the
-                    // input file — audio detectors return Err on a
-                    // PNG, image detector returns Err on WAV, etc. The
-                    // `if let Ok` shape keeps successes; errors drop.
-                    // Dropping in the dispatch is fine because the
-                    // detectors themselves emit their own diagnostics.
-                    if let Ok(w) = provcheck_watermark::detect(&path) {
-                        report.watermarks.push(w);
-                    }
-                    if let Ok(w) = provcheck_audioseal::detect(&path) {
-                        report.watermarks.push(w);
-                    }
-                    if let Ok(w) = provcheck_wavmark::detect(&path) {
-                        report.watermarks.push(w);
-                    }
-                    // v1.1.0: image / video / text families lit up.
-                    // Silently missing in v1.0.0's GUI even though the
-                    // CLI has had these live since v0.7 → v0.9.0.
-                    if let Ok(w) = provcheck_image::detect(&path) {
-                        report.watermarks.push(w);
-                    }
-                    if let Ok(w) = provcheck_video::detect(&path) {
-                        report.watermarks.push(w);
-                    }
-                    if let Ok(w) = provcheck_synthid_text::detect(&path) {
-                        report.watermarks.push(w);
-                    }
+                    // Run every one of the six detector families the
+                    // workspace ships (v1.1.0). Each detector's
+                    // `detect(&path)` is authoritative about whether
+                    // it applies to the input file — audio detectors
+                    // return Err on a PNG, image detector returns Err
+                    // on WAV, etc. The `if let Ok` shape keeps
+                    // successes; errors drop with their own diagnostics
+                    // upstream. Called from both `verify_file` and
+                    // `watermark_only` — see the shared helper below.
+                    push_all_watermarks(&path, &mut report);
                 }
                 VerifyResponse {
                     ok: true,
@@ -1134,6 +1241,14 @@ fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             verify_file,
+            // v1.1.0: dedicated Watermark + Detect tabs.
+            watermark_only,
+            detect_only,
+            // v1.1.0: Tauri 2 webview sandboxes `<a href target="_blank">`
+            // — brand links in the top bar were silent no-ops. This
+            // command shells out to the platform URL handler via the
+            // `open` crate. Called from a delegated JS click handler.
+            open_url,
             kit_status,
             kit_init,
             kit_login,
