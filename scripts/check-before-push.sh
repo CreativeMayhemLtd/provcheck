@@ -60,6 +60,116 @@ red()    { printf "\033[31m%s\033[0m\n" "$*" >&2; }
 green()  { printf "\033[32m%s\033[0m\n" "$*"; }
 yellow() { printf "\033[33m%s\033[0m\n" "$*"; }
 
+# ---- Release-tag gate (v1.1.0 addition; never bypassable except --no-verify) --
+#
+# Git's pre-push hook receives the ref list on stdin. When the script
+# runs under CLI (no stdin from git — a tty is attached), skip this
+# gate; it only applies to actual push operations.
+#
+# The gate REFUSES two failure modes on `refs/tags/v[0-9]+.[0-9]+.0`:
+#
+#   1. Cadence violation — another v*.*.0 tag was created within the
+#      last 24 hours. Memory rule feedback_release_cadence_budget.md
+#      (Max one v* tag per 24h) exists because tagging on consecutive
+#      days burned ~€25/week of Actions minutes across the Tauri + 10x
+#      macOS matrix. Also because it usually means the previous tag
+#      was a mistake in-flight being corrected too quickly.
+#
+#   2. Force-rewrite — the tag already exists on origin at a different
+#      SHA. Memory rule feedback_iteration_tags_for_fixes.md flatly
+#      prohibits: "Force-rewriting a vX.Y.0 tag that already fired the
+#      matrix is even worse than the double-tag." Force-rewrites cost
+#      Actions minutes twice AND invalidate downloads pointing at the
+#      earlier SHA.
+#
+# Emergency override for a genuine hotfix that must ship inside 24 h
+# of the previous release: `git push --no-verify <ref>`. Convention
+# from feedback_pre_push_regression_gate.md is that any --no-verify
+# is noted in the commit body with a reason. Every future auditor
+# will read that note; the gate cannot be silently sidestepped.
+if [[ ! -t 0 ]]; then
+    # Reading git's pre-push hook stdin.
+    NULL_SHA="0000000000000000000000000000000000000000"
+    now_epoch=$(date +%s)
+    twentyfour_hours_ago=$((now_epoch - 86400))
+    while IFS=' ' read -r local_ref local_sha remote_ref remote_sha; do
+        # Skip anything that is not a release-line tag push.
+        [[ "$local_ref" =~ ^refs/tags/v[0-9]+\.[0-9]+\.0$ ]] || continue
+        tag_name="${local_ref#refs/tags/}"
+
+        # (2) Force-rewrite check.
+        if [[ "$remote_sha" != "$NULL_SHA" ]]; then
+            red ""
+            red "==============================================================="
+            red " RELEASE GATE FAIL: force-rewriting an existing v*.*.0 tag"
+            red "==============================================================="
+            red "  tag:              $tag_name"
+            red "  origin points at: $remote_sha"
+            red "  local points at:  $local_sha"
+            red ""
+            red "  This is the failure mode that memory rule"
+            red "  'iteration-tags-for-fixes' was written to prevent."
+            red "  The tag already fired the release matrix once. Rewriting"
+            red "  it fires the matrix AGAIN and invalidates any download"
+            red "  URLs pointing at the earlier SHA."
+            red ""
+            red "  If the tag reflects a design mistake: leave it alone."
+            red "  Iterate as vX.Y.Z (Z>0) — those skip the matrix."
+            red "  The next real vX.Y.0 supersedes the mistake naturally."
+            red ""
+            red "  Emergency override (audit trail required):"
+            red "    git push --no-verify --force origin $tag_name"
+            red "==============================================================="
+            exit 1
+        fi
+
+        # (1) Cadence check. Any OTHER v*.*.0 tag created within 24h?
+        # git for-each-ref emits `<tag> <unix-epoch>` for each match.
+        # Skip the one being pushed (it exists locally but might not
+        # be the one under scrutiny in a multi-ref push).
+        recent_offender=""
+        recent_epoch=0
+        while IFS='|' read -r existing_tag existing_epoch; do
+            [[ "$existing_tag" == "$tag_name" ]] && continue
+            [[ -z "$existing_epoch" ]] && continue
+            if [[ "$existing_epoch" -gt "$twentyfour_hours_ago" ]] && \
+               [[ "$existing_epoch" -gt "$recent_epoch" ]]; then
+                recent_offender="$existing_tag"
+                recent_epoch="$existing_epoch"
+            fi
+        done < <(git for-each-ref --format='%(refname:short)|%(creatordate:unix)' 'refs/tags/v*.*.0')
+
+        if [[ -n "$recent_offender" ]]; then
+            ago_secs=$((now_epoch - recent_epoch))
+            ago_h=$((ago_secs / 3600))
+            ago_m=$(((ago_secs % 3600) / 60))
+            red ""
+            red "==============================================================="
+            red " RELEASE GATE FAIL: v*.*.0 tag cadence violation (24 h window)"
+            red "==============================================================="
+            red "  attempting to push: $tag_name"
+            red "  most recent v*.*.0: $recent_offender (${ago_h}h ${ago_m}m ago)"
+            red ""
+            red "  Memory rule 'release-cadence-budget': Max one v* tag per 24h."
+            red "  Reason: consecutive v*.*.0 tags burned ~€25/week of Actions"
+            red "  when v0.4.1+v0.4.2+v0.5.0 fired on back-to-back days. Same"
+            red "  failure mode fired 6+ times on 2026-07-01 (recovery cycle)"
+            red "  which is what got this gate wired in."
+            red ""
+            red "  If this is a fix / correction of the most recent release:"
+            red "  DO NOT tag as vX.Y.0 — use an iteration tag vX.Y.Z (Z>0)"
+            red "  which skips the release matrix per the v*.*.0 glob."
+            red ""
+            red "  If this is a genuine hotfix emergency inside 24h:"
+            red "    git push --no-verify $tag_name"
+            red "  (and note the reason in the tag's annotated message)"
+            red "==============================================================="
+            exit 1
+        fi
+    done
+    green "release-tag gate: ok"
+fi
+
 # ---- 0. Pre-install detector weights -----------------------------
 #
 # v0.7 phase 8a: weights are downloaded on user demand, not bundled.
