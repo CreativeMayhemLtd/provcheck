@@ -77,6 +77,14 @@ async fn verify_file(
         match verify_result {
             Ok(mut report) => {
                 if run_watermark {
+                    // Try every one of the six detector families the
+                    // workspace ships. Each detector's `detect(&path)`
+                    // is authoritative about whether it applies to the
+                    // input file — audio detectors return Err on a
+                    // PNG, image detector returns Err on WAV, etc. The
+                    // `if let Ok` shape keeps successes; errors drop.
+                    // Dropping in the dispatch is fine because the
+                    // detectors themselves emit their own diagnostics.
                     if let Ok(w) = provcheck_watermark::detect(&path) {
                         report.watermarks.push(w);
                     }
@@ -84,6 +92,18 @@ async fn verify_file(
                         report.watermarks.push(w);
                     }
                     if let Ok(w) = provcheck_wavmark::detect(&path) {
+                        report.watermarks.push(w);
+                    }
+                    // v1.1.0: image / video / text families lit up.
+                    // Silently missing in v1.0.0's GUI even though the
+                    // CLI has had these live since v0.7 → v0.9.0.
+                    if let Ok(w) = provcheck_image::detect(&path) {
+                        report.watermarks.push(w);
+                    }
+                    if let Ok(w) = provcheck_video::detect(&path) {
+                        report.watermarks.push(w);
+                    }
+                    if let Ok(w) = provcheck_synthid_text::detect(&path) {
                         report.watermarks.push(w);
                     }
                 }

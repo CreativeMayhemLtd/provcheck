@@ -248,8 +248,22 @@ function renderWatermarks(list) {
   //   undetected → red x, "no mark detected"
   //   skipped    → dim dash, e.g. "not audio" or "model error"
   $watermarks.innerHTML = "";
+  // v1.1.0 UX fix: when the user opted IN to watermark detection
+  // (checkbox on = default) but the backend returned zero results,
+  // show a "no watermarks detected" line instead of hiding the
+  // block entirely. Silent-hide made the user think detection
+  // never ran. When the user opts OUT (checkbox off), the backend
+  // sends an empty list and we DO want to hide.
   if (!Array.isArray(list) || list.length === 0) {
-    $watermarks.hidden = true;
+    if ($idWatermark && $idWatermark.checked) {
+      $watermarks.hidden = false;
+      const emptyEl = document.createElement("div");
+      emptyEl.className = "watermarks-empty";
+      emptyEl.textContent = "No watermarks detected in any of the six shipped families (silentcipher, AudioSeal, WavMark, TrustMark image, TrustMark video, SynthID-text).";
+      $watermarks.appendChild(emptyEl);
+    } else {
+      $watermarks.hidden = true;
+    }
     return;
   }
   $watermarks.hidden = false;

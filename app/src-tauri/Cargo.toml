@@ -7,7 +7,7 @@
 
 [package]
 name = "provcheck-app"
-version = "0.9.88"
+version = "1.1.0"
 description = "Drag-drop GUI for provcheck — verify C2PA Content Credentials."
 edition = "2024"
 rust-version = "1.85"
@@ -29,6 +29,15 @@ provcheck-platform = { path = "../../crates/provcheck-platform" }
 provcheck-watermark = { path = "../../crates/provcheck-watermark" }
 provcheck-audioseal = { path = "../../crates/provcheck-audioseal" }
 provcheck-wavmark = { path = "../../crates/provcheck-wavmark" }
+# v1.1.0: wire the three detector families the CLI has had since v0.7 →
+# v0.9.0 (image / video / text) into the Tauri app's verify_file dispatch
+# so a dropped PNG / MP4 / .txt / .md gets its watermark checked.
+# Without these the GUI silently skipped detection on any non-audio file
+# and the drop-a-PNG-see-nothing UX made it look like watermark detection
+# was broken. See v1.1.0 changelog.
+provcheck-image = { path = "../../crates/provcheck-image" }
+provcheck-video = { path = "../../crates/provcheck-video" }
+provcheck-synthid-text = { path = "../../crates/provcheck-synthid-text" }
 
 # Phase 9 — Sign tab. The GUI composes the same crates the kit
 # binary does. We don't depend on provcheck-kit itself because
