@@ -43,9 +43,9 @@ Success criteria checked at end of night 2 by the validation script:
 - Night 2 (continuation): 10,000 steps + validation sweep = ~5 h wallclock + 30 min validation
 
 **Data corpus:**
-- **Training**: LibriSpeech `dev-clean` (~350 MB, CC-BY-4.0). Speech-heavy — covers the doomscroll voice-mixdown case; broader-genre coverage would come from a music dataset if that becomes a target (out of scope for the first fine-tune).
+- **Training**: LibriSpeech `dev-clean` (~350 MB, CC-BY-4.0). Speech-heavy — covers voice-content use cases; broader-genre coverage would come from a music dataset if that becomes a target (out of scope for the first fine-tune).
 - **Validation**: 20 held-out clips (10 speech from LibriSpeech `test-clean`, 10 music from a small MIT-licensed music corpus e.g. MusicNet or FMA free tier).
-- **Optional augmentation source**: user's own archive read-streamed from NAS `Z:\`. Read-only, no local copy. Weighted mix during training biases the model toward operator's own distribution.
+- **Optional augmentation source**: an operator-supplied audio corpus, weighted-mixed with the LibriSpeech base during training. Biases the model toward the operator's own distribution. Leave `augmentation_corpus: null` in the config for the first pass; enable only after the baseline fine-tune has been validated.
 
 ## Bulletproofing
 

@@ -20,10 +20,11 @@ run:
 
 data:
   train_corpus: "librispeech/dev-clean"
-  augmentation_corpus: null      # set to Z:/doomscroll/... for optional
-                                 # user-source-biased fine-tune
-  augmentation_weight: 0.0       # fraction of batches from augmentation
-                                 # source; 0.0 = pure LibriSpeech
+  augmentation_corpus: null      # optional path to operator-supplied
+                                 # audio corpus for domain-biased fine-
+                                 # tune. Leave null for first pass.
+  augmentation_weight: 0.0       # fraction of batches drawn from the
+                                 # optional corpus; 0.0 = pure LibriSpeech
   batch_size: 16
   clip_seconds: 5.0
   sample_rate: 44100
