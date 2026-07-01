@@ -184,6 +184,69 @@ jobs:
           cargo build --release --target ${{ matrix.target }} \
             -p provcheck-cli -p provcheck-kit
 
+      # Windows-only: Authenticode-sign the CLI binaries via SSL.com
+      # eSigner cloud signing. Skips gracefully when the SSL_COM_*
+      # secrets aren't configured on the repo — the release still
+      # ships, binaries just come out unsigned (SmartScreen warning
+      # returns until the next signed release).
+      #
+      # Local dev path uses the same sign_release.ps1 script with a
+      # signing.json at repo root (gitignored). See
+      # docs/release-process.md § code-signing.
+      - name: Sign Windows CLI binaries (SSL.com eSigner)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        env:
+          SSL_COM_USERNAME: ${{ secrets.SSL_COM_USERNAME }}
+          SSL_COM_PASSWORD: ${{ secrets.SSL_COM_PASSWORD }}
+          SSL_COM_CREDENTIAL_ID: ${{ secrets.SSL_COM_CREDENTIAL_ID }}
+          SSL_COM_TOTP_SECRET: ${{ secrets.SSL_COM_TOTP_SECRET }}
+        run: |
+          if (-not $env:SSL_COM_TOTP_SECRET) {
+            Write-Host "SSL_COM_* secrets not set on this repo. Skipping code-signing. Binaries ship UNSIGNED (SmartScreen 'unknown publisher' warning will show on end-user machines). Set the four SSL_COM_* secrets on the dev repo to enable signing on the next release; see docs/release-process.md."
+            exit 0
+          }
+          # Download SSL.com CodeSignTool. The zip nests everything
+          # under a CodeSignTool-vX.Y.Z/ subdir; find that subdir and
+          # point CODE_SIGN_TOOL_PATH at it.
+          $tool_root = "$env:USERPROFILE\CodeSignTool-download"
+          New-Item -ItemType Directory -Force -Path $tool_root | Out-Null
+          $zip = "$tool_root\CodeSignTool.zip"
+          Invoke-WebRequest -Uri "https://www.ssl.com/download/codesigntool-for-windows/" -OutFile $zip -UseBasicParsing
+          Expand-Archive -Path $zip -DestinationPath $tool_root -Force
+          $inner = Get-ChildItem $tool_root -Directory | Where-Object { $_.Name -like "CodeSignTool*" } | Select-Object -First 1
+          $tool_dir = if ($inner) { $inner.FullName } else { $tool_root }
+          Write-Host "CodeSignTool at: $tool_dir"
+          # Materialise a per-run signing.json from the secrets.
+          # Lives in $env:RUNNER_TEMP so it disappears at job end.
+          $cfg = @{
+            enabled = $true
+            username = $env:SSL_COM_USERNAME
+            password = $env:SSL_COM_PASSWORD
+            credential_id = $env:SSL_COM_CREDENTIAL_ID
+            codesigntool_dir = $tool_dir
+            totp_secret = $env:SSL_COM_TOTP_SECRET
+            verify_after_sign = $false
+          }
+          $cfg_path = "$env:RUNNER_TEMP\provcheck-signing.json"
+          $cfg | ConvertTo-Json | Set-Content -Path $cfg_path -Encoding utf8
+          # Sign each Windows CLI exe. sign_release.ps1 exits non-zero
+          # on failure — matrix aborts.
+          $exes = @(
+            "target/${{ matrix.target }}/release/provcheck.exe",
+            "target/${{ matrix.target }}/release/provcheck-kit.exe"
+          )
+          foreach ($exe in $exes) {
+            Write-Host "Signing: $exe"
+            pwsh -File scripts/sign_release.ps1 -ExePath $exe -ConfigPath $cfg_path
+            if ($LASTEXITCODE -ne 0) {
+              Write-Error "sign_release.ps1 failed on $exe"
+              exit 1
+            }
+          }
+          # Never leave the materialised config on disk past this step.
+          Remove-Item -Force $cfg_path
+
       - name: Stage provcheck archive (${{ matrix.archive }})
         id: stage
         shell: bash
@@ -282,10 +345,12 @@ jobs:
 
   # Tauri GUI desktop app. Separate matrix from the CLI because the
   # platform bundle formats are different (installers, not archives)
-  # and the Linux build needs distro-specific system packages. Bundles
-  # are UNSIGNED for now — no Apple Developer ID, no Authenticode cert.
-  # Users will see Gatekeeper / SmartScreen warnings. Signing is a
-  # follow-up once certs exist.
+  # and the Linux build needs distro-specific system packages.
+  # Signing status: Windows installers are Authenticode-signed via
+  # SSL.com eSigner cloud IF the SSL_COM_* secrets are set on the
+  # repo. When unset, the signing step logs a "skipping" note and
+  # ships unsigned. macOS bundles are unsigned (no Apple Developer
+  # ID yet). Linux has no code-signing convention.
   build-gui:
     name: build-gui (${{ matrix.gui_suffix }})
     needs: cargo-audit
@@ -348,6 +413,62 @@ jobs:
       - name: tauri build
         working-directory: app
         run: npm run tauri:build
+
+      # Windows-only: Authenticode-sign the Tauri app's inner exe
+      # + every installer (.exe / .msi) via SSL.com eSigner cloud.
+      # Same skip-on-missing-secrets posture as the CLI signing step
+      # in the build job. See docs/release-process.md § code-signing.
+      - name: Sign Windows GUI installers (SSL.com eSigner)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        env:
+          SSL_COM_USERNAME: ${{ secrets.SSL_COM_USERNAME }}
+          SSL_COM_PASSWORD: ${{ secrets.SSL_COM_PASSWORD }}
+          SSL_COM_CREDENTIAL_ID: ${{ secrets.SSL_COM_CREDENTIAL_ID }}
+          SSL_COM_TOTP_SECRET: ${{ secrets.SSL_COM_TOTP_SECRET }}
+        run: |
+          if (-not $env:SSL_COM_TOTP_SECRET) {
+            Write-Host "SSL_COM_* secrets not set on this repo. Skipping GUI code-signing. Installers ship UNSIGNED (SmartScreen 'unknown publisher' on setup.exe download). Set the four SSL_COM_* secrets on the dev repo to enable signing on the next release."
+            exit 0
+          }
+          # Download SSL.com CodeSignTool (separate runner from the
+          # CLI job — has to re-download).
+          $tool_root = "$env:USERPROFILE\CodeSignTool-download"
+          New-Item -ItemType Directory -Force -Path $tool_root | Out-Null
+          $zip = "$tool_root\CodeSignTool.zip"
+          Invoke-WebRequest -Uri "https://www.ssl.com/download/codesigntool-for-windows/" -OutFile $zip -UseBasicParsing
+          Expand-Archive -Path $zip -DestinationPath $tool_root -Force
+          $inner = Get-ChildItem $tool_root -Directory | Where-Object { $_.Name -like "CodeSignTool*" } | Select-Object -First 1
+          $tool_dir = if ($inner) { $inner.FullName } else { $tool_root }
+          Write-Host "CodeSignTool at: $tool_dir"
+          $cfg = @{
+            enabled = $true
+            username = $env:SSL_COM_USERNAME
+            password = $env:SSL_COM_PASSWORD
+            credential_id = $env:SSL_COM_CREDENTIAL_ID
+            codesigntool_dir = $tool_dir
+            totp_secret = $env:SSL_COM_TOTP_SECRET
+            verify_after_sign = $false
+          }
+          $cfg_path = "$env:RUNNER_TEMP\provcheck-signing.json"
+          $cfg | ConvertTo-Json | Set-Content -Path $cfg_path -Encoding utf8
+          # Sign the inner Tauri exe first — the installers wrap it,
+          # so signing the exe before wrap gives users a signed inner
+          # binary post-install too. Then sign every installer / MSI
+          # the bundler produced.
+          $inner_exe = "app/src-tauri/target/release/provcheck-app.exe"
+          if (Test-Path $inner_exe) {
+            Write-Host "Signing inner exe: $inner_exe"
+            pwsh -File scripts/sign_release.ps1 -ExePath $inner_exe -ConfigPath $cfg_path
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+          }
+          $installers = Get-ChildItem "app/src-tauri/target/release/bundle" -Recurse -Include *.exe,*.msi -ErrorAction SilentlyContinue
+          foreach ($f in $installers) {
+            Write-Host "Signing: $($f.FullName)"
+            pwsh -File scripts/sign_release.ps1 -ExePath $f.FullName -ConfigPath $cfg_path
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+          }
+          Remove-Item -Force $cfg_path
 
       - name: Resolve release tag
         id: tag
