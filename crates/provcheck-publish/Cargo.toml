@@ -40,7 +40,7 @@ time = { version = "0.3", features = ["parsing", "formatting", "serde"] }
 
 # Owner-only file perms for session.json on Unix; cross-platform
 # path resolution.
-dirs = "5"
+dirs = "6"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "macros", "test-util"] }
