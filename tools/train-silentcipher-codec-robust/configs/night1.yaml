@@ -1,0 +1,79 @@
+# Night 1 hyperparameters — silentcipher codec-robust fine-tune.
+#
+# First-night config. Starts from Sony's upstream checkpoint. Encoder-
+# only fine-tune (decoder frozen). Message-recovery-loss ramp over the
+# first 500 steps so imperceptibility isn't destroyed before the model
+# stabilises.
+#
+# Referenced by scripts/night_run.sh night1 and by train.py (when it
+# lands in the follow-up commit). This YAML is the SINGLE source of
+# truth for hyperparameters — no argparse overrides during a night run
+# so we can reconstruct exactly what produced any given checkpoint.
+
+run:
+  name: "silentcipher-codec-robust-night1"
+  seed: 20260701       # reproducibility anchor; change to force fresh
+                       # random init (not fresh optimiser state)
+  tmux_session: "silentcipher-train"
+  total_steps: 12000
+  wallclock_ceiling_hours: 5.5   # kill after this even if steps left
+
+data:
+  train_corpus: "librispeech/dev-clean"
+  augmentation_corpus: null      # set to Z:/doomscroll/... for optional
+                                 # user-source-biased fine-tune
+  augmentation_weight: 0.0       # fraction of batches from augmentation
+                                 # source; 0.0 = pure LibriSpeech
+  batch_size: 16
+  clip_seconds: 5.0
+  sample_rate: 44100
+  channels: 1                    # mono; per-channel embed for stereo
+                                 # is handled by the CLI-level dispatch
+                                 # not the training loop
+
+model:
+  base_checkpoint: "sony/silentcipher"    # HF hub ID
+  freeze_decoder: true                    # KEY: decoder MIT-original
+                                          # preserved; encoder-only fine-
+                                          # tune keeps interop with
+                                          # existing decoder path
+
+augmentation:
+  option: "A"                    # A = Encodec-style differentiable AAC
+                                 # B = psychoacoustic mask + quant noise
+  encodec:
+    target_bitrate_kbps: 192     # AAC bitrate we're training to survive
+    straight_through: true       # gradient passes through the discrete
+                                 # quantiser via straight-through
+                                 # estimator; standard trick
+  psychoacoustic:                # only used if option == "B"
+    bark_bands: 24
+    noise_scale_db: -24
+
+loss:
+  reconstruction_l1_weight: 0.6
+  reconstruction_mel_weight: 0.2
+  message_bce_weight_start: 0.0
+  message_bce_weight_end: 0.5
+  message_bce_ramp_steps: 500    # over first 500 steps ramp 0 -> 0.5
+
+optimizer:
+  kind: "adamw"
+  lr: 1.0e-5
+  weight_decay: 1.0e-6
+  gradient_clip: 1.0
+
+checkpointing:
+  interval_seconds: 1800         # save every 30 min
+  keep_last_n: 3
+  keep_best: true                # symlink best.pt = argmax(val_conf)
+
+logging:
+  step_interval: 100             # metrics row every 100 steps
+  disk_check_interval_seconds: 1800   # under 10 GB free -> pause + exit
+
+safety:
+  stop_flag_path: "../../stop.flag"        # touch this at repo root to
+                                            # stop gracefully
+  oom_retry: true                          # try/except CUDA OOM -> halve
+                                            # batch, log, retry

@@ -1,0 +1,89 @@
+# Night 2 hyperparameters — silentcipher codec-robust fine-tune.
+#
+# Second-night config. Resumes from night 1's best checkpoint.
+# Operator adjusts LR / augmentation weight between nights based on
+# night 1's validate.py output (green / amber / red).
+#
+# If night 1 was GREEN: keep this file as-is; night 2 continues at the
+# same LR + augmentation.
+#
+# If night 1 was AMBER: reduce lr by half, reduce message_bce_weight_end
+# by half. Preserves progress; slows the ramp to preserve imperceptibility.
+#
+# If night 1 was RED (SDR crashed below 22 dB or AAC conf below 0.55):
+# discard night 1 checkpoints, restart from Sony upstream with
+# augmentation.option: "B" (psychoacoustic fallback). Different YAML file
+# in that case — this one assumes continuation.
+
+run:
+  name: "silentcipher-codec-robust-night2"
+  seed: 20260701          # SAME seed as night 1 so batch order continues
+                          # deterministically (train.py's data loader
+                          # respects prior epoch position)
+  tmux_session: "silentcipher-train"
+  total_steps: 10000      # 10k additional on top of night 1's 12k
+  wallclock_ceiling_hours: 5.0
+
+data:
+  train_corpus: "librispeech/dev-clean"
+  augmentation_corpus: null
+  augmentation_weight: 0.0
+  batch_size: 16
+  clip_seconds: 5.0
+  sample_rate: 44100
+  channels: 1
+
+model:
+  base_checkpoint: null          # KEY: null means "resume from
+                                 # night 1's best.pt"; train.py errors
+                                 # if best.pt not present
+  freeze_decoder: true
+
+augmentation:
+  option: "A"                    # keep the same augmentation path as
+                                 # night 1; only differs from night1.yaml
+                                 # if operator flipped to B between nights
+  encodec:
+    target_bitrate_kbps: 192
+    straight_through: true
+
+loss:
+  reconstruction_l1_weight: 0.6
+  reconstruction_mel_weight: 0.2
+  message_bce_weight_start: 0.5   # night 2 starts at full weight
+                                  # (night 1 ramped 0 -> 0.5)
+  message_bce_weight_end: 0.5
+  message_bce_ramp_steps: 0       # no ramp in night 2
+
+optimizer:
+  kind: "adamw"
+  lr: 1.0e-5                     # AMBER-case operator halves this by hand
+  weight_decay: 1.0e-6
+  gradient_clip: 1.0
+
+checkpointing:
+  interval_seconds: 1800
+  keep_last_n: 3
+  keep_best: true
+
+logging:
+  step_interval: 100
+  disk_check_interval_seconds: 1800
+
+safety:
+  stop_flag_path: "../../stop.flag"
+  oom_retry: true
+
+# Post-training-only settings — used by validate.py's final sweep at
+# end of night 2 and by export_onnx.py to bundle the deliverable.
+finalize:
+  validation_codecs:
+    - aac_128k
+    - aac_192k
+    - opus_96k
+    - opus_128k
+    - mp3_192k     # regression guard (v0.5.2 baseline)
+    - lossless     # regression guard
+  validation_samples: 20         # 10 speech + 10 music
+  export_onnx: true
+  deliverable_dir: "../../work/silentcipher-codec-robust"
