@@ -103,10 +103,17 @@ fn version_exits_0() {
     let (code, stdout, _) = run(&["--version"]);
     assert_eq!(code, 0);
     assert!(stdout.contains("provcheck"));
-    // The version string includes the workspace version.
+    // The version string includes the workspace version. Assert
+    // the workspace version reported by env!() at compile time
+    // shows up verbatim — the assertion tracks the workspace
+    // version bump without needing a per-release patch (which
+    // was the failure mode that broke v1.1.0's push: the
+    // hardcoded "0.9." check bit the workspace 0.9.88 → 1.1.0
+    // bump).
+    let expected = env!("CARGO_PKG_VERSION");
     assert!(
-        stdout.contains("0.9.4") || stdout.contains("0.9."),
-        "expected 0.9.x in version string, got {stdout}"
+        stdout.contains(expected),
+        "expected {expected} in version string, got {stdout}"
     );
 }
 
