@@ -22,11 +22,11 @@ There are no checked-in binary fixtures because nothing the test
 suite needs has a meaningful "real-world" value that synthesis
 can't reproduce.
 
-As of v0.9.64 the suite has 13 tests covering verify + unsigned +
-tampered + non-media paths. Future fixture additions (real Adobe
-TrustMark watermarked images, etc.) would land here as
-release-asset downloads gated behind an `--ignored` test, not as
-checked-in binaries.
+The suite has 13 tests covering verify + unsigned + tampered +
+non-media paths. Future fixture additions (real Adobe TrustMark
+watermarked images, etc.) would land here as release-asset
+downloads gated behind an `--ignored` test, not as checked-in
+binaries.
 
 If the integration suite ever genuinely needs a checked-in binary
 fixture, the decision matrix is:

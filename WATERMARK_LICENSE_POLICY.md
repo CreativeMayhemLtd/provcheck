@@ -73,7 +73,7 @@ Three reasons, in priority order:
 
 | Family | Maintainer | Code license | Weights license | Pass? | provcheck status |
 | --- | --- | --- | --- | --- | --- |
-| **TrustMark** | Adobe / CAI | MIT (verified 2026-06-28) | MIT (verified 2026-06-28) | ✓ | **Scaffolded + DLC-wired** in `provcheck-image` — crate exists, `detect()` pulls weights via `provcheck-weights` from the public mirror's `weights-v1` release. Actual TrustMark inference lands at 7b-inference. |
+| **TrustMark** | Adobe / CAI | MIT (verified 2026-06-28) | MIT (verified 2026-06-28) | ✓ | **Integrated** in `provcheck-image` — full detect + embed pipeline through ort (v0.7 phase 7b + 7b-followup migrated tract → ort). Weights ship as DLC via `provcheck-weights` from the public mirror's `weights-v1` release. BCH(127,92,t=5) ecosystem interop — provcheck-stamped images round-trip through Adobe's Python TrustMark and vice versa. |
 | **Stable Signature** | Meta (FAIR) | CC-BY-NC 4.0 | CC-BY-NC 4.0 | ✗ | **Not added.** Non-commercial clause fails the workspace rule. |
 | **StegaStamp** | Tancik et al, UC Berkeley | MIT (code) | unclear (Google Drive download without LICENSE.md) | hold | **Not added.** Code is permissive; weights status is the open question. Acceptable if upstream confirms permissive weights OR if we retrain from CC0/CC-BY data. |
 | **HiDDeN** | community reimpl of Stanford paper (Zhu et al, ECCV 2018) | MIT (community code) | no canonical publishable weights | hold | **Not added.** Academic baseline; no publishable-as-FOSS weights checkpoint. Defer in favour of TrustMark. |
@@ -82,12 +82,30 @@ Three reasons, in priority order:
 Full image-family survey rationale lives at
 [`docs/v0.7.0-roadmap/7a-image-watermark-survey.md`](docs/v0.7.0-roadmap/7a-image-watermark-survey.md).
 
-All three FOSS-eligible neural families now have a Rust home. silentcipher
-runs a full pipeline; AudioSeal and WavMark are scaffold-only — each crate's
-`lib.rs` carries its own license-verification narrative, integration
-checklist, and `implementation pending` stub `detect()`. SynthID stays out
-on license grounds (effectively, it has no license — the detector isn't
-public). The classical-algorithm row is forever-eligible but unstaffed.
+### Video (2026-06-28; wired v0.9.0)
+
+| Family | Maintainer | Code license | Weights license | Pass? | provcheck status |
+| --- | --- | --- | --- | --- | --- |
+| **TrustMark per-frame + temporal vote** | Adobe / CAI (upstream weights) + provcheck | MIT | MIT | ✓ | **Integrated** in `provcheck-video` — decodes N frames, runs TrustMark image detection per frame, applies temporal majority vote across frames to suppress single-frame flukes. Reuses the same MIT-licensed TrustMark weights the image family ships. |
+| classical video watermark methods (block-DCT, motion-vector embedding) | — | — | — | ✓ | **Fallback only.** No model-weights concern by construction. Same trade-off as classical image methods. |
+
+### Text (2026-06-28; wired v0.7 phase 7e)
+
+| Family | Maintainer | Code license | Weights license | Pass? | provcheck status |
+| --- | --- | --- | --- | --- | --- |
+| **SynthID-text (statistical detector)** | Google DeepMind (upstream algorithm) | derived from published paper | **no model weights required** — Bayesian tournament-sampling z-score is a statistical test | ✓ | **Integrated** in `provcheck-synthid-text` — Bayesian tournament-sampling z-score against a word-level tokeniser (whitespace-split, lowercase, punctuation-stripped). No trained classifier, so no weights-license question. Distinct from **SynthID Audio** (weights unreleased, not added). |
+| pattern-based text markers (Unicode homoglyphs, zero-width spaces) | — | — | — | ✓ | **Not added.** Trivially removed by any downstream re-formatter; not durable enough to be worth a slot. |
+
+### Status summary
+
+Six detector families ship live as of v0.9.x:
+
+- **Audio**: silentcipher, AudioSeal, WavMark (all integrated per the audio table above).
+- **Image**: TrustMark-B (integrated with BCH-5 ecosystem interop).
+- **Video**: TrustMark per-frame + temporal vote (reuses the image weights).
+- **Text**: SynthID-text (statistical, weightless).
+
+Not added: SynthID Audio (weights unreleased), Stable Signature (non-commercial clause), the classical fallback rows (no model surface).
 
 ## Process for adding a new detector
 
