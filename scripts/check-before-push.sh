@@ -166,6 +166,55 @@ if [[ ! -t 0 ]]; then
             red "==============================================================="
             exit 1
         fi
+
+        # (3) FC-declaration check. Every v*.*.0 push requires an
+        # explicit committed file at docs/release-fc/<tag>.md.
+        # Iteration counter Z (in vX.Y.Z) increments arbitrarily
+        # (1, 2, ..., 9, 10, ..., 99, 100, ..., 999, 1000, ...) —
+        # there is NO overflow-based promotion from vX.Y.<big> to
+        # vX.(Y+1).0. The ONLY gate is human declaration of
+        # feature-completeness on the codebase. The FC file is
+        # that declaration — writing it, committing it, and
+        # pushing it is the operator's affirmative statement.
+        # Content-agnostic here (the file's presence is what
+        # matters); write anything relevant to the release-
+        # readiness statement + link the iterations that
+        # constitute the FC scope.
+        fc_marker="docs/release-fc/${tag_name}.md"
+        if ! git ls-tree -r --name-only HEAD | grep -qxF "$fc_marker"; then
+            red ""
+            red "==============================================================="
+            red " RELEASE GATE FAIL: no FC-declaration for $tag_name"
+            red "==============================================================="
+            red "  tag:      $tag_name"
+            red "  required: $fc_marker (must be committed on the branch)"
+            red ""
+            red "  Iteration tags (vX.Y.Z, Z>0) have NO cap and no automatic"
+            red "  promotion. Do NOT go from v1.0.9 to v1.1.0 on the reasoning"
+            red "  that the patch position 'rolled over'. Iteration counter"
+            red "  climbs arbitrarily: 1, 2, ..., 9, 10, ..., 99, 100, ...,"
+            red "  999, 1000, ..., 10^65 if that is what the pace of iteration"
+            red "  demands."
+            red ""
+            red "  The ONLY gate that promotes vX.Y.Z to vX.(Y+1).0 is a"
+            red "  human declaration of feature-completeness on the codebase."
+            red "  The gate below encodes that declaration as a git-tracked"
+            red "  file the operator must write + commit before the release-"
+            red "  line tag can push."
+            red ""
+            red "  To declare FC for $tag_name:"
+            red "    1. mkdir -p docs/release-fc"
+            red "    2. \$EDITOR $fc_marker"
+            red "       (write the release-readiness statement — link the"
+            red "        iterations that constitute FC, note any deferrals"
+            red "        for the next release-line)"
+            red "    3. git add $fc_marker"
+            red "    4. git commit -m 'FC: $tag_name'"
+            red "    5. git tag -a $tag_name -m 'v${tag_name#v} (FC)'"
+            red "    6. git push origin main $tag_name"
+            red "==============================================================="
+            exit 1
+        fi
     done
     green "release-tag gate: ok"
 fi
