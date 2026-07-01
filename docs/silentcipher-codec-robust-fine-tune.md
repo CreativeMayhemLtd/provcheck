@@ -113,7 +113,15 @@ Run `validate.py` on the night 1 best checkpoint. Decision:
 
 ## Deliverable structure
 
-Location: `C:\local_dev_tmp\silentcipher-codec-robust\` (operator-chosen path outside the repo; keeps ~500 MB of training artefacts off git).
+**Primary location:** `C:\local_dev_tmp\silentcipher-codec-robust\` (operator-chosen path outside the repo; keeps ~500 MB of training artefacts off git). Peak working set for this first pass is ~3.5 GB — well under any local-disk pressure.
+
+**Overflow location (documented for future runs):** `Z:\boxbu\5090\nas_dev_tmp\silentcipher-codec-robust\` on the NAS at 192.168.2.40. Use this when:
+
+1. Training corpus expands beyond LibriSpeech (music sets like FMA / MusicNet run 20–100 GB).
+2. Multiple concurrent training runs share the box, each producing its own rotating checkpoints.
+3. Local `C:\` is under space pressure from other workloads.
+
+To switch a future run to the NAS location: edit `configs/night2.yaml` `finalize.deliverable_dir` before firing `night_run.sh night2`. `train.py` reads the config; no code change needed.
 
 ```
 C:/local_dev_tmp/silentcipher-codec-robust/
