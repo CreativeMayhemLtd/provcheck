@@ -1524,7 +1524,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ab67060fc6b8ef687992d439ca0fa36e7ed17e9a0b16b25b601e8757df720de"
 dependencies = [
  "data-encoding",
- "syn 2.0.117",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -4958,7 +4958,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck"
-version = "0.9.84"
+version = "0.9.87"
 dependencies = [
  "c2pa",
  "provcheck-attestation-spec",
@@ -4970,7 +4970,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-app"
-version = "0.9.84"
+version = "0.9.87"
 dependencies = [
  "keyring",
  "provcheck",
@@ -4991,7 +4991,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-attestation-spec"
-version = "0.9.84"
+version = "0.9.87"
 dependencies = [
  "pem",
  "serde",
@@ -5001,7 +5001,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-audioseal"
-version = "0.9.84"
+version = "0.9.87"
 dependencies = [
  "hound",
  "provcheck",
@@ -5017,7 +5017,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-detect"
-version = "0.9.84"
+version = "0.9.87"
 dependencies = [
  "serde",
  "serde_json",
@@ -5026,10 +5026,10 @@ dependencies = [
 
 [[package]]
 name = "provcheck-platform"
-version = "0.9.84"
+version = "0.9.87"
 dependencies = [
  "c2pa",
- "dirs 5.0.1",
+ "dirs 6.0.0",
  "pem",
  "provcheck",
  "provcheck-attestation-spec",
@@ -5043,12 +5043,12 @@ dependencies = [
 
 [[package]]
 name = "provcheck-publish"
-version = "0.9.84"
+version = "0.9.87"
 dependencies = [
  "atrium-api",
  "atrium-identity",
  "atrium-xrpc-client",
- "dirs 5.0.1",
+ "dirs 6.0.0",
  "provcheck-attestation-spec",
  "serde",
  "serde_json",
@@ -5059,11 +5059,11 @@ dependencies = [
 
 [[package]]
 name = "provcheck-sign"
-version = "0.9.84"
+version = "0.9.87"
 dependencies = [
  "age",
  "c2pa",
- "dirs 5.0.1",
+ "dirs 6.0.0",
  "keyring",
  "p256",
  "pem",
@@ -5082,7 +5082,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-watermark"
-version = "0.9.84"
+version = "0.9.87"
 dependencies = [
  "hound",
  "provcheck",
@@ -5100,7 +5100,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-wavmark"
-version = "0.9.84"
+version = "0.9.87"
 dependencies = [
  "hound",
  "provcheck",
@@ -5115,7 +5115,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-weights"
-version = "0.9.84"
+version = "0.9.87"
 dependencies = [
  "dirs 5.0.1",
  "sha2",
