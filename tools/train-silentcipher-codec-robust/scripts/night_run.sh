@@ -84,48 +84,35 @@ fi
 green ""
 green "[3/4] Launching train.py under tmux with config $NIGHT"
 
-# STUB — train.py lands in a follow-up iteration commit. Uncomment the
-# tmux + train.py invocation when it does:
-#
-#   tmux new-session -d -s silentcipher-train \
-#       "cd '$TOOL_DIR' && python train.py --config '$CONFIG' 2>&1 | \
-#        tee -a train.log; echo 'train.py exited'; sleep 5"
-#
-#   green "  Training running under tmux session 'silentcipher-train'."
-#   green "  Attach to observe:  tmux attach -t silentcipher-train"
-#   green "  Safe stop:          touch '$REPO_ROOT/stop.flag'"
-#   green "  This script will wait for train.py to exit before running"
-#   green "  the validation sweep."
-#
-#   # Wait for train.py to exit.
-#   while tmux has-session -t silentcipher-train 2>/dev/null; do
-#       sleep 30
-#   done
+tmux new-session -d -s silentcipher-train \
+    "cd '$TOOL_DIR' && python train.py --config '$CONFIG' 2>&1 | \
+     tee -a train.log; echo 'train.py exited'; sleep 5"
 
-yellow "train.py not yet in scaffold; skipping actual training run."
-yellow "  Follow-up iteration commit lands train.py + un-comments the"
-yellow "  tmux launcher above."
-yellow "  When it lands, this script will:"
-yellow "    a) start train.py in a tmux session"
-yellow "    b) wait for it to exit"
-yellow "    c) run validate.py"
+green "  Training running under tmux session 'silentcipher-train'."
+green "  Attach to observe:  tmux attach -t silentcipher-train"
+green "  Safe stop:          ./scripts/safe_stop.sh"
+green "  This script will wait for train.py to exit before running"
+green "  the validation sweep."
+
+# Wait for train.py to exit.
+while tmux has-session -t silentcipher-train 2>/dev/null; do
+    sleep 30
+done
 
 # ---- Step 4 — Validation -----------------------------------------------
 
 green ""
 green "[4/4] Post-run validation"
 
-# STUB — validate.py lands in a follow-up iteration commit.
-#
-# Uncomment when it lands:
-#   python validate.py --config "$CONFIG"
+cd "$TOOL_DIR"
+python validate.py --config "$CONFIG"
+VAL_STATUS=$?
 
-yellow "validate.py not yet in scaffold; skipping validation."
-yellow "  When it lands, it will:"
-yellow "    a) load the latest checkpoint"
-yellow "    b) run 20-sample codec-survival sweep"
-yellow "    c) print green/amber/red banner + config suggestion"
-yellow "    d) exit 0 on green, exit 0 with warning on amber, exit 1 on red"
+if [[ $VAL_STATUS -eq 0 ]]; then
+    green "Validation GREEN/AMBER — proceed."
+else
+    red "Validation RED — do not continue night 2 from this checkpoint."
+fi
 
 green ""
 green "night_run.sh $NIGHT complete."

@@ -113,8 +113,10 @@ Run `validate.py` on the night 1 best checkpoint. Decision:
 
 ## Deliverable structure
 
+Location: `C:\local_dev_tmp\silentcipher-codec-robust\` (operator-chosen path outside the repo; keeps ~500 MB of training artefacts off git).
+
 ```
-work/silentcipher-codec-robust/
+C:/local_dev_tmp/silentcipher-codec-robust/
   README.md                    (methodology + validation table + how to reproduce)
   LICENSE                      (Creative Mayhem UG MIT)
   LICENSE-silentcipher         (Sony's original MIT — bundled)

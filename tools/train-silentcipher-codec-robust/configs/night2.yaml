@@ -86,4 +86,4 @@ finalize:
     - lossless     # regression guard
   validation_samples: 20         # 10 speech + 10 music
   export_onnx: true
-  deliverable_dir: "../../work/silentcipher-codec-robust"
+  deliverable_dir: "C:/local_dev_tmp/silentcipher-codec-robust"
