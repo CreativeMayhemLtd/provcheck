@@ -263,13 +263,17 @@ pub enum Command {
     /// inputs.
     ImportBackup(import_backup::CliArgs),
 
-    /// Prime the in-process passphrase cache. Useful before a
-    /// batch-signing session. No-op when the keychain backend is
-    /// in use.
+    /// No-op today. Exists as a forward-compatible shell for a
+    /// future kit-agent daemon that would own cross-process
+    /// passphrase caching. Currently, every `kit` invocation is
+    /// a fresh process that drops its in-process SecretCache at
+    /// exit, so there is nothing to unlock. Prints a note
+    /// explaining this and exits 0.
     Unlock(unlock::CliArgs),
 
-    /// Clear the in-process passphrase cache. Subsequent
-    /// operations re-prompt.
+    /// No-op today. Exists as a forward-compatible shell for a
+    /// future kit-agent daemon (see `unlock` above). Prints a
+    /// note explaining this and exits 0.
     Lock(lock::CliArgs),
 
     /// Prompt for the current at-rest passphrase, then twice for a
@@ -2057,9 +2061,30 @@ pub mod rotate {
     //!
     //! The flow is "best-effort atomic" rather than transactional:
     //! at each step we surface what succeeded and what didn't so a
-    //! user whose network dropped mid-rotation can run
-    //! `kit list` / `kit revoke` to finish the job manually. A
-    //! future `kit reconcile` is the cleaner answer.
+    //! user whose network dropped mid-rotation can finish the job
+    //! manually. Recovery workflow:
+    //!
+    //! 1. `kit list` — enumerates the published
+    //!    `app.provcheck.signingKey` records on the operator's DID.
+    //!    Look for the newly-minted fingerprint (the one this
+    //!    rotation was creating). If it is present → the publish
+    //!    step succeeded.
+    //! 2. If the newly-minted record IS published but the old
+    //!    record is not `supersededBy`-marked to the new
+    //!    fingerprint: run `kit revoke --fingerprint <old>
+    //!    --superseded-by <new>` to close the chain.
+    //! 3. If the newly-minted record is NOT present: the rotation
+    //!    didn't publish — the local `keys/` dir is the fresh state;
+    //!    re-run `kit publish` against the current identity.
+    //!
+    //! A dedicated `kit reconcile` subcommand was considered
+    //! (state-diff local vs atproto, close orphaned chains
+    //! automatically) and decided against on 2026-07-01: mid-
+    //! rotation drop is rare, the manual workflow above is bounded,
+    //! and a subcommand adds surface + tests + docs for a rare-
+    //! path recovery. Revisit if operator telemetry shows
+    //! reconcile is a frequent ask. Memory drawer:
+    //! `project_kit_reconcile_decision.md`.
 
     use std::path::PathBuf;
 
