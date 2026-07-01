@@ -37,7 +37,7 @@ thiserror.workspace = true
 # models/silentcipher-decoder.onnx and is embedded into the
 # library via include_bytes!() at build time so there's nothing
 # to load at runtime.
-tract-onnx = "0.21"
+tract-onnx = "0.22"
 
 # Optional GPU-accelerated inference via onnxruntime, behind
 # the `cuda` feature flag. Same ONNX model files. The default

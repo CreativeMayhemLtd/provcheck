@@ -21,7 +21,7 @@ thiserror.workspace = true
 # ONNX inference. WavMark ships as two ONNX models (HiNet forward +
 # reverse passes) embedded via include_bytes!() at build time. Exported
 # from M4869/WavMark's MIT-licensed checkpoint via scripts/export-wavmark.py.
-tract-onnx = "0.21"
+tract-onnx = "0.22"
 
 # Audio container decoding (16 kHz mono — WavMark's training rate).
 symphonia = { version = "0.5", features = ["mp3", "aac", "flac", "isomp4", "ogg", "vorbis", "wav"] }
