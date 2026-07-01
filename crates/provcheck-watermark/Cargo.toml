@@ -56,7 +56,7 @@ tract-nnef = { version = "0.21", features = ["flate2"] }
 # Audio container decoding. Default features cover the common
 # containers; we add `mp3` explicitly because it's behind a
 # feature gate in symphonia's bundled licence model.
-symphonia = { version = "0.5", features = ["mp3", "aac", "flac", "isomp4", "ogg", "vorbis", "wav"] }
+symphonia = { version = "0.6", features = ["mp3", "aac", "flac", "isomp4", "ogg", "vorbis", "wav"] }
 
 # Sample-rate conversion to 44.1 kHz when the input isn't
 # already there. SincFixedIn matches what librosa would do

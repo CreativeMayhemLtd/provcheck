@@ -24,7 +24,7 @@ thiserror.workspace = true
 tract-onnx = "0.21"
 
 # Audio container decoding (16 kHz mono — WavMark's training rate).
-symphonia = { version = "0.5", features = ["mp3", "aac", "flac", "isomp4", "ogg", "vorbis", "wav"] }
+symphonia = { version = "0.6", features = ["mp3", "aac", "flac", "isomp4", "ogg", "vorbis", "wav"] }
 rubato = "0.16"
 
 # Real-input FFT for STFT/iSTFT. WavMark's STFT (n_fft=1000, hop=400,
