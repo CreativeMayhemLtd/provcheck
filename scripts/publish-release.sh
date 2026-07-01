@@ -4,17 +4,20 @@
 # (CreativeMayhemLtd/provcheck), then cut a GitHub Release there.
 #
 # Usage:
-#     scripts/publish-release.sh v0.3.0 \
-#       dist/provcheck-v0.3.0-{windows,linux,macos}-*.{zip,tar.gz} \
-#       dist/provcheck-kit-v0.3.0-{windows,linux,macos}-*.{zip,tar.gz} \
-#       dist/provcheck-gui-v0.3.0-*.{exe,msi,deb,AppImage,dmg}
+#     scripts/publish-release.sh vX.Y.0 \
+#       dist/provcheck-vX.Y.0-{windows,linux,macos}-*.{zip,tar.gz} \
+#       dist/provcheck-kit-vX.Y.0-{windows,linux,macos}-*.{zip,tar.gz} \
+#       dist/provcheck-gui-vX.Y.0-*.{exe,msi,deb,AppImage,dmg}
 #
-# From v0.3.0 onward, the release ships THREE binary surfaces:
-#   * provcheck       — read-only verifier (the original CLI).
+# Only release-line tags (vX.Y.0) ship public artefacts; iteration
+# tags (vX.Y.Z, Z>0) skip the release matrix per the v*.*.0 glob in
+# .github/workflows/release.yml. Three binary surfaces:
+#   * provcheck       — read-only verifier (CLI).
 #   * provcheck-kit   — creator-side toolkit (mint identity, sign,
-#                       atproto publish; v0.3.0+).
-#   * provcheck-gui   — Tauri desktop app (verifier-only — kit GUI
-#                       lands in a later release).
+#                       atproto publish, weights install / verify).
+#   * provcheck-gui   — Tauri desktop app (verifier + Sign tab +
+#                       Keys tab; full parity with the kit CLI's
+#                       identity-management surface).
 # Each ships as one archive per OS, with a matching .sha256 sidecar.
 #
 # What it does:

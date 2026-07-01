@@ -1,5 +1,17 @@
 # v0.6.0 roadmap — throughput release
 
+> **Historical context note.** This is the planning record AS WRITTEN
+> for v0.6.0 (shipped 2026-06-26). It references `tract-onnx`
+> throughout because v0.6.0 was the last release built on the
+> `tract` ONNX runtime. **v0.7 phase 7b-followup migrated the
+> image-modality decoder to `ort` (onnxruntime 1.20 with the
+> `load-dynamic` feature), and subsequent releases continued the
+> migration across detector families.** See
+> [`SECURITY.md`](../../SECURITY.md) "Scope" for the current
+> backend description and the threat-model implications of the
+> DLC weights delivery flow. The body below is preserved as
+> written so the v0.6.0 design rationale stays auditable.
+
 This directory is the **planning record** for v0.6.0, the watermark-
 throughput release. It scopes four phases of work that together aim
 to make watermark embed cease being the dominant pipeline bottleneck

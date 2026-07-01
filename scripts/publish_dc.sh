@@ -3,7 +3,7 @@
 # release-notes/<tag>/ directory through to the public mirror.
 #
 # Usage:
-#   ./scripts/publish_dc.sh v0.3.1
+#   ./scripts/publish_dc.sh vX.Y.0
 #
 # Expects, prepared in advance:
 #   release-notes/<tag>/commit.md  — git commit message body
