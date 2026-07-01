@@ -61,6 +61,29 @@ Success criteria checked at end of night 2 by the validation script:
 6. Dry-run forward pass at batch 16, log peak VRAM, verify no OOM.
 7. Emit a "GREEN / AMBER / RED" one-line report; exit 1 on RED.
 
+### Nice mode — box stays responsive during training
+
+Default-on `nice_mode` block in the config gives the training three OS-level guards so the operator can keep using the box (browser, VS Code, video playback, occasional other CUDA work) while the run is in flight:
+
+1. **CUDA memory cap** — `torch.cuda.set_per_process_memory_fraction(0.75)` limits the training's VRAM share to 24 GB of the 5090's 32 GB. Leaves 8 GB for the desktop compositor + browser + occasional other CUDA processes. Doesn't prevent OOM entirely (the OOM handler still halves batch on hit); just keeps our share bounded.
+
+2. **Below-Normal process priority** — `psutil.Process().nice(BELOW_NORMAL_PRIORITY_CLASS)` on Windows, `os.nice(+5)` on POSIX. OS scheduler yields the CPU to foreground interactive apps first.
+
+3. **CUDA allocator config** — `PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512` exported by `night_run.sh` before Python starts. Reduces fragmentation, lets other CUDA processes grab memory cleanly when they need it.
+
+Optional fourth knob (not automatic — one-line YAML edit):
+
+4. **Batch size 12 instead of 16** — set `data.batch_size: 12` in `configs/night1.yaml`. About 25% less compute per step and more VRAM headroom for foreground GPU work. Wallclock cost across two nights: about +30 minutes. Worth it if you'll be doing 3D-heavy browsing or occasional gaming during the run.
+
+To disable nice mode entirely (dedicated box, no interactive use during the run):
+
+```yaml
+nice_mode:
+  enabled: false
+```
+
+Reclaims the small overhead of the memory cap + priority check. Not recommended unless the box is genuinely dedicated.
+
 ### Training loop guards (`train.py`)
 
 - `try / except torch.cuda.OutOfMemoryError` → halve batch size, log, retry. Self-heals.

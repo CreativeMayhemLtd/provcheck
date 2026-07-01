@@ -84,6 +84,15 @@ fi
 green ""
 green "[3/4] Launching train.py under tmux with config $NIGHT"
 
+# Nice-mode env var: set the PyTorch CUDA allocator config BEFORE
+# Python starts so the caching allocator honours it on first tensor
+# allocation. Matches the default in configs/*.yaml → nice_mode.
+# alloc_conf. Setting it in-script means the operator doesn't have to
+# remember to export it manually. If the config value diverges from
+# this default, train.py logs the mismatch (env var wins over config
+# because CUDA init already happened).
+export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-max_split_size_mb:512}"
+
 tmux new-session -d -s silentcipher-train \
     "cd '$TOOL_DIR' && python train.py --config '$CONFIG' 2>&1 | \
      tee -a train.log; echo 'train.py exited'; sleep 5"

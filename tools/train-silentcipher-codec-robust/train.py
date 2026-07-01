@@ -38,6 +38,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+# ---------------------------------------------------------------------------
+# Nice-mode env vars MUST be set BEFORE the first CUDA allocation. torch's
+# caching allocator reads PYTORCH_CUDA_ALLOC_CONF exactly once, at the
+# first .cuda() / .to("cuda") call. We check for a pre-set value first
+# (night_run.sh may have set it already), fall back to the config default
+# after the YAML loads. Setting it here as a soft default is safe because
+# no CUDA work happens between now and the config-driven override.
+# ---------------------------------------------------------------------------
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "max_split_size_mb:512")
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -116,6 +126,12 @@ class Config:
     train_corpus: str
     augmentation_corpus: Optional[str]
     augmentation_weight: float
+    # Nice-mode knobs. Defaults chosen so a box being used
+    # interactively during training stays responsive.
+    nice_mode_enabled: bool
+    nice_cuda_memory_fraction: float
+    nice_lower_process_priority: bool
+    nice_alloc_conf: str
 
 
 def load_config(path: Path) -> Config:
@@ -166,7 +182,97 @@ def load_config(path: Path) -> Config:
         train_corpus=raw["data"]["train_corpus"],
         augmentation_corpus=raw["data"].get("augmentation_corpus"),
         augmentation_weight=float(raw["data"].get("augmentation_weight", 0.0)),
+        # nice_mode: defaults preserve the "on by default" contract even
+        # if the config file predates this block.
+        nice_mode_enabled=bool(raw.get("nice_mode", {}).get("enabled", True)),
+        nice_cuda_memory_fraction=float(
+            raw.get("nice_mode", {}).get("cuda_memory_fraction", 0.75)
+        ),
+        nice_lower_process_priority=bool(
+            raw.get("nice_mode", {}).get("lower_process_priority", True)
+        ),
+        nice_alloc_conf=str(
+            raw.get("nice_mode", {}).get("alloc_conf", "max_split_size_mb:512")
+        ),
     )
+
+
+# ============================================================================
+# Nice mode — three OS-level guards so training yields to foreground work
+# ============================================================================
+
+
+def apply_nice_mode(cfg: Config, device: torch.device, log_file: Path) -> None:
+    """Apply the three nice-mode knobs. Safe no-op if disabled or CPU-only."""
+    if not cfg.nice_mode_enabled:
+        log("nice_mode disabled by config; training will saturate the box.",
+            log_file=log_file)
+        return
+    if device.type != "cuda":
+        log("nice_mode: CPU device; only process priority is applicable.",
+            log_file=log_file)
+    else:
+        # (1) Cap CUDA memory to a fraction of the total. Anything above
+        # this fraction triggers our OOM handler (which halves batch).
+        # This does not prevent other processes from using GPU memory —
+        # it only limits OUR process's share.
+        try:
+            torch.cuda.set_per_process_memory_fraction(
+                cfg.nice_cuda_memory_fraction, device=0
+            )
+            total_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
+            cap_gb = total_gb * cfg.nice_cuda_memory_fraction
+            log(
+                f"nice_mode: CUDA memory capped to {cap_gb:.1f} GB of "
+                f"{total_gb:.1f} GB total ({cfg.nice_cuda_memory_fraction:.0%})",
+                log_file=log_file,
+            )
+        except Exception as e:  # noqa: BLE001
+            log(f"nice_mode: could not cap CUDA memory: {e}", log_file=log_file)
+
+        # (2) Confirm the allocator config the operator picked. This env
+        # var was set at process start (either by night_run.sh or the
+        # os.environ.setdefault at the top of this file). Compare to the
+        # config; log if they diverge — that means the env var was set
+        # before the config loaded and can't be changed here.
+        current_alloc = os.environ.get("PYTORCH_CUDA_ALLOC_CONF", "")
+        if current_alloc != cfg.nice_alloc_conf:
+            log(
+                f"nice_mode: PYTORCH_CUDA_ALLOC_CONF is '{current_alloc}' "
+                f"(config wanted '{cfg.nice_alloc_conf}'). Env var must be "
+                f"set before CUDA init; adjust night_run.sh export if the "
+                f"config value should win.",
+                log_file=log_file,
+            )
+        else:
+            log(f"nice_mode: alloc_conf = {current_alloc}", log_file=log_file)
+
+    # (3) Lower process priority so the OS scheduler yields to foreground
+    # interactive apps.
+    if cfg.nice_lower_process_priority:
+        try:
+            import psutil
+
+            p = psutil.Process()
+            if sys.platform.startswith("win"):
+                p.nice(psutil.BELOW_NORMAL_PRIORITY_CLASS)
+                log(
+                    "nice_mode: Windows process priority → BELOW_NORMAL",
+                    log_file=log_file,
+                )
+            else:
+                # POSIX: +5 keeps the process schedulable but yields to
+                # anything at default priority (nice=0).
+                p.nice(5)
+                log("nice_mode: POSIX nice = +5", log_file=log_file)
+        except ImportError:
+            log(
+                "nice_mode: psutil not installed; skipping process-priority "
+                "downgrade. `pip install psutil` if you want it.",
+                log_file=log_file,
+            )
+        except (PermissionError, OSError) as e:
+            log(f"nice_mode: could not lower priority: {e}", log_file=log_file)
 
 
 # ============================================================================
@@ -455,6 +561,11 @@ def train(cfg: Config) -> int:
     if device.type == "cpu":
         red("CUDA not available; training on CPU is impractical for this run.")
         return 1
+
+    # Nice-mode guards BEFORE loading the model — set the CUDA memory
+    # cap first so the model load respects it rather than reserving more
+    # than the operator wanted.
+    apply_nice_mode(cfg, device, log_file)
 
     # Model.
     encoder, decoder = load_silentcipher(cfg, device)

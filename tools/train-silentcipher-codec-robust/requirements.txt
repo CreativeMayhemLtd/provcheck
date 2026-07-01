@@ -42,3 +42,8 @@ tqdm>=4.66.0
 # Optional: tensorboard for the between-night validation dashboard.
 # Not strictly required — validate.py emits a text table too.
 tensorboard>=2.16.0
+
+# psutil — cross-platform process-priority downgrade + system inspection.
+# Used by train.py's nice_mode block to lower priority so the training
+# yields to foreground desktop workloads.
+psutil>=5.9.0

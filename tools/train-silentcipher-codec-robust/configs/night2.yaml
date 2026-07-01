@@ -74,6 +74,18 @@ safety:
   stop_flag_path: "../../stop.flag"
   oom_retry: true
 
+# Nice mode — same three OS-level guards as night1.yaml. See there
+# for full commentary. Set to match night1 unless the operator
+# specifically wants a different nice-mode profile for the second
+# night (e.g. dedicated overnight with the box locked → set enabled:
+# false and reclaim the small wallclock overhead of the memory-cap
+# check).
+nice_mode:
+  enabled: true
+  cuda_memory_fraction: 0.75
+  lower_process_priority: true
+  alloc_conf: "max_split_size_mb:512"
+
 # Post-training-only settings — used by validate.py's final sweep at
 # end of night 2 and by export_onnx.py to bundle the deliverable.
 finalize:

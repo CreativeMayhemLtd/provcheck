@@ -25,7 +25,13 @@ data:
                                  # tune. Leave null for first pass.
   augmentation_weight: 0.0       # fraction of batches drawn from the
                                  # optional corpus; 0.0 = pure LibriSpeech
-  batch_size: 16
+  batch_size: 16                 # 16 = default. Set to 12 for a "gentler"
+                                 # nice_mode profile: ~25% less compute per
+                                 # step + more VRAM headroom for a browser
+                                 # doing 3D or a game running foreground.
+                                 # Wallclock cost across two nights: about
+                                 # +30 min. See docs/silentcipher-codec-
+                                 # robust-fine-tune.md § nice mode.
   clip_seconds: 5.0
   sample_rate: 44100
   channels: 1                    # mono; per-channel embed for stereo
@@ -78,3 +84,22 @@ safety:
                                             # stop gracefully
   oom_retry: true                          # try/except CUDA OOM -> halve
                                             # batch, log, retry
+
+# Nice mode — three OS-level guards so the training yields gracefully
+# to foreground desktop workloads. On by default. Turn off with
+# nice_mode.enabled: false if the box is dedicated (no browser, no
+# other CUDA work, no interactive use during the run).
+nice_mode:
+  enabled: true
+  # Cap CUDA memory to this fraction of total VRAM. On a 5090 (32 GB),
+  # 0.75 = 24 GB budget for training, 8 GB reserved for desktop
+  # compositor + browser + other CUDA workloads. Prevents runaway
+  # allocator behaviour under memory pressure.
+  cuda_memory_fraction: 0.75
+  # Process-priority downgrade. On Windows: BELOW_NORMAL. On Linux:
+  # os.nice() +5. Encourages the OS scheduler to yield the CPU
+  # to foreground interactive apps.
+  lower_process_priority: true
+  # Sets PYTORCH_CUDA_ALLOC_CONF at process start. Reduces
+  # fragmentation, lets other CUDA processes grab memory cleanly.
+  alloc_conf: "max_split_size_mb:512"
