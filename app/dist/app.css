@@ -104,6 +104,16 @@ body {
 .attribution a {
   color: var(--text-secondary);
   text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.attribution .link-globe {
+  flex: 0 0 auto;
+  opacity: 0.75;
+}
+.attribution a:hover .link-globe {
+  opacity: 1;
 }
 .attribution a:hover {
   color: var(--text-primary);
