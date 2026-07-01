@@ -5,6 +5,13 @@
 # the lock file pins every dep to a reproducible version. Library
 # crates omit it; binary crates commit it.
 
+# Code-signing config — repo-root signing.json holds the SSL.com
+# eSigner cred_id + base64 totp_secret (per-machine, per-CI-secret).
+# NEVER commit. See signing.json.example for the shape + docs/release-process.md § code-signing.
+/signing.json
+# Local signing audit log (default path for scripts/sign_release.ps1 fallback).
+provcheck-signing.log
+
 # Tauri build output
 /app/src-tauri/target/
 /app/node_modules/

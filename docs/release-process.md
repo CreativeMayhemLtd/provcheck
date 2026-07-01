@@ -260,6 +260,90 @@ cargo audit: 0 unhandled, N tolerated (see SECURITY.md).
 SBOMs: attached.
 ```
 
+## Code-signing (Windows binaries)
+
+All Windows binaries in a `v*.*.0` release ship Authenticode-signed
+by an SSL.com OV code-signing certificate held by Creative Mayhem UG.
+Signed binaries drop the SmartScreen "unknown publisher" warning
+(reputation ramps with download volume for OV certs; EV is a
+drop-in swap later if warnings persist).
+
+### What gets signed
+
+- `provcheck.exe` (verifier)
+- `provcheck-kit.exe` (creator kit)
+- `provcheck-app.exe` (Tauri app inner binary — see caveats)
+- `provcheck-app-<tag>-x64-setup.exe` (NSIS installer, user-facing)
+- `provcheck-app-<tag>-x64-en-US.msi` (MSI installer, user-facing)
+
+Not signed: Linux binaries (no convention), macOS binaries (a
+separate Apple Developer ID cert + notarisation flow, not covered
+here).
+
+### Local signing (dev machine)
+
+```powershell
+# Prerequisites (one-time):
+Install-Module -Name CredentialManager -Scope CurrentUser
+cmdkey /generic:SSL.com-eSigner /user:<ssl.com-username> /pass:<ssl.com-password>
+# Download CodeSignTool from https://www.ssl.com/guide/esigner-codesigntool-command-guide/
+# Unpack into C:\Tools\CodeSignTool (bundled JDK — no system Java needed)
+
+# One-time per repo checkout:
+Copy-Item signing.json.example signing.json
+# Edit signing.json — fill credential_id + totp_secret from the SSL.com
+# order page → certificate details → eSigner Cloud Signing panel.
+
+# Sign a single binary:
+pwsh -File scripts/sign_release.ps1 `
+  -ExePath target/release/provcheck.exe `
+  -ConfigPath signing.json
+```
+
+### CI signing (GitHub Actions)
+
+Wired into `.github/workflows/release.yml` on the `windows-latest`
+matrix arm. The workflow materialises a temporary signing.json from
+GitHub Secrets, signs each Windows artefact, then discards the
+config. Secrets required (repo admin sets these on the dev repo):
+
+| Secret | Meaning |
+|---|---|
+| `SSL_COM_USERNAME` | SSL.com account username (NOT the email — email returns `invalid_grant`) |
+| `SSL_COM_PASSWORD` | SSL.com account password |
+| `SSL_COM_CREDENTIAL_ID` | eSigner credential UUID from the cert order page |
+| `SSL_COM_TOTP_SECRET` | base64 `secret_code` from the eSigner QR panel (NOT a base32 authenticator seed) |
+
+When any of the four is missing, the CI signing step logs
+"secrets not configured — skipping signing" and exits 0. Matrix
+still produces artefacts, just unsigned. This is the pre-v1.0.0
+state (workflow is wired; secrets are not yet set).
+
+### The base64 gotcha (do NOT try YubiKey / ykman)
+
+eSigner's per-sign OTP is derived by CodeSignTool from SSL.com's
+base64 `secret_code`. It is **not** a base32 authenticator seed.
+Feeding it to `ykman oath accounts add` / Yubico Authenticator / any
+standard TOTP app fails with "Non-base32 digit" errors on the
+`+ / = lowercase 0 1 8` characters — the base64 alphabet has
+characters the base32 alphabet doesn't.
+
+CodeSignTool derives the OTP internally when it sees `-totp_secret`
+on the command line. `scripts/sign_release.ps1` always uses that
+path — no YubiKey code path exists in provcheck's version.
+
+### Verification
+
+Post-sign, the operator can verify locally:
+
+```powershell
+Get-AuthenticodeSignature .\provcheck.exe | Format-List *
+```
+
+Expected: `Status=Valid`, `SignerCertificate.Subject` contains
+`CN=Creative Mayhem UG (haftungsbeschränkt)`, RFC-3161 timestamp
+present (survives cert expiry).
+
 ## Reference
 
 - [`public-api-stability.md`](./public-api-stability.md) — what's in
@@ -269,3 +353,5 @@ SBOMs: attached.
 - [`sbom.md`](./sbom.md) — SBOM generation details.
 - `SECURITY.md` (workspace root) — tolerated advisories table.
 - `CONTRIBUTING.md` (workspace root) — pre-push gate + cadence rule.
+- `signing.json.example` (workspace root) — code-signing config
+  shape.

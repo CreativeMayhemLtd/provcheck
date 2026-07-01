@@ -176,6 +176,18 @@ relevant surfaces are:
   (computationally infeasible). The DLC delivery model does NOT
   introduce a new substitution surface beyond what the binary's
   integrity already covers.
+- **Windows binary integrity**: Windows artefacts in a `v*.*.0`
+  release are Authenticode-signed by an SSL.com OV code-signing
+  certificate held by Creative Mayhem UG (haftungsbeschränkt).
+  Signed binaries carry an RFC-3161 timestamp so signatures
+  remain valid past the cert's expiry. Verification via
+  `Get-AuthenticodeSignature` on the target machine; the signing
+  chain terminates at SSL.com's Code Signing Intermediate CA
+  RSA R1. Iteration tags (`vX.Y.Z`, `Z>0`) skip the release
+  matrix and therefore skip signing — do not treat an iteration-
+  tag download as a supported install. Full signing procedure
+  in [`docs/release-process.md`](docs/release-process.md) §
+  code-signing.
 
 Things we explicitly do NOT do:
 

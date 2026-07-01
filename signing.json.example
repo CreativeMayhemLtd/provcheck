@@ -1,0 +1,17 @@
+{
+  "_comment_1": "Sample signing.json — real one lives at repo root, GITIGNORED. Copy this file to signing.json and fill the placeholders. See docs/release-process.md § code-signing.",
+  "_comment_2": "Two credential-source paths: (a) local dev — leave username/password empty here, seed Credential Manager via `cmdkey /generic:SSL.com-eSigner /user:<u> /pass:<p>` and keep credential_target set; (b) CI — leave credential_target unused, materialise username/password fields inline from GitHub Secrets at the top of the workflow step.",
+  "_comment_3": "totp_secret is the base64 `secret_code` SSL.com shows under the eSigner QR panel. It is NOT a base32 authenticator seed; do not try to feed it to ykman / YubiKey / authenticator apps.",
+
+  "enabled": true,
+  "credential_target": "SSL.com-eSigner",
+  "credential_id": "REPLACE-WITH-eSIGNER-CREDENTIAL-UUID",
+  "codesigntool_dir": "C:\\Tools\\CodeSignTool",
+  "totp_secret": "REPLACE-WITH-BASE64-SECRET_CODE",
+  "verify_after_sign": false,
+  "audit_log": null,
+
+  "_comment_ci": "For CI, replace credential_target with these inline fields materialised from secrets at workflow start:",
+  "_ci_username_placeholder": "REPLACE-WITH-SSL_COM_USERNAME-SECRET",
+  "_ci_password_placeholder": "REPLACE-WITH-SSL_COM_PASSWORD-SECRET"
+}
