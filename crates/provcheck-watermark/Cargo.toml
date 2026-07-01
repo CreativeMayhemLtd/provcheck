@@ -63,7 +63,7 @@ symphonia = { version = "0.5", features = ["mp3", "aac", "flac", "isomp4", "ogg"
 # inside Python silentcipher — bit-exact match isn't possible
 # (we're not using librosa), but the detector is robust enough
 # that the small numerical drift doesn't show up in confidence.
-rubato = "0.16"
+rubato = "3.0"
 
 # Real-input FFT for the STFT front-end. Built on rustfft;
 # avoids the complex-input round-trip we don't need.
