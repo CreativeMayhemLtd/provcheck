@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-Email **chris@neitzert.com** with the subject line `provcheck security`.
+Email **security@creativemayhem.com** with the subject line `provcheck security`.
 Please do not open a public issue or pull request for a suspected
 vulnerability — give us a chance to ship a fix before it becomes a
 target.
@@ -56,6 +56,8 @@ same commit.
 | [RUSTSEC-2024-0370](https://rustsec.org/advisories/RUSTSEC-2024-0370) | `proc-macro-error` | unmaintained | transitive via `tract` | Build-time, no runtime surface. Same fix path as RUSTSEC-2024-0436. |
 | [RUSTSEC-2026-0173](https://rustsec.org/advisories/RUSTSEC-2026-0173) | `proc-macro-error2` | unmaintained | `age` → `i18n-embed-fl` → `provcheck-sign` | Build-time. The `age` crate uses `i18n-embed-fl` for localised error messages; we use age for at-rest encryption only (passphrase-protected ES256 keys), so the i18n surface is not load-bearing for us. Wait for `age` to either drop i18n-embed-fl or for i18n-embed-fl to migrate off proc-macro-error2. |
 | [RUSTSEC-2026-0186](https://rustsec.org/advisories/RUSTSEC-2026-0186) | `memmap2` 0.9.10 | unsound | `tract-onnx` → `provcheck-{watermark,audioseal,wavmark}` | Unchecked pointer offset in a `memmap2` internal helper. Reachable only via `Mmap::offset`-family calls; tract-onnx uses memmap2 for its NNEF-serialised model files, but our audio detectors compile ONNX weights in via `include_bytes!` and hand tract a `&[u8]` slice, so the raw-mmap offset-manipulation path is never exercised at runtime. No fixed memmap2 version has shipped upstream yet. Track [the advisory page](https://rustsec.org/advisories/RUSTSEC-2026-0186) for a fixed release; row drops entirely once the audio detectors follow the image decoder's v0.7 phase 7b-followup migration off tract onto ort. |
+| [RUSTSEC-2026-0194](https://rustsec.org/advisories/RUSTSEC-2026-0194) | `quick-xml` 0.39.x | high (7.5, availability) | `c2pa` → `quick-xml` | Quadratic-time duplicate-attribute checking: a crafted XMP packet whose start tag carries tens of thousands of attributes can stall the parsing thread for minutes to hours. **Reachable under untrusted input:** `verify()` calls `c2pa::Reader::from_file` (`crates/provcheck/src/verification.rs`), and c2pa parses a dropped file's embedded XMP through quick-xml before any claim validation, so the packet content is attacker-controlled. Availability-only, no integrity or confidentiality impact. **No upstream fix reachable:** even c2pa 0.89.0 (latest) and plist 1.9.0 still require `quick-xml ^0.39.x`, below the fixed 0.41.0; there is no c2pa or plist release on quick-xml 0.41 to bump to. In-product exposure is bounded: the CLI verifies one file per process (an operator interrupts a stall), and the GUI runs verify on a `spawn_blocking` thread. Downstream services that embed `provcheck::verify` over untrusted input should apply the "Verifying untrusted input in a service" guidance below until quick-xml clears upstream. |
+| [RUSTSEC-2026-0195](https://rustsec.org/advisories/RUSTSEC-2026-0195) | `quick-xml` 0.39.x | high (7.5, availability) | `c2pa` → `quick-xml` | Unbounded heap allocation from XML namespace declarations in `NsReader` (roughly 3x the tag's byte size, no cap): a crafted XMP packet can drive the process to OOM. Same entry point, same attacker-controlled XMP, same availability-only scope, and same no-upstream-fix status as RUSTSEC-2026-0194 above. quick-xml 0.41.0 adds a 256-declarations-per-element default cap (`NamespaceResolver::set_max_declarations_per_element`); we inherit the fix the moment c2pa or plist bumps to it. |
 
 ### Tauri app (`app/src-tauri/Cargo.lock`)
 
@@ -80,6 +82,18 @@ The unmaintained advisories in this group:
 - [RUSTSEC-2024-0419](https://rustsec.org/advisories/RUSTSEC-2024-0419) `gtk3-macros`
 - [RUSTSEC-2024-0420](https://rustsec.org/advisories/RUSTSEC-2024-0420) `gtk-sys`
 
+The desktop GUI inherits both quick-xml advisories
+(RUSTSEC-2026-0194 / -0195) from the workspace table above via its
+`c2pa` → `provcheck` dependency, and it additionally resolves a
+**second** vulnerable quick-xml, 0.38.4, via
+`plist` → `tauri-utils` → `tauri`. That copy parses Tauri's own
+config and macOS property lists at build and startup time, not
+user-dropped media, so it is not an untrusted-input surface. It is
+below the fixed 0.41.0 for the same reason: plist 1.9.0 (latest)
+still requires `quick-xml ^0.39.2`, so there is no plist release to
+bump to. Both copies clear when their respective upstreams
+(`c2pa`, `plist`) move to quick-xml 0.41.
+
 Plus a handful of unrelated unmaintained-only advisories carried by
 deeper transitive deps:
 
@@ -95,6 +109,35 @@ All of the above are tracked-and-waiting-on-Tauri-2.x's-gtk4-move.
 When the Tauri release that ships the gtk4 backend lands, bump the
 Tauri dep, re-run `cargo audit`, and remove rows from this section
 to match what actually cleared.
+
+## Verifying untrusted input in a service
+
+The two `quick-xml` advisories above (RUSTSEC-2026-0194 / -0195) are
+availability-only and, until quick-xml clears upstream, cannot be
+neutralised from inside the process. A library-level wall-clock
+timeout does not help: Rust cannot cancel a running thread, so a
+thread parked in the quadratic attribute scan keeps burning CPU
+after the caller gives up, and the namespace-declaration
+allocation still climbs toward OOM. There is also no input-size cap
+we can apply cheaply, because c2pa parses the XMP packet internally
+and we never see its boundary; a whole-file cap cannot distinguish a
+legitimate hour-long MP3 from a small file carrying a pathological
+XMP tag.
+
+provcheck's own surfaces are bounded by their shape: the CLI reads
+one file per process, so a stall is a single interrupted invocation,
+and the GUI runs verify on a `spawn_blocking` thread against files
+the local user chose to open. Neither is a network-facing,
+unauthenticated endpoint.
+
+If you build one — any service that calls `provcheck::verify` (or
+c2pa directly) on files supplied by untrusted callers — do the
+verification in a **short-lived child process** with a wall-clock
+timeout and a memory limit (`ulimit -v` / `setrlimit(RLIMIT_AS)` on
+Linux, a Job Object memory cap on Windows), and kill the child on
+breach. Process isolation is the only mechanism that contains both
+a runaway parse thread and its allocation while the fix waits on
+upstream. Drop this guidance once the `quick-xml` rows clear.
 
 ## Update process
 

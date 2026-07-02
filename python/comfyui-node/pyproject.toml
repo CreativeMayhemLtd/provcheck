@@ -2,7 +2,7 @@
 name = "provcheck-comfyui"
 version = "0.1.0"
 description = "ComfyUI nodes that stamp every generated image / audio output with provcheck app strings (TrustMark / silentcipher watermark + C2PA Content Credentials + atproto identity assertion)."
-authors = [{ name = "Christopher Neitzert", email = "chris@neitzert.com" }]
+authors = [{ name = "Christopher Neitzert", email = "chris@creativemayhem.com" }]
 license = "Apache-2.0"
 readme = "README.md"
 requires-python = ">=3.10"

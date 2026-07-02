@@ -5061,7 +5061,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck"
-version = "1.1.0"
+version = "1.1.11"
 dependencies = [
  "c2pa",
  "provcheck-attestation-spec",
@@ -5073,7 +5073,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-app"
-version = "1.1.0"
+version = "1.1.11"
 dependencies = [
  "keyring",
  "open",
@@ -5098,7 +5098,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-attestation-spec"
-version = "1.1.0"
+version = "1.1.11"
 dependencies = [
  "pem",
  "serde",
@@ -5108,7 +5108,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-audioseal"
-version = "1.1.0"
+version = "1.1.11"
 dependencies = [
  "hound",
  "provcheck",
@@ -5124,7 +5124,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-detect"
-version = "1.1.0"
+version = "1.1.11"
 dependencies = [
  "serde",
  "serde_json",
@@ -5133,7 +5133,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-image"
-version = "1.1.0"
+version = "1.1.11"
 dependencies = [
  "image",
  "ndarray",
@@ -5147,7 +5147,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-platform"
-version = "1.1.0"
+version = "1.1.11"
 dependencies = [
  "c2pa",
  "dirs 5.0.1",
@@ -5164,7 +5164,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-publish"
-version = "1.1.0"
+version = "1.1.11"
 dependencies = [
  "atrium-api",
  "atrium-identity",
@@ -5180,7 +5180,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-sign"
-version = "1.1.0"
+version = "1.1.11"
 dependencies = [
  "age",
  "c2pa",
@@ -5203,7 +5203,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-synthid-text"
-version = "1.1.0"
+version = "1.1.11"
 dependencies = [
  "provcheck",
  "serde",
@@ -5214,7 +5214,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-video"
-version = "1.1.0"
+version = "1.1.11"
 dependencies = [
  "provcheck",
  "provcheck-image",
@@ -5227,7 +5227,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-watermark"
-version = "1.1.0"
+version = "1.1.11"
 dependencies = [
  "hound",
  "provcheck",
@@ -5245,7 +5245,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-wavmark"
-version = "1.1.0"
+version = "1.1.11"
 dependencies = [
  "hound",
  "provcheck",
@@ -5260,7 +5260,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-weights"
-version = "1.1.0"
+version = "1.1.11"
 dependencies = [
  "dirs 5.0.1",
  "sha2",
