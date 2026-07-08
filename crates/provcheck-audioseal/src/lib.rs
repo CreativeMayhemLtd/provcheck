@@ -258,8 +258,8 @@ mod tests {
     #[test]
     fn looks_like_audio_accepts_documented_extensions() {
         for ext in [
-            "mp3", "mp4", "wav", "flac", "aac", "m4a", "m4b", "mov", "ogg",
-            "oga", "opus", "wma", "aiff", "aif",
+            "mp3", "mp4", "wav", "flac", "aac", "m4a", "m4b", "mov", "ogg", "oga", "opus", "wma",
+            "aiff", "aif",
         ] {
             let p = std::path::PathBuf::from(format!("/test/file.{ext}"));
             assert!(looks_like_audio(&p), "{ext} should look like audio");
@@ -270,10 +270,7 @@ mod tests {
     fn looks_like_audio_rejects_image_and_text_extensions() {
         for ext in ["png", "jpg", "gif", "txt", "md", "html"] {
             let p = std::path::PathBuf::from(format!("/test/file.{ext}"));
-            assert!(
-                !looks_like_audio(&p),
-                "{ext} should NOT look like audio"
-            );
+            assert!(!looks_like_audio(&p), "{ext} should NOT look like audio");
         }
     }
 

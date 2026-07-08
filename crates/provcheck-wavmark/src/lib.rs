@@ -232,8 +232,8 @@ mod tests {
     #[test]
     fn looks_like_audio_accepts_all_documented_extensions() {
         for ext in [
-            "mp3", "mp4", "wav", "flac", "aac", "m4a", "m4b", "mov", "ogg",
-            "oga", "opus", "wma", "aiff", "aif",
+            "mp3", "mp4", "wav", "flac", "aac", "m4a", "m4b", "mov", "ogg", "oga", "opus", "wma",
+            "aiff", "aif",
         ] {
             let p = std::path::PathBuf::from(format!("/test/file.{ext}"));
             assert!(looks_like_audio(&p), "{ext} should look like audio");
@@ -267,8 +267,8 @@ mod tests {
         // must be identical so the audio-modality routing layer
         // can use either as the gate without surprising drift.
         for ext in [
-            "mp3", "mp4", "wav", "flac", "aac", "m4a", "m4b", "mov", "ogg",
-            "oga", "opus", "wma", "aiff", "aif",
+            "mp3", "mp4", "wav", "flac", "aac", "m4a", "m4b", "mov", "ogg", "oga", "opus", "wma",
+            "aiff", "aif",
         ] {
             let p = std::path::PathBuf::from(format!("/test/file.{ext}"));
             // Indirectly test parity: audioseal::detect on a

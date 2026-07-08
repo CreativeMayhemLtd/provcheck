@@ -240,9 +240,9 @@ mod hex_lower_tests {
         // sha256("") = e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
         // Use that to pin a specific 32-byte sequence.
         let sha = [
-            0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14, 0x9a, 0xfb, 0xf4, 0xc8, 0x99,
-            0x6f, 0xb9, 0x24, 0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c, 0xa4, 0x95,
-            0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55,
+            0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14, 0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f,
+            0xb9, 0x24, 0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c, 0xa4, 0x95, 0x99, 0x1b,
+            0x78, 0x52, 0xb8, 0x55,
         ];
         assert_eq!(
             hex_lower(&sha),
@@ -445,8 +445,8 @@ mod identity_claim_and_constants_tests {
     fn allowed_algorithms_contains_all_documented_jws_algs() {
         // Pin every JWS alg the publisher MAY emit.
         for alg in [
-            "ES256", "ES384", "ES512", "PS256", "PS384", "PS512",
-            "RS256", "RS384", "RS512", "Ed25519",
+            "ES256", "ES384", "ES512", "PS256", "PS384", "PS512", "RS256", "RS384", "RS512",
+            "Ed25519",
         ] {
             assert!(
                 ALLOWED_ALGORITHMS.contains(&alg),
@@ -794,8 +794,8 @@ mod tests {
         assert_eq!(
             ALLOWED_ALGORITHMS,
             &[
-                "ES256", "ES384", "ES512", "PS256", "PS384", "PS512", "RS256", "RS384",
-                "RS512", "Ed25519"
+                "ES256", "ES384", "ES512", "PS256", "PS384", "PS512", "RS256", "RS384", "RS512",
+                "Ed25519"
             ]
         );
     }
@@ -833,12 +833,16 @@ mod tests {
     fn fingerprint_leaf_der_emits_canonical_format() {
         let der = [0u8; 16];
         let fp = fingerprint_leaf_der(&der);
-        assert!(fp.starts_with("sha256:"), "expected sha256: prefix, got {fp}");
+        assert!(
+            fp.starts_with("sha256:"),
+            "expected sha256: prefix, got {fp}"
+        );
         // 7 ("sha256:") + 64 (lowercase hex) = 71 chars.
         assert_eq!(fp.len(), 71);
         let hex = &fp[7..];
         assert!(
-            hex.chars().all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c)),
+            hex.chars()
+                .all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c)),
             "non-lowercase-hex char in {fp}"
         );
     }

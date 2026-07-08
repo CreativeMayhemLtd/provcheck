@@ -28,7 +28,7 @@ ureq = { version = "3", default-features = false, features = ["rustls", "json"] 
 sha2 = "0.10"
 pem = "3"
 time = { version = "0.3", features = ["parsing", "formatting", "macros"] }
-dirs = "5"
+dirs = "6"
 
 [dev-dependencies]
 # Cert chains for fingerprint round-trip tests; silent WAV synth for

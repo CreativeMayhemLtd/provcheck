@@ -60,7 +60,10 @@ mod encode_error_tests {
 
     #[test]
     fn read_message_includes_inner() {
-        let s = format!("{}", EncodeError::Read("decode failed: bad PNG header".into()));
+        let s = format!(
+            "{}",
+            EncodeError::Read("decode failed: bad PNG header".into())
+        );
         assert!(s.contains("image read"));
         assert!(s.contains("bad PNG header"));
     }
@@ -234,8 +237,13 @@ pub fn embed_with_config(
 
     // 7. Resize residual back to the ORIGINAL image dimensions via
     //    bilinear interpolation.
-    let residual_resized =
-        resize_residual_chw(&residual, imgmod::MODEL_RES, imgmod::MODEL_RES, orig_w, orig_h);
+    let residual_resized = resize_residual_chw(
+        &residual,
+        imgmod::MODEL_RES,
+        imgmod::MODEL_RES,
+        orig_w,
+        orig_h,
+    );
 
     // 8. Blend the residual into the original-sized cover. We need
     //    the cover at the original resolution in [-1, 1] CHW too.

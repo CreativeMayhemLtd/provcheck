@@ -13,7 +13,9 @@
 //! ~38–40 dB SNR (per WavMark's README) which is well within the
 //! intended quality envelope.
 
-use crate::model::{self, CHUNK_SAMPLES, FIX_PATTERN_LEN, ModelError, NUM_BITS, WAVMARK_FIX_PATTERN};
+use crate::model::{
+    self, CHUNK_SAMPLES, FIX_PATTERN_LEN, ModelError, NUM_BITS, WAVMARK_FIX_PATTERN,
+};
 use crate::registry;
 
 #[derive(Debug, thiserror::Error)]

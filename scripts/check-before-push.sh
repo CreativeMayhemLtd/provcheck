@@ -2,9 +2,10 @@
 # check-before-push.sh — pre-push regression gate for provcheck.
 #
 # Runs in this order:
-#   1. cargo test --release --workspace            (workspace-wide unit + integration)
-#   2. scripts/parity-vs-upstream.py at SDR ∈ {30, 47}  (silentcipher embed parity vs upstream Python)
-#   3. AAC delivery survival check for silentcipher + AudioSeal
+#   1. cargo fmt --check + clippy -D warnings       (CI-parity format + lint gate)
+#   2. cargo test --release --workspace            (workspace-wide unit + integration)
+#   3. scripts/parity-vs-upstream.py at SDR ∈ {30, 47}  (silentcipher embed parity vs upstream Python)
+#   4. AAC delivery survival check for silentcipher + AudioSeal
 #      (the public-issue #23 + #24 ground truth — guards both
 #       embed margin AND the symphonia AAC decoder priming fix)
 #
@@ -60,6 +61,165 @@ red()    { printf "\033[31m%s\033[0m\n" "$*" >&2; }
 green()  { printf "\033[32m%s\033[0m\n" "$*"; }
 yellow() { printf "\033[33m%s\033[0m\n" "$*"; }
 
+# ---- Release-tag gate (v1.1.0 addition; never bypassable except --no-verify) --
+#
+# Git's pre-push hook receives the ref list on stdin. When the script
+# runs under CLI (no stdin from git — a tty is attached), skip this
+# gate; it only applies to actual push operations.
+#
+# The gate REFUSES two failure modes on `refs/tags/v[0-9]+.[0-9]+.0`:
+#
+#   1. Cadence violation — another v*.*.0 tag was created within the
+#      last 24 hours. Memory rule feedback_release_cadence_budget.md
+#      (Max one v* tag per 24h) exists because tagging on consecutive
+#      days burned ~€25/week of Actions minutes across the Tauri + 10x
+#      macOS matrix. Also because it usually means the previous tag
+#      was a mistake in-flight being corrected too quickly.
+#
+#   2. Force-rewrite — the tag already exists on origin at a different
+#      SHA. Memory rule feedback_iteration_tags_for_fixes.md flatly
+#      prohibits: "Force-rewriting a vX.Y.0 tag that already fired the
+#      matrix is even worse than the double-tag." Force-rewrites cost
+#      Actions minutes twice AND invalidate downloads pointing at the
+#      earlier SHA.
+#
+# Emergency override for a genuine hotfix that must ship inside 24 h
+# of the previous release: `git push --no-verify <ref>`. Convention
+# from feedback_pre_push_regression_gate.md is that any --no-verify
+# is noted in the commit body with a reason. Every future auditor
+# will read that note; the gate cannot be silently sidestepped.
+if [[ ! -t 0 ]]; then
+    # Reading git's pre-push hook stdin.
+    NULL_SHA="0000000000000000000000000000000000000000"
+    now_epoch=$(date +%s)
+    twentyfour_hours_ago=$((now_epoch - 86400))
+    while IFS=' ' read -r local_ref local_sha remote_ref remote_sha; do
+        # Skip anything that is not a release-line tag push.
+        [[ "$local_ref" =~ ^refs/tags/v[0-9]+\.[0-9]+\.0$ ]] || continue
+        tag_name="${local_ref#refs/tags/}"
+
+        # (2) Force-rewrite check.
+        if [[ "$remote_sha" != "$NULL_SHA" ]]; then
+            red ""
+            red "==============================================================="
+            red " RELEASE GATE FAIL: force-rewriting an existing v*.*.0 tag"
+            red "==============================================================="
+            red "  tag:              $tag_name"
+            red "  origin points at: $remote_sha"
+            red "  local points at:  $local_sha"
+            red ""
+            red "  This is the failure mode that memory rule"
+            red "  'iteration-tags-for-fixes' was written to prevent."
+            red "  The tag already fired the release matrix once. Rewriting"
+            red "  it fires the matrix AGAIN and invalidates any download"
+            red "  URLs pointing at the earlier SHA."
+            red ""
+            red "  If the tag reflects a design mistake: leave it alone."
+            red "  Iterate as vX.Y.Z (Z>0) — those skip the matrix."
+            red "  The next real vX.Y.0 supersedes the mistake naturally."
+            red ""
+            red "  Emergency override (audit trail required):"
+            red "    git push --no-verify --force origin $tag_name"
+            red "==============================================================="
+            exit 1
+        fi
+
+        # (1) Cadence check. Any OTHER v*.*.0 tag created within 24h?
+        # git for-each-ref emits `<tag> <unix-epoch>` for each match.
+        # Skip the one being pushed (it exists locally but might not
+        # be the one under scrutiny in a multi-ref push).
+        recent_offender=""
+        recent_epoch=0
+        while IFS='|' read -r existing_tag existing_epoch; do
+            [[ "$existing_tag" == "$tag_name" ]] && continue
+            [[ -z "$existing_epoch" ]] && continue
+            if [[ "$existing_epoch" -gt "$twentyfour_hours_ago" ]] && \
+               [[ "$existing_epoch" -gt "$recent_epoch" ]]; then
+                recent_offender="$existing_tag"
+                recent_epoch="$existing_epoch"
+            fi
+        done < <(git for-each-ref --format='%(refname:short)|%(creatordate:unix)' 'refs/tags/v*.*.0')
+
+        if [[ -n "$recent_offender" ]]; then
+            ago_secs=$((now_epoch - recent_epoch))
+            ago_h=$((ago_secs / 3600))
+            ago_m=$(((ago_secs % 3600) / 60))
+            red ""
+            red "==============================================================="
+            red " RELEASE GATE FAIL: v*.*.0 tag cadence violation (24 h window)"
+            red "==============================================================="
+            red "  attempting to push: $tag_name"
+            red "  most recent v*.*.0: $recent_offender (${ago_h}h ${ago_m}m ago)"
+            red ""
+            red "  Memory rule 'release-cadence-budget': Max one v* tag per 24h."
+            red "  Reason: consecutive v*.*.0 tags burned ~€25/week of Actions"
+            red "  when v0.4.1+v0.4.2+v0.5.0 fired on back-to-back days. Same"
+            red "  failure mode fired 6+ times on 2026-07-01 (recovery cycle)"
+            red "  which is what got this gate wired in."
+            red ""
+            red "  If this is a fix / correction of the most recent release:"
+            red "  DO NOT tag as vX.Y.0 — use an iteration tag vX.Y.Z (Z>0)"
+            red "  which skips the release matrix per the v*.*.0 glob."
+            red ""
+            red "  If this is a genuine hotfix emergency inside 24h:"
+            red "    git push --no-verify $tag_name"
+            red "  (and note the reason in the tag's annotated message)"
+            red "==============================================================="
+            exit 1
+        fi
+
+        # (3) FC-declaration check. Every v*.*.0 push requires an
+        # explicit committed file at docs/release-fc/<tag>.md.
+        # Iteration counter Z (in vX.Y.Z) increments arbitrarily
+        # (1, 2, ..., 9, 10, ..., 99, 100, ..., 999, 1000, ...) —
+        # there is NO overflow-based promotion from vX.Y.<big> to
+        # vX.(Y+1).0. The ONLY gate is human declaration of
+        # feature-completeness on the codebase. The FC file is
+        # that declaration — writing it, committing it, and
+        # pushing it is the operator's affirmative statement.
+        # Content-agnostic here (the file's presence is what
+        # matters); write anything relevant to the release-
+        # readiness statement + link the iterations that
+        # constitute the FC scope.
+        fc_marker="docs/release-fc/${tag_name}.md"
+        if ! git ls-tree -r --name-only HEAD | grep -qxF "$fc_marker"; then
+            red ""
+            red "==============================================================="
+            red " RELEASE GATE FAIL: no FC-declaration for $tag_name"
+            red "==============================================================="
+            red "  tag:      $tag_name"
+            red "  required: $fc_marker (must be committed on the branch)"
+            red ""
+            red "  Iteration tags (vX.Y.Z, Z>0) have NO cap and no automatic"
+            red "  promotion. Do NOT go from v1.0.9 to v1.1.0 on the reasoning"
+            red "  that the patch position 'rolled over'. Iteration counter"
+            red "  climbs arbitrarily: 1, 2, ..., 9, 10, ..., 99, 100, ...,"
+            red "  999, 1000, ..., 10^65 if that is what the pace of iteration"
+            red "  demands."
+            red ""
+            red "  The ONLY gate that promotes vX.Y.Z to vX.(Y+1).0 is a"
+            red "  human declaration of feature-completeness on the codebase."
+            red "  The gate below encodes that declaration as a git-tracked"
+            red "  file the operator must write + commit before the release-"
+            red "  line tag can push."
+            red ""
+            red "  To declare FC for $tag_name:"
+            red "    1. mkdir -p docs/release-fc"
+            red "    2. \$EDITOR $fc_marker"
+            red "       (write the release-readiness statement — link the"
+            red "        iterations that constitute FC, note any deferrals"
+            red "        for the next release-line)"
+            red "    3. git add $fc_marker"
+            red "    4. git commit -m 'FC: $tag_name'"
+            red "    5. git tag -a $tag_name -m 'v${tag_name#v} (FC)'"
+            red "    6. git push origin main $tag_name"
+            red "==============================================================="
+            exit 1
+        fi
+    done
+    green "release-tag gate: ok"
+fi
+
 # ---- 0. Pre-install detector weights -----------------------------
 #
 # v0.7 phase 8a: weights are downloaded on user demand, not bundled.
@@ -81,8 +241,36 @@ else
 fi
 green "  OK"
 
-# ---- 1. Workspace cargo test --------------------------------------
-yellow "[1/3] cargo test --release --workspace"
+# ---- 1. Format + lint gate (2026-07: CI parity) -------------------
+# CI's "fmt + clippy" and "test" jobs enforce `cargo fmt --check` and
+# RUSTFLAGS=-D warnings. Because every commit on main carries
+# [skip ci], CI never runs on our own pushes, so this gate is the
+# ONLY thing catching format drift or a compiler warning before it
+# reaches the Dependabot PRs, the sole surface where CI actually
+# fires. Root cause of the 2026-07 red-main incident: drift and a
+# doc-lint warning accumulated invisibly across the v1.1.x iteration
+# series because the gate tested without -D warnings and never ran
+# fmt --check.
+yellow "[1/4] cargo fmt --check + clippy -D warnings"
+if ! cargo fmt --check; then
+    red "  FAIL: formatting drift. Run 'cargo fmt' and re-stage."
+    exit 1
+fi
+# Mirror CI's exact invocation: RUSTFLAGS denies rustc warnings AND
+# `-- -D warnings` denies clippy's own lints. The two are NOT the
+# same; using only RUSTFLAGS lets a clippy lint (e.g.
+# unnecessary_min_or_max) through locally while CI rejects it. Keep
+# the local stable toolchain current (rustup update) or a lint that
+# only exists in a newer clippy will pass here and fail in CI.
+if ! RUSTFLAGS="-D warnings" CARGO_TARGET_DIR=./target-gate \
+        cargo clippy --workspace --all-targets --jobs 8 -- -D warnings 2>&1 | tail -20; then
+    red "  FAIL: clippy / -D warnings. Fix the reported lints."
+    exit 1
+fi
+green "  OK"
+
+# ---- 2. Workspace cargo test --------------------------------------
+yellow "[2/4] cargo test --release --workspace"
 # Use a separate target dir so the test build's intermediate link
 # step does not collide with a long-running process holding
 # `target/release/*.exe` open on Windows. Same root cause as step 2's
@@ -96,9 +284,9 @@ green "  OK"
 
 # ---- 2. Parity sweep vs upstream Python silentcipher --------------
 if [[ "$SKIP_PARITY" == "1" ]]; then
-    yellow "[2/3] parity sweep SKIPPED (--skip-parity)"
+    yellow "[3/4] parity sweep SKIPPED (--skip-parity)"
 else
-    yellow "[2/3] parity sweep vs upstream Python (SDR 30 + 47)"
+    yellow "[3/4] parity sweep vs upstream Python (SDR 30 + 47)"
 
     # Skip silentcipher weights cleanly if they are not in HF cache.
     if ! python -c "from pathlib import Path; p = Path.home() / '.cache/huggingface/hub/models--sony--silentcipher'; import sys; sys.exit(0 if any(p.rglob('44_1_khz/73999_iteration/hparams.yaml')) else 1)" 2>/dev/null; then
@@ -147,7 +335,7 @@ else
 fi
 
 # ---- 3. AAC delivery survival (issues #23 + #24) ------------------
-yellow "[3/3] AAC delivery survival smoke (issues #23 + #24)"
+yellow "[4/4] AAC delivery survival smoke (issues #23 + #24)"
 if ! command -v ffmpeg >/dev/null; then
     yellow "  ffmpeg not on PATH — skipping codec survival smoke"
     yellow "  (this gate cannot run; add ffmpeg if you want it enforced)"

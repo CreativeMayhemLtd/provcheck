@@ -139,7 +139,8 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
                 brand: None,
                 message: Some(
                     "input is not valid UTF-8 — SynthID-text only operates \
-                     on text encodings the tokenizer can understand".into(),
+                     on text encodings the tokenizer can understand"
+                        .into(),
                 ),
                 marked_regions: None,
             });
@@ -221,9 +222,25 @@ fn looks_like_text(path: &Path, meta: &std::fs::Metadata) -> bool {
     if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
         if matches!(
             ext.to_ascii_lowercase().as_str(),
-            "txt" | "md" | "rst" | "text" | "html" | "htm" | "xml"
-                | "json" | "csv" | "tsv" | "log" | "yml" | "yaml"
-                | "toml" | "ini" | "cfg" | "conf" | "srt" | "vtt"
+            "txt"
+                | "md"
+                | "rst"
+                | "text"
+                | "html"
+                | "htm"
+                | "xml"
+                | "json"
+                | "csv"
+                | "tsv"
+                | "log"
+                | "yml"
+                | "yaml"
+                | "toml"
+                | "ini"
+                | "cfg"
+                | "conf"
+                | "srt"
+                | "vtt"
         ) {
             return true;
         }
@@ -407,7 +424,11 @@ mod tests {
         for x in [0.1, 0.5, 1.0, 2.0, 3.0] {
             let pos = erf(x);
             let neg = erf(-x);
-            assert!((pos + neg).abs() < 1e-6, "erf({x}) + erf(-{x}) = {}", pos + neg);
+            assert!(
+                (pos + neg).abs() < 1e-6,
+                "erf({x}) + erf(-{x}) = {}",
+                pos + neg
+            );
         }
     }
 
@@ -541,18 +562,52 @@ mod tests {
         // tokens that maximise g-value from a small vocabulary.
         // This mimics what tournament sampling would produce.
         let vocab: Vec<&str> = vec![
-            "the", "quick", "brown", "fox", "jumps", "over", "lazy", "dog",
-            "and", "proceeds", "wrote", "philosophy", "across", "machines",
-            "language", "context", "meaning", "narrative", "structure",
-            "discourse", "interpretation", "subtlety", "implication",
-            "argument", "hypothesis", "observation", "consequence",
-            "framework", "perspective", "analysis", "synthesis",
-            "abstraction", "reflection", "consideration", "examination",
-            "exploration", "investigation", "speculation", "deliberation",
+            "the",
+            "quick",
+            "brown",
+            "fox",
+            "jumps",
+            "over",
+            "lazy",
+            "dog",
+            "and",
+            "proceeds",
+            "wrote",
+            "philosophy",
+            "across",
+            "machines",
+            "language",
+            "context",
+            "meaning",
+            "narrative",
+            "structure",
+            "discourse",
+            "interpretation",
+            "subtlety",
+            "implication",
+            "argument",
+            "hypothesis",
+            "observation",
+            "consequence",
+            "framework",
+            "perspective",
+            "analysis",
+            "synthesis",
+            "abstraction",
+            "reflection",
+            "consideration",
+            "examination",
+            "exploration",
+            "investigation",
+            "speculation",
+            "deliberation",
             "contemplation",
         ];
         let mut tokens: Vec<String> = vec![
-            "in".into(), "the".into(), "beginning".into(), "there".into(),
+            "in".into(),
+            "the".into(),
+            "beginning".into(),
+            "there".into(),
         ];
         for _ in 0..200 {
             let ctx = &tokens[tokens.len().saturating_sub(CONTEXT_WINDOW)..];

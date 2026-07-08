@@ -69,8 +69,7 @@ fn public_api_stability_links_to_siblings() {
 
 #[test]
 fn semver_policy_links_to_siblings() {
-    let body =
-        std::fs::read_to_string(doc("semver-policy.md")).expect("read semver-policy.md");
+    let body = std::fs::read_to_string(doc("semver-policy.md")).expect("read semver-policy.md");
     assert!(
         body.contains("public-api-stability.md"),
         "semver-policy.md must link to public-api-stability.md"
@@ -83,8 +82,7 @@ fn semver_policy_links_to_siblings() {
 
 #[test]
 fn release_process_links_to_siblings() {
-    let body = std::fs::read_to_string(doc("release-process.md"))
-        .expect("read release-process.md");
+    let body = std::fs::read_to_string(doc("release-process.md")).expect("read release-process.md");
     assert!(
         body.contains("public-api-stability.md"),
         "release-process.md must link to public-api-stability.md"
@@ -100,8 +98,7 @@ fn release_process_names_the_release_matrix_glob() {
     // Pin that the doc references the actual release-yml glob,
     // not a stale wildcard. A future change to release.yml that
     // shifts the gate should be paired with a doc update.
-    let body = std::fs::read_to_string(doc("release-process.md"))
-        .expect("read release-process.md");
+    let body = std::fs::read_to_string(doc("release-process.md")).expect("read release-process.md");
     assert!(
         body.contains("v*.*.0"),
         "release-process.md must reference the v*.*.0 release-matrix glob"
@@ -113,8 +110,7 @@ fn semver_policy_documents_msrv_bump_rule() {
     // The MSRV bump rule has a concrete numeric guarantee ("at
     // least 12 weeks old"). Pin that the doc carries it; without
     // a concrete threshold the rule is meaningless.
-    let body =
-        std::fs::read_to_string(doc("semver-policy.md")).expect("read semver-policy.md");
+    let body = std::fs::read_to_string(doc("semver-policy.md")).expect("read semver-policy.md");
     assert!(
         body.contains("12 weeks") || body.contains("two stable Rust"),
         "semver-policy.md must document the MSRV bump time window"

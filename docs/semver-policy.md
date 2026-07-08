@@ -24,6 +24,30 @@ Standard semver: `MAJOR.MINOR.PATCH`.
   don't touch the stable surface, dependency updates that don't
   bubble up to public types.
 
+### Iteration counter (`Z`) has no cap; no automatic promotion
+
+The `Z` in `vX.Y.Z` (the iteration / patch counter) increments
+without bound. Direction from Chris, 2026-07-01: iteration goes
+`1, 2, 3, ..., 9, 10, 11, ..., 99, 100, ..., 999, 1000, ...`.
+There is **no** rollover, no overflow-based promotion, no
+"patch is full, bump minor" rule. If the iteration cadence
+demands 10⁶⁵ dev builds before the next release-line tag, that
+is the correct number to reach.
+
+The **only** gate that promotes `vX.Y.Z` → `vX.(Y+1).0` is a
+human declaration of feature-completeness on the codebase.
+Feature-completeness is a human judgment against the roadmap
+and the actual status of the moment; it is not a function of
+patch number, calendar, or fix count. The assistant does not
+make this call.
+
+The gate is enforced by `scripts/check-before-push.sh` (the
+pre-push hook), which refuses any `v*.*.0` push that does not
+have a committed FC-declaration file at
+`docs/release-fc/<tag>.md`. See
+[`release-process.md`](./release-process.md) § FC declaration
+for the file's shape and the pre-flight checklist.
+
 ## Workspace-wide versioning
 
 All workspace crates share a `version` field inherited from the

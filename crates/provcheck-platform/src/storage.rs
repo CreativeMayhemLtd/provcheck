@@ -150,7 +150,10 @@ mod cache_envelope_tests {
     fn cache_write_then_read_round_trips() {
         let dir = tempfile::TempDir::new().unwrap();
         let cfg = cfg_with_cache(dir.path().to_path_buf());
-        let v = TestValue { s: "hi".into(), n: 42 };
+        let v = TestValue {
+            s: "hi".into(),
+            n: 42,
+        };
         cache_write(&cfg, "ns", "key1", &v);
         let back: Option<TestValue> = cache_read(&cfg, "ns", "key1");
         assert_eq!(back, Some(v));
@@ -178,7 +181,10 @@ mod cache_envelope_tests {
         let old = now_secs().saturating_sub(CACHE_TTL.as_secs() * 2);
         let envelope = CacheEnvelope {
             fetched_at: old,
-            data: TestValue { s: "old".into(), n: 1 },
+            data: TestValue {
+                s: "old".into(),
+                n: 1,
+            },
         };
         std::fs::write(&path, serde_json::to_vec(&envelope).unwrap()).unwrap();
         let r: Option<TestValue> = cache_read(&cfg, "ns", "stale");
@@ -193,11 +199,20 @@ mod cache_envelope_tests {
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         let envelope = CacheEnvelope {
             fetched_at: now_secs(),
-            data: TestValue { s: "new".into(), n: 9 },
+            data: TestValue {
+                s: "new".into(),
+                n: 9,
+            },
         };
         std::fs::write(&path, serde_json::to_vec(&envelope).unwrap()).unwrap();
         let r: Option<TestValue> = cache_read(&cfg, "ns", "fresh");
-        assert_eq!(r, Some(TestValue { s: "new".into(), n: 9 }));
+        assert_eq!(
+            r,
+            Some(TestValue {
+                s: "new".into(),
+                n: 9
+            })
+        );
     }
 
     #[test]
@@ -222,7 +237,10 @@ mod cache_envelope_tests {
     fn cache_write_creates_namespace_subdir() {
         let dir = tempfile::TempDir::new().unwrap();
         let cfg = cfg_with_cache(dir.path().to_path_buf());
-        let v = TestValue { s: "x".into(), n: 0 };
+        let v = TestValue {
+            s: "x".into(),
+            n: 0,
+        };
         cache_write(&cfg, "fresh-ns", "k", &v);
         let p = cache_path(&cfg, "fresh-ns", "k").expect("cache path");
         assert!(p.is_file(), "cache_write must create the namespace dir");

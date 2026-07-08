@@ -206,7 +206,9 @@ pub fn encode(data: &[u8]) -> Vec<u8> {
 /// `Err` if more errors are present than the code can fix.
 pub fn decode(received: &[u8]) -> Result<(Vec<u8>, usize), DecodeError> {
     if received.len() != N {
-        return Err(DecodeError::WrongLength { got: received.len() });
+        return Err(DecodeError::WrongLength {
+            got: received.len(),
+        });
     }
 
     // Syndromes S_1..S_{2t}: S_i = R(α^i) over GF(2^m) where R(x)

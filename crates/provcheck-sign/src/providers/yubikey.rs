@@ -48,9 +48,7 @@ use yubikey::{
     piv::{AlgorithmId, SlotId},
 };
 
-use super::{
-    KeyProvider, NewPassphrasePrompt, PassphraseResult, ProviderError, UnlockPrompt,
-};
+use super::{KeyProvider, NewPassphrasePrompt, PassphraseResult, ProviderError, UnlockPrompt};
 use crate::cert::{ExternalKeypairChain, SubjectInfo, issue_ee_cert_with_external_pubkey};
 use crate::types::{KeyProviderKind, LockedIdentity};
 
@@ -140,17 +138,15 @@ pub fn create_on_device(
     subject: &SubjectInfo,
 ) -> Result<CreatedOnDevice, ProviderError> {
     let mut yk = YubiKey::open_by_serial(yubikey::Serial::from(serial))
-        .map_err(|e| ProviderError::HardwareToken(format!(
-            "open Yubikey serial {serial}: {e}"
-        )))?;
+        .map_err(|e| ProviderError::HardwareToken(format!("open Yubikey serial {serial}: {e}")))?;
 
     // Verify PIN first — if it's wrong we bail before consuming
     // the management-key auth slot or generating anything.
     yk.verify_pin(pin.expose_secret().as_bytes())
         .map_err(|e| match e {
-            yubikey::Error::WrongPin { tries } => ProviderError::HardwareToken(format!(
-                "wrong PIN; {tries} retries remaining"
-            )),
+            yubikey::Error::WrongPin { tries } => {
+                ProviderError::HardwareToken(format!("wrong PIN; {tries} retries remaining"))
+            }
             other => ProviderError::HardwareToken(format!("verify_pin: {other}")),
         })?;
 
@@ -179,9 +175,8 @@ pub fn create_on_device(
     )
     .map_err(|e| ProviderError::HardwareToken(format!("piv::generate slot 9c: {e}")))?;
 
-    let spki_der = x509_cert::der::Encode::to_der(&spki).map_err(|e| {
-        ProviderError::HardwareToken(format!("encode SPKI to DER: {e}"))
-    })?;
+    let spki_der = x509_cert::der::Encode::to_der(&spki)
+        .map_err(|e| ProviderError::HardwareToken(format!("encode SPKI to DER: {e}")))?;
 
     let chain = issue_ee_cert_with_external_pubkey(subject, &spki_der).map_err(|e| {
         ProviderError::SignerSetup(format!("issue leaf cert with Yubikey pubkey: {e}"))
@@ -193,19 +188,14 @@ pub fn create_on_device(
     if let Err(e) = write_leaf_cert_to_slot(&mut yk, &chain) {
         // Non-fatal: identity still works because chain_pem on
         // disk is what c2pa reads. Log and continue.
-        eprintln!(
-            "warning: couldn't write leaf cert into slot 9c (kit identity still works): {e}"
-        );
+        eprintln!("warning: couldn't write leaf cert into slot 9c (kit identity still works): {e}");
     }
 
     Ok(CreatedOnDevice {
         chain_pem: chain.chain_pem,
         fingerprint: chain.fingerprint,
         algorithm: chain.algorithm,
-        key_provider: KeyProviderKind::Yubikey {
-            serial,
-            slot: 0x9c,
-        },
+        key_provider: KeyProviderKind::Yubikey { serial, slot: 0x9c },
     })
 }
 
@@ -429,8 +419,8 @@ impl YubikeySigner {
         // ES256 wants the raw P1363 concatenation `r || s` padded to
         // 32 bytes each = 64 bytes total. Use p256 for the parse +
         // re-encode since it already knows both shapes.
-        let parsed = p256::ecdsa::Signature::from_der(&der_sig)
-            .map_err(|e| format!("DER decode: {e}"))?;
+        let parsed =
+            p256::ecdsa::Signature::from_der(&der_sig).map_err(|e| format!("DER decode: {e}"))?;
         Ok(parsed.to_bytes().to_vec())
     }
 }
@@ -534,9 +524,8 @@ mod tests {
     fn fetch_refuses_extractable_path() {
         let p = YubikeyProvider::new(42, 0x9c);
         let tmp = tempfile::tempdir().expect("tempdir");
-        let mut prompt = |_: UnlockPrompt| -> PassphraseResult {
-            Ok(SecretString::from(String::new()))
-        };
+        let mut prompt =
+            |_: UnlockPrompt| -> PassphraseResult { Ok(SecretString::from(String::new())) };
         let err = match p.fetch(tmp.path(), "sha256:abc", &mut prompt) {
             Ok(_) => panic!("expected refusal"),
             Err(e) => e,

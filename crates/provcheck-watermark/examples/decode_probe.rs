@@ -44,7 +44,9 @@ fn dump_metadata(path: &Path) {
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
     if args.is_empty() {
-        eprintln!("usage: cargo run --release -p provcheck-watermark --example decode_probe -- <file> [<file> ...]");
+        eprintln!(
+            "usage: cargo run --release -p provcheck-watermark --example decode_probe -- <file> [<file> ...]"
+        );
         std::process::exit(2);
     }
 
@@ -56,7 +58,8 @@ fn main() {
             Ok(samples) => {
                 let n = samples.len();
                 let dur = n as f32 / 44_100.0;
-                let head: Vec<String> = samples.iter().take(4).map(|s| format!("{s:+.6}")).collect();
+                let head: Vec<String> =
+                    samples.iter().take(4).map(|s| format!("{s:+.6}")).collect();
                 let tail: Vec<String> = samples
                     .iter()
                     .rev()

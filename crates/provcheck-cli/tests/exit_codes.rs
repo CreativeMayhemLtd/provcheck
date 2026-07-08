@@ -83,10 +83,7 @@ fn unreadable_trust_store_path_exits_2() {
 #[test]
 fn missing_input_file_exits_2() {
     let (code, _, _) = run(&["/does/not/exist/file_abcxyz.mp3"]);
-    assert_eq!(
-        code, 2,
-        "missing input file is an I/O failure → exit 2"
-    );
+    assert_eq!(code, 2, "missing input file is an I/O failure → exit 2");
 }
 
 // ----- help + version stay non-error ----------
@@ -95,7 +92,10 @@ fn missing_input_file_exits_2() {
 fn help_exits_0() {
     let (code, stdout, _) = run(&["--help"]);
     assert_eq!(code, 0);
-    assert!(stdout.contains("provcheck"), "help text must mention the binary");
+    assert!(
+        stdout.contains("provcheck"),
+        "help text must mention the binary"
+    );
 }
 
 #[test]
@@ -103,10 +103,17 @@ fn version_exits_0() {
     let (code, stdout, _) = run(&["--version"]);
     assert_eq!(code, 0);
     assert!(stdout.contains("provcheck"));
-    // The version string includes the workspace version.
+    // The version string includes the workspace version. Assert
+    // the workspace version reported by env!() at compile time
+    // shows up verbatim — the assertion tracks the workspace
+    // version bump without needing a per-release patch (which
+    // was the failure mode that broke v1.1.0's push: the
+    // hardcoded "0.9." check bit the workspace 0.9.88 → 1.1.0
+    // bump).
+    let expected = env!("CARGO_PKG_VERSION");
     assert!(
-        stdout.contains("0.9.4") || stdout.contains("0.9."),
-        "expected 0.9.x in version string, got {stdout}"
+        stdout.contains(expected),
+        "expected {expected} in version string, got {stdout}"
     );
 }
 
@@ -125,11 +132,7 @@ fn missing_file_in_json_mode_still_exits_2() {
 #[test]
 fn require_watermark_with_no_watermark_exits_2() {
     // clap's conflicts_with attribute catches this at parse time.
-    let (code, _, stderr) = run(&[
-        "--require-watermark",
-        "--no-watermark",
-        "/any/file.mp3",
-    ]);
+    let (code, _, stderr) = run(&["--require-watermark", "--no-watermark", "/any/file.mp3"]);
     assert_eq!(code, 2);
     assert!(
         stderr.contains("cannot be used")
@@ -237,11 +240,7 @@ fn detect_ai_with_unknown_value_exits_2() {
 fn detect_ai_with_missing_file_exits_2() {
     // Same file-not-found path as the other flags. Pin that
     // adding --detect doesn't change the exit-code routing.
-    let (code, _, _) = run(&[
-        "--detect",
-        "ai",
-        "/does/not/exist/file_detect.mp3",
-    ]);
+    let (code, _, _) = run(&["--detect", "ai", "/does/not/exist/file_detect.mp3"]);
     assert_eq!(code, 2, "missing file with --detect ai still exits 2");
 }
 

@@ -168,7 +168,10 @@ mod manifest_invariants {
 
     #[test]
     fn manifest_is_non_empty() {
-        assert!(!MANIFEST.is_empty(), "manifest must list at least one weight");
+        assert!(
+            !MANIFEST.is_empty(),
+            "manifest must list at least one weight"
+        );
     }
 
     #[test]
@@ -214,11 +217,9 @@ mod manifest_invariants {
         // catch it before it ships.
         for e in MANIFEST {
             assert_ne!(
-                e.sha256,
-                [0u8; 32],
+                e.sha256, [0u8; 32],
                 "weight {}/{} has placeholder all-zero SHA256",
-                e.family,
-                e.variant
+                e.family, e.variant
             );
         }
     }
@@ -245,9 +246,7 @@ mod manifest_invariants {
             .iter()
             .filter_map(|e| {
                 let prefix = "https://github.com/CreativeMayhemLtd/provcheck/releases/download/";
-                e.url
-                    .strip_prefix(prefix)
-                    .and_then(|s| s.split('/').next())
+                e.url.strip_prefix(prefix).and_then(|s| s.split('/').next())
             })
             .collect();
         assert_eq!(

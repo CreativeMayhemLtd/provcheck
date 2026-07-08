@@ -152,8 +152,16 @@ pub fn run_hinet_forward(
         .next()
         .ok_or_else(|| ModelError::Inference("encoder: missing message output".into()))?;
 
-    check_shape("encoder.signal_marked_fft", &sig_out, [1, 2, t_frames, freq_bins])?;
-    check_shape("encoder.msg_remain_fft", &msg_out, [1, 2, t_frames, freq_bins])?;
+    check_shape(
+        "encoder.signal_marked_fft",
+        &sig_out,
+        [1, 2, t_frames, freq_bins],
+    )?;
+    check_shape(
+        "encoder.msg_remain_fft",
+        &msg_out,
+        [1, 2, t_frames, freq_bins],
+    )?;
 
     let sig_view = sig_out
         .to_array_view::<f32>()
@@ -204,7 +212,11 @@ pub fn run_hinet_reverse(
         .ok_or_else(|| ModelError::Inference("decoder: missing watermark output".into()))?;
 
     check_shape("decoder.signal_out", &sig_out, [1, 2, t_frames, freq_bins])?;
-    check_shape("decoder.watermark_out", &msg_out, [1, 2, t_frames, freq_bins])?;
+    check_shape(
+        "decoder.watermark_out",
+        &msg_out,
+        [1, 2, t_frames, freq_bins],
+    )?;
 
     let sig_view = sig_out
         .to_array_view::<f32>()
@@ -302,8 +314,7 @@ fn decoder_model() -> Result<&'static Runnable, ModelError> {
 fn build_runnable_from_weights(variant: &str) -> Result<Runnable, String> {
     let path = provcheck_weights::load_if_cached("wavmark", variant)
         .map_err(|e| format!("weights: {e}"))?;
-    let file = std::fs::File::open(&path)
-        .map_err(|e| format!("open {}: {e}", path.display()))?;
+    let file = std::fs::File::open(&path).map_err(|e| format!("open {}: {e}", path.display()))?;
     let mut reader = std::io::BufReader::new(file);
     let model = tract_onnx::onnx()
         .model_for_read(&mut reader)
@@ -316,7 +327,11 @@ fn build_runnable_from_weights(variant: &str) -> Result<Runnable, String> {
 fn fc_weights() -> &'static [f32] {
     static W: OnceLock<Vec<f32>> = OnceLock::new();
     W.get_or_init(|| {
-        load_f32_blob_from_weights("fc-weights", CHUNK_SAMPLES * NUM_BITS, "watermark_fc.weights")
+        load_f32_blob_from_weights(
+            "fc-weights",
+            CHUNK_SAMPLES * NUM_BITS,
+            "watermark_fc.weights",
+        )
     })
 }
 
@@ -339,8 +354,8 @@ fn fc_back_weights() -> &'static [f32] {
 fn load_f32_blob_from_weights(variant: &str, expected_elems: usize, label: &str) -> Vec<f32> {
     let path = provcheck_weights::load_if_cached("wavmark", variant)
         .unwrap_or_else(|e| panic!("{label}: weights load: {e}"));
-    let bytes = std::fs::read(&path)
-        .unwrap_or_else(|e| panic!("{label}: read {}: {e}", path.display()));
+    let bytes =
+        std::fs::read(&path).unwrap_or_else(|e| panic!("{label}: read {}: {e}", path.display()));
     load_f32_blob(&bytes, expected_elems, label)
 }
 
@@ -402,11 +417,9 @@ pub fn decode_chunk(signal: &[f32]) -> Result<[f32; NUM_BITS], ModelError> {
     let signal_fft = crate::stft::stft(signal, &cfg);
     let signal_fft_p = permute_freq_time_to_channel_time_freq(&signal_fft, t_frames, freq_bins);
 
-    let (_, message_fft_p) =
-        run_hinet_reverse(&signal_fft_p, &signal_fft_p, t_frames, freq_bins)?;
+    let (_, message_fft_p) = run_hinet_reverse(&signal_fft_p, &signal_fft_p, t_frames, freq_bins)?;
 
-    let message_fft =
-        permute_channel_time_freq_to_freq_time(&message_fft_p, t_frames, freq_bins);
+    let message_fft = permute_channel_time_freq_to_freq_time(&message_fft_p, t_frames, freq_bins);
     let message_expand = crate::stft::istft(&message_fft, CHUNK_SAMPLES, &cfg);
 
     let mut bits = apply_watermark_fc_back(&message_expand);

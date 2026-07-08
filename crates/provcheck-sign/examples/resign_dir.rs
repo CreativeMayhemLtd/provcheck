@@ -27,7 +27,7 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use provcheck_sign::cert::{generate as generate_keypair, SubjectInfo};
+use provcheck_sign::cert::{SubjectInfo, generate as generate_keypair};
 use provcheck_sign::sign::{parse_algorithm, sign_asset_with_signer};
 
 #[derive(Debug)]
@@ -244,7 +244,9 @@ fn main() {
             (kp.key_pem, kp.chain_pem, kp.algorithm)
         }
         _ => {
-            eprintln!("error: --key and --cert must be specified together (or both omitted to mint)");
+            eprintln!(
+                "error: --key and --cert must be specified together (or both omitted to mint)"
+            );
             std::process::exit(2);
         }
     };
@@ -256,18 +258,14 @@ fn main() {
         }
     };
 
-    let signer = match c2pa::create_signer::from_keys(
-        cert_pem.as_bytes(),
-        key_pem.as_bytes(),
-        alg,
-        None,
-    ) {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("create_signer: {e}");
-            std::process::exit(2);
-        }
-    };
+    let signer =
+        match c2pa::create_signer::from_keys(cert_pem.as_bytes(), key_pem.as_bytes(), alg, None) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("create_signer: {e}");
+                std::process::exit(2);
+            }
+        };
 
     let mut entries: Vec<PathBuf> = match fs::read_dir(&args.dir) {
         Ok(it) => it
@@ -338,7 +336,10 @@ fn main() {
             }
             Err(e) => {
                 let _ = fs::remove_file(&tmp);
-                eprintln!("  {}: sign failed: {e}", src.file_name().unwrap().to_string_lossy());
+                eprintln!(
+                    "  {}: sign failed: {e}",
+                    src.file_name().unwrap().to_string_lossy()
+                );
                 fail_count += 1;
             }
         }

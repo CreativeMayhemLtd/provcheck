@@ -35,8 +35,8 @@ use tract_onnx::prelude::*;
 use crate::hparams::{FREQ_BINS, MESSAGE_DIM, MESSAGE_LEN, N_FFT, VCTK_AVG_ENERGY, WIN};
 use crate::model::CHUNK_T_FRAMES;
 use crate::stft::{
-    IstftStreamer, Spectrum, compute_n_frames, forward_stft_chunk,
-    spectrum_to_waveform, streaming_utterance_norm, waveform_to_spectrum,
+    IstftStreamer, Spectrum, compute_n_frames, forward_stft_chunk, spectrum_to_waveform,
+    streaming_utterance_norm, waveform_to_spectrum,
 };
 
 // v0.7 phase 8a: silentcipher encoder ONNX migrated from
@@ -101,7 +101,9 @@ pub enum EncodeError {
     /// stereo embed entry point. Distinct from `Inference` so
     /// callers can tell user-input bugs apart from model-internal
     /// failures. Added in the v0.9.0 audit pass.
-    #[error("stereo embed: left ({left} samples) and right ({right} samples) have different lengths")]
+    #[error(
+        "stereo embed: left ({left} samples) and right ({right} samples) have different lengths"
+    )]
     StereoLengthMismatch { left: usize, right: usize },
 }
 
@@ -246,10 +248,8 @@ pub fn embed_with_config(
             .map(|&(t_start, chunk_t)| {
                 let carrier_chunk =
                     extract_carrier_chunk(&spec.magnitude, n_frames, t_start, chunk_t);
-                let msg_chunk =
-                    transform_message_chunk(&msg_enc_5, n_frames, t_start, chunk_t);
-                let info_raw =
-                    run_encoder_chunk(model, &carrier_chunk, &msg_chunk, sdr, chunk_t)?;
+                let msg_chunk = transform_message_chunk(&msg_enc_5, n_frames, t_start, chunk_t);
+                let info_raw = run_encoder_chunk(model, &carrier_chunk, &msg_chunk, sdr, chunk_t)?;
 
                 let mut chunk_reconst = vec![0.0_f32; FREQ_BINS * chunk_t];
                 for bin in 0..FREQ_BINS {
@@ -489,7 +489,6 @@ mod embed_and_verify_tests {
         let r = embed_and_verify(&[], [0u8; 5], None);
         assert!(matches!(r, Err(EncodeError::TooShort)));
     }
-
 }
 
 /// Build the message tensor that the encoder ONNX expects.
@@ -573,8 +572,8 @@ fn transform_message_chunk(
 
     // Decode the embedded weight + bias. PyTorch stores `Linear` weight
     // as `(out, in)` row-major: `weight[k, d] = bytes[(k * MESSAGE_DIM + d) * 4..]`.
-    let weight: &[f32] = bytemuck_cast_f32(TRANSFORM_MESSAGE_WEIGHTS);
-    let bias: &[f32] = bytemuck_cast_f32(TRANSFORM_MESSAGE_BIAS);
+    let weight = bytes_to_f32_le(TRANSFORM_MESSAGE_WEIGHTS);
+    let bias = bytes_to_f32_le(TRANSFORM_MESSAGE_BIAS);
     debug_assert_eq!(weight.len(), MESSAGE_BAND_SIZE * MESSAGE_DIM);
     debug_assert_eq!(bias.len(), MESSAGE_BAND_SIZE);
 
@@ -596,25 +595,27 @@ fn transform_message_chunk(
     padded
 }
 
-/// Reinterpret a byte slice as an f32 slice without copying. Used to
-/// access the embedded weight/bias blobs as native arrays.
-fn bytemuck_cast_f32(bytes: &[u8]) -> &[f32] {
+/// Parse a little-endian f32 blob (produced by `numpy.ndarray.tobytes()`
+/// on a contiguous float32 array) into an owned `Vec<f32>`.
+///
+/// The blobs ship via `include_bytes!`, which yields a byte array with
+/// alignment 1. A zero-copy `&[u8]` -> `&[f32]` reinterpret is therefore
+/// undefined behaviour whenever the blob does not land on a 4-byte
+/// boundary: it only appears to work on targets that tolerate unaligned
+/// loads (x86_64), and a debug build's alignment assert catches it (the
+/// v1.1 CI-parity fix that surfaced this). Parsing each 4-byte group with
+/// `f32::from_le_bytes` is alignment-agnostic and pins the byte order
+/// explicitly. The blobs are a few KB, so the one-time copy is negligible.
+fn bytes_to_f32_le(bytes: &[u8]) -> Vec<f32> {
     debug_assert_eq!(
         bytes.len() % 4,
         0,
-        "byte slice must be 4-byte aligned in length"
+        "f32 blob length must be a multiple of 4"
     );
-    debug_assert_eq!(
-        (bytes.as_ptr() as usize) % std::mem::align_of::<f32>(),
-        0,
-        "byte slice must be 4-byte aligned"
-    );
-    // SAFETY: the blob is a sequence of little-endian f32 values produced
-    // by numpy.ndarray.tobytes() on a contiguous float32 array. Length is
-    // a multiple of 4 (checked above) and the pointer alignment is checked
-    // above. On the supported targets (x86_64 + aarch64) f32 has alignment
-    // 4 so the static `include_bytes!` buffer satisfies the alignment.
-    unsafe { std::slice::from_raw_parts(bytes.as_ptr() as *const f32, bytes.len() / 4) }
+    bytes
+        .chunks_exact(4)
+        .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+        .collect()
 }
 
 /// Single tract inference call against the encoder ONNX. Returns
@@ -686,7 +687,9 @@ fn run_encoder_chunk(
         .map_err(|e| EncodeError::Inference(format!("msg_enc shape: {e}")))?;
     let sdr_arr = ndarray::Array0::<f32>::from_elem((), sdr_db);
 
-    let mut model = model.lock().map_err(|e| EncodeError::Inference(format!("ort session mutex poisoned: {e}")))?;
+    let mut model = model
+        .lock()
+        .map_err(|e| EncodeError::Inference(format!("ort session mutex poisoned: {e}")))?;
     let outputs = model
         .run(ort::inputs![
             "carrier_mag" => ort::value::TensorRef::from_array_view(carrier_arr.view()).map_err(|e| EncodeError::Inference(e.to_string()))?,
@@ -730,8 +733,7 @@ fn model() -> Result<&'static Runnable, EncodeError> {
 fn build_model() -> Result<Runnable, String> {
     let path = provcheck_weights::load_if_cached("silentcipher", "encoder")
         .map_err(|e| format!("weights: {e}"))?;
-    let file = std::fs::File::open(&path)
-        .map_err(|e| format!("open {}: {e}", path.display()))?;
+    let file = std::fs::File::open(&path).map_err(|e| format!("open {}: {e}", path.display()))?;
     let mut reader = std::io::BufReader::new(file);
     let model = tract_onnx::onnx()
         .model_for_read(&mut reader)
@@ -1097,8 +1099,8 @@ mod tests {
     /// `transform_message_chunk` produces identical numbers in chunked
     /// mode (the production code path).
     fn transform_message_full(msg_enc: &[f32], t_frames: usize) -> Vec<f32> {
-        let weight: &[f32] = bytemuck_cast_f32(TRANSFORM_MESSAGE_WEIGHTS);
-        let bias: &[f32] = bytemuck_cast_f32(TRANSFORM_MESSAGE_BIAS);
+        let weight = bytes_to_f32_le(TRANSFORM_MESSAGE_WEIGHTS);
+        let bias = bytes_to_f32_le(TRANSFORM_MESSAGE_BIAS);
         let mut padded = vec![0.0_f32; FREQ_BINS * t_frames];
         for t in 0..t_frames {
             for k in 0..MESSAGE_BAND_SIZE {

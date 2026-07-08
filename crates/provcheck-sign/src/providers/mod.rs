@@ -99,9 +99,8 @@ mod default_signer_tests {
             recovery_recipients: vec![],
         };
         let provider = TestProvider { pem: kp.key_pem };
-        let mut prompt = |_: UnlockPrompt| -> PassphraseResult {
-            Ok(SecretString::from(String::new()))
-        };
+        let mut prompt =
+            |_: UnlockPrompt| -> PassphraseResult { Ok(SecretString::from(String::new())) };
         let tempdir = tempfile::tempdir().expect("tempdir");
         let signer = provider
             .signer(tempdir.path(), &locked, &mut prompt)
@@ -125,9 +124,8 @@ mod default_signer_tests {
             recovery_recipients: vec![],
         };
         let provider = TestProvider { pem: kp.key_pem };
-        let mut prompt = |_: UnlockPrompt| -> PassphraseResult {
-            Ok(SecretString::from(String::new()))
-        };
+        let mut prompt =
+            |_: UnlockPrompt| -> PassphraseResult { Ok(SecretString::from(String::new())) };
         let tempdir = tempfile::tempdir().expect("tempdir");
         // Box<dyn c2pa::Signer> doesn't impl Debug; can't use
         // .expect_err. Match on the result instead.

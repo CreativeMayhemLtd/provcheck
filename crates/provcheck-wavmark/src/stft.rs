@@ -69,7 +69,7 @@ fn reflect_pad(signal: &[f32], pad: usize) -> Vec<f32> {
     }
     out.extend_from_slice(signal);
     for i in 0..pad {
-        out.push(signal[n.saturating_sub(2 + i).max(0)]);
+        out.push(signal[n.saturating_sub(2 + i)]);
     }
     out
 }
@@ -159,7 +159,11 @@ pub fn istft(spec: &[f32], signal_len: usize, cfg: &StftConfig) -> Vec<f32> {
     let mut out = Vec::with_capacity(signal_len);
     for i in 0..signal_len {
         let denom = win_sq[i + pad];
-        out.push(if denom > eps { sum[i + pad] / denom } else { 0.0 });
+        out.push(if denom > eps {
+            sum[i + pad] / denom
+        } else {
+            0.0
+        });
     }
     out
 }

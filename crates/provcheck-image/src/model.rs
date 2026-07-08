@@ -65,7 +65,10 @@ mod model_error_tests {
             s.contains(&format!("length {SECRET_LEN}")),
             "expected message to name SECRET_LEN, got: {s}"
         );
-        assert!(s.contains("[1, 50]"), "expected message to include shape, got: {s}");
+        assert!(
+            s.contains("[1, 50]"),
+            "expected message to include shape, got: {s}"
+        );
     }
 
     #[test]
@@ -105,9 +108,11 @@ fn model() -> Result<&'static Mutex<Session>, ModelError> {
     }
     let path = provcheck_weights::load_if_cached("trustmark", "b-decoder")
         .map_err(|e| ModelError::Load(format!("weights: {e}")))?;
-    let _ = BufReader::<std::fs::File>::with_capacity(0, std::fs::File::open(&path).map_err(
-        |e| ModelError::Load(format!("open {}: {e}", path.display())),
-    )?); // existence check
+    let _ = BufReader::<std::fs::File>::with_capacity(
+        0,
+        std::fs::File::open(&path)
+            .map_err(|e| ModelError::Load(format!("open {}: {e}", path.display())))?,
+    ); // existence check
     let session = Session::builder()
         .map_err(|e| ModelError::Load(e.to_string()))?
         .commit_from_file(&path)
@@ -140,7 +145,10 @@ fn encoder_model() -> Result<&'static Mutex<Session>, ModelError> {
 /// `trustmark.py`'s encoder path.
 ///
 /// v0.7 phase 7c.
-pub fn run_encoder(cover_chw: &[f32], secret_bits: &[u8; SECRET_LEN]) -> Result<Vec<f32>, ModelError> {
+pub fn run_encoder(
+    cover_chw: &[f32],
+    secret_bits: &[u8; SECRET_LEN],
+) -> Result<Vec<f32>, ModelError> {
     debug_assert_eq!(cover_chw.len(), 3 * (MODEL_RES * MODEL_RES) as usize);
     let model = encoder_model()?;
 
@@ -220,9 +228,11 @@ pub fn run_decoder(decoded: &DecodedImage) -> Result<DecoderOutput, ModelError> 
     }
     let logits: Vec<f32> = data.to_vec();
 
-    let bits: Vec<u8> = logits.iter().map(|x| if *x > 0.0 { 1u8 } else { 0u8 }).collect();
-    let mean_abs_logit =
-        logits.iter().map(|x| x.abs()).sum::<f32>() / SECRET_LEN as f32;
+    let bits: Vec<u8> = logits
+        .iter()
+        .map(|x| if *x > 0.0 { 1u8 } else { 0u8 })
+        .collect();
+    let mean_abs_logit = logits.iter().map(|x| x.abs()).sum::<f32>() / SECRET_LEN as f32;
 
     // Pack MSB-first into 13 bytes.
     let mut payload_bytes = vec![0u8; SECRET_BYTES];

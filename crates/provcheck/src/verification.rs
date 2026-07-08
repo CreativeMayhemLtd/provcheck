@@ -448,10 +448,7 @@ mod tests {
         // The label "app.provcheck.identityXX" (no separator)
         // must NOT match — only `__` and `.` are documented
         // suffixes. Pin the strict-separator contract.
-        let prefix = format!(
-            "{}XX",
-            provcheck_attestation_spec::IDENTITY_ASSERTION_LABEL
-        );
+        let prefix = format!("{}XX", provcheck_attestation_spec::IDENTITY_ASSERTION_LABEL);
         assert!(!is_identity_label(&prefix));
     }
 
@@ -459,10 +456,7 @@ mod tests {
     fn is_identity_label_rejects_substring_inside_label() {
         // The label substring inside a longer string (not as
         // prefix) must NOT match.
-        let inside = format!(
-            "x.{}",
-            provcheck_attestation_spec::IDENTITY_ASSERTION_LABEL
-        );
+        let inside = format!("x.{}", provcheck_attestation_spec::IDENTITY_ASSERTION_LABEL);
         assert!(!is_identity_label(&inside));
     }
 

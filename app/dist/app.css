@@ -104,6 +104,16 @@ body {
 .attribution a {
   color: var(--text-secondary);
   text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.attribution .link-globe {
+  flex: 0 0 auto;
+  opacity: 0.75;
+}
+.attribution a:hover .link-globe {
+  opacity: 1;
 }
 .attribution a:hover {
   color: var(--text-primary);
@@ -500,6 +510,89 @@ body {
 .watermark-badge.is-degraded   { border-left-color: var(--status-warning); }
 .watermark-badge.is-undetected { border-left-color: var(--status-error); }
 .watermark-badge.is-skipped    { border-left-color: var(--text-muted); }
+
+/* v1.1.0: shown when the user opted IN to watermark detection but
+   no family recovered a mark. Silent-hide (pre-v1.1.0) made the
+   drop-a-PNG-see-nothing case read as if detection didn't run. */
+.watermarks-empty {
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background: var(--bg-dark);
+  border: 1px dashed var(--border-subtle);
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* v1.1.0 Detect tab educational empty state — the FOSS core has no
+   registered detectors; this pane teaches operators the two routes
+   (paid DLC or open-source wrapper crate). Match the visual
+   language of the dropzone so it reads as an intentional surface,
+   not a broken tab. */
+.detect-empty {
+  padding: 40px 32px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+.detect-empty-icon {
+  display: block;
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 20px;
+  color: var(--text-muted);
+}
+.detect-empty h2 {
+  text-align: center;
+  margin: 0 0 16px;
+}
+.detect-empty-lead {
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.6;
+  margin: 0 0 28px;
+}
+.detect-empty-routes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+@media (max-width: 720px) {
+  .detect-empty-routes { grid-template-columns: 1fr; }
+}
+.detect-empty-route {
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background: var(--bg-dark);
+  border: 1px solid var(--border-subtle);
+}
+.detect-empty-route h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+.detect-empty-route p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.detect-empty-route code {
+  font-family: var(--font-mono);
+  background: var(--bg-med);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+.detect-empty-hint {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 12px;
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 0;
+}
 
 .watermark-icon {
   width: 30px;

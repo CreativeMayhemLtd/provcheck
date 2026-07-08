@@ -30,7 +30,50 @@ Anything else waits.
 
 ## Pre-flight checklist
 
-Before tagging, all of the following must be true:
+Before tagging a **release-line** (`vX.Y.0`) tag, all of the
+following must be true. Iteration tags (`vX.Y.Z` with `Z > 0`)
+skip this checklist entirely — they never fire the release
+matrix, never publish, and never require FC declaration.
+
+### 0. FC declaration file exists and is committed
+
+Feature-completeness is the ONLY gate that promotes iteration
+tags to a release-line tag. It is a human judgment against the
+roadmap and the current state of the codebase; it is not a
+function of patch number (iteration counter has no cap — see
+[`semver-policy.md`](./semver-policy.md) § iteration counter).
+
+Before tagging `vX.Y.0`, write and commit
+`docs/release-fc/vX.Y.0.md` on the branch being pushed. The
+file's shape is unopinionated — write whatever is relevant to
+the FC statement. A minimum-viable form:
+
+```markdown
+# FC declaration: vX.Y.0
+
+**Feature-complete on:** YYYY-MM-DD
+**Declared by:** <operator name>
+**Iterations rolled up:** vX.Y.1 → vX.Y.<N>
+
+## What ships
+
+- <feature 1 — link to the iteration tag or PR>
+- <feature 2 — link>
+- ...
+
+## What is explicitly deferred to the next release-line
+
+- <deferral 1 — reason + target release-line>
+- ...
+
+## Passes each pre-flight step below
+```
+
+The pre-push gate in `scripts/check-before-push.sh` refuses any
+`vX.Y.0` push if this file is missing from the branch. There is
+no way around the gate short of `git push --no-verify`, which
+carries an audit-trail expectation per
+`feedback_pre_push_regression_gate.md`.
 
 ### 1. Workspace builds clean
 

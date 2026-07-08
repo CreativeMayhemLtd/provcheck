@@ -155,10 +155,7 @@ mod tests {
             ("DOOMSCROLL", PAYLOAD_DOOMSCROLL),
             ("VAIDEO", PAYLOAD_VAIDEO),
         ] {
-            assert_eq!(
-                payload[4], 0,
-                "PAYLOAD_{name} reserved byte must be 0"
-            );
+            assert_eq!(payload[4], 0, "PAYLOAD_{name} reserved byte must be 0");
         }
     }
 

@@ -30,7 +30,9 @@
 use rayon::prelude::*;
 
 use crate::audio::SAMPLE_RATE;
-use crate::model::{self, CHUNK_SAMPLES, FIX_PATTERN_LEN, ModelError, NUM_BITS, WAVMARK_FIX_PATTERN};
+use crate::model::{
+    self, CHUNK_SAMPLES, FIX_PATTERN_LEN, ModelError, NUM_BITS, WAVMARK_FIX_PATTERN,
+};
 
 /// Slide step in samples between successive detection windows.
 /// Upstream Python: `int(0.1 * 16000 * 0.5) = 800` (50 ms).
@@ -285,7 +287,10 @@ mod tests {
         let mut bits = [0.0_f32; NUM_BITS];
         // The pattern requires bit 0 = 1 (assume yes; if not,
         // pick another known-1 bit). Just below 0.5 should fail.
-        let known_one = WAVMARK_FIX_PATTERN.iter().position(|&p| p == 1).expect("pattern has at least one 1");
+        let known_one = WAVMARK_FIX_PATTERN
+            .iter()
+            .position(|&p| p == 1)
+            .expect("pattern has at least one 1");
         for (i, &p) in WAVMARK_FIX_PATTERN.iter().enumerate() {
             bits[i] = if p == 1 { 1.0 } else { 0.0 };
         }

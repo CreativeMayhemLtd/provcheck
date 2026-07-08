@@ -18,7 +18,7 @@ thiserror.workspace = true
 # Cache dir resolution per OS (cache_dir, data_dir, etc.).
 # Same crate provcheck-platform already pulls in for attestation
 # storage, so no new transitive surface.
-dirs = "5"
+dirs = "6"
 # SHA256 for download verification against the bundled manifest.
 sha2 = "0.10"
 # Blocking HTTPS downloader. Picked over reqwest because: no tokio

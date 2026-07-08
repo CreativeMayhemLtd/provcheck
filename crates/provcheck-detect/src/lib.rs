@@ -531,7 +531,13 @@ mod tests {
         assert_eq!(results.len(), 2);
         assert_eq!(results[0].status, DetectionStatus::Error);
         assert!(results[0].message.is_some());
-        assert!(results[0].message.as_ref().unwrap().contains("model not installed"));
+        assert!(
+            results[0]
+                .message
+                .as_ref()
+                .unwrap()
+                .contains("model not installed")
+        );
         // The second detector still runs.
         assert_eq!(results[1].status, DetectionStatus::NotDetected);
     }

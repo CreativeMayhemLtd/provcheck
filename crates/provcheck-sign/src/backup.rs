@@ -310,6 +310,17 @@ pub fn resolve_recovery_recipients(
 /// PBES2 safely — age files cover the primary backup path so the
 /// drop is graceful degradation, not data loss.
 ///
+/// **Re-survey trigger** (2026-07-01 status: unchanged from 2026-06):
+/// - `pkcs12` crate reaches 0.2 stable AND documents PBES2/AES-256
+///   writer support with explicit iteration control, OR
+/// - `p12-keystore` adds a PBES2 output mode with explicit iteration
+///   count parameter (not just PBES1/RC2/3DES), OR
+/// - a new crate lands that writes modern PKCS#12 with the
+///   provcheck-side security profile.
+///
+/// Re-check on any next release-line cadence; log findings in a
+/// `project_pkcs12_ecosystem_survey_<date>.md` memory drawer.
+///
 /// This function exists as a placeholder so the CLI surface for
 /// `kit export-pkcs12` compiles. It returns an explicit
 /// `BackupError::AgeFormat("PKCS#12 export is deferred…")` rather

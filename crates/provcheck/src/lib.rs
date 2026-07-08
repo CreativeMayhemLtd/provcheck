@@ -218,7 +218,10 @@ mod tests {
 
     #[test]
     fn error_attestation_failed_message_includes_inner() {
-        let s = format!("{}", Error::AttestationFailed("fingerprint mismatch".into()));
+        let s = format!(
+            "{}",
+            Error::AttestationFailed("fingerprint mismatch".into())
+        );
         assert!(s.contains("attestation processing"));
         assert!(s.contains("fingerprint mismatch"));
     }
