@@ -256,9 +256,15 @@ if ! cargo fmt --check; then
     red "  FAIL: formatting drift. Run 'cargo fmt' and re-stage."
     exit 1
 fi
+# Mirror CI's exact invocation: RUSTFLAGS denies rustc warnings AND
+# `-- -D warnings` denies clippy's own lints. The two are NOT the
+# same; using only RUSTFLAGS lets a clippy lint (e.g.
+# unnecessary_min_or_max) through locally while CI rejects it. Keep
+# the local stable toolchain current (rustup update) or a lint that
+# only exists in a newer clippy will pass here and fail in CI.
 if ! RUSTFLAGS="-D warnings" CARGO_TARGET_DIR=./target-gate \
-        cargo clippy --workspace --all-targets --jobs 8 2>&1 | tail -20; then
-    red "  FAIL: clippy / -D warnings. Fix the reported warnings."
+        cargo clippy --workspace --all-targets --jobs 8 -- -D warnings 2>&1 | tail -20; then
+    red "  FAIL: clippy / -D warnings. Fix the reported lints."
     exit 1
 fi
 green "  OK"

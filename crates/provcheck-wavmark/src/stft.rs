@@ -69,7 +69,7 @@ fn reflect_pad(signal: &[f32], pad: usize) -> Vec<f32> {
     }
     out.extend_from_slice(signal);
     for i in 0..pad {
-        out.push(signal[n.saturating_sub(2 + i).max(0)]);
+        out.push(signal[n.saturating_sub(2 + i)]);
     }
     out
 }
