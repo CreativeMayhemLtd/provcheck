@@ -42,6 +42,22 @@ updates:
       cargo-minor:
         update-types:
           - minor
+    # Parked majors (deliberate-build-session review, 2026-07). These
+    # keep re-opening a separate PR every week for a bump we are not
+    # taking yet. rubato 0.16 -> 3.0 is a full API rewrite (real
+    # porting work, no security driver). tract 0.21 -> 0.22 is deferred
+    # because the audio detectors are migrating off tract onto ort (see
+    # SECURITY.md), so bumping tract is wasted effort. symphonia is
+    # NOT ignored: its 0.5 -> 0.6 bump is wanted, just needs its own
+    # codec-survival validation, so its PR stays visible as a reminder.
+    # Unignore either line below when that work is scheduled.
+    ignore:
+      - dependency-name: "rubato"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "tract-onnx"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "tract-nnef"
+        update-types: ["version-update:semver-major"]
 
   # Tauri app — separate Cargo workspace (per app/src-tauri/Cargo.toml's
   # empty [workspace] marker).
@@ -67,6 +83,14 @@ updates:
       tauri-minor:
         update-types:
           - minor
+    # Same tract park as the main workspace: the audio detectors are
+    # migrating off tract onto ort, so a tract major here is wasted
+    # effort. Unignore when the ort migration is done.
+    ignore:
+      - dependency-name: "tract-onnx"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "tract-nnef"
+        update-types: ["version-update:semver-major"]
 
   # CI action pins
   - package-ecosystem: github-actions
