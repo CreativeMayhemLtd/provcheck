@@ -572,8 +572,8 @@ fn transform_message_chunk(
 
     // Decode the embedded weight + bias. PyTorch stores `Linear` weight
     // as `(out, in)` row-major: `weight[k, d] = bytes[(k * MESSAGE_DIM + d) * 4..]`.
-    let weight: &[f32] = bytemuck_cast_f32(TRANSFORM_MESSAGE_WEIGHTS);
-    let bias: &[f32] = bytemuck_cast_f32(TRANSFORM_MESSAGE_BIAS);
+    let weight = bytes_to_f32_le(TRANSFORM_MESSAGE_WEIGHTS);
+    let bias = bytes_to_f32_le(TRANSFORM_MESSAGE_BIAS);
     debug_assert_eq!(weight.len(), MESSAGE_BAND_SIZE * MESSAGE_DIM);
     debug_assert_eq!(bias.len(), MESSAGE_BAND_SIZE);
 
@@ -595,25 +595,27 @@ fn transform_message_chunk(
     padded
 }
 
-/// Reinterpret a byte slice as an f32 slice without copying. Used to
-/// access the embedded weight/bias blobs as native arrays.
-fn bytemuck_cast_f32(bytes: &[u8]) -> &[f32] {
+/// Parse a little-endian f32 blob (produced by `numpy.ndarray.tobytes()`
+/// on a contiguous float32 array) into an owned `Vec<f32>`.
+///
+/// The blobs ship via `include_bytes!`, which yields a byte array with
+/// alignment 1. A zero-copy `&[u8]` -> `&[f32]` reinterpret is therefore
+/// undefined behaviour whenever the blob does not land on a 4-byte
+/// boundary: it only appears to work on targets that tolerate unaligned
+/// loads (x86_64), and a debug build's alignment assert catches it (the
+/// v1.1 CI-parity fix that surfaced this). Parsing each 4-byte group with
+/// `f32::from_le_bytes` is alignment-agnostic and pins the byte order
+/// explicitly. The blobs are a few KB, so the one-time copy is negligible.
+fn bytes_to_f32_le(bytes: &[u8]) -> Vec<f32> {
     debug_assert_eq!(
         bytes.len() % 4,
         0,
-        "byte slice must be 4-byte aligned in length"
+        "f32 blob length must be a multiple of 4"
     );
-    debug_assert_eq!(
-        (bytes.as_ptr() as usize) % std::mem::align_of::<f32>(),
-        0,
-        "byte slice must be 4-byte aligned"
-    );
-    // SAFETY: the blob is a sequence of little-endian f32 values produced
-    // by numpy.ndarray.tobytes() on a contiguous float32 array. Length is
-    // a multiple of 4 (checked above) and the pointer alignment is checked
-    // above. On the supported targets (x86_64 + aarch64) f32 has alignment
-    // 4 so the static `include_bytes!` buffer satisfies the alignment.
-    unsafe { std::slice::from_raw_parts(bytes.as_ptr() as *const f32, bytes.len() / 4) }
+    bytes
+        .chunks_exact(4)
+        .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+        .collect()
 }
 
 /// Single tract inference call against the encoder ONNX. Returns
@@ -1097,8 +1099,8 @@ mod tests {
     /// `transform_message_chunk` produces identical numbers in chunked
     /// mode (the production code path).
     fn transform_message_full(msg_enc: &[f32], t_frames: usize) -> Vec<f32> {
-        let weight: &[f32] = bytemuck_cast_f32(TRANSFORM_MESSAGE_WEIGHTS);
-        let bias: &[f32] = bytemuck_cast_f32(TRANSFORM_MESSAGE_BIAS);
+        let weight = bytes_to_f32_le(TRANSFORM_MESSAGE_WEIGHTS);
+        let bias = bytes_to_f32_le(TRANSFORM_MESSAGE_BIAS);
         let mut padded = vec![0.0_f32; FREQ_BINS * t_frames];
         for t in 0..t_frames {
             for k in 0..MESSAGE_BAND_SIZE {
