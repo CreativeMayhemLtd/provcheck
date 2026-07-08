@@ -28,7 +28,7 @@ tract-onnx = "0.21"
 # Audio container decoding. Same pattern as provcheck-watermark, but
 # resamples to 16 kHz (AudioSeal's training rate) rather than 44.1 kHz.
 symphonia = { version = "0.5", features = ["mp3", "aac", "flac", "isomp4", "ogg", "vorbis", "wav"] }
-rubato = "0.16"
+rubato = "3.0"
 
 # Parallel chunk inference for the detector (safe under the boundary
 # L∞ measurement from the architecture survey).
