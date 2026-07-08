@@ -83,3 +83,11 @@ updates:
     commit-message:
       prefix: ci
       include: scope
+    # Group all action pins into one weekly PR. Action bumps are
+    # low-risk supply-chain hygiene; reviewing them one-by-one (as
+    # setup-python, codeql-action, and upload-artifact each did) just
+    # multiplies CI runs for no added signal.
+    groups:
+      github-actions:
+        patterns:
+          - "*"
