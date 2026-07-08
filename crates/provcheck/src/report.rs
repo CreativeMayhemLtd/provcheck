@@ -575,8 +575,7 @@ impl Display for Report {
                         if let Some(regions) = &wm.marked_regions
                             && !regions.is_empty()
                         {
-                            let _ =
-                                writeln!(f, "    marked: {}", format_regions(regions));
+                            let _ = writeln!(f, "    marked: {}", format_regions(regions));
                         }
                     }
                     WatermarkStatus::NotDetected => {
@@ -640,11 +639,7 @@ fn format_regions(regions: &[(f32, f32)]) -> String {
 
     let n = regions.len();
     if n <= 4 {
-        regions
-            .iter()
-            .map(fmt_span)
-            .collect::<Vec<_>>()
-            .join(", ")
+        regions.iter().map(fmt_span).collect::<Vec<_>>().join(", ")
     } else {
         let head = fmt_span(&regions[0]);
         let tail = fmt_span(&regions[n - 1]);
@@ -783,21 +778,30 @@ mod watermark_result_serialization_tests {
     fn watermark_result_omits_none_payload() {
         let r = minimal_watermark_result();
         let json = serde_json::to_string(&r).expect("ser");
-        assert!(!json.contains("\"payload\""), "None payload should be omitted: {json}");
+        assert!(
+            !json.contains("\"payload\""),
+            "None payload should be omitted: {json}"
+        );
     }
 
     #[test]
     fn watermark_result_omits_none_brand() {
         let r = minimal_watermark_result();
         let json = serde_json::to_string(&r).expect("ser");
-        assert!(!json.contains("\"brand\""), "None brand should be omitted: {json}");
+        assert!(
+            !json.contains("\"brand\""),
+            "None brand should be omitted: {json}"
+        );
     }
 
     #[test]
     fn watermark_result_omits_none_message() {
         let r = minimal_watermark_result();
         let json = serde_json::to_string(&r).expect("ser");
-        assert!(!json.contains("\"message\""), "None message should be omitted: {json}");
+        assert!(
+            !json.contains("\"message\""),
+            "None message should be omitted: {json}"
+        );
     }
 
     #[test]
@@ -824,7 +828,10 @@ mod watermark_result_serialization_tests {
         // match on the string values.
         let r = minimal_watermark_result();
         let json = serde_json::to_string(&r).expect("ser");
-        assert!(json.contains("\"detected\""), "expected snake_case status, got: {json}");
+        assert!(
+            json.contains("\"detected\""),
+            "expected snake_case status, got: {json}"
+        );
         // Now degraded path.
         let mut r2 = r.clone();
         r2.status = WatermarkStatus::Degraded;
@@ -856,7 +863,10 @@ mod watermark_result_serialization_tests {
         let json = serde_json::to_string(&r).expect("ser");
         // The `tag = "code"` serde attr means brand serialises as
         // {"code": "raidio"} not as a bare string.
-        assert!(json.contains("\"code\":\"raidio\""), "expected code-tagged brand, got: {json}");
+        assert!(
+            json.contains("\"code\":\"raidio\""),
+            "expected code-tagged brand, got: {json}"
+        );
     }
 
     #[test]
@@ -1030,7 +1040,10 @@ mod report_serialization_tests {
         let json = r.to_json_string().expect("ser");
         let parsed: serde_json::Value = serde_json::from_str(&json).expect("parse");
         assert_eq!(parsed.get("verified").and_then(|v| v.as_bool()), Some(true));
-        assert_eq!(parsed.get("format").and_then(|v| v.as_str()), Some("audio/wav"));
+        assert_eq!(
+            parsed.get("format").and_then(|v| v.as_str()),
+            Some("audio/wav")
+        );
     }
 
     #[test]

@@ -327,8 +327,8 @@ pub mod init {
 
     use provcheck_sign::cert::{SubjectInfo, generate};
     use provcheck_sign::persist::{default_dir, load_locked, save_public_artefacts};
-    use provcheck_sign::providers::{AgeFileProvider, KeyProvider, KeychainProvider};
     use provcheck_sign::providers::yubikey::{create_on_device, list_connected};
+    use provcheck_sign::providers::{AgeFileProvider, KeyProvider, KeychainProvider};
     use provcheck_sign::types::{KeyProviderKind, LockedIdentity, RecoveryRecipient};
 
     use crate::prompts::new_passphrase;
@@ -476,11 +476,9 @@ pub mod init {
             "  Backend:     {}",
             match backend {
                 KeyProviderKind::Keychain => "OS keychain".to_string(),
-                KeyProviderKind::EncryptedFile =>
-                    "encrypted file (signing.key.age)".to_string(),
-                KeyProviderKind::Yubikey { serial, slot } => format!(
-                    "Yubikey (serial {serial}, PIV slot 0x{slot:02x})"
-                ),
+                KeyProviderKind::EncryptedFile => "encrypted file (signing.key.age)".to_string(),
+                KeyProviderKind::Yubikey { serial, slot } =>
+                    format!("Yubikey (serial {serial}, PIV slot 0x{slot:02x})"),
             }
         );
         if !args.recovery_recipients.is_empty() {
@@ -634,14 +632,11 @@ pub mod status {
                 println!(
                     "  backend:     {}",
                     match locked.key_provider {
-                        provcheck_sign::types::KeyProviderKind::Keychain =>
-                            "keychain".to_string(),
+                        provcheck_sign::types::KeyProviderKind::Keychain => "keychain".to_string(),
                         provcheck_sign::types::KeyProviderKind::EncryptedFile =>
                             "encrypted-file".to_string(),
-                        provcheck_sign::types::KeyProviderKind::Yubikey {
-                            serial,
-                            slot,
-                        } => format!("yubikey (serial {serial}, slot 0x{slot:02x})"),
+                        provcheck_sign::types::KeyProviderKind::Yubikey { serial, slot } =>
+                            format!("yubikey (serial {serial}, slot 0x{slot:02x})"),
                     }
                 );
                 // For Yubikey identities, query the live device state
@@ -1525,9 +1520,10 @@ pub mod import_backup {
         } else {
             eprintln!("Decrypting backup at {}…", args.bundle.display());
             let mut unlock = unlock_passphrase();
-            let pass: SecretString =
-                unlock(provcheck_sign::providers::UnlockPrompt::passphrase("backup", 1))
-                    .map_err(|e| anyhow::anyhow!("{e}"))?;
+            let pass: SecretString = unlock(provcheck_sign::providers::UnlockPrompt::passphrase(
+                "backup", 1,
+            ))
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
             import_with_passphrase(&args.bundle, pass).context("decrypt + parse backup")?
         };
         let backend = if args.age_file {
@@ -2808,7 +2804,10 @@ pub mod watermark {
             let r = parse_payload_hex("4446");
             assert!(r.is_err());
             let msg = format!("{}", r.err().unwrap());
-            assert!(msg.contains("10 hex chars"), "expected length hint, got: {msg}");
+            assert!(
+                msg.contains("10 hex chars"),
+                "expected length hint, got: {msg}"
+            );
             assert!(msg.contains("got 4"), "expected got-count, got: {msg}");
         }
 
@@ -2827,7 +2826,10 @@ pub mod watermark {
             let r = parse_payload_hex("4446gg0100");
             assert!(r.is_err());
             let msg = format!("{:#}", r.err().unwrap());
-            assert!(msg.contains("byte 2"), "expected byte index in error, got: {msg}");
+            assert!(
+                msg.contains("byte 2"),
+                "expected byte index in error, got: {msg}"
+            );
         }
 
         #[test]
@@ -2980,15 +2982,33 @@ pub mod watermark {
         let (marked_l, marked_r): (Vec<f32>, Option<Vec<f32>>) = if out_channels == 2 {
             let left = stereo.left;
             let right = stereo.right;
-            let (l, r) = tokio::task::spawn_blocking(move || -> Result<(Vec<f32>, Vec<f32>), sc_encode::EncodeError> {
-                if streaming {
-                    let l = sc_encode::embed_streaming_with_config(&left, payload, sdr_user, embed_config)?;
-                    let r = sc_encode::embed_streaming_with_config(&right, payload, sdr_user, embed_config)?;
-                    Ok((l, r))
-                } else {
-                    sc_encode::embed_stereo_with_config(&left, &right, payload, sdr_user, embed_config)
-                }
-            })
+            let (l, r) = tokio::task::spawn_blocking(
+                move || -> Result<(Vec<f32>, Vec<f32>), sc_encode::EncodeError> {
+                    if streaming {
+                        let l = sc_encode::embed_streaming_with_config(
+                            &left,
+                            payload,
+                            sdr_user,
+                            embed_config,
+                        )?;
+                        let r = sc_encode::embed_streaming_with_config(
+                            &right,
+                            payload,
+                            sdr_user,
+                            embed_config,
+                        )?;
+                        Ok((l, r))
+                    } else {
+                        sc_encode::embed_stereo_with_config(
+                            &left,
+                            &right,
+                            payload,
+                            sdr_user,
+                            embed_config,
+                        )
+                    }
+                },
+            )
             .await
             .context("join embed task")?
             .context("silentcipher stereo embed failed")?;
@@ -3115,11 +3135,10 @@ pub mod watermark {
             } else {
                 stereo.left
             };
-            let m =
-                tokio::task::spawn_blocking(move || as_encode::embed(&mono, brand_id, alpha))
-                    .await
-                    .context("join embed task")?
-                    .context("audioseal embed failed")?;
+            let m = tokio::task::spawn_blocking(move || as_encode::embed(&mono, brand_id, alpha))
+                .await
+                .context("join embed task")?
+                .context("audioseal embed failed")?;
             (m, None)
         };
         let embed_elapsed = t0.elapsed();
@@ -3155,10 +3174,7 @@ pub mod watermark {
             );
         }
 
-        eprintln!(
-            "provcheck-kit: decoding {} (wavmark)",
-            args.input.display()
-        );
+        eprintln!("provcheck-kit: decoding {} (wavmark)", args.input.display());
 
         // v0.9.63: wavmark stereo dispatch lands. Mirrors the
         // audioseal path: decode the full stereo, decide whether
@@ -3167,11 +3183,10 @@ pub mod watermark {
         // the matching wavmark embed entry point.
         let input = args.input.clone();
         let mode = args.channels;
-        let stereo =
-            tokio::task::spawn_blocking(move || wm_audio::decode_to_stereo_16k(&input))
-                .await
-                .context("join audio decode task")?
-                .with_context(|| format!("decode {}", args.input.display()))?;
+        let stereo = tokio::task::spawn_blocking(move || wm_audio::decode_to_stereo_16k(&input))
+            .await
+            .context("join audio decode task")?
+            .with_context(|| format!("decode {}", args.input.display()))?;
         let source_channels = stereo.source_channels;
         let duration_s = stereo.left.len() as f32 / wm_audio::SAMPLE_RATE as f32;
         let out_channels = resolve_output_channels(mode, source_channels);
@@ -3186,10 +3201,7 @@ pub mod watermark {
             if out_channels == 1 { "" } else { "s" },
         );
 
-        eprintln!(
-            "provcheck-kit: embedding brand id 0x{:02x}",
-            args.brand_id
-        );
+        eprintln!("provcheck-kit: embedding brand id 0x{:02x}", args.brand_id);
         let brand_id = args.brand_id;
         let t0 = Instant::now();
         let (marked_l, marked_r): (Vec<f32>, Option<Vec<f32>>) = if out_channels == 2 {
@@ -3307,8 +3319,7 @@ pub mod watermark {
         );
         let t0 = Instant::now();
         tokio::task::spawn_blocking(move || -> Result<()> {
-            img_encode::embed(&input, &output, brand_id)
-                .with_context(|| "TrustMark embed failed")
+            img_encode::embed(&input, &output, brand_id).with_context(|| "TrustMark embed failed")
         })
         .await
         .context("join image embed task")??;
@@ -3336,22 +3347,24 @@ pub mod watermark {
             Kind::Wavmark => "wavmark",
             Kind::Image => "trustmark",
         };
-        let (conf, payload_ok) = tokio::task::spawn_blocking(move || -> Result<(f32, bool)> {
-            let result = match kind {
-                Kind::Silentcipher => provcheck_watermark::detect(&path)
-                    .with_context(|| "silentcipher verify failed")?,
-                Kind::Audioseal => provcheck_audioseal::detect(&path)
-                    .with_context(|| "audioseal verify failed")?,
-                Kind::Wavmark => provcheck_wavmark::detect(&path)
-                    .with_context(|| "wavmark verify failed")?,
-                Kind::Image => provcheck_image::detect(&path)
-                    .with_context(|| "trustmark verify failed")?,
-            };
-            let payload_ok = result.payload.is_some();
-            Ok((result.confidence, payload_ok))
-        })
-        .await
-        .context("join verify task")??;
+        let (conf, payload_ok) =
+            tokio::task::spawn_blocking(move || -> Result<(f32, bool)> {
+                let result =
+                    match kind {
+                        Kind::Silentcipher => provcheck_watermark::detect(&path)
+                            .with_context(|| "silentcipher verify failed")?,
+                        Kind::Audioseal => provcheck_audioseal::detect(&path)
+                            .with_context(|| "audioseal verify failed")?,
+                        Kind::Wavmark => provcheck_wavmark::detect(&path)
+                            .with_context(|| "wavmark verify failed")?,
+                        Kind::Image => provcheck_image::detect(&path)
+                            .with_context(|| "trustmark verify failed")?,
+                    };
+                let payload_ok = result.payload.is_some();
+                Ok((result.confidence, payload_ok))
+            })
+            .await
+            .context("join verify task")??;
 
         if conf >= 0.85 {
             eprintln!(
@@ -4141,7 +4154,9 @@ pub mod stamp {
                 Ok(Modality::Audio)
             }
             "png" | "jpg" | "jpeg" | "webp" | "bmp" | "gif" | "tiff" | "tif" => Ok(Modality::Image),
-            _ => bail!("unsupported extension {ext:?}; expected audio (mp3/wav/flac/...) or image (png/jpg/webp/...)"),
+            _ => bail!(
+                "unsupported extension {ext:?}; expected audio (mp3/wav/flac/...) or image (png/jpg/webp/...)"
+            ),
         }
     }
 
@@ -4176,11 +4191,7 @@ pub mod stamp {
             tokio::fs::copy(&args.input, &args.output)
                 .await
                 .with_context(|| {
-                    format!(
-                        "copy {} -> {}",
-                        args.input.display(),
-                        args.output.display()
-                    )
+                    format!("copy {} -> {}", args.input.display(), args.output.display())
                 })?;
         }
 
@@ -4225,10 +4236,7 @@ pub mod stamp {
             3 => *b"VAI",
             _ => *b"DFM",
         };
-        format!(
-            "{:02x}{:02x}{:02x}0100",
-            triplet[0], triplet[1], triplet[2]
-        )
+        format!("{:02x}{:02x}{:02x}0100", triplet[0], triplet[1], triplet[2])
     }
 
     async fn run_sign_step(args: &CliArgs) -> Result<()> {
@@ -4253,11 +4261,12 @@ pub mod stamp {
 
         #[test]
         fn detect_modality_classifies_audio_extensions() {
-            for ext in ["mp3", "wav", "flac", "m4a", "ogg", "opus", "aac", "mp4", "mov"] {
+            for ext in [
+                "mp3", "wav", "flac", "m4a", "ogg", "opus", "aac", "mp4", "mov",
+            ] {
                 let p = std::path::PathBuf::from(format!("song.{ext}"));
-                let m = detect_modality(&p).unwrap_or_else(|e| {
-                    panic!("expected Audio for .{ext}, got {e:?}")
-                });
+                let m = detect_modality(&p)
+                    .unwrap_or_else(|e| panic!("expected Audio for .{ext}, got {e:?}"));
                 assert!(matches!(m, Modality::Audio), ".{ext} should be Audio");
             }
         }
@@ -4266,9 +4275,8 @@ pub mod stamp {
         fn detect_modality_classifies_image_extensions() {
             for ext in ["png", "jpg", "jpeg", "webp", "bmp", "gif", "tiff", "tif"] {
                 let p = std::path::PathBuf::from(format!("photo.{ext}"));
-                let m = detect_modality(&p).unwrap_or_else(|e| {
-                    panic!("expected Image for .{ext}, got {e:?}")
-                });
+                let m = detect_modality(&p)
+                    .unwrap_or_else(|e| panic!("expected Image for .{ext}, got {e:?}"));
                 assert!(matches!(m, Modality::Image), ".{ext} should be Image");
             }
         }
@@ -4374,7 +4382,8 @@ pub mod stamp {
             for brand in 0u8..=31 {
                 let h = brand_id_to_payload_hex(brand);
                 assert!(
-                    h.chars().all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c)),
+                    h.chars()
+                        .all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c)),
                     "brand {brand} hex contains non-lowercase: {h}"
                 );
             }

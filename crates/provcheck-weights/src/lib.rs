@@ -214,8 +214,8 @@ pub fn status() -> Vec<WeightStatus> {
             let cached = match cache_path_for(entry) {
                 Ok(p) => {
                     let exists = p.exists();
-                    let valid = exists
-                        && verify::file_sha256_matches(&p, &entry.sha256).unwrap_or(false);
+                    let valid =
+                        exists && verify::file_sha256_matches(&p, &entry.sha256).unwrap_or(false);
                     WeightCacheState { exists, valid }
                 }
                 Err(_) => WeightCacheState {

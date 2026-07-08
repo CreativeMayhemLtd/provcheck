@@ -317,6 +317,7 @@ pub fn resolve_recovery_recipients(
 ///   count parameter (not just PBES1/RC2/3DES), OR
 /// - a new crate lands that writes modern PKCS#12 with the
 ///   provcheck-side security profile.
+///
 /// Re-check on any next release-line cadence; log findings in a
 /// `project_pkcs12_ecosystem_survey_<date>.md` memory drawer.
 ///

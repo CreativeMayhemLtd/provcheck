@@ -56,12 +56,12 @@ use std::path::Path;
 
 pub use provcheck::prelude::{WatermarkBrand, WatermarkKind, WatermarkResult, WatermarkStatus};
 
-#[doc(hidden)]
-pub mod image;
+pub mod bch;
 pub mod encode;
 #[doc(hidden)]
+pub mod image;
+#[doc(hidden)]
 pub mod model;
-pub mod bch;
 
 /// Errors returned by [`detect`]. Non-fatal outcomes (file is
 /// not an image, decoder failure) are reported on the returned
@@ -302,11 +302,7 @@ mod no_stale_backend_promise_tests {
         // doesn't contain the literal substring.
         let prior_backend_name = format!("{}{}{}{}{}", 't', 'r', 'a', 'c', 't');
         let prior_with_version = format!("{prior_backend_name} 0.21");
-        let followup_promise = format!(
-            "{}{}",
-            "7b-followup",
-            " switches the backend"
-        );
+        let followup_promise = format!("{}{}", "7b-followup", " switches the backend");
         for sentinel in [&prior_with_version, &followup_promise] {
             assert!(
                 !source.contains(sentinel.as_str()),
@@ -326,8 +322,7 @@ mod no_stale_backend_promise_tests {
             "expected runtime-error message to name the actual ort backend"
         );
         assert!(
-            source.contains("weights install trustmark")
-                || source.contains("weights uninstall"),
+            source.contains("weights install trustmark") || source.contains("weights uninstall"),
             "expected runtime-error message to suggest a recovery action"
         );
     }

@@ -379,10 +379,7 @@ mod attestation_config_tests {
             ..Default::default()
         };
         let cfg: AttestationConfig = (&opts).into();
-        assert_eq!(
-            cfg.cache_dir,
-            Some(std::path::PathBuf::from("/tmp/cache"))
-        );
+        assert_eq!(cfg.cache_dir, Some(std::path::PathBuf::from("/tmp/cache")));
     }
 
     #[test]

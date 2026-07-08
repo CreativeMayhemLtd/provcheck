@@ -124,7 +124,10 @@ mod tests {
         // 0.50 is the inclusive lower bound for Degraded. Pin
         // the boundary behaviour so a future maintainer doesn't
         // silently shift the strict / non-strict comparison.
-        assert_eq!(classify(true, DEGRADED_THRESHOLD), WatermarkStatus::Degraded);
+        assert_eq!(
+            classify(true, DEGRADED_THRESHOLD),
+            WatermarkStatus::Degraded
+        );
     }
 
     #[test]
@@ -141,7 +144,10 @@ mod tests {
     #[test]
     fn confidence_at_detected_threshold_exactly_is_detected() {
         // 0.70 is the inclusive lower bound for Detected.
-        assert_eq!(classify(true, DETECTED_THRESHOLD), WatermarkStatus::Detected);
+        assert_eq!(
+            classify(true, DETECTED_THRESHOLD),
+            WatermarkStatus::Detected
+        );
     }
 
     #[test]

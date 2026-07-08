@@ -258,8 +258,7 @@ impl<'de> Deserialize<'de> for KeyProviderKind {
                 "keychain" => Ok(Self::Keychain),
                 "encrypted_file" => Ok(Self::EncryptedFile),
                 "yubikey" => {
-                    let serial =
-                        serial.ok_or_else(|| DeError::missing_field("serial"))?;
+                    let serial = serial.ok_or_else(|| DeError::missing_field("serial"))?;
                     let slot = slot.ok_or_else(|| DeError::missing_field("slot"))?;
                     Ok(Self::Yubikey { serial, slot })
                 }
@@ -392,7 +391,8 @@ mod tests {
 
     #[test]
     fn key_provider_kind_yubikey_requires_serial_and_slot() {
-        let err = serde_json::from_str::<KeyProviderKind>(r#"{"kind":"yubikey"}"#).expect_err("rejected");
+        let err =
+            serde_json::from_str::<KeyProviderKind>(r#"{"kind":"yubikey"}"#).expect_err("rejected");
         assert!(err.to_string().contains("serial"), "missing serial: {err}");
     }
 

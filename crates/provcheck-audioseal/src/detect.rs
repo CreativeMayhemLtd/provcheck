@@ -258,7 +258,10 @@ mod tests {
             );
             // Other byte should be untouched.
             let other = 1 - byte_idx;
-            assert_eq!(packed[other], 0, "byte {other} should be 0 when only bit {i} is set");
+            assert_eq!(
+                packed[other], 0,
+                "byte {other} should be 0 when only bit {i} is set"
+            );
         }
     }
 

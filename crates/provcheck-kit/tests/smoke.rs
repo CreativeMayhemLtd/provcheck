@@ -188,10 +188,8 @@ fn export_then_import_x25519_round_trip_via_library_apis() {
     // Drives the library APIs (not the binary) to keep the test
     // hermetic — the binary-level smoke test above already
     // exercises the --identity-file dispatch.
+    use provcheck_sign::backup::{export_with_recipients, import_with_x25519_identity};
     use std::str::FromStr;
-    use provcheck_sign::backup::{
-        export_with_recipients, import_with_x25519_identity,
-    };
 
     let tmp = tempfile::tempdir().expect("tmp");
     let bundle_path = tmp.path().join("backup.age");
@@ -228,11 +226,10 @@ fn export_then_import_x25519_round_trip_via_library_apis() {
     use secrecy::ExposeSecret as _;
     let exposed = identity.to_string();
     let secret_text: &str = exposed.expose_secret();
-    let parsed = age::x25519::Identity::from_str(secret_text.trim())
-        .expect("parse identity from string");
+    let parsed =
+        age::x25519::Identity::from_str(secret_text.trim()).expect("parse identity from string");
 
-    let bundle = import_with_x25519_identity(&bundle_path, &parsed)
-        .expect("import with x25519");
+    let bundle = import_with_x25519_identity(&bundle_path, &parsed).expect("import with x25519");
     assert_eq!(bundle.fingerprint, unlocked.locked.fingerprint);
     assert_eq!(bundle.chain_pem, unlocked.locked.chain_pem);
 }

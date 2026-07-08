@@ -51,16 +51,19 @@ mod tests {
     /// SHA-256 of "hello world" with a trailing newline omitted —
     /// `printf 'hello world' | sha256sum`. Pinned by hand.
     const HELLO_WORLD_SHA: [u8; 32] = [
-        0xb9, 0x4d, 0x27, 0xb9, 0x93, 0x4d, 0x3e, 0x08, 0xa5, 0x2e, 0x52, 0xd7, 0xda, 0x7d,
-        0xab, 0xfa, 0xc4, 0x84, 0xef, 0xe3, 0x7a, 0x53, 0x80, 0xee, 0x90, 0x88, 0xf7, 0xac,
-        0xe2, 0xef, 0xcd, 0xe9,
+        0xb9, 0x4d, 0x27, 0xb9, 0x93, 0x4d, 0x3e, 0x08, 0xa5, 0x2e, 0x52, 0xd7, 0xda, 0x7d, 0xab,
+        0xfa, 0xc4, 0x84, 0xef, 0xe3, 0x7a, 0x53, 0x80, 0xee, 0x90, 0x88, 0xf7, 0xac, 0xe2, 0xef,
+        0xcd, 0xe9,
     ];
 
     #[test]
     fn matches_known_sha_for_known_bytes() {
         let (_dir, path) = write_tmp(b"hello world");
         let ok = file_sha256_matches(&path, &HELLO_WORLD_SHA).expect("hash ok");
-        assert!(ok, "SHA256 of 'hello world' must match the published constant");
+        assert!(
+            ok,
+            "SHA256 of 'hello world' must match the published constant"
+        );
     }
 
     #[test]
@@ -82,7 +85,10 @@ mod tests {
     fn rejects_empty_file_against_real_sha() {
         let (_dir, path) = write_tmp(b"");
         let ok = file_sha256_matches(&path, &HELLO_WORLD_SHA).expect("hash ok");
-        assert!(!ok, "empty file must NOT match a non-empty payload's SHA256");
+        assert!(
+            !ok,
+            "empty file must NOT match a non-empty payload's SHA256"
+        );
     }
 
     #[test]

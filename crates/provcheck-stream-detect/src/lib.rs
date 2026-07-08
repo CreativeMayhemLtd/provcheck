@@ -95,9 +95,7 @@ impl AudioStreamConfig {
         history_capacity: usize,
     ) -> Result<Self, StreamError> {
         if sample_rate == 0 {
-            return Err(StreamError::InvalidConfig(
-                "sample_rate must be > 0".into(),
-            ));
+            return Err(StreamError::InvalidConfig("sample_rate must be > 0".into()));
         }
         if window_samples == 0 {
             return Err(StreamError::InvalidConfig(
@@ -105,9 +103,7 @@ impl AudioStreamConfig {
             ));
         }
         if hop_samples == 0 {
-            return Err(StreamError::InvalidConfig(
-                "hop_samples must be > 0".into(),
-            ));
+            return Err(StreamError::InvalidConfig("hop_samples must be > 0".into()));
         }
         if hop_samples > window_samples {
             return Err(StreamError::InvalidConfig(format!(
@@ -186,10 +182,7 @@ pub struct AudioStreamingPipeline {
 
 impl AudioStreamingPipeline {
     /// Construct a new pipeline.
-    pub fn new(
-        config: AudioStreamConfig,
-        registry: provcheck_detect::DetectorRegistry,
-    ) -> Self {
+    pub fn new(config: AudioStreamConfig, registry: provcheck_detect::DetectorRegistry) -> Self {
         Self {
             config,
             registry,
@@ -349,9 +342,7 @@ impl VideoStreamConfig {
             ));
         }
         if hop_frames == 0 {
-            return Err(StreamError::InvalidConfig(
-                "hop_frames must be > 0".into(),
-            ));
+            return Err(StreamError::InvalidConfig("hop_frames must be > 0".into()));
         }
         if hop_frames > window_frames {
             return Err(StreamError::InvalidConfig(format!(
@@ -413,10 +404,7 @@ pub struct VideoStreamingPipeline {
 
 impl VideoStreamingPipeline {
     /// Construct.
-    pub fn new(
-        config: VideoStreamConfig,
-        registry: provcheck_detect::DetectorRegistry,
-    ) -> Self {
+    pub fn new(config: VideoStreamConfig, registry: provcheck_detect::DetectorRegistry) -> Self {
         Self {
             config,
             registry,
@@ -451,20 +439,14 @@ impl VideoStreamingPipeline {
 
         while self.buffer.len() >= self.config.window_frames {
             // Window = first window_frames in the deque.
-            let window: Vec<&VideoFrame> = self
-                .buffer
-                .iter()
-                .take(self.config.window_frames)
-                .collect();
+            let window: Vec<&VideoFrame> =
+                self.buffer.iter().take(self.config.window_frames).collect();
 
             let start_secs = window[0].pts_secs;
             let end_secs = window[window.len() - 1].pts_secs;
 
             // Concatenate with length prefixes.
-            let total_size: usize = window
-                .iter()
-                .map(|f| 4 + f.bytes.len())
-                .sum();
+            let total_size: usize = window.iter().map(|f| 4 + f.bytes.len()).sum();
             let mut bytes = Vec::with_capacity(total_size);
             for frame in &window {
                 let len_be = (frame.bytes.len() as u32).to_be_bytes();
@@ -518,8 +500,8 @@ impl std::fmt::Debug for VideoStreamingPipeline {
 mod tests {
     use super::*;
     use provcheck_detect::{
-        DetectionFamily, DetectionResult, DetectionStatus, Detector,
-        DetectorError, DetectorRegistry,
+        DetectionFamily, DetectionResult, DetectionStatus, Detector, DetectorError,
+        DetectorRegistry,
     };
 
     /// Test detector that always reports NotDetected. We don't

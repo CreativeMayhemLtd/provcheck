@@ -288,7 +288,9 @@ mod parse_algorithm_tests {
         // ALLOWED_ALGORITHMS. Silent drift would let the kit sign
         // with an algorithm verifiers reject.
         use provcheck_attestation_spec::ALLOWED_ALGORITHMS;
-        for alg in ["ES256", "ES384", "ES512", "PS256", "PS384", "PS512", "Ed25519"] {
+        for alg in [
+            "ES256", "ES384", "ES512", "PS256", "PS384", "PS512", "Ed25519",
+        ] {
             assert!(parse_algorithm(alg).is_some(), "kit should parse {alg}");
             assert!(
                 ALLOWED_ALGORITHMS.contains(&alg),
@@ -618,8 +620,8 @@ pub fn embed_identity_assertion(
 
 #[cfg(test)]
 mod embed_identity_assertion_tests {
-    use super::embed_identity_assertion;
     use super::SignError;
+    use super::embed_identity_assertion;
     use provcheck_attestation_spec::{IDENTITY_ASSERTION_LABEL, IdentityClaim};
 
     fn claim() -> IdentityClaim {
@@ -691,8 +693,7 @@ mod embed_identity_assertion_tests {
     #[test]
     fn idempotent_replaces_existing_identity_assertion_not_duplicates() {
         let first = embed_identity_assertion("{}", &claim()).expect("first");
-        let second_claim =
-            IdentityClaim::new("did:plc:NEW", Some("new.bsky.social".into()));
+        let second_claim = IdentityClaim::new("did:plc:NEW", Some("new.bsky.social".into()));
         let second = embed_identity_assertion(&first, &second_claim).expect("second");
         let assertions = parse_assertions(&second);
         assert_eq!(
@@ -703,7 +704,10 @@ mod embed_identity_assertion_tests {
         // The replaced assertion must carry the new DID.
         let identity = find_identity_assertion(&second).expect("identity");
         assert_eq!(
-            identity.get("data").and_then(|d| d.get("did")).and_then(|d| d.as_str()),
+            identity
+                .get("data")
+                .and_then(|d| d.get("did"))
+                .and_then(|d| d.as_str()),
             Some("did:plc:NEW")
         );
     }
@@ -742,10 +746,17 @@ mod embed_identity_assertion_tests {
         let new_claim = IdentityClaim::new("did:plc:NEW", None);
         let out = embed_identity_assertion(manifest, &new_claim).expect("ok");
         let assertions = parse_assertions(&out);
-        assert_eq!(assertions.len(), 2, "actions assertion must remain alongside replaced identity");
+        assert_eq!(
+            assertions.len(),
+            2,
+            "actions assertion must remain alongside replaced identity"
+        );
         let identity = find_identity_assertion(&out).expect("identity");
         assert_eq!(
-            identity.get("data").and_then(|d| d.get("did")).and_then(|d| d.as_str()),
+            identity
+                .get("data")
+                .and_then(|d| d.get("did"))
+                .and_then(|d| d.as_str()),
             Some("did:plc:NEW"),
             "identity assertion must carry the new DID, not the old"
         );

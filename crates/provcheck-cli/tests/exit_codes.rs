@@ -83,10 +83,7 @@ fn unreadable_trust_store_path_exits_2() {
 #[test]
 fn missing_input_file_exits_2() {
     let (code, _, _) = run(&["/does/not/exist/file_abcxyz.mp3"]);
-    assert_eq!(
-        code, 2,
-        "missing input file is an I/O failure → exit 2"
-    );
+    assert_eq!(code, 2, "missing input file is an I/O failure → exit 2");
 }
 
 // ----- help + version stay non-error ----------
@@ -95,7 +92,10 @@ fn missing_input_file_exits_2() {
 fn help_exits_0() {
     let (code, stdout, _) = run(&["--help"]);
     assert_eq!(code, 0);
-    assert!(stdout.contains("provcheck"), "help text must mention the binary");
+    assert!(
+        stdout.contains("provcheck"),
+        "help text must mention the binary"
+    );
 }
 
 #[test]
@@ -132,11 +132,7 @@ fn missing_file_in_json_mode_still_exits_2() {
 #[test]
 fn require_watermark_with_no_watermark_exits_2() {
     // clap's conflicts_with attribute catches this at parse time.
-    let (code, _, stderr) = run(&[
-        "--require-watermark",
-        "--no-watermark",
-        "/any/file.mp3",
-    ]);
+    let (code, _, stderr) = run(&["--require-watermark", "--no-watermark", "/any/file.mp3"]);
     assert_eq!(code, 2);
     assert!(
         stderr.contains("cannot be used")
@@ -244,11 +240,7 @@ fn detect_ai_with_unknown_value_exits_2() {
 fn detect_ai_with_missing_file_exits_2() {
     // Same file-not-found path as the other flags. Pin that
     // adding --detect doesn't change the exit-code routing.
-    let (code, _, _) = run(&[
-        "--detect",
-        "ai",
-        "/does/not/exist/file_detect.mp3",
-    ]);
+    let (code, _, _) = run(&["--detect", "ai", "/does/not/exist/file_detect.mp3"]);
     assert_eq!(code, 2, "missing file with --detect ai still exits 2");
 }
 

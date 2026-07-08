@@ -130,8 +130,7 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
         });
     }
 
-    let mean_conf =
-        per_frame_confs.iter().copied().sum::<f32>() / per_frame_confs.len() as f32;
+    let mean_conf = per_frame_confs.iter().copied().sum::<f32>() / per_frame_confs.len() as f32;
 
     let (status, brand) = classify_votes(&brand_votes);
 
@@ -262,9 +261,7 @@ fn extract_frames(src: &Path, dst: &Path) -> Result<Vec<PathBuf>, Error> {
         .status()
         .map_err(|e| Error::Ffmpeg(format!("spawn: {e}")))?;
     if !status.success() {
-        return Err(Error::Ffmpeg(format!(
-            "ffmpeg exited with status {status}"
-        )));
+        return Err(Error::Ffmpeg(format!("ffmpeg exited with status {status}")));
     }
     let mut frames: Vec<PathBuf> = std::fs::read_dir(dst)?
         .filter_map(|r| r.ok())
@@ -317,10 +314,7 @@ mod tests {
     fn looks_like_video_rejects_non_video_extensions() {
         for ext in ["txt", "mp3", "wav", "png", "jpg", "pdf"] {
             let p = std::path::PathBuf::from(format!("/test/file.{ext}"));
-            assert!(
-                !looks_like_video(&p),
-                "{ext} should NOT look like video"
-            );
+            assert!(!looks_like_video(&p), "{ext} should NOT look like video");
         }
     }
 

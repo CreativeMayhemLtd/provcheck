@@ -35,8 +35,8 @@ use tract_onnx::prelude::*;
 use crate::hparams::{FREQ_BINS, MESSAGE_DIM, MESSAGE_LEN, N_FFT, VCTK_AVG_ENERGY, WIN};
 use crate::model::CHUNK_T_FRAMES;
 use crate::stft::{
-    IstftStreamer, Spectrum, compute_n_frames, forward_stft_chunk,
-    spectrum_to_waveform, streaming_utterance_norm, waveform_to_spectrum,
+    IstftStreamer, Spectrum, compute_n_frames, forward_stft_chunk, spectrum_to_waveform,
+    streaming_utterance_norm, waveform_to_spectrum,
 };
 
 // v0.7 phase 8a: silentcipher encoder ONNX migrated from
@@ -101,7 +101,9 @@ pub enum EncodeError {
     /// stereo embed entry point. Distinct from `Inference` so
     /// callers can tell user-input bugs apart from model-internal
     /// failures. Added in the v0.9.0 audit pass.
-    #[error("stereo embed: left ({left} samples) and right ({right} samples) have different lengths")]
+    #[error(
+        "stereo embed: left ({left} samples) and right ({right} samples) have different lengths"
+    )]
     StereoLengthMismatch { left: usize, right: usize },
 }
 
@@ -246,10 +248,8 @@ pub fn embed_with_config(
             .map(|&(t_start, chunk_t)| {
                 let carrier_chunk =
                     extract_carrier_chunk(&spec.magnitude, n_frames, t_start, chunk_t);
-                let msg_chunk =
-                    transform_message_chunk(&msg_enc_5, n_frames, t_start, chunk_t);
-                let info_raw =
-                    run_encoder_chunk(model, &carrier_chunk, &msg_chunk, sdr, chunk_t)?;
+                let msg_chunk = transform_message_chunk(&msg_enc_5, n_frames, t_start, chunk_t);
+                let info_raw = run_encoder_chunk(model, &carrier_chunk, &msg_chunk, sdr, chunk_t)?;
 
                 let mut chunk_reconst = vec![0.0_f32; FREQ_BINS * chunk_t];
                 for bin in 0..FREQ_BINS {
@@ -489,7 +489,6 @@ mod embed_and_verify_tests {
         let r = embed_and_verify(&[], [0u8; 5], None);
         assert!(matches!(r, Err(EncodeError::TooShort)));
     }
-
 }
 
 /// Build the message tensor that the encoder ONNX expects.
@@ -686,7 +685,9 @@ fn run_encoder_chunk(
         .map_err(|e| EncodeError::Inference(format!("msg_enc shape: {e}")))?;
     let sdr_arr = ndarray::Array0::<f32>::from_elem((), sdr_db);
 
-    let mut model = model.lock().map_err(|e| EncodeError::Inference(format!("ort session mutex poisoned: {e}")))?;
+    let mut model = model
+        .lock()
+        .map_err(|e| EncodeError::Inference(format!("ort session mutex poisoned: {e}")))?;
     let outputs = model
         .run(ort::inputs![
             "carrier_mag" => ort::value::TensorRef::from_array_view(carrier_arr.view()).map_err(|e| EncodeError::Inference(e.to_string()))?,
@@ -730,8 +731,7 @@ fn model() -> Result<&'static Runnable, EncodeError> {
 fn build_model() -> Result<Runnable, String> {
     let path = provcheck_weights::load_if_cached("silentcipher", "encoder")
         .map_err(|e| format!("weights: {e}"))?;
-    let file = std::fs::File::open(&path)
-        .map_err(|e| format!("open {}: {e}", path.display()))?;
+    let file = std::fs::File::open(&path).map_err(|e| format!("open {}: {e}", path.display()))?;
     let mut reader = std::io::BufReader::new(file);
     let model = tract_onnx::onnx()
         .model_for_read(&mut reader)

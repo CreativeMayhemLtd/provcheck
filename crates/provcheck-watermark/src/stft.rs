@@ -273,7 +273,10 @@ mod waveform_to_carrier_tests {
         assert!(
             n_long > n_short,
             "longer input ({} samples) must produce more frames than shorter ({} samples), got {} vs {}",
-            long.len(), short.len(), n_long, n_short
+            long.len(),
+            short.len(),
+            n_long,
+            n_short
         );
     }
 }
@@ -789,11 +792,7 @@ mod public_helper_tests {
         // Up to but not including N_FFT + HOP samples, only
         // one window fits.
         for len in N_FFT..(N_FFT + HOP) {
-            assert_eq!(
-                compute_n_frames(len),
-                1,
-                "len={len} should produce 1 frame"
-            );
+            assert_eq!(compute_n_frames(len), 1, "len={len} should produce 1 frame");
         }
     }
 

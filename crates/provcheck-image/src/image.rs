@@ -246,7 +246,9 @@ mod tests {
                 .suffix(&format!(".{ext}"))
                 .tempfile()
                 .expect("tempfile");
-            f.as_file().write_all(b"not actually an image").expect("write");
+            f.as_file()
+                .write_all(b"not actually an image")
+                .expect("write");
             let r = decode(f.path());
             // Either Decode (passed the gate) or Io. NEVER NotImage.
             assert!(
@@ -311,7 +313,10 @@ mod tests {
                 image::ImageFormat::Png,
             )
             .expect("encode png");
-        let f = tempfile::Builder::new().suffix(".png").tempfile().expect("tempfile");
+        let f = tempfile::Builder::new()
+            .suffix(".png")
+            .tempfile()
+            .expect("tempfile");
         f.as_file().write_all(&png_bytes).expect("write png");
         f.as_file().sync_all().expect("sync");
 

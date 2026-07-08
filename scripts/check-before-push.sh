@@ -2,9 +2,10 @@
 # check-before-push.sh — pre-push regression gate for provcheck.
 #
 # Runs in this order:
-#   1. cargo test --release --workspace            (workspace-wide unit + integration)
-#   2. scripts/parity-vs-upstream.py at SDR ∈ {30, 47}  (silentcipher embed parity vs upstream Python)
-#   3. AAC delivery survival check for silentcipher + AudioSeal
+#   1. cargo fmt --check + clippy -D warnings       (CI-parity format + lint gate)
+#   2. cargo test --release --workspace            (workspace-wide unit + integration)
+#   3. scripts/parity-vs-upstream.py at SDR ∈ {30, 47}  (silentcipher embed parity vs upstream Python)
+#   4. AAC delivery survival check for silentcipher + AudioSeal
 #      (the public-issue #23 + #24 ground truth — guards both
 #       embed margin AND the symphonia AAC decoder priming fix)
 #
@@ -240,8 +241,30 @@ else
 fi
 green "  OK"
 
-# ---- 1. Workspace cargo test --------------------------------------
-yellow "[1/3] cargo test --release --workspace"
+# ---- 1. Format + lint gate (2026-07: CI parity) -------------------
+# CI's "fmt + clippy" and "test" jobs enforce `cargo fmt --check` and
+# RUSTFLAGS=-D warnings. Because every commit on main carries
+# [skip ci], CI never runs on our own pushes, so this gate is the
+# ONLY thing catching format drift or a compiler warning before it
+# reaches the Dependabot PRs, the sole surface where CI actually
+# fires. Root cause of the 2026-07 red-main incident: drift and a
+# doc-lint warning accumulated invisibly across the v1.1.x iteration
+# series because the gate tested without -D warnings and never ran
+# fmt --check.
+yellow "[1/4] cargo fmt --check + clippy -D warnings"
+if ! cargo fmt --check; then
+    red "  FAIL: formatting drift. Run 'cargo fmt' and re-stage."
+    exit 1
+fi
+if ! RUSTFLAGS="-D warnings" CARGO_TARGET_DIR=./target-gate \
+        cargo clippy --workspace --all-targets --jobs 8 2>&1 | tail -20; then
+    red "  FAIL: clippy / -D warnings. Fix the reported warnings."
+    exit 1
+fi
+green "  OK"
+
+# ---- 2. Workspace cargo test --------------------------------------
+yellow "[2/4] cargo test --release --workspace"
 # Use a separate target dir so the test build's intermediate link
 # step does not collide with a long-running process holding
 # `target/release/*.exe` open on Windows. Same root cause as step 2's
@@ -255,9 +278,9 @@ green "  OK"
 
 # ---- 2. Parity sweep vs upstream Python silentcipher --------------
 if [[ "$SKIP_PARITY" == "1" ]]; then
-    yellow "[2/3] parity sweep SKIPPED (--skip-parity)"
+    yellow "[3/4] parity sweep SKIPPED (--skip-parity)"
 else
-    yellow "[2/3] parity sweep vs upstream Python (SDR 30 + 47)"
+    yellow "[3/4] parity sweep vs upstream Python (SDR 30 + 47)"
 
     # Skip silentcipher weights cleanly if they are not in HF cache.
     if ! python -c "from pathlib import Path; p = Path.home() / '.cache/huggingface/hub/models--sony--silentcipher'; import sys; sys.exit(0 if any(p.rglob('44_1_khz/73999_iteration/hparams.yaml')) else 1)" 2>/dev/null; then
@@ -306,7 +329,7 @@ else
 fi
 
 # ---- 3. AAC delivery survival (issues #23 + #24) ------------------
-yellow "[3/3] AAC delivery survival smoke (issues #23 + #24)"
+yellow "[4/4] AAC delivery survival smoke (issues #23 + #24)"
 if ! command -v ffmpeg >/dev/null; then
     yellow "  ffmpeg not on PATH — skipping codec survival smoke"
     yellow "  (this gate cannot run; add ffmpeg if you want it enforced)"
