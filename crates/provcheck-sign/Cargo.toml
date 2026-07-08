@@ -37,7 +37,7 @@ sha2 = "0.10"
 
 # Platform-aware data-directory resolution. XDG_DATA_HOME on
 # Linux/macOS; %APPDATA% on Windows.
-dirs = "5"
+dirs = "6"
 
 # Timestamp handling for identity.json's created_at field.
 time = { version = "0.3", features = ["parsing", "formatting", "serde", "macros"] }
