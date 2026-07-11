@@ -1,21 +1,13 @@
 name: Build release binaries
 
-# Fires when a `vX.Y.0` tag is pushed to the private dev repo (the
-# trailing `.0` gate skips patch / dev / iteration tags like v0.9.1,
-# v0.9.2, etc. — see CONTRIBUTING.md "Release cadence"). Runs the
-# build on all three target OSes and uploads the platform archives
-# as workflow artefacts, ready for `scripts/publish-release.sh` to
-# collect and ship to the public release repo.
+# Fires when a `vX.Y.0` tag is pushed. The trailing `.0` gate skips
+# patch and iteration tags like v0.9.1 or v0.9.2. Runs the build on
+# all three target OSes and uploads the platform archives as workflow
+# artefacts for attaching to the GitHub Release.
 #
-# The release workflow deliberately does NOT push anything to a public
-# repo — that's the maintainer's explicit gesture. See
-# `scripts/README.md` and the Milestone 4 notes in `README.md` for
-# the reasoning behind the manual-control release flow.
-#
-# Iteration / patch tags (e.g. v0.9.1 through v0.9.x during the pre-
-# v1.0 test-coverage push) deliberately do NOT fire the matrix —
-# they exist as commit anchors only. To force a build for a patch
-# tag, use the workflow_dispatch input below.
+# Iteration / patch tags (`vX.Y.Z` where Z > 0) deliberately do NOT
+# fire the matrix; they exist as commit anchors only. To force a
+# build for a patch tag, use the workflow_dispatch input below.
 
 on:
   push:
@@ -203,7 +195,7 @@ jobs:
           SSL_COM_TOTP_SECRET: ${{ secrets.SSL_COM_TOTP_SECRET }}
         run: |
           if (-not $env:SSL_COM_TOTP_SECRET) {
-            Write-Host "SSL_COM_* secrets not set on this repo. Skipping code-signing. Binaries ship UNSIGNED (SmartScreen 'unknown publisher' warning will show on end-user machines). Set the four SSL_COM_* secrets on the dev repo to enable signing on the next release; see docs/release-process.md."
+            Write-Host "SSL_COM_* secrets not set on this repo. Skipping code-signing. Binaries ship UNSIGNED (SmartScreen 'unknown publisher' warning will show on end-user machines). Set the four SSL_COM_* secrets on this repository to enable signing on the next release; see docs/release-process.md."
             exit 0
           }
           # Download SSL.com CodeSignTool. The zip nests everything
@@ -428,7 +420,7 @@ jobs:
           SSL_COM_TOTP_SECRET: ${{ secrets.SSL_COM_TOTP_SECRET }}
         run: |
           if (-not $env:SSL_COM_TOTP_SECRET) {
-            Write-Host "SSL_COM_* secrets not set on this repo. Skipping GUI code-signing. Installers ship UNSIGNED (SmartScreen 'unknown publisher' on setup.exe download). Set the four SSL_COM_* secrets on the dev repo to enable signing on the next release."
+            Write-Host "SSL_COM_* secrets not set on this repo. Skipping GUI code-signing. Installers ship UNSIGNED (SmartScreen 'unknown publisher' on setup.exe download). Set the four SSL_COM_* secrets on this repository to enable signing on the next release."
             exit 0
           }
           # Download SSL.com CodeSignTool (separate runner from the

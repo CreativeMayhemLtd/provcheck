@@ -19,7 +19,7 @@ use tract_onnx::prelude::*;
 // v0.7 phase 8a: audioseal detector + generator ONNX migrated
 // from include_bytes!() to the provcheck-weights DLC pattern.
 // Kit binary drops by ~89 MB (the biggest single drop). First
-// detect()/embed() lazily pulls from the public mirror's
+// detect()/embed() lazily pulls from the repository's
 // weights-v1 release; subsequent calls hit cache.
 
 /// Fixed input length for both ONNX files. Audio shorter than this

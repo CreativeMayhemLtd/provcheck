@@ -37,7 +37,7 @@ shipping the embed pipeline; v0.3.9 ships it as intended.
 
 CI fix — encode.rs:246 rustdoc trap
 
-v0.3.8 shipped to the public mirror successfully (artifacts built,
+v0.3.8 shipped to the repository successfully (artifacts built,
 binaries work) but its workspace CI run came back red on macos,
 ubuntu, and windows. Cause: `transform_message`'s doc comment in
 `crates/provcheck-watermark/src/encode.rs` contained two indented

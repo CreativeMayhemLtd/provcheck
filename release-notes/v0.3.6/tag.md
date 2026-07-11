@@ -12,6 +12,6 @@ ship ceremony anymore.
 
 v0.3.5 was tagged but its CI failed at the new build-sbom step
 (missing exec bit on the SBOM script). The exec-bit fix is in
-v0.3.6 from the start. v0.3.5 never reached the public mirror.
+v0.3.6 from the start. v0.3.5 never reached the repository.
 
 No CLI behaviour or wire-format changes.

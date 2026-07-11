@@ -2,7 +2,7 @@
 //!
 //! Downloadable-on-demand detector weights for provcheck. Each
 //! family's pretrained model weights live as release assets on
-//! the public mirror at
+//! the repository at
 //! `https://github.com/CreativeMayhemLtd/provcheck/releases/tag/weights-v1`
 //! rather than embedded into the binary via `include_bytes!()`.
 //!

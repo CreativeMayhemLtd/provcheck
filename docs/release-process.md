@@ -229,40 +229,13 @@ dependency order.
 
 - `provcheck-examples` — internal example harness, `publish = false`.
 
-## Public mirror sync
-
-The public mirror at `CreativeMayhemLtd/provcheck` gets the tag
-pushed via:
-
-```bash
-git push public-mirror vX.Y.0
-git push public-mirror main
-```
-
-(Assumes a `public-mirror` remote pointing at the public repo. Set
-once via `git remote add public-mirror <url>` if absent.)
-
-Strategic-relationship context (per memory note
-`feedback_keep_relationship_context_out_of_artifacts`) is NEVER in
-the public mirror's commit log. Run `git log -- origin/main..HEAD`
-before the public push and scrub any commit that mentions
-third-party connections (rAIdio.bot internals, doomscroll.fm
-internals, founder intros, etc.).
-
 ## Post-release
 
 1. **Issue tracker**: close any task milestones that the release
    closes. Push a comment on any public issue the release fixes
    (per the v0.5.2 / v0.5.3 model of acknowledging the reporter).
-2. **Memory update**: write a project-memory entry in the form
-   `project_vX.Y.0_shipped.md` summarising what shipped and any
-   non-obvious gotchas. Add it to `MEMORY.md` as a one-line index
-   entry. (This file is the auto-memory that the CLI reads at
-   session start.)
-3. **Lead-with-PR-check rule**: per
-   `feedback_session_lead_with_pr_check`, the next session should
-   start with `gh issue list` + `gh pr list` on both public and
-   dev repos.
+2. **Verify the published release**: confirm the release artifacts,
+   notes, and changelog row are correct on the Releases page.
 
 ## Rollback
 
@@ -348,7 +321,7 @@ pwsh -File scripts/sign_release.ps1 `
 Wired into `.github/workflows/release.yml` on the `windows-latest`
 matrix arm. The workflow materialises a temporary signing.json from
 GitHub Secrets, signs each Windows artefact, then discards the
-config. Secrets required (repo admin sets these on the dev repo):
+config. Secrets required (repo admin sets these on the repository):
 
 | Secret | Meaning |
 |---|---|

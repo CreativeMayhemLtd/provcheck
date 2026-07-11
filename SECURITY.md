@@ -22,9 +22,8 @@ is the only supported version. We don't maintain backport branches.
 Earlier tags receive no security updates — if you're pinned to one,
 upgrade to track the current release line.
 
-Iteration tags (`vX.Y.Z` where Z > 0) land on the dev repo as
-commit anchors during the pre-release coverage push and do not
-have published GitHub Releases; they are not "supported" in any
+Iteration tags (`vX.Y.Z` where Z > 0) are internal commit anchors
+without published GitHub Releases; they are not "supported" in any
 form and are not intended for installation.
 
 The release line is fast-moving by design (the project pre-dates
@@ -190,13 +189,13 @@ relevant surfaces are:
   to `ort` for the image-modality decoder; the audio detectors
   (silentcipher, AudioSeal, WavMark) followed in the same line.
 - Detector weights ship as **download-on-demand DLC** from the
-  `weights-v1` GitHub Release on the public mirror, NOT as
+  `weights-v1` GitHub Release, NOT as
   `include_bytes!` blobs. This is the v0.8 phase 8a change that
   dropped the kit binary from ~143 MB to ~22 MB. The download +
   install flow:
   1. The kit binary embeds a compile-time `MANIFEST` table
      (`crates/provcheck-weights/src/manifest.rs`) of every
-     weight: family name, variant name, file name, public-mirror
+     weight: family name, variant name, file name, release-download
      URL, SHA256 hash, and expected size in bytes.
   2. On first detector call, `provcheck-weights::load_if_cached`
      looks for the weight in the platform cache dir

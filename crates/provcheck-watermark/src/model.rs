@@ -17,7 +17,7 @@ use crate::hparams::{FREQ_BINS, MESSAGE_DIM};
 
 // v0.7 phase 8a: silentcipher decoder ONNX migrated from
 // include_bytes!() to the provcheck-weights DLC pattern. First
-// detect() lazily pulls from the public mirror's weights-v1
+// detect() lazily pulls from the repository's weights-v1
 // release; subsequent calls hit the cache. Kit binary drops by
 // ~9.5 MB.
 

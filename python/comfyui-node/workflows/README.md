@@ -47,7 +47,7 @@ If you see `passing image through unchanged` instead, check:
 ## Brand id
 
 All three workflows default to `brand_id = 2` (RAIDIO in the
-public mirror's registry). Edit the `widgets_values` to use your
+the repository's registry). Edit the `widgets_values` to use your
 own registered brand id. See `docs/brand-registry.md` at the
 workspace root for the published registry and the registration
 process.

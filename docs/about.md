@@ -327,10 +327,8 @@ transparency.
   The lexicon (`app.provcheck.signingKey`) is open for community
   adoption; we'll submit to lexicon.community once the wire format
   has soaked.
-- **Public mirror discipline.** Development happens in a private dev
-  repo with branch-protected CI; releases are curated snapshots
-  pushed to the public mirror. Every release is reviewed by a human
-  before it ships.
+- **Release discipline.** Every release is a curated snapshot with
+  branch-protected CI, reviewed by a human before it ships.
 
 ## Supply chain — SBOMs in detail
 
@@ -459,7 +457,7 @@ splits cleanly into pages or landing-page blocks:
   trust-model section.
 - **/spec** — the open spec for the atproto identity binding (lift
   [`docs/atproto-signing-key.md`](./atproto-signing-key.md) wholesale).
-- **/security** — SBOMs, watermark license policy, public mirror
+- **/security** — SBOMs, watermark license policy, the repository
   discipline, what we prove vs what we don't.
 - **/download** — the install matrix. Direct links per platform per
   binary type.

@@ -144,7 +144,7 @@ class StampAudioNode:
       ``audio`` — AUDIO dict from upstream
         (``{"waveform": tensor[B, C, samples], "sample_rate": int}``).
       ``brand_id`` — 5-bit brand id (0..31). Same registry as the
-        image node; default 2 reflects the public mirror's RAIDIO
+        image node; default 2 reflects the repository's RAIDIO
         registration.
       ``sign`` — when True, also run the C2PA signing step. Requires
         ``provcheck-kit init``. Default False (watermark only).

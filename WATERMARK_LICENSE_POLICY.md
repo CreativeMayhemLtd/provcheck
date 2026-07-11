@@ -73,7 +73,7 @@ Three reasons, in priority order:
 
 | Family | Maintainer | Code license | Weights license | Pass? | provcheck status |
 | --- | --- | --- | --- | --- | --- |
-| **TrustMark** | Adobe / CAI | MIT (verified 2026-06-28) | MIT (verified 2026-06-28) | ✓ | **Integrated** in `provcheck-image` — full detect + embed pipeline through ort (v0.7 phase 7b + 7b-followup migrated tract → ort). Weights ship as DLC via `provcheck-weights` from the public mirror's `weights-v1` release. BCH(127,92,t=5) ecosystem interop — provcheck-stamped images round-trip through Adobe's Python TrustMark and vice versa. |
+| **TrustMark** | Adobe / CAI | MIT (verified 2026-06-28) | MIT (verified 2026-06-28) | ✓ | **Integrated** in `provcheck-image` — full detect + embed pipeline through ort (v0.7 phase 7b + 7b-followup migrated tract → ort). Weights ship as DLC via `provcheck-weights` from the repository's `weights-v1` release. BCH(127,92,t=5) ecosystem interop — provcheck-stamped images round-trip through Adobe's Python TrustMark and vice versa. |
 | **Stable Signature** | Meta (FAIR) | CC-BY-NC 4.0 | CC-BY-NC 4.0 | ✗ | **Not added.** Non-commercial clause fails the workspace rule. |
 | **StegaStamp** | Tancik et al, UC Berkeley | MIT (code) | unclear (Google Drive download without LICENSE.md) | hold | **Not added.** Code is permissive; weights status is the open question. Acceptable if upstream confirms permissive weights OR if we retrain from CC0/CC-BY data. |
 | **HiDDeN** | community reimpl of Stanford paper (Zhu et al, ECCV 2018) | MIT (community code) | no canonical publishable weights | hold | **Not added.** Academic baseline; no publishable-as-FOSS weights checkpoint. Defer in favour of TrustMark. |

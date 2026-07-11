@@ -183,7 +183,6 @@ prep checklist.
 **Acceptance:**
 - Release matrix produces the two cuda targets.
 - SBOMs generated for cuda targets too.
-- `publish-release.sh` propagates cuda targets to the public mirror.
 
 ## Distribution decisions
 

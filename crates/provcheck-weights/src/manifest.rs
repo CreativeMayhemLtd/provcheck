@@ -4,7 +4,7 @@
 //! `github.com/CreativeMayhemLtd/provcheck/releases/download/...`
 //! and the SHA256 the bytes must hash to. Adding a weight = adding
 //! a row here + uploading the corresponding asset to the matching
-//! release tag on the public mirror.
+//! release tag on the repository.
 
 /// One downloadable weight file.
 #[derive(Debug, Clone, Copy)]
@@ -16,7 +16,7 @@ pub struct WeightEntry {
     /// decoder, `"encoder"` for the silentcipher encoder).
     pub variant: &'static str,
     /// Filename used both in the cache directory AND as the
-    /// release asset name on the public mirror. Identical so the
+    /// release asset name on the repository. Identical so the
     /// URL pattern is predictable.
     pub filename: &'static str,
     /// Full download URL on
@@ -203,7 +203,7 @@ mod manifest_invariants {
                 e.url.starts_with(
                     "https://github.com/CreativeMayhemLtd/provcheck/releases/download/"
                 ),
-                "weight {}/{} URL doesn't point at the public mirror: {}",
+                "weight {}/{} URL doesn't point at the repository: {}",
                 e.family,
                 e.variant,
                 e.url

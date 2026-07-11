@@ -81,8 +81,8 @@ No changes. Drop-in upgrade for any 0.3.x consumer.
 
 About v0.3.5
 
-The tag exists on the private dev repo but its CI failed; no
-artifacts were published to the public mirror. From a consumer's
+The tag exists on the repository but its CI failed; no
+artifacts were published to the repository. From a consumer's
 perspective, v0.3.6 follows v0.3.4 directly. The website release
 history can show this as a single v0.3.6 entry with a footnote, or
 list v0.3.5 explicitly with "did not ship" — the maintainer's call.

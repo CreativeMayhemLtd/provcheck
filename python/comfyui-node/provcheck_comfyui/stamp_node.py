@@ -121,7 +121,7 @@ class StampNode:
     Inputs:
       ``image`` — IMAGE tensor batch from upstream.
       ``brand_id`` — 5-bit brand id (0..31). Default 2 reflects
-        the public mirror's RAIDIO registration; creators with
+        the repository's RAIDIO registration; creators with
         their own atproto-published brand pick their own id.
       ``sign`` — when True, also run the C2PA signing step using
         the local identity. Requires ``provcheck-kit init`` to

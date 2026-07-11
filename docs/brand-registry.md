@@ -107,7 +107,7 @@ possibilities:
 
 1. The registry is out of date — a new brand has joined but
    provcheck hasn't been updated. Check the registry doc on the
-   public mirror; bump the binary.
+   the repository; bump the binary.
 2. Someone is using an ID outside the allocated range. Either a
    typo at encode time, or a deliberately spoofed mark. The
    verifier reports the ID without taking sides on intent.

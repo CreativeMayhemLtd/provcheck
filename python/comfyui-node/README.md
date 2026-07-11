@@ -98,7 +98,7 @@ render queue never crashes on a missing kit.
 
 `brand_id` is a 5-bit unsigned integer (0..31) matching the
 signer's atproto-published brand registration record. The node
-ships with `default=2` because the public mirror's published
+ships with `default=2` because the repository's published
 registry uses id `2` for the rAIdio.bot brand, which is the most
 common stamping target for casual installs. **The default is an
 ergonomic choice, not a normative one.** Creators who registered
