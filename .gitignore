@@ -56,3 +56,6 @@ Thumbs.db
 publish_v*.log
 target-cuda/
 target-gate/
+.env
+.env.local
+signing.json
