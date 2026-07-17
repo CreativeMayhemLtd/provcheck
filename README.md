@@ -29,124 +29,32 @@ you run `publish` or `verify`.
 
 ## Status
 
-**v0.9.0 shipped 2026-06-29.** Video and SynthID-text **watermark**
-detection now run real algorithms — per-frame TrustMark + temporal
-vote on the video side, Bayesian tournament-sampling z-score on
-the text side. (These are watermark detectors — TrustMark by Adobe,
-SynthID-text by Google. They detect content that was deliberately
-marked at generation time. They are NOT deepfake detectors.) The
-ComfyUI node is live, shelling out to `provcheck-kit stamp` per
-generation, brand-agnostic for any creator running their own
-pipeline. The CUDA EP fallback bug from public issue #32 is fixed;
-default CPU builds unaffected.
+**Current release: v1.1.0.** provcheck is a feature-complete,
+Apache-2.0 provenance toolkit: a verifier, a creator-side signing
+kit, and a desktop app, all shipping for Windows, Linux, and macOS.
+
+- **Verify** C2PA Content Credentials on any file, from any vendor,
+  offline, and cross-check the signer against their atproto identity.
+- **Six watermark detector families** ship live: silentcipher,
+  AudioSeal, and WavMark on audio; TrustMark-B on images; per-frame
+  TrustMark with temporal majority-vote on video; and SynthID-text on
+  text. Each detects content that was deliberately marked at
+  generation time and reports its own verdict.
+- **Sign and publish** C2PA credentials with the creator kit: mint an
+  ES256 key (software or YubiKey), sign your media, bind the cert to
+  your atproto identity, and optionally stack a neural watermark in
+  one `kit stamp` call.
+- **Desktop app** with Verify, Watermark, Detect, Sign, and Keys tabs
+  (v1.1.0 added the dedicated Watermark and Detect tabs).
 
 Deepfake detection (asking "is this AI-generated even without a
-watermark?") is a separate problem and not shipped in this repo
-at any version. The v0.9 plumbing exposes a `Detector` trait so
-operators can wire their own classifier (commercial pack as
-paid DLC after v1.0, or an existing open-source third-party
-detector — bring-your-own-model either way). See
-`docs/v0.9-roadmap/README.md` section 9b for the precise contract.
+watermark?") is a separate problem and is not shipped in this repo at
+any version. The core exposes a `Detector` trait so operators can wire
+their own classifier: a commercial pack as paid DLC, or an existing
+open-source third-party detector, bring-your-own-model either way.
 
-"Redhat the provenance market" — every newly-added user-facing
-surface for watermark detection + provenance signing is in the
-Apache-2.0 FOSS core.
-
-**v0.7.0 shipped 2026-06-28.** Multimodal expansion: image
-watermarking (TrustMark-B by Adobe / Content Authenticity
-Initiative) lands as a fully wired detector + embedder with
-BCH-5 ecosystem interop, the kit gains a one-call creator
-pipeline (`kit stamp`), every detector's weights move to a
-download-on-demand DLC pattern that drops the kit binary from
-~143 MB to ~22 MB, and the verifier extends to video + text
-modalities (fully wired in v0.9.0: per-frame TrustMark with
-temporal majority-vote on the video side, Bayesian
-tournament-sampling z-score on the SynthID-text side).
-"Always respect the user" — weights never auto-download.
-
-Both CLI binaries (`provcheck`, `provcheck-kit`) and the desktop
-GUI ship as pre-built downloads for Windows / Linux /
-macOS-aarch64. The creator-side flow (mint identity → sign →
-publish to atproto → verifier cross-checks) is production-ready
-and battle-tested against rAIdio.bot music renders and
-doomscroll.fm voice mixdowns. v0.6.0 closes the throughput +
-memory + GPU story for long-form audio; v0.7.0 expands to
-multimodal (image + video scaffold + text scaffold + DLC weight
-delivery slimming the kit from ~143 MB to ~22 MB); v0.9.0
-wires the video + text modalities through with real algorithms
-and lands the ComfyUI node. The v0.9.x line carries the
-pre-v1.0 test-coverage push (iteration tags only).
-
-**v0.6.0 headlines:**
-
-- **CUDA backend** for the silentcipher embed encoder via the new
-  `cuda` feature flag (`cargo build --release --features cuda
-  --bin provcheck-kit`). 56-minute stereo episode embed drops from
-  29 minutes on a 4-wide CPU (v0.5.4's 2× real-time baseline was
-  ~70 min — v0.6.0 already shaves that) to **6.6 minutes on an
-  NVIDIA 3090** (0.12× real-time). Routes through `ort` 2.x's
-  `CUDAExecutionProvider`. Operator installs `onnxruntime-gpu` +
-  CUDA 12.x + cuDNN; NVIDIA libraries are not redistributed per
-  their licensing. Default download stays a single tract-only CPU
-  binary; the CUDA build is opt-in.
-- **Streaming embed** that never materialises the full
-  spectrogram. New `--memory-budget streaming` value on `kit
-  watermark` runs a two-pass chunk-fused pipeline (pass 1 streams
-  utterance_norm, pass 2 streams the chunk loop directly into an
-  overlap-add ring-buffer iSTFT). On a 56-minute stereo episode
-  peak RSS drops from 11.5 GB (default 4-wide mode) to 5.0 GB.
-  Trade-off is ~1.6× real-time wall clock vs default's 0.52×.
-  Ships for memory-constrained operators on 8-16 GB containers.
-- **Chunk-parallel embed.** Default mode now uses rayon to fan
-  out up to 4 chunks of silentcipher encoder inference per call,
-  matching the detector-side P1 pattern. Delivers the 4× CPU
-  speedup baseline above; the `--memory-budget low` knob backs it
-  off to sequential for memory-constrained hosts.
-- **Kit serve mode.** New `kit serve` subcommand exposes the
-  watermark embed pipeline over a JSON-line stdin/stdout
-  protocol. Single model load amortised across an entire batch;
-  the cold-start tract optimisation pass (about 3 seconds) runs
-  once instead of once per file. Built for batch-processing
-  consumers like doomscroll.fm's nightly cycle.
-
-**v0.5.x highlights:**
-
-- **v0.5.3:** AAC-in-MP4/M4A detector priming fix. symphonia 0.5.5's
-  `isomp4` reader does not surface the MP4 `edts/elst` edit list or
-  the `iTunSMPB` tag as `codec_params.delay`, so prior to v0.5.3 every
-  STFT frame on AAC-in-MP4/M4A was one AAC frame out of phase with
-  the embedder's frame grid and detection returned conf 0.000. The
-  fix hardcodes the standard 1024-sample AAC LC priming when
-  symphonia leaves `delay = None` for an AAC track, and adds `mp4`,
-  `m4b`, and `mov` to the audio-extension allowlist. Public issue #24.
-- **v0.5.2:** Stereo embed. New `--channels {auto, mono, stereo}` on
-  `kit watermark` runs two independent mono embeds with the same
-  payload so a stereo delivery pipeline keeps the mark across the
-  downmix-then-upmix roundtrip. silentcipher default SDR drops 47 ➝
-  30 dB so libmp3lame 192k delivery survives at conf 0.95+. AudioSeal
-  default alpha rises 1.0 ➝ 3.0 so both AAC 192k and libmp3lame 192k
-  delivery survive at conf 0.999. Always-on `--verify-after-embed`
-  self-test deletes the output file and exits non-zero when the
-  freshly-embedded mark fails to detect at conf >= 0.50. Public
-  issue #23.
-- **v0.5.1:** silentcipher embed OOM fix on multi-minute MP3s. Public
-  issue #17.
-- **v0.5.0:** Hardware-backed identity custody via Yubikey PIV slot
-  9c. `provcheck-kit init --yubikey` mints an ES256 keypair on-device;
-  the private key is never extractable, every signature gates on the
-  PIV PIN. A new GUI "Keys" tab shows local-vs-atproto state side by
-  side, surfaces mismatches (superseded local key, orphan active
-  record), and offers one-click revoke and rotate without dropping
-  to a terminal. See
-  [For creators — sign + publish](#for-creators--sign--publish) below.
-
-All three neural-watermark detector families ship live: silentcipher
-40-bit payload at 44.1 kHz, AudioSeal 16-bit ECC-protected brand ID
-at 16 kHz, WavMark 32-bit payload at 16 kHz. Verifier output carries
-per-detector time-span localisation (`marked_regions`); both the CLI
-text report and the GUI timeline strip show where inside the audio
-the mark sits. Codec compatibility matrix and parity-vs-upstream
-findings live in [`docs/v0.5.2-codec-survival/`](docs/v0.5.2-codec-survival/).
+"Open the provenance market": every user-facing surface for watermark
+detection and provenance signing is in the Apache-2.0 FOSS core.
 
 ## Install
 
@@ -214,9 +122,9 @@ Install pinned to a release tag, straight from this repo:
 
 ```bash
 cargo install --locked --git https://github.com/CreativeMayhemLtd/provcheck \
-    --tag v0.7.0 provcheck-cli              # verifier
+    --tag v1.1.0 provcheck-cli              # verifier
 cargo install --locked --git https://github.com/CreativeMayhemLtd/provcheck \
-    --tag v0.7.0 provcheck-kit              # signing kit
+    --tag v1.1.0 provcheck-kit              # signing kit
 ```
 
 `--locked` enforces the upstream `Cargo.lock` for reproducible builds.
@@ -645,6 +553,7 @@ provcheck fills those gaps. It:
 | Version | Date | Highlights |
 |---|---|---|
 | **v1.1.0** | 2026-07-01 | **Tauri app gains Watermark + Detect tabs.** All six detector families accessible as first-class surfaces. External branding links open in browser (were silent no-ops on v1.0.0). Two dedicated tabs join the existing Verify / Keys / Sign trio. **Watermark tab** (`ProvcheckStamp`-independent): drop any file → runs all six shipped detector families (silentcipher / AudioSeal / WavMark on audio, TrustMark-B on image, per-frame TrustMark + temporal vote on video, SynthID-text on text) → renders per-detector badges. Backed by the new `watermark_only` Tauri command which runs the shared `push_all_watermarks` helper (factored out of `verify_file`'s watermark loop so both tabs share the identical dispatch code). **Detect tab** (AI-content detection surface): shows an educational empty-state describing the two routes to activate it — (Route A) Creative Mayhem paid-DLC pack on the v1.x roadmap, (Route B) operator-supplied Apache-2.0 wrapper crate that implements `provcheck_detect::Detector` and registers itself via `DetectorRegistry`. Backed by the `detect_only` Tauri command; FOSS core registers zero detectors so it returns an empty `detections` list, matching the tab's empty state. **External-URL opener**: v1.0.0's top-bar `provcheck.ai` + `Creative Mayhem UG` anchor tags with `target="_blank"` were silent no-ops because Tauri 2 sandboxes the webview. v1.1.0 adds the `open` crate + an `open_url` Tauri command that shells out to the platform URL handler (Windows: `cmd /c start`, macOS: `open`, Linux: `xdg-open`); the frontend delegates on `document.body` and IPC's every `http(s)`-prefixed anchor click through it, refusing non-`http(s)` schemes on the backend as defence against a compromised frontend shelling `file:///`. **Verify tab** still runs the six-detector dispatch inline when the "Run watermark detection" checkbox is on (backward-compat), and now shows a "No watermarks detected in any of the six shipped families…" empty note instead of hiding the badge slot entirely (v1.0.0 silent-hide made a drop-a-PNG-see-nothing case read as if detection never ran). Workspace bumped 0.9.88 → 1.1.0 (minor: additive tabs + external opener + shared helper factor, no breaking change to any command contract). |
+| **v1.0.0** | 2026-07-01 | **Feature-complete FOSS provenance verifier plus creator kit.** The first stable release: C2PA verification with atproto identity cross-check, six live watermark detector families (silentcipher / AudioSeal / WavMark on audio, TrustMark-B on image, per-frame TrustMark plus temporal vote on video, SynthID-text on text), and the full creator side (mint, sign, publish, rotate, revoke) with software or YubiKey ES256 signing. Ships a CLI verifier, creator kit, and desktop GUI for Windows, Linux, and macOS, with SBOMs and SHA-256 sidecars on every artifact and Authenticode-signed Windows binaries. |
 | **v0.9.88** | 2026-07-01 | **`.github/workflows/release.yml` wires SSL.com eSigner signing on the Windows arms of both build (CLI) and build-gui (Tauri) jobs — v1.0.0 fires signed IF the four SSL_COM_* Secrets are set on the repository; skips gracefully if not.** Both jobs' Windows steps: (a) if `SSL_COM_TOTP_SECRET` env is empty → log a skipping note, exit 0 (matrix continues, ships unsigned). (b) if set → download SSL.com CodeSignTool zip, expand under `$USERPROFILE`, materialise a per-run `signing.json` in `$RUNNER_TEMP` from the four secrets, call `scripts/sign_release.ps1` per-file, delete the materialised `signing.json` before step end (never persists past the runner's `RUNNER_TEMP` scope). CLI job signs `provcheck.exe` + `provcheck-kit.exe` between build and archive-staging. GUI job signs the inner `provcheck-app.exe` first, then every installer under `app/src-tauri/target/release/bundle/**/*.{exe,msi}` (NSIS setup + MSI) between `tauri build` and `Stage bundles`. Updated the build-gui header comment: was "Bundles are UNSIGNED for now — Signing is a follow-up once certs exist," now describes the Secrets-gated posture with the SSL.com eSigner cert. |
 | **v0.9.87** | 2026-07-01 | **WATERMARK_LICENSE_POLICY.md woefully-out-of-date sweep + tests/fixtures anchor drop + SBOM regeneration for the repository parity.** (1) `WATERMARK_LICENSE_POLICY.md` had a paragraph claiming "AudioSeal and WavMark are scaffold-only ... `implementation pending` stub `detect()`" and "SynthID stays out on license grounds" — both flatly wrong at v0.9.x. AudioSeal + WavMark integrated since v0.4/v0.5; SynthID-text integrated in v0.7 phase 7e (statistical detector, no model weights so no license question). Replaced with an accurate six-family status summary. Added Video and Text family tables mirroring the Audio and Image tables. Corrected the TrustMark image row's "lands at 7b-inference" future-tense to "Integrated ... v0.7 phase 7b + 7b-followup migrated tract → ort." (2) `crates/provcheck/tests/fixtures/README.md` said "As of v0.9.64 the suite has 13 tests" — count is still 13 but the version anchor is 23 iterations stale. Dropped the anchor. (3) Regenerated CycloneDX + SPDX SBOMs at v0.9.87 tag (provcheck: 469 components, provcheck-kit: 646 components, all workspace crates at 0.9.87, SHA-256 sidecars present) so hash-verify against a current dependency graph works today. SBOMs live under `target/sbom/` (gitignored — release matrix regenerates them fresh per `v*.*.0` tag). |
 | **v0.9.86** | 2026-07-01 | **Code-signing scaffold lands — SSL.com eSigner cloud path wired locally, ready for v1.0.0 CI activation.** New file `scripts/sign_release.ps1` (~150 lines, PowerShell): Authenticode signer for Windows binaries via SSL.com's `CodeSignTool`. Reads config from a `signing.json` at repo root (GITIGNORED), pulls SSL.com credentials from either (a) Windows Credential Manager under a named target (local dev machine, no plaintext on disk) OR (b) inline `username` + `password` fields (CI runners materialising from GitHub Secrets). CodeSignTool derives the per-sign OTP from SSL.com's base64 `secret_code` (NOT a base32 authenticator seed — the base64 vs base32 confusion cost a full session upstream; sign_release.ps1 hard-fails if `totp_secret` is missing rather than silently trying a fallback). Signed → optional signtool verify → audit log append. New file `signing.json.example` at repo root documents the config shape with in-file comments. `.gitignore` adds `signing.json` (config with secrets) + `provcheck-signing.log` (default audit log path). `docs/release-process.md` adds a full "Code-signing (Windows binaries)" section: what gets signed (`provcheck.exe`, `provcheck-kit.exe`, `provcheck-app.exe`, NSIS setup, MSI), local + CI procedures, the four GitHub Secrets the CI wiring needs (`SSL_COM_USERNAME` / `PASSWORD` / `CREDENTIAL_ID` / `TOTP_SECRET`), the base64-vs-base32 gotcha with a "do NOT try YubiKey" callout, and verification via `Get-AuthenticodeSignature`. `SECURITY.md` "Scope" section gets a "Windows binary integrity" bullet describing the SSL.com OV cert chain (Creative Mayhem UG → SSL.com Code Signing Intermediate CA RSA R1), RFC-3161 timestamping so signatures survive cert expiry, and the release-line-tags-only constraint (iteration tags aren't signed). **NOT wired yet:** `.github/workflows/release.yml` still produces unsigned artefacts; the CI activation lands in v1.0.0 after the four Secrets are set on the repository and the exposed-in-development `totp_secret` is rotated on SSL.com. Doc + script commit; no CI-behaviour change until v1.0.0. |
