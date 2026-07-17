@@ -56,3 +56,4 @@ __pycache__/
 .env
 .env.local
 signing.json
+logs/
