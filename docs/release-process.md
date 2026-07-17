@@ -194,6 +194,60 @@ The push to `vX.Y.0` fires:
 Wait for the matrix to finish (~30-45 minutes) before publishing
 the release.
 
+Note: the matrix builds **unsigned** artifacts (no signing secret
+lives in the repository). Signing happens locally, in the next step.
+
+## Signing and publishing (hybrid: CI build, local sign)
+
+Signing is done **locally**, never in CI: no code-signing secret ever
+lives in GitHub Secrets. Credentials follow the local convention:
+
+- **`signing.json`** at the repo root (gitignored) holds the SSL.com
+  eSigner config for Windows Authenticode. Read by
+  `scripts/sign_release.ps1`; never passed on a command line, never
+  logged.
+- **minisign key** (path in `$PROVCHECK_MINISIGN_KEY`, outside the
+  repo) signs the Linux and macOS artifacts (detached `.minisig` via
+  `rsign`).
+- **`gh` CLI** auth handles GitHub; a gitignored `.env` holds any
+  publish tokens (R2/CDN). GitHub Secrets are not used.
+
+`.env` and `signing.json` must be in `.gitignore` before either file
+is created. Verify with `git check-ignore .env signing.json`.
+
+After the CI matrix (or a `workflow_dispatch` run) finishes:
+
+```powershell
+# 1. Download the unsigned artifacts
+gh run download <run-id> --repo CreativeMayhemLtd/provcheck --dir C:\local_dev_tmp\<tag>-dist
+
+# 2. Sign everything + attach to the release (fail-closed)
+scripts\sign-and-publish-release.ps1 -DistDir C:\local_dev_tmp\<tag>-dist -Tag vX.Y.0
+```
+
+`scripts/sign-and-publish-release.ps1` is the gate. It:
+
+- Authenticode-signs every Windows `.exe` / `.msi`, including the
+  `.exe` inside each `*-windows-x86_64.zip` (extract, sign, re-zip).
+- minisigns every Linux / macOS binary (`.deb`, `.AppImage`, `.dmg`,
+  and the `*-linux-*` / `*-macos-*` `.tar.gz`) to a detached
+  `.minisig`.
+- Regenerates the `.sha256` sidecar for every file it re-creates.
+- **Fails closed:** refuses to upload if any Windows binary is not
+  Authenticode-Valid or any Linux / macOS binary lacks a `.minisig`.
+- Uploads the full set with `gh release upload --clobber`.
+
+macOS binaries are not Apple-notarized (no Apple certificate); the
+`.minisig` provides cryptographic integrity verifiable against the
+embedded public key.
+
+Verify the published release:
+
+```powershell
+gh release download vX.Y.0 -p "*setup.exe"
+(Get-AuthenticodeSignature .\*setup.exe).Status   # -> Valid, RFC-3161 timestamped
+```
+
 ## Publishing to crates.io
 
 Once the matrix is green:
@@ -310,6 +364,14 @@ by an SSL.com OV code-signing certificate held by Creative Mayhem UG.
 Signed binaries drop the SmartScreen "unknown publisher" warning
 (reputation ramps with download volume for OV certs; EV is a
 drop-in swap later if warnings persist).
+
+**Current mechanism:** signing runs locally via
+`scripts/sign-and-publish-release.ps1` after the CI build, per the
+"Signing and publishing (hybrid: CI build, local sign)" section above.
+The subsections below document the underlying Authenticode signer
+(`scripts/sign_release.ps1`) and the SSL.com gotchas it handles. The
+"CI signing" subsection is a fallback only; the local flow is what we
+use, so no signing secret lives in GitHub Secrets.
 
 ### What gets signed
 
