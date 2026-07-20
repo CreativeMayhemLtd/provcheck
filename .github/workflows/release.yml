@@ -319,7 +319,7 @@ jobs:
           echo "archive_name=$archive_name" >> "$GITHUB_OUTPUT"
 
       - name: Upload provcheck artefact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: provcheck-${{ steps.tag.outputs.value }}-${{ matrix.artefact_suffix }}
           path: |
@@ -329,7 +329,7 @@ jobs:
           retention-days: 30
 
       - name: Upload provcheck-kit artefact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: provcheck-kit-${{ steps.tag.outputs.value }}-${{ matrix.artefact_suffix }}
           path: |
@@ -374,7 +374,7 @@ jobs:
         with:
           toolchain: stable
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: "20"
           cache: "npm"
@@ -540,7 +540,7 @@ jobs:
           echo "stage_dir=$stage_dir" >> "$GITHUB_OUTPUT"
 
       - name: Upload GUI artefact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: provcheck-gui-${{ steps.tag.outputs.value }}-${{ matrix.gui_suffix }}
           path: ${{ steps.stage.outputs.stage_dir }}/*
@@ -587,7 +587,7 @@ jobs:
         run: ./scripts/generate-sbom.sh "${{ steps.tag.outputs.value }}" sbom-out
 
       - name: Upload SBOM artefact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: provcheck-sbom-${{ steps.tag.outputs.value }}
           path: sbom-out/*
