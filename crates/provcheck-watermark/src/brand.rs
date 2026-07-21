@@ -16,9 +16,9 @@ use provcheck::prelude::{WatermarkBrand, WatermarkStatus};
 const SCHEMA_BYTE_INDEX: usize = 3;
 
 /// Schema 1's well-known brand-byte triplets.
-const BRAND_RAI: [u8; 3] = [b'R', b'A', b'I'];
-const BRAND_DFM: [u8; 3] = [b'D', b'F', b'M'];
-const BRAND_VAI: [u8; 3] = [b'V', b'A', b'I'];
+const BRAND_RAI: [u8; 3] = *b"RAI";
+const BRAND_DFM: [u8; 3] = *b"DFM";
+const BRAND_VAI: [u8; 3] = *b"VAI";
 
 /// Schema 1 payload for the rAIdio.bot AI music brand.
 /// 5-byte tagged union: `b"RAI" + schema=1 + reserved=0`.
@@ -223,12 +223,7 @@ mod tests {
     #[test]
     fn unknown_ascii_triplet_under_schema1_is_unknown_ascii() {
         let brand = parse_brand([b'X', b'Y', b'Z', 1, 0]).unwrap();
-        assert_eq!(
-            brand,
-            WatermarkBrand::UnknownAscii {
-                letters: [b'X', b'Y', b'Z']
-            }
-        );
+        assert_eq!(brand, WatermarkBrand::UnknownAscii { letters: *b"XYZ" });
     }
 
     #[test]
