@@ -465,15 +465,20 @@ mod tests {
     fn work_key_matches_lysn_derivation() {
         // Domain separation + determinism; the label constant is the cross-repo contract.
         let (secret, work) = (b"seller-secret", b"work-1");
-        assert_eq!(
-            work_key(secret, b"lysn-mellin-key/v1", work),
-            work_key(secret, b"lysn-mellin-key/v1", work),
-            "deterministic"
-        );
         assert_ne!(
             work_key(secret, b"lysn-mellin-key/v1", work),
             work_key(secret, b"other-label", work),
             "different labels must derive different keys"
+        );
+        // CROSS-REPO GOLDEN VECTOR. This exact value must also be asserted in
+        // lysn-watermark; if either side drifts, the channel key stops matching
+        // and marks no longer round-trip between the two. Independently verified
+        // against an HMAC-SHA256 reference (label ‖ work_id, first 8 bytes LE).
+        // Pin in BOTH repos; never edit one without the other.
+        assert_eq!(
+            work_key(b"seller-secret", b"lysn-mellin-key/v1", b"work-1"),
+            0x02A1_613B_8C40_8F51,
+            "channel work_key golden vector changed — lysn interop broken"
         );
     }
 }

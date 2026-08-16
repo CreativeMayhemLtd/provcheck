@@ -498,6 +498,37 @@ mod tests {
     }
 
     #[test]
+    fn tardos_golden_vector_matches_lysn() {
+        // CROSS-REPO GOLDEN VECTOR. The bias distribution and codeword rule must
+        // be bit-identical with lysn-watermark; these exact values must also be
+        // asserted there. Independently verified against an HMAC-SHA256 reference.
+        // Serial is a FIXED byte string (not derived) so the vector depends only on
+        // the shared math, not either repo's enrollment scheme. Pin in BOTH repos.
+        let biases = bias_vector(b"golden-seed", 8, 3);
+        let expected_biases = [
+            0.177776101,
+            0.964041588,
+            0.118869602,
+            0.255585364,
+            0.075223527,
+            0.216557329,
+            0.014092161,
+            0.013582092,
+        ];
+        for (j, (&got, &want)) in biases.iter().zip(expected_biases.iter()).enumerate() {
+            // Round to 9 dp: robust to platform ULP differences in sin/asin.
+            let r = (got * 1e9).round() / 1e9;
+            assert!((r - want).abs() < 1e-9, "bias[{j}] drift: {r} vs {want}");
+        }
+        let codeword = codeword_for(&Serial(b"golden-serial".to_vec()), &biases);
+        assert_eq!(
+            codeword,
+            [false, true, false, false, true, false, false, false],
+            "Tardos codeword golden vector changed — lysn interop broken"
+        );
+    }
+
+    #[test]
     fn capacity_roundtrips() {
         let m = required_length(4, 1000, 6);
         assert!(
