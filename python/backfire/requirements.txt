@@ -1,0 +1,7 @@
+# read: needs only numpy + pillow (no GPU, no model)
+numpy>=1.24
+pillow>=10.0
+# embed: additionally needs torch + a diffusion model (GPU recommended)
+# install torch for your platform separately (see pytorch.org), then:
+diffusers>=0.27
+transformers>=4.40
