@@ -69,16 +69,63 @@ are voted together, which multiplies the surviving-vote budget by the channel co
 so stereo is materially more robust through a lossy leak than mono at the same
 settings. A mono input is simply the one-channel case.
 
-**Scope:** WAV out (the lossless home format); any decodable format in.
-Collusion-resistant traitor tracing (a Tardos codeword instead of a plain serial)
-is the next layer. Only the channel keys against Lysn.fm; the serial framing,
-decode, WAV write, and CLI are provcheck-only.
+**Scope:** WAV out (the lossless home format); any decodable format in. Only the
+channel keys against Lysn.fm; the serial framing, decode, WAV write, and CLI are
+provcheck-only.
+
+## Collusion-resistant traitor tracing (Tardos)
+
+The plain serial above individuates a copy, but a coalition of buyers who compare
+copies can wash it out. `trace-embed` / `accuse` carry a **Tardos codeword**
+instead: a per-buyer bit vector drawn from a secret per-work bias distribution,
+spread one bit per position over the whole work. When several colluders average or
+splice their copies, the marking assumption forces the shared bits through, and the
+symmetric accusation score still names at least one real colluder while (the
+guarantee held hardest) never framing an innocent.
+
+```
+# fingerprint one buyer's copy (positions = the Tardos code length)
+provcheck-mellin trace-embed --secret <hex> --work-id album-9 --buyer alice \
+    --positions 2500 --colluders 2 --strength 0.3 master.wav -o alice.wav
+
+# trace a leak against the enrolled buyers (one label per line in buyers.txt)
+provcheck-mellin accuse --secret <hex> --work-id album-9 \
+    --positions 2500 --colluders 2 --fp-log10 4 --buyers buyers.txt leak.mp3
+```
+
+`accuse` derives each enrolled buyer's serial from `(secret, work_id, label)`,
+scores every one against the detected symbols, and prints those above the
+false-positive threshold, strongest first (exit 0 if any, 1 if none). It refuses to
+accuse on fewer than 48 observed positions (below that the score is not yet normal,
+so the bound would not hold, a miss preferred to a frame). The guarantees, validated
+by the test suite rather than asserted:
+
+- **No false accusation.** The run's false-positive probability is bounded by
+  `10^-fp_log10` (Bonferroni-split over the enrolled population), independent of code
+  length.
+- **Soundness.** With enough positions at least one real colluder is named under
+  every standard fusion attack (majority, minority, coin-flip, all-zero/one,
+  interleave), even with channel bit-errors.
+
+**Capacity scales with length.** A Tardos code needs on the order of
+`50 * c^2 * ln(population / eps)` positions to resist `c` colluders, and each
+position needs a couple of thousand audio samples, so collusion resistance is a
+property of long-form content (albums, mixes, podcasts). `trace-embed` reports the
+indicative capacity; short clips are capacity-limited and should lean on the plain
+serial. Embed and accuse must pass the same `--positions` and `--colluders`.
 
 ## Compatibility contract with Lysn.fm
 
-The keying (HMAC label `lysn-mellin-key/v1`, the splitmix64-style PRNG, and the
-keyed ±1 pattern) is bit-identical with `lysn-watermark`. Marks embedded by
-Lysn.fm detect here with the same seller secret and work id, and vice versa. Any
-change to a constant, label, or derivation must land in both repos together. The
-serial framing, WAV I/O, and CLI above are provcheck-only and carry no such
-obligation.
+Two layers are bit-identical with `lysn-watermark`:
+
+- the **channel** keying (HMAC label `lysn-mellin-key/v1`, the splitmix64-style
+  PRNG, the keyed ±1 pattern), so a mark embedded by Lysn.fm reads here with the
+  same seller secret and work id, and
+- the **Tardos** math (labels `lysn-tardos/bias` and `lysn-tardos/codeword`, the
+  bias distribution, the codeword rule, the symmetric score, the threshold, and
+  the Acklam quantile), so a codeword scores identically given the same serial
+  bytes and work seed.
+
+Any change to a constant, label, or derivation in either must land in both repos
+together. Everything else (the serial framing, the audio codeword mapping,
+enrollment, WAV I/O, and the CLI) is provcheck-only and carries no such obligation.

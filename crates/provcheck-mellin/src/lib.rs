@@ -38,6 +38,8 @@ use sha2::Sha256;
 // only the channel keying/DSP above must stay in lockstep with lysn-watermark.
 pub mod audio;
 pub mod serial;
+pub mod tardos;
+pub mod trace;
 
 /// FFT frame size (power of two). ~21 ms at 48 kHz; small enough to get many frames per 0.5 s segment
 /// (more frames = more averaging = higher detection SNR), large enough for usable bin resolution.

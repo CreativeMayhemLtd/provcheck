@@ -36,5 +36,15 @@ symphonia = { version = "0.5", features = ["mp3", "aac", "flac", "isomp4", "ogg"
 name = "provcheck-mellin"
 path = "src/bin/mellin.rs"
 
+# The Tardos soundness tests run tens of millions of HMAC-SHA256 evaluations, so
+# an unoptimized `cargo test` is minutes-slow. Optimize the test build (crate plus
+# deps) to keep it near the ~16 s release time. `cargo build`/`run` (the dev
+# profile) stays unoptimized and debuggable apart from the always-hot deps.
+[profile.test]
+opt-level = 3
+
+[profile.dev.package."*"]
+opt-level = 3
+
 # Standalone: do not join the parent provcheck workspace (which is pure Apache-2.0).
 [workspace]
