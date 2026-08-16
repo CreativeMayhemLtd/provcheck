@@ -589,6 +589,16 @@ AND model weights are accepted (all three above are MIT). See
 [`WATERMARK_LICENSE_POLICY.md`](./WATERMARK_LICENSE_POLICY.md) for the
 acceptance criteria and the per-detector survey.
 
+Robustness posture: provcheck is a detector, not a promise that a mark
+is permanent. We measure our detection against deliberate
+provenance-stripping tools in the open and publish what survives and
+what does not, including the one invariant we never break (a stripped
+asset must never verify). See
+[`docs/provenance-stripping-survival.md`](./docs/provenance-stripping-survival.md)
+for the survival matrix against the leading public stripper, and
+[`docs/audio-watermark-survival-range.md`](./docs/audio-watermark-survival-range.md)
+for survival against ordinary transcoding.
+
 Power-user diagnostic tools (binary dump, cross-implementation diff,
 sample-shift alignment) live in
 [`docs/v0.3.3-detection-gap/`](./docs/v0.3.3-detection-gap/) and the
