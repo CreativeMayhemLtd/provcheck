@@ -107,6 +107,25 @@ Six detector families ship live as of v0.9.x:
 
 Not added: SynthID Audio (weights unreleased), Stable Signature (non-commercial clause), the classical fallback rows (no model surface).
 
+## The one source-available exception: `provcheck-mellin` (opt-in, never bundled)
+
+`crates/provcheck-mellin/` is a keyed forensic watermark channel (Fourier-Mellin
+spectral embed + detect) ported from Lysn.fm's `lysn-watermark` crate. It is
+**BUSL-1.1** (converting to Apache-2.0 on 2030-01-01), which fails the bundling
+rule above, so it is handled the way the rule demands:
+
+- It is **excluded from the workspace** (`exclude` in the root `Cargo.toml`) and
+  built only on request via
+  `cargo build --manifest-path crates/provcheck-mellin/Cargo.toml`.
+- It is **never wired into the detector dispatch**, and never ships in the
+  release binary. The binary stays pure Apache-2.0.
+- It is also not a public detector: it is secret-keyed (seller secret + work
+  id), built for copy individuation and leak tracing, so it would not fit the
+  blind `detect(path)` dispatch anyway.
+
+This does not weaken the rule. The rule governs what ships inside the
+Apache-2.0 artefact, and this crate never does.
+
 ## Process for adding a new detector
 
 1. Confirm the family passes the rule above. If license terms have changed

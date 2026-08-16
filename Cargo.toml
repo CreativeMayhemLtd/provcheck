@@ -18,6 +18,10 @@ members = [
     "crates/provcheck-cli",
     "crates/provcheck-examples",
 ]
+# provcheck-mellin is BUSL-1.1 (the one non-Apache crate) and must stay out of the
+# Apache-2.0 workspace and release binary per WATERMARK_LICENSE_POLICY.md. Opt-in:
+# `cargo build --manifest-path crates/provcheck-mellin/Cargo.toml`.
+exclude = ["crates/provcheck-mellin"]
 resolver = "3"
 
 [workspace.package]

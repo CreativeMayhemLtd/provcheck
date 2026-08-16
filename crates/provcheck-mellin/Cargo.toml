@@ -1,0 +1,28 @@
+# Opt-in, NOT part of the provcheck workspace or the release binary.
+#
+# This crate is BUSL-1.1 (see ./LICENSE), which fails the workspace's own
+# WATERMARK_LICENSE_POLICY.md rule for anything bundled into the Apache-2.0
+# binary. It is therefore excluded from the workspace and never wired into the
+# detector dispatch. Build it standalone:
+#
+#   cargo build --manifest-path crates/provcheck-mellin/Cargo.toml
+#
+# Ported from lysn (crates/lysn-watermark/src/mellin.rs). The keying (HMAC
+# label "lysn-mellin-key/v1", PRNG, ±1 pattern) MUST stay bit-identical with
+# the lysn source so marks embedded there detect here and vice versa.
+[package]
+name = "provcheck-mellin"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "BUSL-1.1"
+authors = ["Creative Mayhem UG <info@rAIdio.bot>"]
+repository = "https://github.com/CreativeMayhemLtd/provcheck"
+description = "Keyed spectral (Fourier-Mellin) forensic watermark channel: scale/stretch-invariant embed + detect over i16 PCM. BUSL-1.1, opt-in, never bundled into the Apache-2.0 provcheck binary."
+
+[dependencies]
+hmac = "0.12"
+sha2 = "0.10"
+
+# Standalone: do not join the parent provcheck workspace (which is pure Apache-2.0).
+[workspace]
