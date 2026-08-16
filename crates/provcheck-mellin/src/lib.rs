@@ -33,6 +33,12 @@
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 
+// File-facing layers built ON TOP of the ported channel. These are provcheck-only
+// (lysn has no file layer), so they carry no cross-repo bit-identity obligation:
+// only the channel keying/DSP above must stay in lockstep with lysn-watermark.
+pub mod audio;
+pub mod serial;
+
 /// FFT frame size (power of two). ~21 ms at 48 kHz; small enough to get many frames per 0.5 s segment
 /// (more frames = more averaging = higher detection SNR), large enough for usable bin resolution.
 const FRAME: usize = 1024;
@@ -96,14 +102,19 @@ fn work_key(secret: &[u8], label: &[u8], work_id: &[u8]) -> u64 {
 fn keyed_sign(key: u64, position: usize, index: usize) -> f64 {
     let mut p = Prng(
         key ^ (position as u64).wrapping_mul(0x100_0001b3)
-            ^ (index as u64).wrapping_add(1).wrapping_mul(0x9E37_79B9_7F4A_7C15),
+            ^ (index as u64)
+                .wrapping_add(1)
+                .wrapping_mul(0x9E37_79B9_7F4A_7C15),
     );
     if p.next_u64() & 1 == 0 { -1.0 } else { 1.0 }
 }
 
 /// Decode little-endian signed-16-bit PCM into samples (drops a dangling odd byte).
 fn pcm_i16(bytes: &[u8]) -> Vec<i16> {
-    bytes.chunks_exact(2).map(|c| i16::from_le_bytes([c[0], c[1]])).collect()
+    bytes
+        .chunks_exact(2)
+        .map(|c| i16::from_le_bytes([c[0], c[1]]))
+        .collect()
 }
 
 // ---------------------------------------------------------------------------
@@ -123,7 +134,10 @@ pub struct MellinChannel {
 
 impl Default for MellinChannel {
     fn default() -> Self {
-        Self { strength: 0.2, key: 0x5EED_1234_ABCD_0001 }
+        Self {
+            strength: 0.2,
+            key: 0x5EED_1234_ABCD_0001,
+        }
     }
 }
 
@@ -192,7 +206,11 @@ impl MellinChannel {
         // weighted overlap-add normalization; where no frame covered a sample, keep the original.
         let mut samples_i16 = Vec::with_capacity(n);
         for i in 0..n {
-            let v = if wsum[i] > 1e-9 { out[i] / wsum[i] } else { x[i] };
+            let v = if wsum[i] > 1e-9 {
+                out[i] / wsum[i]
+            } else {
+                x[i]
+            };
             samples_i16.push(v.round().clamp(i16::MIN as f64, i16::MAX as f64) as i16);
         }
         let mut bytes = Vec::with_capacity(n * 2 + tail.len());
@@ -243,7 +261,10 @@ impl MellinChannel {
         if frames == 0 {
             return 0.0;
         }
-        let logmag: Vec<f64> = mag_sum.iter().map(|&m| (m / frames as f64 + 1.0).ln()).collect();
+        let logmag: Vec<f64> = mag_sum
+            .iter()
+            .map(|&m| (m / frames as f64 + 1.0).ln())
+            .collect();
         // High-pass: subtract a moving-average envelope so only the bin-to-bin fluctuation (where the
         // keyed ±1 mark lives) remains; the signal's smooth spectral shape is removed. The mark survives
         // (its own moving average is ~0 for a ±1 pattern), the envelope does not.
@@ -255,7 +276,8 @@ impl MellinChannel {
         let mut best = 0.0f64;
         let mut best_abs = -1.0f64;
         for step in 0..FREQ_SCALE_STEPS {
-            let s = FREQ_SCALE_MIN + (FREQ_SCALE_MAX - FREQ_SCALE_MIN) * step as f64 / (FREQ_SCALE_STEPS - 1) as f64;
+            let s = FREQ_SCALE_MIN
+                + (FREQ_SCALE_MAX - FREQ_SCALE_MIN) * step as f64 / (FREQ_SCALE_STEPS - 1) as f64;
             let mut corr = 0.0;
             let mut energy = 0.0;
             for k in BIN_LO..BIN_HI.min(half) {
@@ -398,16 +420,31 @@ mod tests {
 
     #[test]
     fn embed_detect_roundtrip_and_erases_unmarked() {
-        let ch = MellinChannel { strength: 0.2, key: 0xABCD };
+        let ch = MellinChannel {
+            strength: 0.2,
+            key: 0xABCD,
+        };
         let host = broadband(24_000);
         for bit in [false, true] {
             let marked = ch.embed(&host, bit, 3);
-            assert_eq!(ch.detect(&marked, 3), Some(bit), "marked segment reads back its bit");
+            assert_eq!(
+                ch.detect(&marked, 3),
+                Some(bit),
+                "marked segment reads back its bit"
+            );
         }
         // unmarked host: no confident bit (erasure), and a wrong position/key doesn't read the mark.
-        assert_eq!(ch.detect(&host, 3), None, "unmarked host is an erasure, not a guess");
+        assert_eq!(
+            ch.detect(&host, 3),
+            None,
+            "unmarked host is an erasure, not a guess"
+        );
         let marked = ch.embed(&host, true, 3);
-        assert_eq!(ch.detect(&marked, 9), None, "wrong position doesn't detect the mark");
+        assert_eq!(
+            ch.detect(&marked, 9),
+            None,
+            "wrong position doesn't detect the mark"
+        );
     }
 
     #[test]

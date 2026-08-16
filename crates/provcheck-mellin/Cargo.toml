@@ -19,10 +19,22 @@ license = "BUSL-1.1"
 authors = ["Creative Mayhem UG <info@rAIdio.bot>"]
 repository = "https://github.com/CreativeMayhemLtd/provcheck"
 description = "Keyed spectral (Fourier-Mellin) forensic watermark channel: scale/stretch-invariant embed + detect over i16 PCM. BUSL-1.1, opt-in, never bundled into the Apache-2.0 provcheck binary."
+# BUSL-1.1 is not an OSI license; never let this reach crates.io by accident.
+publish = false
 
 [dependencies]
 hmac = "0.12"
 sha2 = "0.10"
+# WAV writing for the embed output (lossless home format). MIT/Apache-2.0.
+hound = "3"
+# Decoding leaked copies in any format on the read side (MP3/AAC/FLAC/etc.), so
+# the transcode-invariant channel can actually be exercised against real leaks.
+symphonia = { version = "0.5", features = ["mp3", "aac", "flac", "isomp4", "ogg", "vorbis", "wav"] }
+
+# The keyed-serial file watermark CLI. Opt-in binary, never in the FOSS release.
+[[bin]]
+name = "provcheck-mellin"
+path = "src/bin/mellin.rs"
 
 # Standalone: do not join the parent provcheck workspace (which is pure Apache-2.0).
 [workspace]
