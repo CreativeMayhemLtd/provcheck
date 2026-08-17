@@ -1,5 +1,7 @@
 # Backfire licensing
 
+Copyright (C) 2026 Creative Mayhem UG (haftungsbeschränkt). All rights reserved.
+
 Backfire is **dual-licensed**. You may use it under either:
 
 1. **GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later)** — see
@@ -11,8 +13,9 @@ Backfire is **dual-licensed**. You may use it under either:
 
 2. **A commercial license** — for organizations that want to embed, modify, or offer
    Backfire (or a derivative) without the AGPL's source-disclosure obligations. The
-   commercial license is offered separately by the copyright holder. Contact
-   chris@neitzert.com. <!-- MAINTAINER: confirm the contact / commercial terms. -->
+   commercial license is offered separately by the copyright holder, Creative Mayhem
+   UG (haftungsbeschränkt). Contact licensing@creativemayhem.com (legal matters:
+   legal@creativemayhem.com).
 
 Each source file carries the SPDX identifier
 `AGPL-3.0-or-later OR LicenseRef-Backfire-Commercial`, which states this choice

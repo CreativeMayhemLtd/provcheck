@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Backfire-Commercial
+# Copyright (C) 2026 Creative Mayhem UG (haftungsbeschränkt)
 """Unit tests for Backfire's read/decode path.
 
 These cover everything that does not need a GPU or a diffusion model: keyed

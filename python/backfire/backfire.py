@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Backfire-Commercial
+# Copyright (C) 2026 Creative Mayhem UG (haftungsbeschränkt)
 """Backfire: an imperceptible, keyed image watermark that AI provenance-stripping
 attacks *amplify* instead of remove.
 
@@ -98,10 +99,12 @@ def embed_cmd(a):
 
     def build_purifier(model_id):
         log(f"loading diffusion purifier proxy: {model_id} ...")
-        vae = AutoencoderKL.from_pretrained(model_id, subfolder="vae").to(dev).eval()
-        unet = UNet2DConditionModel.from_pretrained(model_id, subfolder="unet").to(dev).eval()
+        # force fp32 on every backend: some models (e.g. distilled ones) ship fp16
+        # components, which mismatch the fp32 pipeline in cross-attention.
+        vae = AutoencoderKL.from_pretrained(model_id, subfolder="vae").to(dev).float().eval()
+        unet = UNet2DConditionModel.from_pretrained(model_id, subfolder="unet").to(dev).float().eval()
         tok = CLIPTokenizer.from_pretrained(model_id, subfolder="tokenizer")
-        txt = CLIPTextModel.from_pretrained(model_id, subfolder="text_encoder").to(dev).eval()
+        txt = CLIPTextModel.from_pretrained(model_id, subfolder="text_encoder").to(dev).float().eval()
         sched = DDIMScheduler.from_pretrained(model_id, subfolder="scheduler")
         for m in (vae, unet, txt):
             for p in m.parameters(): p.requires_grad_(False)
