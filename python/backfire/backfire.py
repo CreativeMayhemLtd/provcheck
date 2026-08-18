@@ -45,6 +45,45 @@ def keyed_carriers(key: bytes, size: int, label: bytes = b"backfire/carrier"):
         c -= c.mean(); out[i] = c / (np.linalg.norm(c) + 1e-8)
     return out
 
+LO_EDGE, HI_EDGE = 3.0, 45.0        # mid-LOW band for the content-coupled carriers
+
+def _edge_mask(lum, size):
+    """Perceptual edge/contrast mask: gradient magnitude, blurred to dilate around
+    edges, times a luminance term. High where a low-frequency perturbation hides."""
+    gx = np.abs(np.diff(lum, axis=1, prepend=lum[:, :1]))
+    gy = np.abs(np.diff(lum, axis=0, prepend=lum[:1, :]))
+    fy = np.fft.fftfreq(size)[:, None]; fx = np.fft.fftfreq(size)[None, :]
+    H = np.exp(-2 * (np.pi**2) * (2.0**2) * (fx**2 + fy**2)).astype(np.float32)
+    g = np.real(np.fft.ifft2(np.fft.fft2(gx + gy) * H)).astype(np.float32)
+    m = (0.15 + g) * (0.5 + 0.5 * lum)
+    return (m / m.mean()).astype(np.float32)
+
+def edge_carriers(key: bytes, size: int, lum, label: bytes = b"backfire/carrier"):
+    """Content-coupled carriers: mid-LOW band keyed patterns modulated by the image's
+    edge mask, so the mark rides on image structure (harder to notch out, survives
+    blur). Deterministic from the image content, so a verifier reconstructs them from
+    the image under test (the read path passes the image being checked as `lum`)."""
+    yy, xx = np.mgrid[0:size, 0:size].astype(np.float32)
+    rad = np.sqrt((xx - size/2)**2 + (yy - size/2)**2)
+    band = ((rad > LO_EDGE) & (rad < HI_EDGE)).astype(np.float32)
+    M = _edge_mask(lum, size)
+    out = np.empty((NBITS, size, size), np.float32)
+    for i in range(NBITS):
+        seed = int.from_bytes(hmac.new(key, label + i.to_bytes(4, "big"),
+                                       hashlib.sha256).digest()[:7], "big")
+        n = np.random.default_rng(seed).standard_normal((size, size)).astype(np.float32)
+        F = np.fft.fftshift(np.fft.fft2(n)) * band
+        c = np.real(np.fft.ifft2(np.fft.ifftshift(F))).astype(np.float32) * M
+        c -= c.mean(); out[i] = c / (np.linalg.norm(c) + 1e-8)
+    return out
+
+def build_carriers(key, size, mode, lum, label=b"backfire/carrier"):
+    """Dispatch: band (default, image-independent) or edge (content-coupled). The
+    edge label is domain-separated so the two modes are cryptographically distinct."""
+    if mode == "edge":
+        return edge_carriers(key, size, lum, label + b"/edge")
+    return keyed_carriers(key, size, label)
+
 def target_signs(key: bytes, idv: int):
     """Per-carrier +/-1 targets: ID_REPS carriers repetition-code each id bit."""
     s = np.empty(NBITS, np.float32)
@@ -67,14 +106,16 @@ def decode(img_gray, C, C_decoy):
     margins = [abs(v) / dnoise for v in votes]
     return idv, float(np.mean(margins)), float(min(margins))
 
-def decode_keyed(img_gray, key: bytes, size: int):
-    return decode(img_gray, keyed_carriers(key, size),
-                  keyed_carriers(key, size, b"backfire/decoy"))
+def decode_keyed(img_gray, key: bytes, size: int, mode: str = "band"):
+    # edge carriers are rebuilt from the image under test (img_gray); band carriers
+    # are image-independent, so img_gray is ignored for band.
+    return decode(img_gray, build_carriers(key, size, mode, img_gray, b"backfire/carrier"),
+                  build_carriers(key, size, mode, img_gray, b"backfire/decoy"))
 
 # ------------------------------- read (numpy) -------------------------------
 def read_cmd(a):
     img = np.asarray(Image.open(a.infile).convert("RGB").resize((a.size, a.size)), np.float32) / 255.0
-    idv, conf, margin = decode_keyed(img.mean(2), _key_bytes(a.key, a.hexkey), a.size)
+    idv, conf, margin = decode_keyed(img.mean(2), _key_bytes(a.key, a.hexkey), a.size, a.carriers)
     valid = margin > a.threshold         # every id bit must clear the decoy noise floor
     print(json.dumps({"id": idv, "id_hex": f"0x{idv:X}", "confidence": round(conf, 4),
                       "min_bit_margin": round(margin, 4), "valid": valid,
@@ -129,14 +170,14 @@ def embed_cmd(a):
         raise SystemExit("backfire: --models must share a latent channel count (SD-family)")
 
     key = _key_bytes(a.key, a.hexkey)
-    C = torch.from_numpy(keyed_carriers(key, a.size)).to(dev)
+    host_np = np.asarray(Image.open(a.infile).convert("RGB").resize((a.size, a.size)), np.float32)/255.0
+    host = torch.from_numpy(host_np).permute(2, 0, 1).unsqueeze(0).to(dev)
+    # edge carriers are content-coupled (built from the host luminance); band ignores it.
+    C = torch.from_numpy(build_carriers(key, a.size, a.carriers, host_np.mean(2))).to(dev)
     tsign = torch.from_numpy(target_signs(key, a.serial)).to(dev)
     def corrs(img):
         g = img.mean(1); g = g - g.mean((-1, -2), keepdim=True)
         return (C * g).sum((-1, -2))
-
-    host_np = np.asarray(Image.open(a.infile).convert("RGB").resize((a.size, a.size)), np.float32)/255.0
-    host = torch.from_numpy(host_np).permute(2, 0, 1).unsqueeze(0).to(dev)
     gtor = torch.Generator(dev).manual_seed(1234)
     lat_shape = (1, lat_ch, a.size//8, a.size//8)
     noises = [torch.randn(lat_shape, generator=gtor, device=dev) for _ in range(a.eot_noises)]
@@ -153,6 +194,16 @@ def embed_cmd(a):
 
     log(f"optimizing keyed poison (id 0x{a.serial:X}, {a.iters} iters, target {a.target_psnr:.0f}dB, "
         f"EOT strengths {strengths} x {len(purifiers)} backend(s))...")
+    # optional notch-in-the-loop: keep the mark readable after a band-notch, so the
+    # optimizer parks energy the notch cannot reach (carrier placement alone does not
+    # force this; the objective must).
+    if a.notch_eot > 0:
+        yy2, xx2 = np.mgrid[0:a.size, 0:a.size].astype(np.float32)
+        rad2 = np.sqrt((xx2 - a.size/2)**2 + (yy2 - a.size/2)**2)
+        keep = torch.from_numpy(((rad2 <= LO) | (rad2 >= HI)).astype(np.float32)).to(dev)
+        def dnotch(img):
+            Fm = torch.fft.fftshift(torch.fft.fft2(img), dim=(-2, -1)) * keep
+            return torch.real(torch.fft.ifft2(torch.fft.ifftshift(Fm, dim=(-2, -1))))
     w = (0.01 * torch.randn_like(host)).requires_grad_(True)   # tiny nonzero: the RMS projection has no defined direction at w=0
     opt = torch.optim.Adam([w], lr=a.lr)
     for it in range(a.iters):
@@ -161,6 +212,8 @@ def embed_cmd(a):
         post = torch.stack([(corrs(pf["purify"](x, n, pf["ts_by_s"][s]))*tsign).mean()
                             for pf in purifiers for s in strengths for n in noises]).mean()
         loss = -(post + a.direct*(corrs(x)*tsign).mean())
+        if a.notch_eot > 0:
+            loss = loss - a.notch_eot * (corrs(dnotch(x))*tsign).mean()
         loss.backward(); opt.step()
         if it % 40 == 0 or it == a.iters-1:
             log(f"  iter {it:4d}  E[post]={post.item():+.3f}")
@@ -169,7 +222,7 @@ def embed_cmd(a):
     m_np = marked[0].permute(1, 2, 0).cpu().numpy()
     Image.fromarray((m_np*255).astype("uint8")).save(a.out)
     psnr = 10*np.log10(1.0/max(float(((marked-host)**2).mean()), 1e-12))
-    idv, conf, margin = decode_keyed(m_np.mean(2), key, a.size)
+    idv, conf, margin = decode_keyed(m_np.mean(2), key, a.size, a.carriers)
     log(f"wrote {a.out}  PSNR={psnr:.1f}dB  self-read id=0x{idv:X} margin={margin:.2f}")
     print(json.dumps({"out": a.out, "id_hex": f"0x{a.serial:X}", "psnr_db": round(psnr, 2),
                       "self_read_ok": (idv == a.serial and margin > a.threshold)}))
@@ -188,6 +241,8 @@ def main():
     e.add_argument("--direct", type=float, default=0.7, help="pre-attack readability weight")
     e.add_argument("--eot-strengths", default="0.2,0.3"); e.add_argument("--eot-noises", type=int, default=4)
     e.add_argument("--threshold", type=float, default=1.5, help="min per-bit margin for a valid read")
+    e.add_argument("--carriers", choices=["band", "edge"], default="band", help="band (default) or content-coupled edge-masked mid-low carriers")
+    e.add_argument("--notch-eot", type=float, default=0.0, help="weight on staying readable after a band-notch (notch-in-the-loop hardening; 0 = off)")
     e.add_argument("--model", default="huanzi05/stable-diffusion-2-1-base")
     e.add_argument("--models", default=None, help="comma-separated diffusion backends for expectation-over-purifiers EOT (overrides --model; cost scales with count)")
     e.add_argument("--device", default="cuda")
@@ -195,6 +250,7 @@ def main():
     r = sub.add_parser("read", help="recover the keyed id (numpy only, no GPU)")
     r.add_argument("infile"); r.add_argument("--key", required=True); r.add_argument("--hexkey", action="store_true")
     r.add_argument("--size", type=int, default=256); r.add_argument("--threshold", type=float, default=1.5)
+    r.add_argument("--carriers", choices=["band", "edge"], default="band", help="must match how the image was embedded")
     r.add_argument("--expect", type=lambda x: int(x, 0), default=None, help="exit 0 iff this id is read and valid")
     r.set_defaults(func=read_cmd)
     a = ap.parse_args(); a.func(a)
