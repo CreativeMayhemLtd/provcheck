@@ -97,6 +97,31 @@ pub struct DecoderOutput {
     pub mean_abs_logit: f32,
 }
 
+/// Build an ort `Session`, converting a missing or incompatible ONNX Runtime
+/// into a graceful error. ort *panics* during library load when the runtime
+/// version is wrong (for example a stale system `onnxruntime.dll`), which would
+/// otherwise crash the whole verifier; we catch that here so the image detector
+/// degrades to a clean error instead. The panic hook is silenced across the load
+/// so ort's version-check panic does not spam stderr.
+fn build_session(path: &std::path::Path) -> Result<Session, ModelError> {
+    let prev_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(|_| {}));
+    let built = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        Session::builder().and_then(|b| b.commit_from_file(path))
+    }));
+    std::panic::set_hook(prev_hook);
+    match built {
+        Ok(Ok(session)) => Ok(session),
+        Ok(Err(e)) => Err(ModelError::Load(format!("ort commit: {e}"))),
+        Err(_) => Err(ModelError::Load(
+            "ONNX Runtime is missing or the wrong version (provcheck needs 1.22.x). \
+             Set ORT_DYLIB_PATH to a compatible onnxruntime, or install ONNX Runtime \
+             1.22.x. Image watermark detection was skipped."
+                .to_string(),
+        )),
+    }
+}
+
 /// Build the ort session (lazy + cached for the process lifetime).
 /// Wrapped in a Mutex because `Session::run` takes `&mut self`;
 /// ORT serialises CPU inference on its own thread pool anyway, so
@@ -113,10 +138,7 @@ fn model() -> Result<&'static Mutex<Session>, ModelError> {
         std::fs::File::open(&path)
             .map_err(|e| ModelError::Load(format!("open {}: {e}", path.display())))?,
     ); // existence check
-    let session = Session::builder()
-        .map_err(|e| ModelError::Load(e.to_string()))?
-        .commit_from_file(&path)
-        .map_err(|e| ModelError::Load(format!("ort commit: {e}")))?;
+    let session = build_session(&path)?;
     let _ = MODEL.set(Mutex::new(session));
     Ok(MODEL.get().expect("just set"))
 }
@@ -130,10 +152,7 @@ fn encoder_model() -> Result<&'static Mutex<Session>, ModelError> {
     }
     let path = provcheck_weights::load_if_cached("trustmark", "b-encoder")
         .map_err(|e| ModelError::Load(format!("weights: {e}")))?;
-    let session = Session::builder()
-        .map_err(|e| ModelError::Load(e.to_string()))?
-        .commit_from_file(&path)
-        .map_err(|e| ModelError::Load(format!("ort commit: {e}")))?;
+    let session = build_session(&path)?;
     let _ = MODEL.set(Mutex::new(session));
     Ok(MODEL.get().expect("just set"))
 }
