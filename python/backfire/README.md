@@ -63,6 +63,15 @@ python backfire.py embed photo.png -o photo.marked.png --key "my-secret-key" --s
 python backfire.py read photo.marked.png --key "my-secret-key" --expect 0x5
 ```
 
+To also resist a band-notch adaptive attacker (see limits below), embed with the
+content-coupled carriers and the notch in the optimization loop, and read with the
+same carrier mode:
+
+```
+python backfire.py embed photo.png -o photo.marked.png --key "my-secret-key" --serial 0x5 --carriers edge --notch-eot 1.5
+python backfire.py read  photo.marked.png --key "my-secret-key" --carriers edge --expect 0x5
+```
+
 `read` prints the recovered id, a confidence, the weakest per-bit margin
 (`min_bit_margin`), and `valid` (true when every id bit clears the decoy noise floor
 by the margin threshold, default 1.5). Both numbers are decoy-normalized (the real
@@ -128,12 +137,19 @@ This open core is a first real cut:
 - **256 px**, one purifier backend (MarkDiffusion), one attack family (diffusion
   purification at strengths 0.2 to 0.4, which is what the leading open strippers
   ship). The amplification claim is scoped to purification-class strippers.
-- **A band-aware adaptive attacker can remove it, at a visible cost.** The mark lives
-  in a mid-frequency band; an attacker who reads this source and suppresses that band
-  can strip the mark, but only by degrading the image to roughly 20 dB (clearly
-  visible damage), and only with a crude linear filter rather than the diffusion
-  purifiers the real strippers ship. Backfire defends against purification, not
-  against an adversary willing to wreck the picture.
+- **A band-aware adaptive attacker is partly, not fully, defended.** The default mark
+  lives in a mid-frequency band, and an attacker who reads this source and suppresses
+  that band can strip it (though only with a crude linear filter, not the diffusion
+  purifiers the real strippers ship, and only by degrading the image to roughly 20 dB
+  of clearly visible damage). The `--carriers edge --notch-eot` embed options harden
+  against this: content-coupled carriers plus a band-notch term in the optimization
+  loop keep the mark readable after a notch. On a 6-image test this raised post-notch
+  survival from 0/6 to 3/6 with no loss of amplification (post-purify held at 5/6);
+  the images that still fall are busy, high-frequency content that is energy-limited
+  at 34 dB. Lowering `--target-psnr` to 31 dB (a little more mark energy) takes pre and
+  post-purify recovery to 6/6 and roughly triples those images' notch margins (toward,
+  though not yet over, the threshold), so a lower-PSNR robustness mode is the lever for
+  busy content. Notch hardening is opt-in; the default remains the band mark.
 - **4-bit keyed id** (16 ids per key; the key is the primary identity). Validity is
   a per-bit margin over the keyed decoy floor, not a cryptographic MAC: it rejects
   marginal and wrong-id reads, and a wrong key reads nothing, but the id is a
