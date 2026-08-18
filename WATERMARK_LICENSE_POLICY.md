@@ -73,7 +73,7 @@ Three reasons, in priority order:
 
 | Family | Maintainer | Code license | Weights license | Pass? | provcheck status |
 | --- | --- | --- | --- | --- | --- |
-| **TrustMark** | Adobe / CAI | MIT (verified 2026-06-28) | MIT (verified 2026-06-28) | ✓ | **Integrated** in `provcheck-image` — full detect + embed pipeline through ort (v0.7 phase 7b + 7b-followup migrated tract → ort). Weights ship as DLC via `provcheck-weights` from the public mirror's `weights-v1` release. BCH(127,92,t=5) ecosystem interop — provcheck-stamped images round-trip through Adobe's Python TrustMark and vice versa. |
+| **TrustMark** | Adobe / CAI | MIT (verified 2026-06-28; cached proof `docs/third-party-licenses/trustmark-0.9.1-LICENSE.txt`) | MIT (verified 2026-06-28) | ✓ | **Integrated** in `provcheck-image` — full detect + embed pipeline through ort (v0.7 phase 7b + 7b-followup migrated tract → ort). Weights ship as DLC via `provcheck-weights` from the public mirror's `weights-v1` release. BCH(127,92,t=5) ecosystem interop — provcheck-stamped images round-trip through Adobe's Python TrustMark and vice versa. |
 | **Stable Signature** | Meta (FAIR) | CC-BY-NC 4.0 | CC-BY-NC 4.0 | ✗ | **Not added.** Non-commercial clause fails the workspace rule. |
 | **StegaStamp** | Tancik et al, UC Berkeley | MIT (code) | unclear (Google Drive download without LICENSE.md) | hold | **Not added.** Code is permissive; weights status is the open question. Acceptable if upstream confirms permissive weights OR if we retrain from CC0/CC-BY data. |
 | **HiDDeN** | community reimpl of Stanford paper (Zhu et al, ECCV 2018) | MIT (community code) | no canonical publishable weights | hold | **Not added.** Academic baseline; no publishable-as-FOSS weights checkpoint. Defer in favour of TrustMark. |
@@ -125,6 +125,32 @@ rule above, so it is handled the way the rule demands:
 
 This does not weaken the rule. The rule governs what ships inside the
 Apache-2.0 artefact, and this crate never does.
+
+## The experimental opt-in image option: `python/backfire` (AGPL, never bundled)
+
+`python/backfire/` is **Backfire**, an experimental keyed image watermark that AI
+diffusion-purification strippers *amplify* instead of remove (a poison fixed point of
+the purifier). It is the image-side analogue of `provcheck-mellin`, and it is handled
+the same way:
+
+- It is **dual-licensed AGPL-3.0-or-later OR a commercial license** (Creative Mayhem
+  UG), which fails the Apache-2.0 bundling rule above, so it is kept out of the
+  shipped artefact.
+- It is a **standalone Python tool, not a workspace crate**: it is never added to the
+  Rust workspace, never wired into the `detect(path)` dispatch, and never ships in the
+  release binary. The binary stays pure Apache-2.0. Run it directly
+  (`python backfire.py embed|read`); `read` is numpy-only, `embed` needs a GPU.
+- It is **secret-keyed** (per-key carriers, per-copy serial), built for copy
+  individuation, leak tracing, and purification-resistant provenance, so like mellin
+  it would not fit the blind `detect(path)` dispatch anyway.
+- It is **experimental**: the amplification-under-purification property is validated
+  (generalizes across purifiers), but capacity, embed speed, and adaptive-attacker
+  hardening are works in progress. Treat it as an opt-in research option, not a
+  shipped detector.
+
+As with mellin, this does not weaken the rule: Backfire never ships inside the
+Apache-2.0 artefact. (Roadmap: provcheck experimental option now, `lysn` integration
+later, consumer bots much later.)
 
 ## Process for adding a new detector
 

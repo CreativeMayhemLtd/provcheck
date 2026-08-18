@@ -112,14 +112,51 @@ def decode_keyed(img_gray, key: bytes, size: int, mode: str = "band"):
     return decode(img_gray, build_carriers(key, size, mode, img_gray, b"backfire/carrier"),
                   build_carriers(key, size, mode, img_gray, b"backfire/decoy"))
 
+def _band_notch_np(rgb, size):
+    """Numpy band-notch (suppress the LO..HI ring) for per-image robustness assessment."""
+    yy, xx = np.mgrid[0:size, 0:size].astype(np.float32)
+    rad = np.sqrt((xx - size/2)**2 + (yy - size/2)**2)
+    band = (rad > LO) & (rad < HI)
+    out = np.empty_like(rgb)
+    for c in range(rgb.shape[2]):
+        F = np.fft.fftshift(np.fft.fft2(rgb[:, :, c])); F[band] = 0.0
+        out[:, :, c] = np.real(np.fft.ifft2(np.fft.ifftshift(F)))
+    return np.clip(out, 0, 1)
+
+# A sophisticated attacker can strip the mark with an aggressive band-notch, but that
+# notch is loud: it carves an anomalous suppressed ring into the FFT. Natural images have
+# a smooth power-law radial spectrum, so a notch shows up as a localized dip far below
+# trend. Every notch strong enough to strip the mark clears the threshold (measured: clean
+# images top out near 1.15, mark-stripping notches read 2 to 4), so the mark and this
+# tripwire together leave the attacker no move that both removes the mark and stays quiet.
+NOTCH_TAMPER_THRESHOLD = 1.3
+
+def notch_tamper_stat(gray, size):
+    """Deepest below-trend suppression in the radial power spectrum. > threshold means a
+    band-notch was very likely applied (tamper evidence). numpy only."""
+    yy, xx = np.mgrid[0:size, 0:size].astype(np.float32)
+    rbin = np.sqrt((xx - size/2)**2 + (yy - size/2)**2).astype(np.int32)
+    rmax = min(size // 2, 120)
+    F = np.fft.fftshift(np.fft.fft2(gray)); p = F.real**2 + F.imag**2
+    L = np.array([np.log(p[rbin == r].mean() + 1e-8) if (rbin == r).any() else 0.0 for r in range(rmax)])
+    r = np.arange(1, rmax); y = L[1:rmax]; x = np.log(r)
+    coef = np.polyfit(x, y, 4); base = np.polyval(coef, x)
+    keep = (y - base) > -np.std(y - base)                 # drop deep dips, refit the trend
+    coef = np.polyfit(x[keep], y[keep], 4); base = np.polyval(coef, x)
+    dip = base - y
+    return float(np.convolve(np.clip(dip, 0, None), np.ones(5) / 5, mode="same").max())
+
 # ------------------------------- read (numpy) -------------------------------
 def read_cmd(a):
     img = np.asarray(Image.open(a.infile).convert("RGB").resize((a.size, a.size)), np.float32) / 255.0
-    idv, conf, margin = decode_keyed(img.mean(2), _key_bytes(a.key, a.hexkey), a.size, a.carriers)
+    gray = img.mean(2)
+    idv, conf, margin = decode_keyed(gray, _key_bytes(a.key, a.hexkey), a.size, a.carriers)
     valid = margin > a.threshold         # every id bit must clear the decoy noise floor
+    tamper = notch_tamper_stat(gray, a.size)
     print(json.dumps({"id": idv, "id_hex": f"0x{idv:X}", "confidence": round(conf, 4),
                       "min_bit_margin": round(margin, 4), "valid": valid,
-                      "match": (idv == a.expect) if a.expect is not None else None}))
+                      "match": (idv == a.expect) if a.expect is not None else None,
+                      "notch_tamper": {"stat": round(tamper, 3), "detected": tamper > a.notch_threshold}}))
     if a.expect is not None:
         sys.exit(0 if (valid and idv == a.expect) else 1)
 
@@ -199,11 +236,16 @@ def embed_cmd(a):
     # force this; the objective must).
     if a.notch_eot > 0:
         yy2, xx2 = np.mgrid[0:a.size, 0:a.size].astype(np.float32)
-        rad2 = np.sqrt((xx2 - a.size/2)**2 + (yy2 - a.size/2)**2)
-        keep = torch.from_numpy(((rad2 <= LO) | (rad2 >= HI)).astype(np.float32)).to(dev)
-        def dnotch(img):
+        rad2 = torch.from_numpy(np.sqrt((xx2 - a.size/2)**2 + (yy2 - a.size/2)**2).astype(np.float32)).to(dev)
+        nrng = np.random.default_rng(1234)
+        one = torch.tensor(1.0, device=dev)
+        def dnotch(img, lo, hi, res):
+            keep = torch.where((rad2 > lo) & (rad2 < hi), torch.tensor(res, device=dev), one)
             Fm = torch.fft.fftshift(torch.fft.fft2(img), dim=(-2, -1)) * keep
             return torch.real(torch.fft.ifft2(torch.fft.ifftshift(Fm, dim=(-2, -1))))
+        def sample_notch():  # a family of band-stops, not one fixed notch
+            lo = float(nrng.uniform(3, 18)); hi = lo + float(nrng.uniform(12, 44)); res = float(nrng.uniform(0.0, 0.3))
+            return lo, hi, res
     w = (0.01 * torch.randn_like(host)).requires_grad_(True)   # tiny nonzero: the RMS projection has no defined direction at w=0
     opt = torch.optim.Adam([w], lr=a.lr)
     for it in range(a.iters):
@@ -213,7 +255,8 @@ def embed_cmd(a):
                             for pf in purifiers for s in strengths for n in noises]).mean()
         loss = -(post + a.direct*(corrs(x)*tsign).mean())
         if a.notch_eot > 0:
-            loss = loss - a.notch_eot * (corrs(dnotch(x))*tsign).mean()
+            lo, hi, res = sample_notch()
+            loss = loss - a.notch_eot * (corrs(dnotch(x, lo, hi, res))*tsign).mean()
         loss.backward(); opt.step()
         if it % 40 == 0 or it == a.iters-1:
             log(f"  iter {it:4d}  E[post]={post.item():+.3f}")
@@ -224,8 +267,28 @@ def embed_cmd(a):
     psnr = 10*np.log10(1.0/max(float(((marked-host)**2).mean()), 1e-12))
     idv, conf, margin = decode_keyed(m_np.mean(2), key, a.size, a.carriers)
     log(f"wrote {a.out}  PSNR={psnr:.1f}dB  self-read id=0x{idv:X} margin={margin:.2f}")
-    print(json.dumps({"out": a.out, "id_hex": f"0x{a.serial:X}", "psnr_db": round(psnr, 2),
-                      "self_read_ok": (idv == a.serial and margin > a.threshold)}))
+
+    assessment = None
+    if a.assess:
+        # Per-image confidence: measure this specific mark against the real threats,
+        # rather than claiming a global constant. Reuses the loaded purifier (one draw
+        # at the strongest trained strength) and a numpy band-notch.
+        pf = purifiers[0]; s0 = strengths[-1]
+        with torch.no_grad():
+            pm = pf["purify"](marked, noises[0], pf["ts_by_s"][s0]).clamp(0, 1)
+        p_id, _, p_m = decode_keyed(pm[0].permute(1, 2, 0).cpu().numpy().mean(2), key, a.size, a.carriers)
+        n_id, _, n_m = decode_keyed(_band_notch_np(m_np, a.size).mean(2), key, a.size, a.carriers)
+        p_ok = bool(p_id == a.serial and p_m > a.threshold)
+        n_ok = bool(n_id == a.serial and n_m > a.threshold)
+        rating = ("strong" if (p_ok and n_ok) else "amplifier-only" if p_ok else "weak")
+        assessment = {"post_purify": {"valid": p_ok, "margin": round(p_m, 3)},
+                      "post_notch": {"valid": n_ok, "margin": round(n_m, 3)}, "rating": rating}
+        log(f"assess: purify={'OK' if p_ok else 'x'}({p_m:.2f}) notch={'OK' if n_ok else 'x'}({n_m:.2f}) -> {rating}")
+
+    out = {"out": a.out, "id_hex": f"0x{a.serial:X}", "psnr_db": round(psnr, 2),
+           "self_read_ok": (idv == a.serial and margin > a.threshold)}
+    if assessment: out["assess"] = assessment
+    print(json.dumps(out))
 
 def main():
     ap = argparse.ArgumentParser(prog="backfire", description=__doc__.split("\n")[0])
@@ -243,6 +306,7 @@ def main():
     e.add_argument("--threshold", type=float, default=1.5, help="min per-bit margin for a valid read")
     e.add_argument("--carriers", choices=["band", "edge"], default="band", help="band (default) or content-coupled edge-masked mid-low carriers")
     e.add_argument("--notch-eot", type=float, default=0.0, help="weight on staying readable after a band-notch (notch-in-the-loop hardening; 0 = off)")
+    e.add_argument("--assess", action="store_true", help="after embed, measure this mark's survival vs the purifier and a band-notch, and emit a per-image rating")
     e.add_argument("--model", default="huanzi05/stable-diffusion-2-1-base")
     e.add_argument("--models", default=None, help="comma-separated diffusion backends for expectation-over-purifiers EOT (overrides --model; cost scales with count)")
     e.add_argument("--device", default="cuda")
@@ -251,6 +315,7 @@ def main():
     r.add_argument("infile"); r.add_argument("--key", required=True); r.add_argument("--hexkey", action="store_true")
     r.add_argument("--size", type=int, default=256); r.add_argument("--threshold", type=float, default=1.5)
     r.add_argument("--carriers", choices=["band", "edge"], default="band", help="must match how the image was embedded")
+    r.add_argument("--notch-threshold", type=float, default=NOTCH_TAMPER_THRESHOLD, help="band-notch tamper tripwire threshold (clean images < 1.15, mark-stripping notches > 2)")
     r.add_argument("--expect", type=lambda x: int(x, 0), default=None, help="exit 0 iff this id is read and valid")
     r.set_defaults(func=read_cmd)
     a = ap.parse_args(); a.func(a)
