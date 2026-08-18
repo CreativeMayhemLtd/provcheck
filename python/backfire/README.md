@@ -93,6 +93,7 @@ PSNR floor.
 |---|---|---|
 | no attack (pre-purify) | 9/12 | 34.0 dB |
 | their real 50-step purify @ strength 0.3 | 10/12 | (same image) |
+| a **held-out** purifier (never optimized against) | 11/12 | (same image) |
 | unmarked / wrong-key controls | 0 false-valids | n/a |
 
 **Post-attack recovery (10/12) exceeds pre-attack recovery (9/12): the purifier is a
@@ -101,6 +102,17 @@ rejected low-margin reads, never wrong ids: image 01 (a busy 1 MB PNG) never cle
 the 1.5 threshold pre or post, and image 04 validated at rest but the purifier
 weakened it below threshold. Two images (06 and 07) were sub-threshold at rest and
 the attack pushed them over into valid, the amplifier effect in its purest form.
+
+**The amplification generalizes across purifiers.** Attacked by a *held-out*
+diffusion purifier the mark was never optimized against (a different model), recovery
+was 11/12, matching and slightly beating the in-training purifier (10/12); two images
+that failed the in-training attack survived the held-out one. So the poison fixed
+point is a general property of diffusion purification, not an artifact of one model:
+the attack backfires whatever diffusion stripper is used. Optimizing against several
+purifier backends at once (`--models a,b`) is available and pushed post-attack
+recovery to 8/8 on an 8-image subset, but the held-out result shows it is a bonus, not
+a requirement. For the one attack the pixel mark does not shrug off, a band-notch, see
+the `--carriers edge --notch-eot` hardening under Honest limits.
 
 ## The text channel (a corroborating second id)
 
