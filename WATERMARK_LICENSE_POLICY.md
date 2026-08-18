@@ -126,9 +126,9 @@ rule above, so it is handled the way the rule demands:
 This does not weaken the rule. The rule governs what ships inside the
 Apache-2.0 artefact, and this crate never does.
 
-## The experimental opt-in image option: `python/backfire` (AGPL, never bundled)
+## The experimental opt-in image option: `backfire` (AGPL, never bundled)
 
-`python/backfire/` is **Backfire**, an experimental keyed image watermark that AI
+`backfire/` is **Backfire**, an experimental keyed image watermark that AI
 diffusion-purification strippers *amplify* instead of remove (a poison fixed point of
 the purifier). It is the image-side analogue of `provcheck-mellin`, and it is handled
 the same way:

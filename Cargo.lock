@@ -3834,6 +3834,7 @@ dependencies = [
  "provcheck-video",
  "provcheck-watermark",
  "provcheck-wavmark",
+ "serde_json",
  "tempfile",
 ]
 

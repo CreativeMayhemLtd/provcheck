@@ -137,6 +137,31 @@ struct Args {
     /// contract.
     #[arg(long = "detect")]
     detect: Option<DetectScope>,
+
+    /// Experimental: also verify a keyed **Backfire** image watermark and check
+    /// for band-notch tampering.
+    ///
+    /// Backfire is a separate, AGPL-licensed, opt-in tool, NOT part of the
+    /// Apache-2.0 core. This shells out to it (never links it) and requires
+    /// `python` on PATH plus the tool present (locate it via `$BACKFIRE_PY`, or
+    /// run from a directory containing `backfire/backfire.py`). Backfire is
+    /// keyed: it verifies a mark YOU embedded, so `--backfire-key` is required.
+    /// Robustness is per-image and experimental.
+    #[arg(long)]
+    backfire_read: bool,
+
+    /// Secret key for the Backfire mark. Required with `--backfire-read`.
+    #[arg(long, value_name = "KEY", requires = "backfire_read")]
+    backfire_key: Option<String>,
+
+    /// Expected Backfire serial in hex (e.g. `0x5`), optional. When given, the
+    /// report notes whether the recovered id matches.
+    #[arg(long, value_name = "HEX", requires = "backfire_read")]
+    backfire_serial: Option<String>,
+
+    /// Backfire carrier mode; must match how the image was embedded.
+    #[arg(long, value_name = "MODE", default_value = "band")]
+    backfire_carriers: String,
 }
 
 /// Subject of an `--detect` request.
@@ -146,6 +171,93 @@ enum DetectScope {
     /// pack or operator-supplied detector this is a no-op that
     /// produces an empty `detections` vec in the report.
     Ai,
+}
+
+/// Shell out to the separate Backfire tool (AGPL, never linked into this
+/// Apache binary) and return its parsed JSON. Locates `backfire.py` via
+/// `$BACKFIRE_PY` or `backfire/backfire.py` beside the current directory, and
+/// needs `python` (tries `python3` then `python`). `read` exits 0/1 on the
+/// `--expect` check, so we parse stdout regardless of the exit status.
+fn run_backfire_read(
+    file: &std::path::Path,
+    key: &str,
+    serial: Option<&str>,
+    carriers: &str,
+) -> Result<serde_json::Value, String> {
+    use std::process::Command;
+    let script = std::env::var("BACKFIRE_PY")
+        .ok()
+        .map(std::path::PathBuf::from)
+        .filter(|p| p.exists())
+        .or_else(|| {
+            let p = std::path::PathBuf::from("backfire/backfire.py");
+            p.exists().then_some(p)
+        })
+        .ok_or_else(|| {
+            "Backfire tool not found. Set BACKFIRE_PY to backfire.py, or run from a \
+             directory containing backfire/backfire.py."
+                .to_string()
+        })?;
+
+    let mut argv: Vec<String> = vec![
+        script.to_string_lossy().into_owned(),
+        "read".into(),
+        file.to_string_lossy().into_owned(),
+        "--key".into(),
+        key.into(),
+        "--carriers".into(),
+        carriers.into(),
+    ];
+    if let Some(s) = serial {
+        argv.push("--expect".into());
+        argv.push(s.into());
+    }
+
+    let mut last_err = String::new();
+    for py in ["python3", "python"] {
+        match Command::new(py).args(&argv).output() {
+            Ok(out) => {
+                let stdout = String::from_utf8_lossy(&out.stdout);
+                let line = stdout.lines().last().unwrap_or("").trim();
+                return serde_json::from_str::<serde_json::Value>(line).map_err(|e| {
+                    format!(
+                        "Backfire produced unparseable output ({e}). stderr: {}",
+                        String::from_utf8_lossy(&out.stderr).trim()
+                    )
+                });
+            }
+            Err(e) => last_err = format!("could not run {py}: {e}"),
+        }
+    }
+    Err(format!("python not found ({last_err})"))
+}
+
+/// Human-readable Backfire block, printed under the main report.
+fn print_backfire_human(bf: &serde_json::Value) {
+    let valid = bf.get("valid").and_then(|v| v.as_bool()).unwrap_or(false);
+    let id = bf.get("id_hex").and_then(|v| v.as_str()).unwrap_or("?");
+    let margin = bf
+        .get("min_bit_margin")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.0);
+    println!();
+    println!("Backfire (experimental, keyed image watermark):");
+    if valid {
+        println!("  mark:   VALID (id {id}, margin {margin:.2})");
+    } else {
+        println!("  mark:   not detected (margin {margin:.2})");
+    }
+    if let Some(t) = bf.get("notch_tamper") {
+        let det = t.get("detected").and_then(|v| v.as_bool()).unwrap_or(false);
+        let stat = t.get("stat").and_then(|v| v.as_f64()).unwrap_or(0.0);
+        if det {
+            println!(
+                "  tamper: BAND-NOTCH DETECTED (stat {stat:.2}) -- the image was very likely notch-attacked"
+            );
+        } else {
+            println!("  tamper: none (band-notch stat {stat:.2})");
+        }
+    }
 }
 
 fn main() -> ExitCode {
@@ -316,6 +428,44 @@ fn main() -> ExitCode {
         }
     }
 
+    // Experimental Backfire keyed-watermark verification (opt-in). Shells out
+    // to the separate AGPL tool; never linked into this Apache binary. Additive
+    // and informational: it does not change the C2PA exit code.
+    let backfire = if args.backfire_read {
+        let key = match args.backfire_key.as_deref() {
+            Some(k) => k,
+            None => {
+                if !args.quiet {
+                    eprintln!("provcheck: --backfire-read needs --backfire-key");
+                }
+                return ExitCode::from(2);
+            }
+        };
+        if !args.quiet {
+            eprintln!(
+                "provcheck: Backfire is EXPERIMENTAL and AGPL-licensed, separate from the \
+                 Apache-2.0 core. It verifies a keyed mark you embedded and flags band-notch \
+                 tampering; robustness is per-image."
+            );
+        }
+        match run_backfire_read(
+            &args.file,
+            key,
+            args.backfire_serial.as_deref(),
+            &args.backfire_carriers,
+        ) {
+            Ok(v) => Some(v),
+            Err(e) => {
+                if !args.quiet {
+                    eprintln!("provcheck: backfire read failed: {e}");
+                }
+                None
+            }
+        }
+    } else {
+        None
+    };
+
     // `--require-watermark` escalates "no detector found a
     // mark" to exit 1, the same way `--require-attested` does.
     // A run with multiple detectors passes if at least one
@@ -326,9 +476,18 @@ fn main() -> ExitCode {
     if !args.quiet {
         if args.json {
             match report.to_json_string() {
-                Ok(j) => println!("{}", j),
+                // When --backfire-read ran, wrap into {provcheck, backfire} so the
+                // default schema (bare report) is unchanged unless the flag is used.
+                Ok(j) => match &backfire {
+                    Some(bf) => {
+                        let rv: serde_json::Value =
+                            serde_json::from_str(&j).unwrap_or(serde_json::Value::Null);
+                        println!("{}", serde_json::json!({ "provcheck": rv, "backfire": bf }));
+                    }
+                    None => println!("{j}"),
+                },
                 Err(e) => {
-                    eprintln!("provcheck: failed to serialize JSON: {}", e);
+                    eprintln!("provcheck: failed to serialize JSON: {e}");
                     return ExitCode::from(2);
                 }
             }
@@ -351,6 +510,9 @@ fn main() -> ExitCode {
                      Re-run with --auto-identity to verify against \
                      their published signing-key records."
                 );
+            }
+            if let Some(bf) = &backfire {
+                print_backfire_human(bf);
             }
         }
     }
