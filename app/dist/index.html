@@ -47,6 +47,7 @@
     <button class="tab" id="tab-detect-btn" role="tab" aria-selected="false" aria-controls="tab-detect">Detect</button>
     <button class="tab" id="tab-keys-btn" role="tab" aria-selected="false" aria-controls="tab-keys">Keys</button>
     <button class="tab" id="tab-sign-btn" role="tab" aria-selected="false" aria-controls="tab-sign">Sign</button>
+    <button class="tab" id="tab-backfire-btn" role="tab" aria-selected="false" aria-controls="tab-backfire">Backfire</button>
   </nav>
 
   <!-- =====================================================================
@@ -585,6 +586,74 @@
   </main>
 
   </div> <!-- /tab-sign -->
+
+  <!-- ============================================================
+       BACKFIRE TAB (experimental)
+       Keyed, per-image watermark verify. Shells out to the
+       standalone AGPL backfire.py tool via the backfire_read
+       command. A key is required; the image never leaves the box.
+       ============================================================ -->
+  <div class="tab-pane" id="tab-backfire" role="tabpanel" aria-labelledby="tab-backfire-btn" hidden>
+    <div class="bf-warning" id="bf-warning">
+      <p>
+        <strong>Experimental.</strong> Backfire is a keyed, per-image watermark that AI
+        provenance-stripping attacks amplify instead of remove. This tab runs the standalone,
+        <strong>AGPL-licensed</strong> Backfire tool (separate from provcheck) via Python on your
+        machine. You can only read a mark embedded with the same key.
+      </p>
+      <button class="btn btn-small" id="bf-ack" type="button">Got it</button>
+    </div>
+
+    <section class="bf-controls">
+      <label class="bf-field">
+        <span>Key <em>(required)</em></span>
+        <input type="password" id="bf-key" placeholder="the key the mark was embedded with" autocomplete="off" spellcheck="false" />
+      </label>
+      <label class="bf-field">
+        <span>Expected serial <em>(optional)</em></span>
+        <input type="text" id="bf-serial" placeholder="e.g. 0x7" autocomplete="off" spellcheck="false" />
+      </label>
+      <label class="bf-field">
+        <span>Carriers</span>
+        <select id="bf-carriers">
+          <option value="band">band (default)</option>
+          <option value="edge">edge</option>
+        </select>
+      </label>
+    </section>
+
+    <section class="dropzone" id="bf-dropzone">
+      <div class="dropzone-inner">
+        <svg class="dropzone-icon" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+          <rect x="10" y="14" width="44" height="36" rx="3" stroke="currentColor" stroke-width="3"/>
+          <circle cx="24" cy="28" r="5" stroke="currentColor" stroke-width="3"/>
+          <path d="M14 46l14-12 10 8 8-6 8 6" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
+        </svg>
+        <h2>Drop an image to read its Backfire mark</h2>
+        <button class="btn btn-primary" id="bf-choose-btn" type="button">Choose file…</button>
+        <p class="hint">Private — the image never leaves your machine. Enter the key first.</p>
+      </div>
+    </section>
+
+    <section class="loading" id="bf-loading" hidden>
+      <div class="spinner"></div>
+      <p class="loading-file" id="bf-loading-file">Reading Backfire mark…</p>
+    </section>
+
+    <section class="result" id="bf-result" hidden>
+      <div class="verdict" id="bf-verdict">
+        <div class="verdict-icon"></div>
+        <div class="verdict-text">
+          <h2 id="bf-result-title">Backfire</h2>
+          <p id="bf-result-file" class="mono"></p>
+        </div>
+      </div>
+      <div class="bf-fields" id="bf-fields"></div>
+      <footer class="footer-actions">
+        <button class="btn btn-primary" id="bf-another" type="button">Read another</button>
+      </footer>
+    </section>
+  </div> <!-- /tab-backfire -->
 
   <script src="app.js"></script>
 </body>

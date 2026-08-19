@@ -656,12 +656,15 @@ TAURI.event.listen("tauri://drag-drop", (event) => {
   if ($wmDropzone) $wmDropzone.classList.remove("drag-over");
   const $signDz = document.getElementById("sign-dropzone");
   if ($signDz) $signDz.classList.remove("drag-over");
+  if ($bfDropzone) $bfDropzone.classList.remove("drag-over");
   if (!p || !Array.isArray(p.paths) || p.paths.length === 0) return;
   const tab = activeTab();
   if (tab === "sign") {
     if (typeof window.signOnDrop === "function") window.signOnDrop(p.paths[0]);
   } else if (tab === "watermark") {
     watermarkPath(p.paths[0]);
+  } else if (tab === "backfire") {
+    backfirePath(p.paths[0]);
   } else {
     // Verify tab (or the Detect / Keys tabs — those don't own a
     // drop zone, so we fall back to Verify's flow which is the
@@ -700,6 +703,7 @@ function activeTab() {
   if (document.getElementById("tab-watermark").classList.contains("is-active")) return "watermark";
   if (document.getElementById("tab-detect").classList.contains("is-active")) return "detect";
   if (document.getElementById("tab-keys").classList.contains("is-active")) return "keys";
+  if (document.getElementById("tab-backfire").classList.contains("is-active")) return "backfire";
   return "verify";
 }
 
@@ -1005,11 +1009,30 @@ const $tabWatermarkBtn = document.getElementById("tab-watermark-btn");
 const $tabDetectBtn = document.getElementById("tab-detect-btn");
 const $tabKeysBtn = document.getElementById("tab-keys-btn");
 const $tabSignBtn = document.getElementById("tab-sign-btn");
+const $tabBackfireBtn = document.getElementById("tab-backfire-btn");
 const $paneVerify = document.getElementById("tab-verify");
 const $paneWatermark = document.getElementById("tab-watermark");
 const $paneDetect = document.getElementById("tab-detect");
 const $paneKeys = document.getElementById("tab-keys");
 const $paneSign = document.getElementById("tab-sign");
+const $paneBackfire = document.getElementById("tab-backfire");
+
+// Backfire tab (experimental keyed image-watermark verify).
+const $bfWarning = document.getElementById("bf-warning");
+const $bfAck = document.getElementById("bf-ack");
+const $bfKey = document.getElementById("bf-key");
+const $bfSerial = document.getElementById("bf-serial");
+const $bfCarriers = document.getElementById("bf-carriers");
+const $bfDropzone = document.getElementById("bf-dropzone");
+const $bfChooseBtn = document.getElementById("bf-choose-btn");
+const $bfLoading = document.getElementById("bf-loading");
+const $bfLoadingFile = document.getElementById("bf-loading-file");
+const $bfResult = document.getElementById("bf-result");
+const $bfVerdict = document.getElementById("bf-verdict");
+const $bfResultTitle = document.getElementById("bf-result-title");
+const $bfResultFile = document.getElementById("bf-result-file");
+const $bfFields = document.getElementById("bf-fields");
+const $bfAnother = document.getElementById("bf-another");
 
 const $signStripId = document.getElementById("sign-strip-id");
 const $signStripSession = document.getElementById("sign-strip-session");
@@ -1106,26 +1129,31 @@ function activateTab(name) {
   const isDetect = name === "detect";
   const isKeys = name === "keys";
   const isSign = name === "sign";
+  const isBackfire = name === "backfire";
   $tabVerifyBtn.classList.toggle("is-active", isVerify);
   $tabWatermarkBtn.classList.toggle("is-active", isWatermark);
   $tabDetectBtn.classList.toggle("is-active", isDetect);
   $tabKeysBtn.classList.toggle("is-active", isKeys);
   $tabSignBtn.classList.toggle("is-active", isSign);
+  $tabBackfireBtn.classList.toggle("is-active", isBackfire);
   $tabVerifyBtn.setAttribute("aria-selected", String(isVerify));
   $tabWatermarkBtn.setAttribute("aria-selected", String(isWatermark));
   $tabDetectBtn.setAttribute("aria-selected", String(isDetect));
   $tabKeysBtn.setAttribute("aria-selected", String(isKeys));
   $tabSignBtn.setAttribute("aria-selected", String(isSign));
+  $tabBackfireBtn.setAttribute("aria-selected", String(isBackfire));
   $paneVerify.classList.toggle("is-active", isVerify);
   $paneWatermark.classList.toggle("is-active", isWatermark);
   $paneDetect.classList.toggle("is-active", isDetect);
   $paneKeys.classList.toggle("is-active", isKeys);
   $paneSign.classList.toggle("is-active", isSign);
+  $paneBackfire.classList.toggle("is-active", isBackfire);
   $paneVerify.hidden = !isVerify;
   $paneWatermark.hidden = !isWatermark;
   $paneDetect.hidden = !isDetect;
   $paneKeys.hidden = !isKeys;
   $paneSign.hidden = !isSign;
+  $paneBackfire.hidden = !isBackfire;
   if (isKeys) refreshKeysTab();
   if (isSign) refreshSignTab();
 }
@@ -1135,11 +1163,135 @@ $tabWatermarkBtn.addEventListener("click", () => activateTab("watermark"));
 $tabDetectBtn.addEventListener("click", () => activateTab("detect"));
 $tabKeysBtn.addEventListener("click", () => activateTab("keys"));
 $tabSignBtn.addEventListener("click", () => activateTab("sign"));
+$tabBackfireBtn.addEventListener("click", () => activateTab("backfire"));
 
 // Watermark-tab file-picker + reset buttons. Reuse Verify tab's
 // openFilePicker (which nudges the user to drag on non-Tauri paths).
 $wmChooseBtn.addEventListener("click", openFilePicker);
 $wmAnother.addEventListener("click", showWmEmpty);
+
+// ---- Backfire tab (experimental keyed image-watermark verify) ------------
+// Shells out to the standalone AGPL backfire.py via the backfire_read command.
+// A key is required (Backfire reads only a mark embedded with the same key).
+
+const BF_KEY_STORAGE = "provcheck.backfire.key";
+const BF_ACK_STORAGE = "provcheck.backfire.ack";
+
+function bfShowEmpty() {
+  $bfDropzone.hidden = false;
+  $bfLoading.hidden = true;
+  $bfResult.hidden = true;
+}
+
+function bfShowLoading(name) {
+  $bfLoadingFile.textContent = name ? `Reading ${name}…` : "Reading Backfire mark…";
+  $bfDropzone.hidden = true;
+  $bfLoading.hidden = false;
+  $bfResult.hidden = true;
+}
+
+function bfShowResult() {
+  $bfDropzone.hidden = true;
+  $bfLoading.hidden = true;
+  $bfResult.hidden = false;
+}
+
+function bfRow(k, v) {
+  const row = document.createElement("div");
+  row.className = "bf-row";
+  const ks = document.createElement("span");
+  ks.className = "bf-row-k";
+  ks.textContent = k;
+  const vs = document.createElement("span");
+  vs.className = "bf-row-v mono";
+  vs.textContent = v;
+  row.appendChild(ks);
+  row.appendChild(vs);
+  return row;
+}
+
+async function backfirePath(path) {
+  const key = ($bfKey.value || "").trim();
+  if (!key) {
+    // Backfire is keyed — nudge to the key field rather than shelling out.
+    $bfKey.classList.add("bf-field-error");
+    $bfKey.focus();
+    setTimeout(() => $bfKey.classList.remove("bf-field-error"), 1600);
+    return;
+  }
+  try {
+    localStorage.setItem(BF_KEY_STORAGE, key);
+  } catch {
+    /* storage blocked — non-fatal */
+  }
+  const serial = ($bfSerial.value || "").trim() || null;
+  const carriers = $bfCarriers.value || "band";
+  bfShowLoading(prettyPath(path));
+  try {
+    const res = await invoke("backfire_read", { path, key, serial, carriers });
+    if (!res || !res.ok) {
+      renderBackfireError((res && res.error) || "Backfire read failed.", path);
+      return;
+    }
+    renderBackfire(res.data, path);
+  } catch (e) {
+    renderBackfireError(String(e && e.message ? e.message : e), path);
+  }
+}
+
+function renderBackfire(bf, path) {
+  bfShowResult();
+  $bfResultFile.textContent = prettyPath(path);
+  const valid = !!(bf && bf.valid === true);
+  const tamper = !!(bf && bf.notch_tamper && bf.notch_tamper.detected === true);
+  $bfVerdict.classList.remove("is-verified", "is-unsigned", "is-invalid");
+  $bfVerdict.classList.add(valid ? "is-verified" : "is-unsigned");
+  $bfResultTitle.textContent = valid ? "Backfire mark found" : "No valid Backfire mark";
+
+  const idHex =
+    bf && (bf.id_hex || (typeof bf.id === "number" ? "0x" + bf.id.toString(16).toUpperCase() : "—"));
+  const margin = bf && bf.min_bit_margin != null ? String(bf.min_bit_margin) : "—";
+  const stat = bf && bf.notch_tamper && bf.notch_tamper.stat != null ? bf.notch_tamper.stat : "—";
+
+  $bfFields.replaceChildren();
+  $bfFields.appendChild(bfRow("Identifier", valid ? idHex : "—"));
+  $bfFields.appendChild(bfRow("Confidence (min-bit margin)", margin));
+  $bfFields.appendChild(bfRow("Valid", valid ? "yes" : "no"));
+  if (bf && bf.match != null) {
+    $bfFields.appendChild(bfRow("Matches expected serial", bf.match ? "yes" : "no"));
+  }
+  $bfFields.appendChild(
+    bfRow("Tamper tripwire", tamper ? `notch tamper detected (stat ${stat})` : `clean (stat ${stat})`),
+  );
+}
+
+function renderBackfireError(msg, path) {
+  bfShowResult();
+  $bfResultFile.textContent = prettyPath(path);
+  $bfVerdict.classList.remove("is-verified", "is-unsigned", "is-invalid");
+  $bfVerdict.classList.add("is-invalid");
+  $bfResultTitle.textContent = "Backfire could not run";
+  $bfFields.replaceChildren(bfRow("Error", msg));
+}
+
+// Restore the key + the acknowledge-once experimental warning.
+try {
+  const savedKey = localStorage.getItem(BF_KEY_STORAGE);
+  if (savedKey) $bfKey.value = savedKey;
+  if (localStorage.getItem(BF_ACK_STORAGE) === "1") $bfWarning.hidden = true;
+} catch {
+  /* storage blocked — show the warning, no restored key */
+}
+$bfAck.addEventListener("click", () => {
+  $bfWarning.hidden = true;
+  try {
+    localStorage.setItem(BF_ACK_STORAGE, "1");
+  } catch {
+    /* non-fatal */
+  }
+});
+$bfChooseBtn.addEventListener("click", openFilePicker);
+$bfAnother.addEventListener("click", bfShowEmpty);
 
 // External-URL click interceptor. Tauri 2 sandboxes `target="_blank"`
 // anchors, so provcheck.ai / creativemayhem.com links in the top bar

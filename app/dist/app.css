@@ -1480,3 +1480,93 @@ body {
 .raw-details > summary:hover { color: var(--text-secondary); }
 .raw-details[open] > summary { color: var(--text-secondary); }
 
+
+/* ============================================================
+   Backfire tab (experimental keyed image-watermark verify)
+   ============================================================ */
+.bf-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin: 0 0 20px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-default);
+  border-left: 3px solid var(--status-warning);
+  border-radius: 8px;
+  background: var(--bg-dark);
+}
+.bf-warning p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.bf-warning strong { color: var(--text-primary); }
+
+.bf-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 0 0 20px;
+}
+.bf-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 200px;
+  min-width: 160px;
+}
+.bf-field > span {
+  font-size: 12px;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+}
+.bf-field > span em {
+  font-style: normal;
+  color: var(--text-muted);
+}
+.bf-field input,
+.bf-field select {
+  width: 100%;
+  padding: 9px 12px;
+  font-size: 14px;
+  color: var(--text-primary);
+  background: var(--bg-medium);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  outline: none;
+  box-sizing: border-box;
+}
+.bf-field input:focus,
+.bf-field select:focus {
+  border-color: var(--border-strong);
+  background: var(--bg-light);
+}
+.bf-field input::placeholder { color: var(--text-muted); }
+.bf-field-error {
+  border-color: var(--status-error) !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.18);
+}
+
+.bf-fields {
+  margin: 16px 0 8px;
+  border-top: 1px solid var(--border-subtle);
+}
+.bf-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding: 10px 2px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.bf-row-k {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.bf-row-v {
+  font-size: 13px;
+  color: var(--text-primary);
+  text-align: right;
+  word-break: break-word;
+}

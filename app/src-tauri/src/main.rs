@@ -58,6 +58,118 @@ async fn watermark_only(path: String) -> VerifyResponse {
     })
 }
 
+/// Experimental Backfire verify (its own tab). Shells out to the standalone AGPL
+/// `backfire.py` tool, which is never compiled into or linked with this Apache-2.0
+/// app, and returns its parsed JSON. Backfire is keyed: it reads a mark YOU
+/// embedded, so a key is required. The tool is located via `$BACKFIRE_PY` or a
+/// `backfire/backfire.py` beside the working directory. We read at 512 (the current
+/// resolution) and retry at 256 so a mark embedded at either size is found; `read`
+/// exits 0/1 on the `--expect` check, so stdout is parsed regardless of exit status.
+#[tauri::command]
+async fn backfire_read(
+    path: String,
+    key: String,
+    serial: Option<String>,
+    carriers: Option<String>,
+) -> ApiResult<serde_json::Value> {
+    tauri::async_runtime::spawn_blocking(move || {
+        if key.trim().is_empty() {
+            return ApiResult::err("A key is required to read a Backfire mark.".to_string());
+        }
+        let script = match locate_backfire_py() {
+            Some(p) => p,
+            None => {
+                return ApiResult::err(
+                    "Backfire tool not found. Set the BACKFIRE_PY environment variable to \
+                     backfire.py (the standalone tool is AGPL and ships separately from \
+                     provcheck), or run from a directory containing backfire/backfire.py."
+                        .to_string(),
+                );
+            }
+        };
+        let carriers = carriers.unwrap_or_else(|| "band".to_string());
+        let serial = serial.filter(|s| !s.trim().is_empty());
+        let mut first: Option<serde_json::Value> = None;
+        for size in ["512", "256"] {
+            match run_backfire_py_read(&script, &path, &key, serial.as_deref(), &carriers, size) {
+                Ok(v) => {
+                    let valid = v.get("valid").and_then(|b| b.as_bool()).unwrap_or(false);
+                    if valid {
+                        return ApiResult::ok(v);
+                    }
+                    if first.is_none() {
+                        first = Some(v);
+                    }
+                }
+                Err(e) => return ApiResult::err(e),
+            }
+        }
+        match first {
+            Some(v) => ApiResult::ok(v),
+            None => ApiResult::err("Backfire read produced no output.".to_string()),
+        }
+    })
+    .await
+    .unwrap_or_else(|e| ApiResult::err(format!("backfire_read task panicked: {e}")))
+}
+
+/// Locate the standalone `backfire.py`: `$BACKFIRE_PY` first, then a
+/// `backfire/backfire.py` relative to the working directory.
+fn locate_backfire_py() -> Option<PathBuf> {
+    if let Some(p) = std::env::var("BACKFIRE_PY").ok().map(PathBuf::from) {
+        if p.exists() {
+            return Some(p);
+        }
+    }
+    let p = PathBuf::from("backfire/backfire.py");
+    p.exists().then_some(p)
+}
+
+/// Run `backfire.py read` at one resolution (tries `python3` then `python`) and
+/// parse its last stdout line as JSON.
+fn run_backfire_py_read(
+    script: &Path,
+    path: &str,
+    key: &str,
+    serial: Option<&str>,
+    carriers: &str,
+    size: &str,
+) -> Result<serde_json::Value, String> {
+    use std::process::Command;
+    let mut argv: Vec<String> = vec![
+        script.to_string_lossy().into_owned(),
+        "read".into(),
+        path.to_string(),
+        "--key".into(),
+        key.to_string(),
+        "--carriers".into(),
+        carriers.to_string(),
+        "--size".into(),
+        size.to_string(),
+    ];
+    if let Some(s) = serial {
+        argv.push("--expect".into());
+        argv.push(s.to_string());
+    }
+    let mut last_err = String::new();
+    for py in ["python3", "python"] {
+        match Command::new(py).args(&argv).output() {
+            Ok(out) => {
+                let stdout = String::from_utf8_lossy(&out.stdout);
+                let line = stdout.lines().last().unwrap_or("").trim();
+                return serde_json::from_str::<serde_json::Value>(line).map_err(|e| {
+                    format!(
+                        "Backfire produced unparseable output ({e}). stderr: {}",
+                        String::from_utf8_lossy(&out.stderr).trim()
+                    )
+                });
+            }
+            Err(e) => last_err = format!("could not run {py}: {e}"),
+        }
+    }
+    Err(format!("python not found ({last_err})"))
+}
+
 /// Detect tab entry point. Runs the `provcheck-detect` registry
 /// against the input file. The FOSS core registers ZERO detectors —
 /// the trait is public plumbing for a paid-DLC pack (Creative Mayhem
@@ -1244,6 +1356,8 @@ fn main() {
             // v1.1.0: dedicated Watermark + Detect tabs.
             watermark_only,
             detect_only,
+            // Experimental Backfire verify tab (shells out to the AGPL tool).
+            backfire_read,
             // v1.1.0: Tauri 2 webview sandboxes `<a href target="_blank">`
             // — brand links in the top bar were silent no-ops. This
             // command shells out to the platform URL handler via the
