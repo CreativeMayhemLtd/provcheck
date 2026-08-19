@@ -163,11 +163,14 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
                 message: Some(format!(
                     "TrustMark decoder runtime error: {e}. \
                      The detector loads the BCH-5-format decoder ONNX via ort \
-                     (onnxruntime 1.20) and runs it on a 256x256 RGB tensor \
-                     normalised to [-1, 1]. A runtime error here typically \
-                     means the cached weights file is corrupt — try \
-                     `provcheck-kit weights uninstall trustmark` then \
-                     `provcheck-kit weights install trustmark` to re-fetch."
+                     (onnxruntime 1.22) and runs it on a 256x256 RGB tensor \
+                     normalised to [-1, 1]. The usual cause is a missing or \
+                     wrong-version onnxruntime shared library: provcheck ships \
+                     onnxruntime 1.22.x next to its binary, so run it from the \
+                     folder that contains onnxruntime.dll, or set ORT_DYLIB_PATH \
+                     to a 1.22.x onnxruntime. Less commonly the cached weights \
+                     are corrupt: `provcheck-kit weights uninstall trustmark` \
+                     then `provcheck-kit weights install trustmark` to re-fetch."
                 )),
                 marked_regions: None,
             });

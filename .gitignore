@@ -60,3 +60,4 @@ target-gate/
 .env.local
 signing.json
 logs/
+app/src-tauri/onnxruntime.dll

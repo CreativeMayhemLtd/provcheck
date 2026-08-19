@@ -144,7 +144,7 @@ jobs:
       - name: Download onnxruntime CPU runtime
         shell: bash
         run: |
-          ORT_VER=1.20.1
+          ORT_VER=1.22.0
           case "${{ matrix.target }}" in
             x86_64-pc-windows-msvc)
               url="https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VER}/onnxruntime-win-x64-${ORT_VER}.zip"
@@ -412,6 +412,21 @@ jobs:
       - name: npm ci
         working-directory: app
         run: npm ci
+
+      # Windows GUI bundles onnxruntime.dll (via tauri.windows.conf.json's
+      # bundle.resources) so image/video watermark detection works after
+      # install. Download the same 1.22.x runtime the CLI job uses and drop
+      # it where the resource expects it. Must match ort's required version.
+      - name: Bundle onnxruntime for the GUI (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          ORT_VER=1.22.0
+          url="https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VER}/onnxruntime-win-x64-${ORT_VER}.zip"
+          curl -sSL -o ort.zip "$url"
+          7z x ort.zip >/dev/null
+          cp "onnxruntime-win-x64-${ORT_VER}/lib/onnxruntime.dll" app/src-tauri/onnxruntime.dll
+          ls -la app/src-tauri/onnxruntime.dll
 
       - name: tauri build
         working-directory: app
