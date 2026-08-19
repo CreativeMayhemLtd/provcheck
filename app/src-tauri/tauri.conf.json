@@ -39,6 +39,12 @@
     "copyright": "© 2026 Creative Mayhem UG (haftungsbeschränkt)",
     "category": "Utility",
     "shortDescription": "Verify C2PA Content Credentials on any file.",
-    "longDescription": "provcheck is a free, open-source, local-first desktop verifier for C2PA Content Credentials. Drag a file in — signed or unsigned — and see the manifest in full. No account, no web upload, no vendor lock-in."
+    "longDescription": "provcheck is a free, open-source, local-first desktop verifier for C2PA Content Credentials. Drag a file in — signed or unsigned — and see the manifest in full. No account, no web upload, no vendor lock-in.",
+    "windows": {
+      "signCommand": {
+        "cmd": "powershell.exe",
+        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "../../scripts/sign_if_configured.ps1", "-ExePath", "%1"]
+      }
+    }
   }
 }
