@@ -123,6 +123,13 @@ bundling rule above, so it is handled the way the rule demands:
   `cargo build --manifest-path crates/provcheck-mellin/Cargo.toml`.
 - It is **never wired into the detector dispatch**, and never ships in the
   release binary. The binary stays pure Apache-2.0.
+- provcheck integrates it the Backfire way, across a **process boundary**:
+  `provcheck --mellin-read` and the app's Keyed marks tab shell out to the
+  standalone `provcheck-mellin` binary and parse its `--json` line. The
+  installer may bundle that binary as a **separate BUSL component** beside the
+  app (its own LICENSE travels with it); it is never linked. The pre-push gate
+  refuses any push that references the crate from Apache code or declares it
+  as a dependency.
 - It is also not a public detector: it is secret-keyed (seller secret + work
   id), built for copy individuation and leak tracing, so it would not fit the
   blind `detect(path)` dispatch anyway.

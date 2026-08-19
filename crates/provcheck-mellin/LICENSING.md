@@ -31,6 +31,13 @@ Each source file carries the SPDX identifier
 precisely: you take the file under BUSL-1.1 (non-commercial), or under a
 commercial license from the copyright holder.
 
+Using provcheck-mellin, whether as distributed software or as a hosted
+service, is also subject to the shared keyed-forensic-tools end-user terms in
+`EULA.md` and, for any hosted offering, `TOS.md` (one shared document set; the
+same terms ship with Backfire). Those terms sit on top of the license above;
+they do not narrow the rights the license grants, they add the acceptable-use
+and no-warranty terms that govern operation.
+
 ## Relationship to the rest of provcheck
 
 provcheck's core is Apache-2.0, and `WATERMARK_LICENSE_POLICY.md` requires

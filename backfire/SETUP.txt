@@ -61,6 +61,19 @@ TROUBLESHOOTING
   builds a virtualenv from your system python3).
 
 
+MELLIN (audio-side keyed forensics, optional)
+---------------------------------------------
+provcheck-mellin reads a keyed 64-bit per-copy serial from audio you marked
+yourself. It ships beside provcheck as a standalone tool (mellin folder),
+BUSL-licensed like Backfire, and needs your seller secret file and work id;
+without them there is nothing to read:
+
+    provcheck.exe --mellin-read --mellin-secret-file secret.txt --mellin-work-id my-work --mellin-expect 0xDEADBEEF marked.wav
+
+Or in the app: Keyed marks tab, Mellin section. The secret travels only as a
+file path, never on a command line.
+
+
 WHAT PROVCHECK VERIFICATION NEEDS (separate from Backfire)
 ----------------------------------------------------------
 Core C2PA verification needs nothing extra. To also detect the standard
