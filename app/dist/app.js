@@ -1167,6 +1167,7 @@ function activateTab(name) {
   $paneBackfire.hidden = !isBackfire;
   if (isKeys) refreshKeysTab();
   if (isSign) refreshSignTab();
+  if (isWatermark && typeof refreshModelsStatus === "function") refreshModelsStatus();
 }
 
 $tabVerifyBtn.addEventListener("click", () => activateTab("verify"));
@@ -1327,6 +1328,52 @@ $bfModal.addEventListener("click", (e) => { if (e.target === $bfModal) bfCloseMo
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !$bfModal.hidden) bfCloseModal();
 });
+
+// ---- Watermark-detection models (download-on-demand weights) -----------------
+const $modelsBanner = document.getElementById("models-banner");
+const $modelsStatusText = document.getElementById("models-status-text");
+const $modelsInstallBtn = document.getElementById("models-install-btn");
+
+async function refreshModelsStatus() {
+  if (!$modelsBanner) return;
+  try {
+    const res = await invoke("models_status");
+    if (res && res.ok && res.data) {
+      const { installed, total } = res.data;
+      if (installed >= total) {
+        $modelsBanner.hidden = true;
+      } else {
+        $modelsBanner.hidden = false;
+        $modelsStatusText.textContent =
+          `${installed} of ${total} installed. Download the rest to enable image, audio, and video watermark detection (about 190 MB).`;
+      }
+    }
+  } catch {
+    /* leave the banner as-is */
+  }
+}
+
+async function installAllModels() {
+  if (!$modelsInstallBtn) return;
+  const orig = $modelsInstallBtn.textContent;
+  $modelsInstallBtn.disabled = true;
+  $modelsInstallBtn.textContent = "Installing…";
+  $modelsStatusText.textContent = "Downloading models, this can take a minute…";
+  try {
+    const res = await invoke("install_models");
+    $modelsStatusText.textContent =
+      res && res.ok ? res.data || "Done." : (res && res.error) || "Install failed.";
+  } catch (e) {
+    $modelsStatusText.textContent = String(e && e.message ? e.message : e);
+  } finally {
+    $modelsInstallBtn.disabled = false;
+    $modelsInstallBtn.textContent = orig;
+    refreshModelsStatus();
+  }
+}
+
+if ($modelsInstallBtn) $modelsInstallBtn.addEventListener("click", installAllModels);
+refreshModelsStatus();
 
 // External-URL click interceptor. Tauri 2 sandboxes `target="_blank"`
 // anchors, so provcheck.ai / creativemayhem.com links in the top bar

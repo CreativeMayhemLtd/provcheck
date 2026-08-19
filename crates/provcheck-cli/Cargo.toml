@@ -24,6 +24,8 @@ provcheck-watermark = { path = "../provcheck-watermark" }
 provcheck-audioseal = { path = "../provcheck-audioseal" }
 provcheck-wavmark = { path = "../provcheck-wavmark" }
 provcheck-image = { path = "../provcheck-image" }
+# --install-models: fetch every detector weight in the manifest.
+provcheck-weights = { path = "../provcheck-weights" }
 provcheck-video = { path = "../provcheck-video" }
 provcheck-synthid-text = { path = "../provcheck-synthid-text" }
 

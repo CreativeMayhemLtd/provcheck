@@ -39,6 +39,8 @@ provcheck-wavmark = { path = "../../crates/provcheck-wavmark" }
 # and the drop-a-PNG-see-nothing UX made it look like watermark detection
 # was broken. See v1.1.0 changelog.
 provcheck-image = { path = "../../crates/provcheck-image" }
+# "Install models" button: fetch every detector weight in the manifest.
+provcheck-weights = { path = "../../crates/provcheck-weights" }
 provcheck-video = { path = "../../crates/provcheck-video" }
 provcheck-synthid-text = { path = "../../crates/provcheck-synthid-text" }
 

@@ -27,8 +27,15 @@ use provcheck_platform::{AttestationOptions, verify_with_attestation};
     long_about = None,
 )]
 struct Args {
-    /// Path to the file to verify.
-    file: PathBuf,
+    /// Path to the file to verify. Optional only when `--install-models` is used.
+    #[arg(required_unless_present = "install_models")]
+    file: Option<PathBuf>,
+
+    /// Download every watermark-detection model (the manifest weights) into the
+    /// local cache, then exit. Run this once so image, audio, and video watermark
+    /// detection work; C2PA verification needs no models. No FILE is required.
+    #[arg(long)]
+    install_models: bool,
 
     /// Emit machine-readable JSON instead of the human-readable report.
     /// Handy for CI and scripting — schema matches `provcheck::Report`.
@@ -260,8 +267,65 @@ fn print_backfire_human(bf: &serde_json::Value) {
     }
 }
 
+/// Download every detector weight in the manifest into the local cache, printing
+/// per-file progress. Idempotent: a valid cached copy is skipped. Returns SUCCESS
+/// only when every model is present afterwards.
+fn install_all_models(quiet: bool) -> ExitCode {
+    let entries = provcheck_weights::MANIFEST;
+    let total_mb = entries.iter().map(|e| e.size_bytes).sum::<u64>() as f64 / 1e6;
+    if !quiet {
+        println!(
+            "Installing {} watermark-detection model file(s) ({total_mb:.0} MB total).",
+            entries.len()
+        );
+    }
+    let mut failed = 0usize;
+    for e in entries {
+        if !quiet {
+            print!(
+                "  {}/{} ({:.0} MB) ... ",
+                e.family,
+                e.variant,
+                e.size_bytes as f64 / 1e6
+            );
+            let _ = std::io::Write::flush(&mut std::io::stdout());
+        }
+        match provcheck_weights::download(e.family, e.variant) {
+            Ok(_) => {
+                if !quiet {
+                    println!("ok");
+                }
+            }
+            Err(err) => {
+                failed += 1;
+                if !quiet {
+                    println!("FAILED: {err}");
+                }
+            }
+        }
+    }
+    if failed == 0 {
+        if !quiet {
+            println!("All models installed. Watermark detection is ready.");
+        }
+        ExitCode::SUCCESS
+    } else {
+        eprintln!("provcheck: {failed} model(s) failed to install (see above).");
+        ExitCode::FAILURE
+    }
+}
+
 fn main() -> ExitCode {
     let args = Args::parse();
+
+    if args.install_models {
+        return install_all_models(args.quiet);
+    }
+    // Safe: clap requires FILE unless --install-models, handled above.
+    let file: &std::path::Path = args
+        .file
+        .as_deref()
+        .expect("clap enforces FILE unless --install-models");
 
     // require_attested needs an identity input. clap's `requires`
     // only takes a single arg name, so enforce the OR here.
@@ -305,7 +369,7 @@ fn main() -> ExitCode {
     // means the user asked for attestation but the file carries no
     // claim to attest against — exit 1 with the cause spelled out.
     let resolved_did = if args.auto_identity {
-        match verify_with_options(&args.file, &verify_opts) {
+        match verify_with_options(file, &verify_opts) {
             Ok(r) => match r.identity {
                 Some(claim) => Some(claim.did),
                 None => {
@@ -346,7 +410,7 @@ fn main() -> ExitCode {
             cache_dir: None,
             no_cache: args.no_attestation_cache,
         };
-        match verify_with_attestation(&args.file, &verify_opts, &attest_opts) {
+        match verify_with_attestation(file, &verify_opts, &attest_opts) {
             Ok(r) => r,
             Err(e) => {
                 if !args.quiet {
@@ -356,7 +420,7 @@ fn main() -> ExitCode {
             }
         }
     } else {
-        match verify_with_options(&args.file, &verify_opts) {
+        match verify_with_options(file, &verify_opts) {
             Ok(r) => r,
             Err(e) => {
                 if !args.quiet {
@@ -376,25 +440,25 @@ fn main() -> ExitCode {
     // another `if let Ok(...)` block here in registration
     // order; the Display + JSON layers iterate the vec.
     if !args.no_watermark {
-        if let Ok(w) = provcheck_watermark::detect(&args.file) {
+        if let Ok(w) = provcheck_watermark::detect(file) {
             report.watermarks.push(w);
         }
-        if let Ok(w) = provcheck_audioseal::detect(&args.file) {
+        if let Ok(w) = provcheck_audioseal::detect(file) {
             report.watermarks.push(w);
         }
-        if let Ok(w) = provcheck_wavmark::detect(&args.file) {
+        if let Ok(w) = provcheck_wavmark::detect(file) {
             report.watermarks.push(w);
         }
         // v0.7 phase 7b: image-modality TrustMark-B decoder.
-        if let Ok(w) = provcheck_image::detect(&args.file) {
+        if let Ok(w) = provcheck_image::detect(file) {
             report.watermarks.push(w);
         }
         // v0.9.0: video-modality dispatch (per-frame TrustMark via ffmpeg + temporal vote).
-        if let Ok(w) = provcheck_video::detect(&args.file) {
+        if let Ok(w) = provcheck_video::detect(file) {
             report.watermarks.push(w);
         }
         // v0.9.0: SynthID-text dispatch (Bayesian tournament-sampling z-score).
-        if let Ok(w) = provcheck_synthid_text::detect(&args.file) {
+        if let Ok(w) = provcheck_synthid_text::detect(file) {
             report.watermarks.push(w);
         }
     }
@@ -414,7 +478,7 @@ fn main() -> ExitCode {
         // surface it via a NotApplicable detection row rather
         // than blowing up. The verifier already exited cleanly
         // above; this is best-effort.
-        match std::fs::read(&args.file) {
+        match std::fs::read(file) {
             Ok(bytes) => {
                 report.detections = registry.run_all(&bytes);
             }
@@ -449,7 +513,7 @@ fn main() -> ExitCode {
             );
         }
         match run_backfire_read(
-            &args.file,
+            file,
             key,
             args.backfire_serial.as_deref(),
             &args.backfire_carriers,

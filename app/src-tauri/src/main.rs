@@ -168,6 +168,60 @@ async fn pick_image() -> Option<String> {
     .unwrap_or(None)
 }
 
+/// Count of installed vs total detector weights, for the "Install models" UI.
+#[derive(Serialize)]
+struct ModelsStatus {
+    installed: usize,
+    total: usize,
+}
+
+/// Install every detector weight in the manifest (download + SHA256-verify + cache).
+/// The blocking network work runs off the UI thread. Returns a short summary; the
+/// frontend shows a spinner while it runs.
+#[tauri::command]
+async fn install_models() -> ApiResult<String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let entries = provcheck_weights::MANIFEST;
+        let mut ok = 0usize;
+        let mut failed: Vec<String> = Vec::new();
+        for e in entries {
+            match provcheck_weights::download(e.family, e.variant) {
+                Ok(_) => ok += 1,
+                Err(err) => failed.push(format!("{}/{}: {err}", e.family, e.variant)),
+            }
+        }
+        if failed.is_empty() {
+            ApiResult::ok(format!(
+                "All {ok} models installed. Watermark detection is ready."
+            ))
+        } else {
+            ApiResult::err(format!(
+                "{} of {} models failed: {}",
+                failed.len(),
+                entries.len(),
+                failed.join("; ")
+            ))
+        }
+    })
+    .await
+    .unwrap_or_else(|e| ApiResult::err(format!("install_models task panicked: {e}")))
+}
+
+/// Report how many detector weights are already installed, for the UI's initial state.
+#[tauri::command]
+async fn models_status() -> ApiResult<ModelsStatus> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let all = provcheck_weights::status();
+        let installed = all.iter().filter(|s| s.cached.exists).count();
+        ApiResult::ok(ModelsStatus {
+            installed,
+            total: all.len(),
+        })
+    })
+    .await
+    .unwrap_or_else(|e| ApiResult::err(format!("models_status task panicked: {e}")))
+}
+
 /// Detect tab entry point. Runs the `provcheck-detect` registry
 /// against the input file. The FOSS core registers ZERO detectors —
 /// the trait is public plumbing for a paid-DLC pack (Creative Mayhem
@@ -1358,6 +1412,9 @@ fn main() {
             backfire_read,
             // Native "choose file" dialog shared by all tabs.
             pick_image,
+            // Watermark-detection model management (download-on-demand weights).
+            install_models,
+            models_status,
             // v1.1.0: Tauri 2 webview sandboxes `<a href target="_blank">`
             // — brand links in the top bar were silent no-ops. This
             // command shells out to the platform URL handler via the

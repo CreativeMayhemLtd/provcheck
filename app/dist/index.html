@@ -175,6 +175,13 @@
        moot. Reuses the Verify tab's watermark-badge render code.
        ===================================================================== -->
   <div class="tab-pane" id="tab-watermark" role="tabpanel" aria-labelledby="tab-watermark-btn" hidden>
+    <div class="models-banner" id="models-banner" hidden>
+      <div class="models-banner-text">
+        <strong>Watermark detection needs models.</strong>
+        <span id="models-status-text">Checking...</span>
+      </div>
+      <button class="btn btn-primary" id="models-install-btn" type="button">Install all models</button>
+    </div>
     <section class="dropzone" id="wm-dropzone">
       <div class="dropzone-inner">
         <svg class="dropzone-icon" viewBox="0 0 64 64" fill="none" aria-hidden="true">

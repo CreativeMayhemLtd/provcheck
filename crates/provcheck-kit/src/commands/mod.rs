@@ -3972,10 +3972,10 @@ pub mod weights {
         /// List every weight in the bundled manifest with its
         /// install state, size, and download URL.
         Status,
-        /// Install one detector family's weights (download +
-        /// SHA256-verify + cache). Argument is the family name
-        /// (silentcipher / audioseal / wavmark / trustmark);
-        /// installs every variant of that family.
+        /// Install detector weights (download + SHA256-verify + cache).
+        /// Argument is the family name (silentcipher / audioseal /
+        /// wavmark / trustmark), which installs every variant of that
+        /// family, or `all` to install every detector at once.
         Install(InstallArgs),
         /// Remove a detector family's cached weights. Idempotent —
         /// does nothing if the family is already absent.
@@ -3985,7 +3985,7 @@ pub mod weights {
     #[derive(Debug, Args)]
     pub struct InstallArgs {
         /// Family name as it appears in `weights status` (e.g.
-        /// `silentcipher`, `trustmark`).
+        /// `silentcipher`, `trustmark`), or `all` for every detector.
         pub family: String,
     }
 
@@ -4022,14 +4022,15 @@ pub mod weights {
     }
 
     fn run_install(family: &str) -> Result<()> {
-        // Collect every variant of this family from the manifest.
+        // "all" installs every family; otherwise collect one family's variants.
         let variants: Vec<&'static provcheck_weights::WeightEntry> = provcheck_weights::MANIFEST
             .iter()
-            .filter(|e| e.family == family)
+            .filter(|e| family == "all" || e.family == family)
             .collect();
         if variants.is_empty() {
             return Err(anyhow!(
-                "unknown family {family:?}. Run `kit weights status` for the manifest."
+                "unknown family {family:?}. Run `kit weights status` for the manifest, \
+                 or `kit weights install all` to install every detector."
             ));
         }
         let total_mb: f32 = variants

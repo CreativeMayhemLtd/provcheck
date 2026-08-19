@@ -1686,3 +1686,21 @@ body {
 }
 
 .bf-hint-warn { color: var(--status-warning) !important; }
+
+/* Watermark-detection models banner */
+.models-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-default);
+  border-left: 3px solid var(--status-warning);
+  border-radius: 8px;
+  background: var(--bg-dark);
+}
+.models-banner[hidden] { display: none; }
+.models-banner-text { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+.models-banner-text strong { color: var(--text-primary); display: block; margin-bottom: 2px; }
+.models-banner .btn { white-space: nowrap; flex: 0 0 auto; }
