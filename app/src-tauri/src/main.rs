@@ -62,9 +62,9 @@ async fn watermark_only(path: String) -> VerifyResponse {
 /// `backfire.py` tool, which is never compiled into or linked with this Apache-2.0
 /// app, and returns its parsed JSON. Backfire is keyed: it reads a mark YOU
 /// embedded, so a key is required. The tool is located via `$BACKFIRE_PY` or a
-/// `backfire/backfire.py` beside the working directory. We read at 512 (the current
-/// resolution) and retry at 256 so a mark embedded at either size is found; `read`
-/// exits 0/1 on the `--expect` check, so stdout is parsed regardless of exit status.
+/// `backfire/backfire.py` beside the working directory. `read` auto-detects the
+/// mark's resolution (256 or 512); it exits 0/1 on the `--expect` check, so stdout is
+/// parsed regardless of exit status.
 #[tauri::command]
 async fn backfire_read(
     path: String,
@@ -89,24 +89,9 @@ async fn backfire_read(
         };
         let carriers = carriers.unwrap_or_else(|| "band".to_string());
         let serial = serial.filter(|s| !s.trim().is_empty());
-        let mut first: Option<serde_json::Value> = None;
-        for size in ["512", "256"] {
-            match run_backfire_py_read(&script, &path, &key, serial.as_deref(), &carriers, size) {
-                Ok(v) => {
-                    let valid = v.get("valid").and_then(|b| b.as_bool()).unwrap_or(false);
-                    if valid {
-                        return ApiResult::ok(v);
-                    }
-                    if first.is_none() {
-                        first = Some(v);
-                    }
-                }
-                Err(e) => return ApiResult::err(e),
-            }
-        }
-        match first {
-            Some(v) => ApiResult::ok(v),
-            None => ApiResult::err("Backfire read produced no output.".to_string()),
+        match run_backfire_py_read(&script, &path, &key, serial.as_deref(), &carriers) {
+            Ok(v) => ApiResult::ok(v),
+            Err(e) => ApiResult::err(e),
         }
     })
     .await
@@ -125,15 +110,14 @@ fn locate_backfire_py() -> Option<PathBuf> {
     p.exists().then_some(p)
 }
 
-/// Run `backfire.py read` at one resolution (tries `python3` then `python`) and
-/// parse its last stdout line as JSON.
+/// Run `backfire.py read` (tries `python3` then `python`) and parse its last stdout
+/// line as JSON. `read` auto-detects the mark's resolution (256 or 512).
 fn run_backfire_py_read(
     script: &Path,
     path: &str,
     key: &str,
     serial: Option<&str>,
     carriers: &str,
-    size: &str,
 ) -> Result<serde_json::Value, String> {
     use std::process::Command;
     let mut argv: Vec<String> = vec![
@@ -144,8 +128,6 @@ fn run_backfire_py_read(
         key.to_string(),
         "--carriers".into(),
         carriers.to_string(),
-        "--size".into(),
-        size.to_string(),
     ];
     if let Some(s) = serial {
         argv.push("--expect".into());

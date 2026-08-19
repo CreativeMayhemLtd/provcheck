@@ -48,6 +48,22 @@ areas poorly), so the sample is a forest floor with detail edge to edge. The sub
 you see after the attack are the regeneration doing its work, not the mark; the wrong-key
 control above is there precisely so you do not have to take that on faith.
 
+## The diffusion weights
+
+Stability withdrew the original Stable Diffusion 2.1 weights from Hugging Face (the whole
+2.x line, not merely gated behind a license). There is no official checkpoint left to point
+at, so Backfire develops against a complete community **mirror** of those weights, pinned to
+an exact revision for reproducibility:
+
+```
+huanzi05/stable-diffusion-2-1-base @ f71d7867a2745c420aa93441638b119c85995963
+```
+
+Both the embed default and this demo use that pinned revision, so the demo is single-model
+(embed and attack run on identical weights). Point `--model` (and `--revision`), or the
+`BACKFIRE_SD_MODEL` / `BACKFIRE_SD_REVISION` environment variables, at any other SD-2.1
+checkpoint you trust or mirror yourself.
+
 ## The sample image
 
 `sample.png` is a 512x512 crop of *Autumn ground* by Greg Zaal (Poly Haven), redistributed

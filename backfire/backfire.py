@@ -25,6 +25,13 @@ LO, HI = 6.0, 40.0                 # mid-frequency carrier band (radial px @ 256
 ID_BITS, ID_REPS = 4, 8            # 4-bit keyed id (16 per key; keyspace unbounded), 8 reps
 NBITS = ID_BITS * ID_REPS          # 32 carriers, all id (reliability over capacity)
 
+# Diffusion purifier proxy. Stability withdrew the original SD-2.1 weights from Hugging
+# Face (the whole 2.x line is gone, not merely gated), so there is no official checkpoint
+# to point at. We develop against a complete community mirror of those weights, pinned to
+# an exact revision for reproducibility. Override with --model / --revision.
+DEFAULT_MODEL = "huanzi05/stable-diffusion-2-1-base"
+DEFAULT_REV = "f71d7867a2745c420aa93441638b119c85995963"
+
 def _scaled_band(lo: float, hi: float, size: int):
     """Scale an @256 radial-bin band to `size` so the same *relative* frequency
     (cycles/pixel) is used at any resolution. size=256 returns (lo, hi) unchanged, so
@@ -167,13 +174,25 @@ def notch_tamper_stat(gray, size):
 
 # ------------------------------- read (numpy) -------------------------------
 def read_cmd(a):
-    img = np.asarray(Image.open(a.infile).convert("RGB").resize((a.size, a.size)), np.float32) / 255.0
-    gray = img.mean(2)
-    idv, conf, margin = decode_keyed(gray, _key_bytes(a.key, a.hexkey), a.size, a.carriers)
-    valid = margin > a.threshold         # every id bit must clear the decoy noise floor
-    tamper = notch_tamper_stat(gray, a.size)
+    key = _key_bytes(a.key, a.hexkey)
+    rgb = Image.open(a.infile).convert("RGB")
+    # Try the requested size first, then the other standard resolution, so a mark
+    # embedded at either 256 or 512 is found without the caller guessing. Stop at
+    # the first size that validates; otherwise keep the requested size's result.
+    sizes = [a.size] + [s for s in (512, 256) if s != a.size]
+    best = None
+    for size in sizes:
+        gray = (np.asarray(rgb.resize((size, size)), np.float32) / 255.0).mean(2)
+        idv, conf, margin = decode_keyed(gray, key, size, a.carriers)
+        valid = bool(margin > a.threshold)   # every id bit must clear the decoy noise floor
+        tamper = notch_tamper_stat(gray, size)
+        if best is None or valid:
+            best = (size, idv, conf, margin, valid, tamper)
+        if valid:
+            break
+    size, idv, conf, margin, valid, tamper = best
     print(json.dumps({"id": idv, "id_hex": f"0x{idv:X}", "confidence": round(conf, 4),
-                      "min_bit_margin": round(margin, 4), "valid": valid,
+                      "min_bit_margin": round(margin, 4), "valid": valid, "size": size,
                       "match": (idv == a.expect) if a.expect is not None else None,
                       "notch_tamper": {"stat": round(tamper, 3), "detected": tamper > a.notch_threshold}}))
     if a.expect is not None:
@@ -195,14 +214,17 @@ def embed_cmd(a):
     model_ids = [m.strip() for m in a.models.split(",")] if a.models else [a.model]
 
     def build_purifier(model_id):
-        log(f"loading diffusion purifier proxy: {model_id} ...")
+        # Pin the tested revision for the default mirror; a custom --model uses --revision
+        # or main. Keeps the default reproducible now that the upstream weights are gone.
+        rev = a.revision if a.revision else (DEFAULT_REV if model_id == DEFAULT_MODEL else None)
+        log(f"loading diffusion purifier proxy: {model_id}{' @ ' + rev[:12] if rev else ''} ...")
         # force fp32 on every backend: some models (e.g. distilled ones) ship fp16
         # components, which mismatch the fp32 pipeline in cross-attention.
-        vae = AutoencoderKL.from_pretrained(model_id, subfolder="vae").to(dev).float().eval()
-        unet = UNet2DConditionModel.from_pretrained(model_id, subfolder="unet").to(dev).float().eval()
-        tok = CLIPTokenizer.from_pretrained(model_id, subfolder="tokenizer")
-        txt = CLIPTextModel.from_pretrained(model_id, subfolder="text_encoder").to(dev).float().eval()
-        sched = DDIMScheduler.from_pretrained(model_id, subfolder="scheduler")
+        vae = AutoencoderKL.from_pretrained(model_id, subfolder="vae", revision=rev).to(dev).float().eval()
+        unet = UNet2DConditionModel.from_pretrained(model_id, subfolder="unet", revision=rev).to(dev).float().eval()
+        tok = CLIPTokenizer.from_pretrained(model_id, subfolder="tokenizer", revision=rev)
+        txt = CLIPTextModel.from_pretrained(model_id, subfolder="text_encoder", revision=rev).to(dev).float().eval()
+        sched = DDIMScheduler.from_pretrained(model_id, subfolder="scheduler", revision=rev)
         for m in (vae, unet, txt):
             for p in m.parameters(): p.requires_grad_(False)
         unet.enable_gradient_checkpointing()
@@ -337,18 +359,24 @@ def main():
     e.add_argument("--direct", type=float, default=0.7, help="pre-attack readability weight")
     e.add_argument("--eot-strengths", default="0.2,0.3"); e.add_argument("--eot-noises", type=int, default=4)
     e.add_argument("--threshold", type=float, default=2.5, help="min per-bit margin for a valid read")
-    e.add_argument("--carriers", choices=["band", "edge"], default="band", help="band (default) or content-coupled edge-masked mid-low carriers")
-    e.add_argument("--notch-eot", type=float, default=0.0, help="weight on staying readable after a band-notch (notch-in-the-loop hardening; 0 = off)")
+    e.add_argument("--carriers", choices=["band", "edge"], default="band", help="band (default) or content-coupled edge-masked mid-low carriers. edge is a documented dead end (see LIMITS.md): it did not improve notch survival; shipped only to reproduce that result")
+    e.add_argument("--notch-eot", type=float, default=0.0, help="weight on staying readable after a band-notch (notch-in-the-loop). A documented dead end (see LIMITS.md): it never reached notch robustness; shipped only to reproduce that result, not recommended. 0 = off")
     e.add_argument("--assess", action="store_true", help="after embed, measure this mark's survival vs the purifier and a band-notch, and emit a per-image rating")
-    e.add_argument("--model", default="huanzi05/stable-diffusion-2-1-base")
+    e.add_argument("--model", default=DEFAULT_MODEL,
+                   help="diffusion purifier proxy. Stability withdrew the official SD-2.1 weights; "
+                        "the default is a pinned community mirror of them (see --revision)")
+    e.add_argument("--revision", default=None,
+                   help="pin a model git revision. Defaults to the tested revision when --model is "
+                        "the default mirror; ignored (uses main) for a custom --model")
     e.add_argument("--models", default=None, help="comma-separated diffusion backends for expectation-over-purifiers EOT (overrides --model; cost scales with count)")
     e.add_argument("--device", default="cuda")
     e.set_defaults(func=embed_cmd)
     r = sub.add_parser("read", help="recover the keyed id (numpy only, no GPU)")
     r.add_argument("infile"); r.add_argument("--key", required=True); r.add_argument("--hexkey", action="store_true")
-    r.add_argument("--size", type=int, default=256); r.add_argument("--threshold", type=float, default=2.5)
+    r.add_argument("--size", type=int, default=512, help="resolution to read at; if it does not validate, the other of 256/512 is tried automatically")
+    r.add_argument("--threshold", type=float, default=2.5)
     r.add_argument("--carriers", choices=["band", "edge"], default="band", help="must match how the image was embedded")
-    r.add_argument("--notch-threshold", type=float, default=NOTCH_TAMPER_THRESHOLD, help="band-notch tamper tripwire threshold (clean images < 1.4, mark-stripping notches > 4)")
+    r.add_argument("--notch-threshold", type=float, default=NOTCH_TAMPER_THRESHOLD, help="band-notch tamper tripwire threshold (clean tail ~1.4, threshold 1.45; mark-stripping notches read 4+)")
     r.add_argument("--expect", type=lambda x: int(x, 0), default=None, help="exit 0 iff this id is read and valid")
     r.set_defaults(func=read_cmd)
     a = ap.parse_args(); a.func(a)

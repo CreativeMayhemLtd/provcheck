@@ -37,6 +37,15 @@ TOKEN_BYTES = 16                  # 128-bit keyed token
 # ordinary identifiers, not "watermark". Order matters (reassembly uses it).
 FIELDS = ["Identifier", "DocumentID", "InstanceID"]
 
+def _is_backfire_field(k):
+    """True for a field this tool owns: a FIELDS name, or a smeared shard of one
+    (e.g. "Identifier.3"). Used to clear our own stale shards on re-stamp without
+    disturbing unrelated metadata; a plain prefix check would also catch shards
+    from a previous, larger --smear that a `k not in FIELDS` check would leave behind."""
+    if k in FIELDS:
+        return True
+    return any(k.startswith(f + ".") and k[len(f) + 1:].isdigit() for f in FIELDS)
+
 
 def _key_bytes(k: str, is_hex: bool) -> bytes:
     return bytes.fromhex(k) if is_hex else k.encode()
@@ -118,7 +127,7 @@ def stamp_cmd(a):
     img = Image.open(a.infile)
     meta = PngImagePlugin.PngInfo()
     for k, v in (img.text.items() if hasattr(img, "text") else []):
-        if k not in FIELDS:                     # preserve unrelated existing text
+        if not _is_backfire_field(k):           # preserve unrelated existing text, drop our own stale shards
             meta.add_text(k, v)
     fields = encode_fields(key, a.serial, a.smear)
     for k, v in fields.items():

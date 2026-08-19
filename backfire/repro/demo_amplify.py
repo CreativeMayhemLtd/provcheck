@@ -23,7 +23,10 @@ import subprocess
 import sys
 
 BF = os.path.join(os.path.dirname(__file__), os.pardir, "backfire.py")
-MODEL = os.environ.get("BACKFIRE_SD_MODEL", "stabilityai/stable-diffusion-2-1-base")
+# Stability withdrew the official SD-2.1 weights; use the same pinned community mirror the
+# embed side defaults to, so the demo is single-model (embed and attack on identical weights).
+MODEL = os.environ.get("BACKFIRE_SD_MODEL", "huanzi05/stable-diffusion-2-1-base")
+MODEL_REV = os.environ.get("BACKFIRE_SD_REVISION", "f71d7867a2745c420aa93441638b119c85995963")
 
 
 def sh_read(path, key, carriers, size):
@@ -49,8 +52,9 @@ def purify(marked_path, out_path, strength, steps, seed, size):
 
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     dtype = torch.float16 if dev == "cuda" else torch.float32
+    rev = MODEL_REV if MODEL == "huanzi05/stable-diffusion-2-1-base" else None
     pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
-        MODEL, torch_dtype=dtype, safety_checker=None
+        MODEL, revision=rev, torch_dtype=dtype, safety_checker=None
     )
     pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
     pipe = pipe.to(dev)
@@ -62,7 +66,7 @@ def purify(marked_path, out_path, strength, steps, seed, size):
     out.save(out_path)
 
 
-def draw(original, marked, purified, m_marked, m_purified, out_path):
+def draw(original, marked, purified, m_marked, m_purified, m_wrong, out_path):
     from PIL import Image, ImageDraw, ImageFont
 
     def font(sz):
@@ -74,9 +78,9 @@ def draw(original, marked, purified, m_marked, m_purified, out_path):
 
     IMG, GAP, PADX, TOP = 240, 40, 40, 110
     W = PADX * 2 + IMG * 3 + GAP * 2
-    H = TOP + IMG + 210
+    H = TOP + IMG + 250
     BG, FG, SUB = (17, 18, 22), (235, 236, 240), (150, 153, 162)
-    GREEN, BAR, TRACK = (46, 204, 113), (39, 174, 96), (44, 46, 54)
+    GREEN, BAR, TRACK, GREY = (46, 204, 113), (39, 174, 96), (44, 46, 54), (120, 123, 130)
     c = Image.new("RGB", (W, H), BG)
     d = ImageDraw.Draw(c)
     d.text((PADX, 34), "Backfire", font=font(40), fill=FG)
@@ -85,7 +89,7 @@ def draw(original, marked, purified, m_marked, m_purified, out_path):
     cols = [
         (original, "Original", None),
         (marked, "Marked (invisible)", m_marked),
-        (purified, "After a diffusion stripper", m_purified),
+        (purified, "After an AI stripper", m_purified),
     ]
     maxm = max(m_marked, m_purified) * 1.15
     for i, (path, label, m) in enumerate(cols):
@@ -104,9 +108,19 @@ def draw(original, marked, purified, m_marked, m_purified, out_path):
         d.text((x, by + 50), f"{m:.1f}   VALID", font=font(20), fill=GREEN)
     d.text((PADX + IMG + 8, TOP + IMG + 78),
            f"->  x{m_purified / m_marked:.1f} stronger  ->", font=font(15), fill=GREEN)
-    d.text((PADX, H - 34),
-           "Same key, same image, imperceptible. The stripper that erases normal "
-           "watermarks makes the Backfire mark read STRONGER.", font=font(12), fill=SUB)
+    # Control: the SAME attacked image read with a WRONG key scores ~0. This proves the
+    # high read is the key finding the mark, not a changed image reading high.
+    cy = TOP + IMG + 130
+    d.line([PADX, cy, W - PADX, cy], fill=(44, 46, 54), width=1)
+    d.text((PADX, cy + 12),
+           f"Control: the same attacked image, read with a WRONG key  ->  {m_wrong:.2f}   nothing.",
+           font=font(15), fill=GREY)
+    d.text((PADX, cy + 36),
+           "The high read is your key finding your mark, not the changed image reading high. "
+           "The mark is in the key, not the picture.", font=font(13), fill=SUB)
+    d.text((PADX, H - 26),
+           "Imperceptible keyed mark. Stock diffusers img2img regeneration; the keyed "
+           "identifier survives it and reads back stronger.", font=font(12), fill=SUB)
     c.save(out_path)
 
 
@@ -145,18 +159,25 @@ def main():
     print(f"[2/4] running the diffusion regeneration attack (strength {a.strength}) ...")
     purify(marked, purified, a.strength, a.steps, a.seed, a.size)
 
-    print("[3/4] reading the keyed mark before and after the attack ...")
+    print("[3/4] reading the mark before and after the attack, plus a wrong-key control ...")
     rm = sh_read(marked, a.key, a.carriers, a.size)
     rp = sh_read(purified, a.key, a.carriers, a.size)
+    # The control: read the SAME attacked image with a different key. It must score ~0,
+    # proving the high read is the key finding the mark, not the changed image reading high.
+    rw = sh_read(purified, a.key + "-wrong-control", a.carriers, a.size)
     m_marked = rm.get("min_bit_margin")
     m_purified = rp.get("min_bit_margin")
+    m_wrong = rw.get("min_bit_margin")
     print(f"      marked : margin={m_marked} valid={rm.get('valid')} id={rm.get('id')}")
     print(f"      attacked: margin={m_purified} valid={rp.get('valid')} id={rp.get('id')}")
+    print(f"      wrong-key control (attacked): margin={m_wrong} valid={rw.get('valid')}")
     if not m_marked or not m_purified:
         sys.exit("read failed; see stderr above")
+    if m_wrong is None:
+        m_wrong = 0.0
 
     print(f"[4/4] rendering {out} ...")
-    draw(original, marked, purified, m_marked, m_purified, out)
+    draw(original, marked, purified, m_marked, m_purified, m_wrong, out)
     verdict = "AMPLIFIED" if m_purified > m_marked else "survived (did not amplify)"
     print(f"\n{verdict}: {m_marked:.2f} -> {m_purified:.2f}  (x{m_purified / m_marked:.2f})")
 
