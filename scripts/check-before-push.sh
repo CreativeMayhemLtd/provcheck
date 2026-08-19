@@ -220,6 +220,41 @@ if [[ ! -t 0 ]]; then
     green "release-tag gate: ok"
 fi
 
+# ---- License-boundary gate: BUSL code never links into the Apache binary ----
+#
+# provcheck-mellin (and Backfire) are BUSL-1.1; the shipped binary is pure
+# Apache-2.0. The ONLY sanctioned integration is a process boundary: the
+# Apache side shells out to the standalone BUSL tool and parses its JSON
+# (see provcheck-cli's --mellin-read / --backfire-read). The moment the
+# crate is referenced as Rust code or declared as a dependency anywhere
+# outside its own tree, BUSL links into the Apache artifact and the
+# WATERMARK_LICENSE_POLICY.md bundling rule is broken. Enforce by machine.
+yellow "[boundary] BUSL process-boundary check (provcheck-mellin never linked)"
+# (a) No Rust source outside the crate references the provcheck_mellin identifier.
+boundary_offenders=$(grep -rIl --include='*.rs' \
+        --exclude-dir=target --exclude-dir=target-gate --exclude-dir=target-cuda \
+        --exclude-dir=pyembed --exclude-dir=node_modules \
+        'provcheck_mellin' crates app 2>/dev/null | grep -v '^crates/provcheck-mellin/' || true)
+if [[ -n "$boundary_offenders" ]]; then
+    red "  FAIL: provcheck_mellin referenced in Rust outside crates/provcheck-mellin/:"
+    red "$boundary_offenders"
+    red "  The BUSL crate must never be linked into the Apache-2.0 binary."
+    red "  Integrate via the shell-out JSON protocol, never as a dependency."
+    exit 1
+fi
+# (b) No manifest outside the crate declares provcheck-mellin as a dependency.
+boundary_dep_offenders=$(grep -rIlE --include='Cargo.toml' \
+        --exclude-dir=target --exclude-dir=target-gate --exclude-dir=target-cuda \
+        --exclude-dir=node_modules \
+        '^[[:space:]]*provcheck-mellin[[:space:]]*=' . 2>/dev/null | grep -v 'crates/provcheck-mellin/' || true)
+if [[ -n "$boundary_dep_offenders" ]]; then
+    red "  FAIL: provcheck-mellin declared as a dependency outside its own crate:"
+    red "$boundary_dep_offenders"
+    red "  The BUSL crate stays workspace-excluded and process-isolated."
+    exit 1
+fi
+green "  OK"
+
 # ---- 0. Pre-install detector weights -----------------------------
 #
 # v0.7 phase 8a: weights are downloaded on user demand, not bundled.

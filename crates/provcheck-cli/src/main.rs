@@ -179,6 +179,43 @@ struct Args {
     /// Backfire carrier mode; must match how the image was embedded.
     #[arg(long, value_name = "MODE", default_value = "band")]
     backfire_carriers: String,
+
+    /// Experimental: also read a keyed **Mellin** per-copy forensic serial from
+    /// the input audio.
+    ///
+    /// Mellin is a separate, BUSL-licensed (free for non-commercial use),
+    /// opt-in tool, NOT part of the Apache-2.0 core. This shells out to the
+    /// standalone `provcheck-mellin` binary (never links it), located via
+    /// `$MELLIN_BIN`, a copy beside provcheck (bare or in a `mellin/` folder),
+    /// or the dev-tree release build. Mellin is secret-keyed seller-side
+    /// forensics: it reads a serial YOU embedded, so `--mellin-secret-file`
+    /// and `--mellin-work-id` are required; without them there is nothing to
+    /// read.
+    #[arg(long)]
+    mellin_read: bool,
+
+    /// Path to a file holding the seller secret (raw bytes) for the Mellin
+    /// mark. Required with `--mellin-read`. Deliberately a file path and never
+    /// the secret itself, so the secret cannot leak into shell history or a
+    /// process listing.
+    #[arg(long, value_name = "PATH", requires = "mellin_read")]
+    mellin_secret_file: Option<PathBuf>,
+
+    /// Work id the Mellin mark was embedded with. Required with
+    /// `--mellin-read`.
+    #[arg(long, value_name = "STR", requires = "mellin_read")]
+    mellin_work_id: Option<String>,
+
+    /// Expected 64-bit Mellin serial in hex (e.g. `0xDEADBEEF`), optional.
+    /// When given, the report notes whether the recovered serial fully
+    /// matches.
+    #[arg(long, value_name = "HEX", requires = "mellin_read")]
+    mellin_expect: Option<String>,
+
+    /// Mellin repetition factor used at embed time (positions per serial
+    /// bit). Omit to use the tool's default (8).
+    #[arg(long, value_name = "N", requires = "mellin_read")]
+    mellin_repeat: Option<u32>,
 }
 
 /// Subject of an `--detect` request.
@@ -295,7 +332,10 @@ fn install_backfire() -> ExitCode {
     let (prog, prog_args): (&str, Vec<String>) = if cfg!(windows) {
         let script = dir.join("setup_backfire.ps1");
         if !script.exists() {
-            eprintln!("provcheck: setup_backfire.ps1 not found in {}", dir.display());
+            eprintln!(
+                "provcheck: setup_backfire.ps1 not found in {}",
+                dir.display()
+            );
             return ExitCode::FAILURE;
         }
         (
@@ -310,15 +350,22 @@ fn install_backfire() -> ExitCode {
     } else {
         let script = dir.join("setup_backfire.sh");
         if !script.exists() {
-            eprintln!("provcheck: setup_backfire.sh not found in {}", dir.display());
+            eprintln!(
+                "provcheck: setup_backfire.sh not found in {}",
+                dir.display()
+            );
             return ExitCode::FAILURE;
         }
         ("bash", vec![script.to_string_lossy().into_owned()])
     };
-    println!("Setting up the Backfire read environment (one-time). This downloads a self-contained Python.");
+    println!(
+        "Setting up the Backfire read environment (one-time). This downloads a self-contained Python."
+    );
     match Command::new(prog).args(&prog_args).status() {
         Ok(s) if s.success() => {
-            println!("Backfire is ready. Verify a marked image with:  provcheck --backfire-read --backfire-key <KEY> <IMAGE>");
+            println!(
+                "Backfire is ready. Verify a marked image with:  provcheck --backfire-read --backfire-key <KEY> <IMAGE>"
+            );
             ExitCode::SUCCESS
         }
         Ok(s) => {
@@ -332,6 +379,118 @@ fn install_backfire() -> ExitCode {
             );
             ExitCode::FAILURE
         }
+    }
+}
+
+/// Locate the standalone `provcheck-mellin` binary: `$MELLIN_BIN` if it points
+/// at an existing file, then a copy beside the provcheck executable (bare or
+/// in a `mellin/` folder), then the crate's own release build in the dev tree.
+fn mellin_bin() -> Option<std::path::PathBuf> {
+    let exe_name = if cfg!(windows) {
+        "provcheck-mellin.exe"
+    } else {
+        "provcheck-mellin"
+    };
+    if let Some(p) = std::env::var("MELLIN_BIN")
+        .ok()
+        .map(std::path::PathBuf::from)
+        .filter(|p| p.exists())
+    {
+        return Some(p);
+    }
+    if let Some(dir) = std::env::current_exe()
+        .ok()
+        .and_then(|e| e.parent().map(|d| d.to_path_buf()))
+    {
+        for cand in [dir.join(exe_name), dir.join("mellin").join(exe_name)] {
+            if cand.exists() {
+                return Some(cand);
+            }
+        }
+    }
+    let dev = std::path::PathBuf::from("crates/provcheck-mellin/target/release").join(exe_name);
+    dev.exists().then_some(dev)
+}
+
+/// Shell out to the separate Mellin tool (BUSL-licensed, never linked into
+/// this Apache binary) and return its parsed JSON. The secret travels as a
+/// FILE PATH (`--secret-file`), never as bytes on any command line, and is
+/// never logged. `read --json` prints exactly one JSON line and exits 0/1 on
+/// the `--expect` check, so stdout is parsed regardless of exit status.
+fn run_mellin_read(
+    file: &std::path::Path,
+    secret_file: &std::path::Path,
+    work_id: &str,
+    expect: Option<&str>,
+    repeat: Option<u32>,
+) -> Result<serde_json::Value, String> {
+    use std::process::Command;
+    let bin = mellin_bin().ok_or_else(|| {
+        "Mellin tool not found. Set MELLIN_BIN to the provcheck-mellin binary, place it \
+         beside provcheck (or in a mellin/ folder there), or build it with `cargo build \
+         --manifest-path crates/provcheck-mellin/Cargo.toml --release`."
+            .to_string()
+    })?;
+    let mut argv: Vec<String> = vec![
+        "read".into(),
+        file.to_string_lossy().into_owned(),
+        "--secret-file".into(),
+        secret_file.to_string_lossy().into_owned(),
+        "--work-id".into(),
+        work_id.into(),
+        "--json".into(),
+    ];
+    if let Some(e) = expect {
+        argv.push("--expect".into());
+        argv.push(e.into());
+    }
+    if let Some(r) = repeat {
+        argv.push("--repeat".into());
+        argv.push(r.to_string());
+    }
+    match Command::new(&bin).args(&argv).output() {
+        Ok(out) => {
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            let line = stdout.lines().last().unwrap_or("").trim();
+            serde_json::from_str::<serde_json::Value>(line).map_err(|e| {
+                format!(
+                    "Mellin produced unparseable output ({e}). stderr: {}",
+                    String::from_utf8_lossy(&out.stderr).trim()
+                )
+            })
+        }
+        Err(e) => Err(format!("could not run {} ({e})", bin.display())),
+    }
+}
+
+/// Human-readable Mellin block, printed under the main report.
+fn print_mellin_human(m: &serde_json::Value) {
+    let serial = m.get("serial").and_then(|v| v.as_str()).unwrap_or("?");
+    let bits = m
+        .get("bits_recovered")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0);
+    let full = m
+        .get("fully_recovered")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    let erasure = m
+        .get("erasure_rate")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.0);
+    let votes = m.get("min_bit_votes").and_then(|v| v.as_u64()).unwrap_or(0);
+    println!();
+    println!("Mellin (experimental, keyed audio forensic serial):");
+    if full {
+        println!("  serial:   {serial} (all 64 bits recovered, min bit votes {votes})");
+    } else {
+        println!("  serial:   not fully recovered ({bits}/64 bits, min bit votes {votes})");
+    }
+    println!("  erasures: {:.1}% of positions", erasure * 100.0);
+    match m.get("match") {
+        Some(serde_json::Value::Bool(true)) => println!("  expected: MATCH"),
+        Some(serde_json::Value::Bool(false)) => println!("  expected: NO MATCH"),
+        _ => {}
     }
 }
 
@@ -630,6 +789,50 @@ fn main() -> ExitCode {
         None
     };
 
+    // Experimental Mellin keyed-serial verification (opt-in). Shells out to
+    // the separate BUSL-licensed tool; never linked into this Apache binary.
+    // Additive and informational: it does not change the C2PA exit code.
+    let mellin = if args.mellin_read {
+        let (secret_file, work_id) = match (
+            args.mellin_secret_file.as_deref(),
+            args.mellin_work_id.as_deref(),
+        ) {
+            (Some(s), Some(w)) => (s, w),
+            _ => {
+                if !args.quiet {
+                    eprintln!(
+                        "provcheck: --mellin-read needs --mellin-secret-file and --mellin-work-id"
+                    );
+                }
+                return ExitCode::from(2);
+            }
+        };
+        if !args.quiet {
+            eprintln!(
+                "provcheck: Mellin is EXPERIMENTAL and BUSL-licensed (free for non-commercial \
+                 use), separate from the Apache-2.0 core. It reads a keyed per-copy serial you \
+                 embedded; without your secret and work id there is nothing to read."
+            );
+        }
+        match run_mellin_read(
+            file,
+            secret_file,
+            work_id,
+            args.mellin_expect.as_deref(),
+            args.mellin_repeat,
+        ) {
+            Ok(v) => Some(v),
+            Err(e) => {
+                if !args.quiet {
+                    eprintln!("provcheck: mellin read failed: {e}");
+                }
+                None
+            }
+        }
+    } else {
+        None
+    };
+
     // `--require-watermark` escalates "no detector found a
     // mark" to exit 1, the same way `--require-attested` does.
     // A run with multiple detectors passes if at least one
@@ -640,16 +843,27 @@ fn main() -> ExitCode {
     if !args.quiet {
         if args.json {
             match report.to_json_string() {
-                // When --backfire-read ran, wrap into {provcheck, backfire} so the
-                // default schema (bare report) is unchanged unless the flag is used.
-                Ok(j) => match &backfire {
-                    Some(bf) => {
+                // When --backfire-read or --mellin-read ran, wrap into
+                // {provcheck, backfire?, mellin?} with keys present only for the
+                // flags used, so the default schema (bare report) is unchanged
+                // unless a keyed-tool flag is passed.
+                Ok(j) => {
+                    if backfire.is_some() || mellin.is_some() {
                         let rv: serde_json::Value =
                             serde_json::from_str(&j).unwrap_or(serde_json::Value::Null);
-                        println!("{}", serde_json::json!({ "provcheck": rv, "backfire": bf }));
+                        let mut wrap = serde_json::Map::new();
+                        wrap.insert("provcheck".into(), rv);
+                        if let Some(bf) = &backfire {
+                            wrap.insert("backfire".into(), bf.clone());
+                        }
+                        if let Some(m) = &mellin {
+                            wrap.insert("mellin".into(), m.clone());
+                        }
+                        println!("{}", serde_json::Value::Object(wrap));
+                    } else {
+                        println!("{j}");
                     }
-                    None => println!("{j}"),
-                },
+                }
                 Err(e) => {
                     eprintln!("provcheck: failed to serialize JSON: {e}");
                     return ExitCode::from(2);
@@ -699,6 +913,9 @@ fn main() -> ExitCode {
             }
             if let Some(bf) = &backfire {
                 print_backfire_human(bf);
+            }
+            if let Some(m) = &mellin {
+                print_mellin_human(m);
             }
         }
     }
