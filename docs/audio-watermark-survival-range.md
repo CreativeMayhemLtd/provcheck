@@ -82,6 +82,7 @@ The table's ✓ marks are grounded in v0.5.2's empirical parity sweep (see [`pro
 - **Not a proof of unforgeability.** A determined adversary with enough compute can defeat any single-family watermark; the multi-family embed makes this quantitatively harder but not impossible.
 - **Not a DJ-remix-survival claim.** No shipped watermark technology in 2026 reliably survives arbitrary chop + pitch + tempo + effects transforms. This is active research territory (spectral-shape-invariant marks, semantic-content marks tied to source separation). provcheck does not claim to solve it.
 - **Not a re-recording-survival claim.** Speaker → mic → codec is an acoustic attack; AudioSeal partially handles clean-room re-recording but degrades in noisy environments. Not a shipped guarantee.
+- **Not a zero-false-positive guarantee on synthetic signals.** Neural detectors are trained on real-world audio. On fully synthetic content (pure tones plus broadband noise), AudioSeal's detector false-positives hard: measured 2026-08-19 at 0.99 confidence on an unmarked synthetic 60 s WAV, versus 0.006 on real-world audio from the same pipeline, with silentcipher and WavMark correctly quiet on both. Treat a detection hit on synthetic or tone-generated content with skepticism, and build test fixtures from real-world audio, never from generated tones.
 
 ## Reference for operator copy
 

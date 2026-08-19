@@ -67,7 +67,7 @@ pub enum Error {
     ///
     /// "always respect the user" — v0.7 phase 8a design direction.
     #[error(
-        "weights not installed for {family}/{variant} ({size_mb} MB) — \
+        "weights not installed for {family}/{variant} ({size_mb} MB); \
          download via provcheck-weights::download or `provcheck-kit weights install {family}`"
     )]
     NotCached {
@@ -82,7 +82,7 @@ pub enum Error {
     #[error("download failed: {0}")]
     Download(String),
     #[error(
-        "sha256 mismatch for {filename}: expected {expected}, got {actual} — refusing to load tampered weights"
+        "sha256 mismatch for {filename}: expected {expected}, got {actual}; refusing to load tampered weights"
     )]
     Sha256Mismatch {
         filename: &'static str,
