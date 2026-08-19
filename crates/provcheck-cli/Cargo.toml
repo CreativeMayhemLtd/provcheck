@@ -35,6 +35,6 @@ provcheck-synthid-text = { path = "../provcheck-synthid-text" }
 provcheck-detect = { path = "../provcheck-detect" }
 clap = { workspace = true }
 # Experimental --backfire-read: parse the keyed Backfire tool's JSON output and
-# merge it into --json. The Backfire tool itself is a separate AGPL process, never
-# linked; this only parses its stdout.
+# merge it into --json. The Backfire tool itself is a separate BUSL-licensed
+# process, never linked; this only parses its stdout.
 serde_json.workspace = true

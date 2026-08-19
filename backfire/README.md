@@ -2,7 +2,7 @@
 
 **An imperceptible, keyed image watermark that AI provenance-stripping attacks amplify instead of remove.**
 
-Experimental research from Creative Mayhem. Dual-licensed: AGPL-3.0-or-later, or a commercial license.
+Experimental research from Creative Mayhem. Source-available and dual-licensed: Business Source License 1.1 (free for non-commercial use), or a commercial license.
 
 ## Why this exists
 
@@ -56,4 +56,4 @@ By publishing it, we lose nothing and gain transparency. The secret that protect
 
 ## License
 
-AGPL-3.0-or-later OR a commercial license, copyright Creative Mayhem UG (haftungsbeschränkt). Standalone, and not bundled into the Apache-2.0 provcheck binary.
+Business Source License 1.1 (free for non-commercial use) OR a commercial license, copyright Creative Mayhem UG (haftungsbeschränkt). Commercial or for-profit production use requires a paid license from Creative Mayhem (licensing@creativemayhem.com). Use is also subject to `EULA.md` and, for any hosted offering, `TOS.md`. Standalone, and not bundled into the Apache-2.0 provcheck binary. Full terms in `LICENSING.md`.

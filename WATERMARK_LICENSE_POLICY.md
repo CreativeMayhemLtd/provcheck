@@ -127,16 +127,17 @@ handled the way the rule demands:
 This does not weaken the rule. The rule governs what ships inside the
 Apache-2.0 artefact, and this crate never does.
 
-## The experimental opt-in image option: `backfire` (AGPL, never bundled)
+## The experimental opt-in image option: `backfire` (BUSL, never bundled)
 
 `backfire/` is **Backfire**, an experimental keyed image watermark that AI
 diffusion-purification strippers *amplify* instead of remove (a poison fixed point of
 the purifier). It is the image-side analogue of `provcheck-mellin`, and it is handled
 the same way:
 
-- It is **dual-licensed AGPL-3.0-or-later OR a commercial license** (Creative Mayhem
-  UG), which fails the Apache-2.0 bundling rule above, so it is kept out of the
-  shipped artefact.
+- It is **source-available under BUSL-1.1 OR a commercial license** (Creative Mayhem
+  UG; free for non-commercial use, with a switch to an open-source license reserved
+  for a future Change Date), which fails the Apache-2.0 bundling rule above, so it
+  is kept out of the shipped artefact.
 - It is a **standalone Python tool, not a workspace crate**: it is never added to the
   Rust workspace, never wired into the `detect(path)` dispatch, and never ships in the
   release binary. The binary stays pure Apache-2.0. Run it directly

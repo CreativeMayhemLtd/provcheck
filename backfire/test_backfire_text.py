@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Backfire-Commercial
+# SPDX-License-Identifier: BUSL-1.1 OR LicenseRef-Backfire-Commercial
 # Copyright (C) 2026 Creative Mayhem UG (haftungsbeschränkt)
 """Unit tests for the Backfire keyed text channel (backfire_text.py).
 
