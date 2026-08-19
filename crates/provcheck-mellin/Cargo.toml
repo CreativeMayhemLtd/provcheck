@@ -1,9 +1,10 @@
 # Opt-in, NOT part of the provcheck workspace or the release binary.
 #
-# This crate is AGPL-3.0-or-later plus a separate commercial option (see
-# ./LICENSING.md), which fails the workspace's own WATERMARK_LICENSE_POLICY.md
-# rule for anything bundled into the Apache-2.0 binary. It is therefore excluded
-# from the workspace and never wired into the detector dispatch. Build it standalone:
+# This crate is BUSL-1.1 plus a separate commercial option (see ./LICENSING.md).
+# BUSL is source-available, not permissive, so like Backfire it is NOT linked
+# into the Apache-2.0 provcheck binary (WATERMARK_LICENSE_POLICY.md): it ships
+# as a standalone tool the app shells out to. It is therefore excluded from the
+# workspace and never linked into the detector dispatch. Build it standalone:
 #
 #   cargo build --manifest-path crates/provcheck-mellin/Cargo.toml
 #
@@ -15,11 +16,11 @@ name = "provcheck-mellin"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
-license = "AGPL-3.0-or-later OR LicenseRef-provcheck-mellin-Commercial"
+license = "BUSL-1.1 OR LicenseRef-provcheck-mellin-Commercial"
 authors = ["Creative Mayhem UG <info@rAIdio.bot>"]
 repository = "https://github.com/CreativeMayhemLtd/provcheck"
-description = "Keyed spectral (Fourier-Mellin) forensic watermark channel: scale/stretch-invariant embed + detect over i16 PCM. AGPL-3.0-or-later or commercial, opt-in, never bundled into the Apache-2.0 provcheck binary."
-# Dual-licensed (AGPL-or-commercial, with a custom commercial LicenseRef); never
+description = "Keyed spectral (Fourier-Mellin) forensic watermark channel: scale/stretch-invariant embed + detect over i16 PCM. BUSL-1.1 (non-commercial) or commercial, opt-in, never linked into the Apache-2.0 provcheck binary."
+# Dual-licensed (BUSL-1.1-or-commercial, with a custom commercial LicenseRef); never
 # let this reach crates.io by accident.
 publish = false
 

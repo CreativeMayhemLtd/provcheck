@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BUSL-1.1 OR LicenseRef-provcheck-mellin-Commercial
+// Copyright (C) 2026 Creative Mayhem UG (haftungsbeschränkt)
 //! Traitor tracing over audio: put a buyer's Tardos codeword into a file, and
 //! recover the detected symbols from a leak to accuse.
 //!

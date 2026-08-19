@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-provcheck-mellin-Commercial
+// SPDX-License-Identifier: BUSL-1.1 OR LicenseRef-provcheck-mellin-Commercial
 // Copyright (C) 2026 Creative Mayhem UG (haftungsbeschränkt)
 //! **Spectral (magnitude-domain) forensic watermark channel** — the scale/stretch-invariant tier,
 //! ported from lysn (`crates/lysn-watermark/src/mellin.rs`).
@@ -27,7 +27,7 @@
 //!
 //! ## License
 //!
-//! This crate is AGPL-3.0-or-later or commercial (see LICENSE and LICENSING.md), unlike the rest of provcheck (Apache-2.0). It is opt-in,
+//! This crate is BUSL-1.1 (non-commercial) or commercial (see LICENSE and LICENSING.md), unlike the rest of provcheck (Apache-2.0). It is opt-in,
 //! excluded from the workspace, and never bundled into the provcheck release binary — see
 //! `WATERMARK_LICENSE_POLICY.md` at the repository root.
 

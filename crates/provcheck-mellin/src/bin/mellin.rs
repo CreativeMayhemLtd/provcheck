@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BUSL-1.1 OR LicenseRef-provcheck-mellin-Commercial
+// Copyright (C) 2026 Creative Mayhem UG (haftungsbeschränkt)
 //! `provcheck-mellin` — embed and read a keyed per-copy serial watermark in
 //! audio files, using the keyed Fourier-Mellin channel.
 //!

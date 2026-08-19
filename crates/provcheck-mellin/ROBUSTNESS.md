@@ -2,7 +2,7 @@
 
 An honest, measured statement of what the Fourier-Mellin forensic channel
 survives and what it does not. Companion to the provcheck FOSS survival docs,
-kept here because this crate is the AGPL-or-commercial layer, not part of the
+kept here because this crate is the BUSL-or-commercial layer, not part of the
 Apache-2.0 detection suite.
 
 ## The provenance-stripping toolkit is the wrong adversary

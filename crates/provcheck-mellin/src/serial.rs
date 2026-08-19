@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BUSL-1.1 OR LicenseRef-provcheck-mellin-Commercial
+// Copyright (C) 2026 Creative Mayhem UG (haftungsbeschränkt)
 //! Per-copy serial framing over the keyed Mellin channel.
 //!
 //! The channel ([`crate::MellinChannel`]) hides one bit per "position". This
