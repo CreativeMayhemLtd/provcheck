@@ -152,6 +152,22 @@ fn run_backfire_py_read(
     Err(format!("python not found ({last_err})"))
 }
 
+/// Open a native "choose file" dialog and return the selected absolute path, or None if
+/// the user cancelled. The webview sandbox hides real paths from `<input type=file>`, so
+/// the picker runs here in Rust; the frontend then routes the path to the active tab.
+#[tauri::command]
+async fn pick_image() -> Option<String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        rfd::FileDialog::new()
+            .add_filter("images", &["png", "jpg", "jpeg", "webp", "bmp", "tif", "tiff"])
+            .set_title("Choose a file")
+            .pick_file()
+            .map(|p| p.to_string_lossy().into_owned())
+    })
+    .await
+    .unwrap_or(None)
+}
+
 /// Detect tab entry point. Runs the `provcheck-detect` registry
 /// against the input file. The FOSS core registers ZERO detectors —
 /// the trait is public plumbing for a paid-DLC pack (Creative Mayhem
@@ -1340,6 +1356,8 @@ fn main() {
             detect_only,
             // Experimental Backfire verify tab (shells out to the AGPL tool).
             backfire_read,
+            // Native "choose file" dialog shared by all tabs.
+            pick_image,
             // v1.1.0: Tauri 2 webview sandboxes `<a href target="_blank">`
             // — brand links in the top bar were silent no-ops. This
             // command shells out to the platform URL handler via the

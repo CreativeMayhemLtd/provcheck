@@ -1570,3 +1570,119 @@ body {
   text-align: right;
   word-break: break-word;
 }
+
+/* Backfire tab header + help modal */
+.bf-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 18px;
+}
+.bf-title { margin: 0 0 4px; font-size: 20px; color: var(--text-primary); }
+.bf-subtitle { margin: 0; font-size: 13px; color: var(--text-secondary); }
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.62);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 100;
+}
+.modal-overlay[hidden] { display: none; }
+.modal {
+  width: 100%;
+  max-width: 560px;
+  max-height: 85vh;
+  overflow-y: auto;
+  background: var(--bg-dark);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+.modal-head {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-dark);
+}
+.modal-head h2 { margin: 0; font-size: 18px; color: var(--text-primary); }
+.modal-close {
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.modal-close:hover { color: var(--text-primary); }
+.modal-body { padding: 20px 22px; }
+.modal-body p { margin: 0 0 14px; font-size: 14px; line-height: 1.6; color: var(--text-secondary); }
+.modal-body strong { color: var(--text-primary); }
+.modal-body em { color: var(--text-primary); font-style: italic; }
+.modal-body h3 {
+  margin: 20px 0 8px;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.modal-body ol, .modal-body ul { margin: 0 0 8px; padding-left: 20px; }
+.modal-body li { margin: 0 0 8px; font-size: 14px; line-height: 1.55; color: var(--text-secondary); }
+.modal-body code {
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--bg-medium);
+  color: var(--text-primary);
+}
+.modal-note {
+  margin-top: 16px !important;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 13px !important;
+}
+
+/* Experimental badge + modal docs link */
+.bf-badge {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--status-warning);
+  border: 1px solid var(--status-warning);
+  border-radius: 999px;
+}
+.modal-docs {
+  margin: 6px 0 0 !important;
+  font-size: 13px !important;
+}
+.modal-docs a {
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  word-break: break-all;
+}
+.modal-docs a:hover { color: var(--accent); }
+
+/* Backfire pane: match the 24px content inset + scroll the other tabs get from
+   their main.stage wrapper (this pane stacks its content directly). */
+#tab-backfire {
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.bf-hint-warn { color: var(--status-warning) !important; }

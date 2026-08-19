@@ -24,6 +24,9 @@ tauri-build = { version = "2.5", features = [] }
 tauri = { version = "2.11", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# Native "choose file" dialog. Self-contained (no tauri plugin/capabilities setup);
+# the dialog runs in Rust and returns the absolute path the webview sandbox can't see.
+rfd = "0.15"
 provcheck = { path = "../../crates/provcheck" }
 provcheck-platform = { path = "../../crates/provcheck-platform" }
 provcheck-watermark = { path = "../../crates/provcheck-watermark" }

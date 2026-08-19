@@ -606,11 +606,31 @@ function prettyPath(path) {
 
 // ---- File picker (hidden input, no plugin dep) ---------------------------
 
-function openFilePicker() {
-  // The webview sandbox hides full paths from File objects, so an
-  // <input type=file> alone can't give us an absolute path to hand
-  // to the Rust side. Fall back to inviting the user to drag:
-  showReminderToDrag();
+// Route a chosen/dropped absolute path to whichever tab is active.
+function dispatchFile(path) {
+  if (!path) return;
+  const tab = activeTab();
+  if (tab === "sign") {
+    if (typeof window.signOnDrop === "function") window.signOnDrop(path);
+  } else if (tab === "watermark") {
+    watermarkPath(path);
+  } else if (tab === "backfire") {
+    backfirePath(path);
+  } else {
+    verifyPath(path);
+  }
+}
+
+async function openFilePicker() {
+  // Open a native dialog in Rust (the webview sandbox hides absolute paths from an
+  // <input type=file>), then hand the path to the active tab. If the command is
+  // unavailable, fall back to inviting the user to drag.
+  try {
+    const path = await invoke("pick_image");
+    if (path) dispatchFile(path);
+  } catch {
+    showReminderToDrag();
+  }
 }
 
 function showReminderToDrag() {
@@ -658,20 +678,9 @@ TAURI.event.listen("tauri://drag-drop", (event) => {
   if ($signDz) $signDz.classList.remove("drag-over");
   if ($bfDropzone) $bfDropzone.classList.remove("drag-over");
   if (!p || !Array.isArray(p.paths) || p.paths.length === 0) return;
-  const tab = activeTab();
-  if (tab === "sign") {
-    if (typeof window.signOnDrop === "function") window.signOnDrop(p.paths[0]);
-  } else if (tab === "watermark") {
-    watermarkPath(p.paths[0]);
-  } else if (tab === "backfire") {
-    backfirePath(p.paths[0]);
-  } else {
-    // Verify tab (or the Detect / Keys tabs — those don't own a
-    // drop zone, so we fall back to Verify's flow which is the
-    // most-generally-useful default when the user drops from
-    // an unfocused surface).
-    verifyPath(p.paths[0]);
-  }
+  // Detect / Keys tabs own no dropzone, so dispatchFile falls back to Verify, the
+  // most-generally-useful default when a file is dropped from an unfocused surface.
+  dispatchFile(p.paths[0]);
 });
 TAURI.event.listen("tauri://drag-enter", () => {
   $dropzone.classList.add("drag-over");
@@ -1033,6 +1042,8 @@ const $bfResultTitle = document.getElementById("bf-result-title");
 const $bfResultFile = document.getElementById("bf-result-file");
 const $bfFields = document.getElementById("bf-fields");
 const $bfAnother = document.getElementById("bf-another");
+const $bfHint = document.getElementById("bf-hint");
+const BF_HINT_DEFAULT = "Enter your key above first, then drop or choose an image. It reads automatically, and stays on your machine.";
 
 const $signStripId = document.getElementById("sign-strip-id");
 const $signStripSession = document.getElementById("sign-strip-session");
@@ -1213,10 +1224,21 @@ function bfRow(k, v) {
 async function backfirePath(path) {
   const key = ($bfKey.value || "").trim();
   if (!key) {
-    // Backfire is keyed — nudge to the key field rather than shelling out.
+    // Backfire is keyed — show a clear prompt and flag the field, rather than shelling out.
     $bfKey.classList.add("bf-field-error");
     $bfKey.focus();
-    setTimeout(() => $bfKey.classList.remove("bf-field-error"), 1600);
+    if ($bfHint) {
+      $bfHint.textContent =
+        "Enter your key above first — Backfire can only read a mark made with the same key.";
+      $bfHint.classList.add("bf-hint-warn");
+    }
+    setTimeout(() => {
+      $bfKey.classList.remove("bf-field-error");
+      if ($bfHint) {
+        $bfHint.textContent = BF_HINT_DEFAULT;
+        $bfHint.classList.remove("bf-hint-warn");
+      }
+    }, 2600);
     return;
   }
   try {
@@ -1292,6 +1314,19 @@ $bfAck.addEventListener("click", () => {
 });
 $bfChooseBtn.addEventListener("click", openFilePicker);
 $bfAnother.addEventListener("click", bfShowEmpty);
+
+// Backfire "How it works" help modal.
+const $bfHelpBtn = document.getElementById("bf-help-btn");
+const $bfModal = document.getElementById("bf-modal");
+const $bfModalClose = document.getElementById("bf-modal-close");
+function bfOpenModal() { $bfModal.hidden = false; }
+function bfCloseModal() { $bfModal.hidden = true; }
+$bfHelpBtn.addEventListener("click", bfOpenModal);
+$bfModalClose.addEventListener("click", bfCloseModal);
+$bfModal.addEventListener("click", (e) => { if (e.target === $bfModal) bfCloseModal(); });
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !$bfModal.hidden) bfCloseModal();
+});
 
 // External-URL click interceptor. Tauri 2 sandboxes `target="_blank"`
 // anchors, so provcheck.ai / creativemayhem.com links in the top bar
