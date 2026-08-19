@@ -22,6 +22,37 @@ if (!TAURI || !TAURI.core || typeof TAURI.core.invoke !== "function") {
 }
 const { invoke } = TAURI.core;
 
+// ---- Frontend diagnostics --------------------------------------------------
+// Every swallowed JS exception used to die invisibly, leaving spinners
+// spinning with an idle backend and an empty log. Route them (and key flow
+// traces) into the same provcheck.log the backend writes.
+function uiLog(msg) {
+  try {
+    invoke("frontend_log", { msg: String(msg).slice(0, 500) });
+  } catch {
+    /* logging must never break the app */
+  }
+}
+window.addEventListener("error", (e) => {
+  uiLog(`window.onerror: ${e.message} @ ${e.filename || "?"}:${e.lineno || "?"}`);
+});
+window.addEventListener("unhandledrejection", (e) => {
+  uiLog(`unhandledrejection: ${e.reason && e.reason.message ? e.reason.message : e.reason}`);
+});
+
+// Watchdog: no spinner is allowed to spin forever. Races a promise against a
+// timeout so a never-settling invoke degrades into a visible error instead of
+// an eternal loading state.
+function raceTimeout(promise, ms) {
+  return Promise.race([
+    promise.then(
+      (v) => ({ timedOut: false, value: v }),
+      (e) => ({ timedOut: false, error: e })
+    ),
+    new Promise((res) => setTimeout(() => res({ timedOut: true }), ms)),
+  ]);
+}
+
 // ---- DOM handles ---------------------------------------------------------
 
 const $dropzone      = document.getElementById("dropzone");
@@ -70,6 +101,11 @@ const $wmAnother        = document.getElementById("wm-another");
 
 let lastReport = null;
 let lastFilePath = null;
+// True while the identity field holds a value sourced from a file's identity
+// assertion rather than the user's own typing. saveIdentity must never
+// persist an autofilled value — the "never persists" promise in
+// applyIdentityAutofill depends on it.
+let idAutofilled = false;
 
 // ---- State transitions ---------------------------------------------------
 
@@ -89,6 +125,11 @@ function showLoading(displayName) {
   $loading.hidden = false;
   $result.hidden = true;
   $loadingFile.textContent = displayName;
+  // Warn about the slow path only when it applies: with watermark detection
+  // on, audio/video inference legitimately takes minutes, and a bare spinner
+  // is indistinguishable from a hang.
+  const hintEl = document.getElementById("loading-hint");
+  if (hintEl) hintEl.hidden = !($idWatermark && $idWatermark.checked);
   $footerHint.hidden = false;
   $footerActions.hidden = true;
 }
@@ -270,13 +311,24 @@ function renderWatermarks(list, target, opts) {
   //   degraded   → amber check, brand name + "(degraded)" + %
   //   undetected → red x, "no mark detected"
   //   skipped    → dim dash, e.g. "not audio" or "model error"
+  // Keyed forensic marks are invisible to every blind scan BY DESIGN: with
+  // no secret there is nothing to detect. Say so, or a user who marked a
+  // file with Backfire or Mellin concludes the scanner "misses" it.
+  const appendKeyedNote = () => {
+    const note = document.createElement("div");
+    note.className = "watermarks-keyed-note";
+    note.textContent =
+      "Keyed marks (Backfire, Mellin) are not part of this scan. They can only be read with your key, on the Keyed marks tab.";
+    target.appendChild(note);
+  };
   if (!Array.isArray(list) || list.length === 0) {
     if (detectionRan) {
       target.hidden = false;
       const emptyEl = document.createElement("div");
       emptyEl.className = "watermarks-empty";
-      emptyEl.textContent = "No watermarks detected in any of the six shipped families (silentcipher, AudioSeal, WavMark, TrustMark image, TrustMark video, SynthID-text).";
+      emptyEl.textContent = "No watermarks detected by the detector families that ran.";
       target.appendChild(emptyEl);
+      appendKeyedNote();
     } else {
       target.hidden = true;
     }
@@ -302,6 +354,7 @@ function renderWatermarks(list, target, opts) {
   for (const wm of list) {
     target.appendChild(buildWatermarkBadge(wm, extent));
   }
+  appendKeyedNote();
 }
 
 function buildWatermarkBadge(wm, extent) {
@@ -322,7 +375,7 @@ function buildWatermarkBadge(wm, extent) {
     cls = "is-degraded";
     icon = "✓";
     title = detector + " · " + brandLabel;
-    sub = pct + "% confidence — mark is degraded (partial corruption likely)";
+    sub = pct + "% confidence; mark is degraded (partial corruption likely)";
   } else if (msg.length > 0) {
     cls = "is-skipped";
     icon = "—";
@@ -422,6 +475,12 @@ function formatBrand(brand) {
 // ---- Actions -------------------------------------------------------------
 
 async function verifyPath(path) {
+  // One scan at a time per tab: model inference saturates the CPU, so a
+  // second drop mid-scan halves both runs and doubles the wait.
+  if (!$loading.hidden) {
+    uiLog("verify: ignored, a verify is already running");
+    return;
+  }
   showLoading(prettyPath(path));
   // Read from the live input rather than localStorage so an
   // auto-filled value (which we deliberately don't persist) is
@@ -444,14 +503,17 @@ async function verifyPath(path) {
     requireAttested,
     runWatermark: !!($idWatermark && $idWatermark.checked),
   };
+  uiLog(`verify: start ${prettyPath(path)}`);
   try {
     const resp = await invoke("verify_file", args);
+    uiLog(`verify: settled ok=${!!(resp && resp.ok)}`);
     if (!resp.ok) {
       showResult(errorReport(resp.error || "Could not read file."), path);
       return;
     }
     showResult(resp.report, path);
   } catch (e) {
+    uiLog(`verify: invoke rejected: ${e}`);
     showResult(errorReport("Internal error: " + (e && e.toString ? e.toString() : "unknown")), path);
   }
 }
@@ -465,11 +527,20 @@ function showWmEmpty() {
   $wmDropzone.classList.remove("drag-over");
 }
 
-function showWmLoading(displayName) {
+function showWmLoading(displayName, families) {
   $wmDropzone.hidden = true;
   $wmLoading.hidden = false;
   $wmResult.hidden = true;
   $wmLoadingFile.textContent = displayName;
+  // Say exactly what is running, not a canned "all six" line.
+  const hintEl = document.getElementById("wm-loading-hint");
+  if (hintEl) {
+    const scope = Array.isArray(families) && families.length > 0
+      ? `Scanning ${families.length} famil${families.length === 1 ? "y" : "ies"} (${families.join(", ")}).`
+      : "Scanning all six detector families.";
+    hintEl.textContent =
+      scope + " Model inference is CPU-heavy on audio and video, so this can take a few minutes. Still working while this spins.";
+  }
 }
 
 function showWmResult(report, path) {
@@ -487,20 +558,77 @@ function showWmResult(report, path) {
   );
 }
 
-async function watermarkPath(path) {
-  showWmLoading(prettyPath(path));
+// An error must render AS an error. Rendering it as the "no watermarks
+// detected" empty state told the user their unreadable file was scanned
+// clean, which is worse than a spinner dead end.
+function showWmError(msg, path) {
+  $wmDropzone.hidden = true;
+  $wmLoading.hidden = true;
+  $wmResult.hidden = false;
+  $wmResultFile.textContent = prettyPath(path);
+  $wmWatermarks.hidden = false;
+  $wmWatermarks.innerHTML = "";
+  const el = document.createElement("div");
+  el.className = "watermarks-empty";
+  el.textContent = "Could not scan this file: " + msg;
+  $wmWatermarks.appendChild(el);
+}
+
+// The Watermark tab's family selector: which detector families to run.
+const WM_FAMILIES_STORAGE = "provcheck.wm.families";
+const $wmFamilies = document.getElementById("wm-families");
+
+function wmSelectedFamilies() {
+  if (!$wmFamilies) return null; // no selector rendered → scan everything
+  return [...$wmFamilies.querySelectorAll("input[type=checkbox]:checked")].map(
+    (c) => c.dataset.family
+  );
+}
+
+if ($wmFamilies) {
+  // Restore, then persist on every change.
   try {
-    const resp = await invoke("watermark_only", { path });
+    const saved = JSON.parse(localStorage.getItem(WM_FAMILIES_STORAGE) || "null");
+    if (Array.isArray(saved)) {
+      for (const c of $wmFamilies.querySelectorAll("input[type=checkbox]")) {
+        c.checked = saved.includes(c.dataset.family);
+      }
+    }
+  } catch {
+    /* corrupt storage — keep defaults */
+  }
+  $wmFamilies.addEventListener("change", () => {
+    try {
+      localStorage.setItem(WM_FAMILIES_STORAGE, JSON.stringify(wmSelectedFamilies()));
+    } catch {
+      /* storage blocked */
+    }
+  });
+}
+
+async function watermarkPath(path) {
+  if (!$wmLoading.hidden) {
+    uiLog("watermark scan: ignored, a scan is already running");
+    return;
+  }
+  const families = wmSelectedFamilies();
+  if (families && families.length === 0) {
+    showWmError("no detector families selected. Tick at least one above", path);
+    return;
+  }
+  showWmLoading(prettyPath(path), families);
+  uiLog(`watermark scan: start ${prettyPath(path)} families=${families ? families.join(",") : "all"}`);
+  try {
+    const resp = await invoke("watermark_only", { path, families });
+    uiLog(`watermark scan: settled ok=${!!(resp && resp.ok)}`);
     if (!resp.ok) {
-      showWmResult({ watermarks: [] }, path);
+      showWmError(resp.error || "unreadable file", path);
       return;
     }
     showWmResult(resp.report, path);
   } catch (e) {
-    // Match the Verify tab's tolerance for errors: show the tab's
-    // result surface anyway with an empty list, so the user isn't
-    // stuck at a spinner.
-    showWmResult({ watermarks: [] }, path);
+    uiLog(`watermark scan: invoke rejected: ${e}`);
+    showWmError(String(e && e.message ? e.message : e), path);
   }
 }
 
@@ -531,7 +659,9 @@ function loadIdentity() {
 
 function saveIdentity() {
   const payload = {
-    handle: ($idHandle && $idHandle.value || "").trim(),
+    // An autofilled handle (sourced from a file) is never persisted; only
+    // what the user actually typed survives the session.
+    handle: idAutofilled ? "" : (($idHandle && $idHandle.value) || "").trim(),
     requireAttested: !!($idRequire && $idRequire.checked),
     runWatermark: !!($idWatermark && $idWatermark.checked),
   };
@@ -575,6 +705,7 @@ function applyIdentityAutofill(claim) {
     return;
   }
   $idHandle.value = filled;
+  idAutofilled = true;
   $idAutofillHint.textContent = "auto-filled from file";
   $idAutofillHint.hidden = false;
 }
@@ -604,6 +735,47 @@ function prettyPath(path) {
   return parts[parts.length - 1] || path;
 }
 
+// ---- In-app dialogs (alert/confirm/prompt replacements) -------------------
+// window.alert/confirm/prompt are NOT reliably implemented across Tauri
+// webviews (WKWebView's confirm returns undefined, prompt is a no-op on some
+// backends), which turned destructive-action confirmations into silent dead
+// ends. Promise-based replacements over a plain DOM modal.
+const $appDialog = document.getElementById("app-dialog");
+const $appDialogMsg = document.getElementById("app-dialog-msg");
+const $appDialogInput = document.getElementById("app-dialog-input");
+const $appDialogOk = document.getElementById("app-dialog-ok");
+const $appDialogCancel = document.getElementById("app-dialog-cancel");
+
+function appDialog(message, { input = null, cancel = true } = {}) {
+  return new Promise((resolve) => {
+    $appDialogMsg.textContent = message;
+    $appDialogInput.hidden = input === null;
+    $appDialogInput.value = input || "";
+    $appDialogCancel.hidden = !cancel;
+    $appDialog.hidden = false;
+    (input !== null ? $appDialogInput : $appDialogOk).focus();
+    const done = (val) => {
+      $appDialog.hidden = true;
+      $appDialogOk.removeEventListener("click", ok);
+      $appDialogCancel.removeEventListener("click", no);
+      document.removeEventListener("keydown", key);
+      resolve(val);
+    };
+    const ok = () => done(input !== null ? $appDialogInput.value : true);
+    const no = () => done(input !== null ? null : false);
+    const key = (e) => {
+      if (e.key === "Escape") no();
+      else if (e.key === "Enter" && input !== null) ok();
+    };
+    $appDialogOk.addEventListener("click", ok);
+    $appDialogCancel.addEventListener("click", no);
+    document.addEventListener("keydown", key);
+  });
+}
+const appAlert = (msg) => appDialog(msg, { cancel: false }).then(() => undefined);
+const appConfirm = (msg) => appDialog(msg);
+const appPrompt = (msg, def = "") => appDialog(msg, { input: def });
+
 // ---- File picker (hidden input, no plugin dep) ---------------------------
 
 // Route a chosen/dropped absolute path to whichever tab is active.
@@ -615,18 +787,42 @@ function dispatchFile(path) {
   } else if (tab === "watermark") {
     watermarkPath(path);
   } else if (tab === "backfire") {
-    backfirePath(path);
+    // Keyed marks tab hosts two tools: audio files route to the Mellin
+    // section, everything else reads the Backfire image mark. A dropped
+    // WAV going to the image reader was a guaranteed dead end.
+    if (/\.(wav|mp3|flac|m4a|aac|ogg|opus|aiff?)$/i.test(path)) {
+      mellinPath(path);
+    } else {
+      backfirePath(path);
+    }
   } else {
+    // Detect and Keys own no drop surface, so the drop routes to Verify.
+    // SURFACE the Verify pane too — a result rendering into a hidden tab
+    // reads as "nothing happened".
+    if (tab !== "verify") activateTab("verify");
     verifyPath(path);
   }
 }
 
 async function openFilePicker() {
   // Open a native dialog in Rust (the webview sandbox hides absolute paths from an
-  // <input type=file>), then hand the path to the active tab. If the command is
+  // <input type=file>), then hand the path to the active tab. The picker MUST match
+  // the tab: Verify/Watermark/Sign accept any file type (audio, video, image, text),
+  // so they get the unfiltered dialog; only Backfire's own button is image-first,
+  // and even that dialog carries an "All files" fallback. If the command is
   // unavailable, fall back to inviting the user to drag.
+  const tab = activeTab();
   try {
-    const path = await invoke("pick_image");
+    let path;
+    if (tab === "backfire") {
+      path = await invoke("pick_image");
+    } else {
+      const title =
+        tab === "sign" ? "Choose a file to sign"
+        : tab === "watermark" ? "Choose a file to scan for watermarks"
+        : "Choose a file to verify";
+      path = await invoke("pick_any_file", { title, kind: "media" });
+    }
     if (path) dispatchFile(path);
   } catch {
     showReminderToDrag();
@@ -634,15 +830,24 @@ async function openFilePicker() {
 }
 
 function showReminderToDrag() {
-  // Briefly swap the dropzone copy to nudge toward drag-drop.
-  const inner = $dropzone.querySelector(".dropzone-inner h2");
+  // Briefly swap the ACTIVE tab's dropzone copy to nudge toward drag-drop.
+  // Targeting only the Verify dropzone made the nudge invisible from every
+  // other tab (the element is hidden there).
+  const dzMap = {
+    verify: $dropzone,
+    watermark: $wmDropzone,
+    backfire: $bfDropzone,
+    sign: document.getElementById("sign-dropzone"),
+  };
+  const dz = dzMap[activeTab()] || $dropzone;
+  const inner = dz && dz.querySelector(".dropzone-inner h2");
   if (!inner) return;
   const original = inner.textContent;
   inner.textContent = "Drag the file onto the window";
-  $dropzone.classList.add("drag-over");
+  dz.classList.add("drag-over");
   setTimeout(() => {
     inner.textContent = original;
-    $dropzone.classList.remove("drag-over");
+    dz.classList.remove("drag-over");
   }, 1600);
 }
 
@@ -756,7 +961,8 @@ $sampleDoomscroll.addEventListener("keydown", (e) => {
 if ($idHandle) {
   $idHandle.addEventListener("input", () => {
     // User typing clears the "auto-filled from file" annotation —
-    // the value is now their own.
+    // the value is now their own (and may persist again).
+    idAutofilled = false;
     if ($idAutofillHint) {
       $idAutofillHint.hidden = true;
       $idAutofillHint.textContent = "";
@@ -920,7 +1126,9 @@ function renderAboutCard(report, cardEl) {
       : report.identity.did;
     rows.push({
       label: "Identity claim",
-      value: handle + " (unverified — re-run with --auto-identity to attest)",
+      value:
+        handle +
+        " (unverified; type it into the identity field above and re-verify to attest)",
     });
   }
 
@@ -1055,6 +1263,9 @@ const $sSetup = document.getElementById("sign-state-setup");
 const $sConnect = document.getElementById("sign-state-connect");
 const $sPublish = document.getElementById("sign-state-publish");
 const $sStale = document.getElementById("sign-state-stale");
+const $sError = document.getElementById("sign-state-error");
+const $sErrorText = document.getElementById("sign-error-text");
+const $sRetryBtn = document.getElementById("sign-retry-btn");
 const $sStaleStatus = document.getElementById("sign-stale-status");
 const $sStaleRecoveryCmd = document.getElementById("sign-stale-recovery-cmd");
 const $sStaleSkipBtn = document.getElementById("sign-stale-skip-btn");
@@ -1222,44 +1433,57 @@ function bfRow(k, v) {
   return row;
 }
 
+// Backfire is keyed — flag the missing key clearly instead of shelling out.
+// Shared by backfirePath and the choose-button guard, so the user is warned
+// BEFORE picking a file, not scolded after.
+function bfWarnMissingKey() {
+  $bfKey.classList.add("bf-field-error");
+  $bfKey.focus();
+  if ($bfHint) {
+    $bfHint.textContent =
+      "Enter your key above first. Backfire can only read a mark made with the same key.";
+    $bfHint.classList.add("bf-hint-warn");
+  }
+  setTimeout(() => {
+    $bfKey.classList.remove("bf-field-error");
+    if ($bfHint) {
+      $bfHint.textContent = BF_HINT_DEFAULT;
+      $bfHint.classList.remove("bf-hint-warn");
+    }
+  }, 2600);
+}
+
 async function backfirePath(path) {
   const key = ($bfKey.value || "").trim();
   if (!key) {
-    // Backfire is keyed — show a clear prompt and flag the field, rather than shelling out.
-    $bfKey.classList.add("bf-field-error");
-    $bfKey.focus();
-    if ($bfHint) {
-      $bfHint.textContent =
-        "Enter your key above first — Backfire can only read a mark made with the same key.";
-      $bfHint.classList.add("bf-hint-warn");
-    }
-    setTimeout(() => {
-      $bfKey.classList.remove("bf-field-error");
-      if ($bfHint) {
-        $bfHint.textContent = BF_HINT_DEFAULT;
-        $bfHint.classList.remove("bf-hint-warn");
-      }
-    }, 2600);
+    bfWarnMissingKey();
     return;
-  }
-  try {
-    localStorage.setItem(BF_KEY_STORAGE, key);
-  } catch {
-    /* storage blocked — non-fatal */
   }
   const serial = ($bfSerial.value || "").trim() || null;
   const carriers = $bfCarriers.value || "band";
   bfShowLoading(prettyPath(path));
-  try {
-    const res = await invoke("backfire_read", { path, key, serial, carriers });
-    if (!res || !res.ok) {
-      renderBackfireError((res && res.error) || "Backfire read failed.", path);
-      return;
-    }
-    renderBackfire(res.data, path);
-  } catch (e) {
-    renderBackfireError(String(e && e.message ? e.message : e), path);
+  uiLog(`backfire read: start ${prettyPath(path)}`);
+  const raced = await raceTimeout(invoke("backfire_read", { path, key, serial, carriers }), 120000);
+  if (raced.timedOut) {
+    uiLog("backfire read: TIMED OUT after 120s; invoke never settled");
+    renderBackfireError(
+      "The read timed out after 120 seconds without a response from the engine. See the log for details.",
+      path
+    );
+    return;
   }
+  if (raced.error !== undefined) {
+    uiLog(`backfire read: invoke rejected: ${raced.error}`);
+    renderBackfireError(String(raced.error && raced.error.message ? raced.error.message : raced.error), path);
+    return;
+  }
+  const res = raced.value;
+  uiLog(`backfire read: settled ok=${!!(res && res.ok)}`);
+  if (!res || !res.ok) {
+    renderBackfireError((res && res.error) || "Backfire read failed.", path);
+    return;
+  }
+  renderBackfire(res.data, path);
 }
 
 function renderBackfire(bf, path) {
@@ -1297,13 +1521,15 @@ function renderBackfireError(msg, path) {
   $bfFields.replaceChildren(bfRow("Error", msg));
 }
 
-// Restore the key + the acknowledge-once experimental warning.
+// Restore the acknowledge-once experimental warning. The Backfire KEY is a
+// secret and is deliberately NOT persisted (it used to sit in plaintext
+// localStorage, contradicting the Mellin section's session-only handling);
+// the removeItem below also scrubs any key an earlier build left behind.
 try {
-  const savedKey = localStorage.getItem(BF_KEY_STORAGE);
-  if (savedKey) $bfKey.value = savedKey;
+  localStorage.removeItem(BF_KEY_STORAGE);
   if (localStorage.getItem(BF_ACK_STORAGE) === "1") $bfWarning.hidden = true;
 } catch {
-  /* storage blocked — show the warning, no restored key */
+  /* storage blocked — show the warning */
 }
 $bfAck.addEventListener("click", () => {
   $bfWarning.hidden = true;
@@ -1313,7 +1539,15 @@ $bfAck.addEventListener("click", () => {
     /* non-fatal */
   }
 });
-$bfChooseBtn.addEventListener("click", openFilePicker);
+$bfChooseBtn.addEventListener("click", () => {
+  // Validate the key BEFORE opening the picker — choosing a file and then
+  // being scolded (and having the choice discarded) is a wasted round trip.
+  if (!($bfKey.value || "").trim()) {
+    bfWarnMissingKey();
+    return;
+  }
+  openFilePicker();
+});
 $bfAnother.addEventListener("click", bfShowEmpty);
 
 // Backfire "How it works" help modal.
@@ -1347,9 +1581,17 @@ async function refreshModelsStatus() {
         $modelsStatusText.textContent =
           `${installed} of ${total} installed. Download the rest to enable image, audio, and video watermark detection (about 190 MB).`;
       }
+    } else {
+      // A status error must not hide the banner: a user with zero models on
+      // this path would never see the Install button at all.
+      $modelsBanner.hidden = false;
+      $modelsStatusText.textContent =
+        "Could not check model status: " + ((res && res.error) || "unknown error");
     }
-  } catch {
-    /* leave the banner as-is */
+  } catch (e) {
+    $modelsBanner.hidden = false;
+    $modelsStatusText.textContent =
+      "Could not check model status: " + String(e && e.message ? e.message : e);
   }
 }
 
@@ -1391,7 +1633,7 @@ async function refreshBackfireStatus() {
     $bfInstallStatus.textContent =
       ready === true
         ? "Ready. The reader ships inside the app; Install / Repair re-copies it if anything is broken."
-        : "Not set up. Install / Repair copies the bundled reader into place — no downloads needed.";
+        : "Not set up. Install / Repair copies the bundled reader into place; no downloads needed.";
   } catch (e) {
     $bfInstallStatus.textContent =
       "Status check failed: " + String(e && e.message ? e.message : e);
@@ -1465,27 +1707,52 @@ function mlShowEmpty() {
   $mlResult.hidden = true;
 }
 
-function mlWarn(msg) {
+let mlWarnSticky = false;
+
+function mlWarn(msg, sticky) {
   if (!$mlHint) return;
   $mlHint.textContent = msg;
   $mlHint.classList.add("bf-hint-warn");
-  setTimeout(() => {
-    $mlHint.textContent = ML_HINT_DEFAULT;
-    $mlHint.classList.remove("bf-hint-warn");
-  }, 2600);
+  mlWarnSticky = !!sticky;
+  if (!sticky) {
+    setTimeout(() => {
+      if (mlWarnSticky) return; // a sticky warning arrived meanwhile
+      $mlHint.textContent = ML_HINT_DEFAULT;
+      $mlHint.classList.remove("bf-hint-warn");
+    }, 4000);
+  }
+}
+
+function mlClearWarn() {
+  mlWarnSticky = false;
+  if (!$mlHint) return;
+  $mlHint.textContent = ML_HINT_DEFAULT;
+  $mlHint.classList.remove("bf-hint-warn");
 }
 
 async function mellinPath(path) {
   const workId = ($mlWorkId.value || "").trim();
   if (!mlSecretFile) {
-    mlWarn("Choose your secret file first — Mellin can only read a serial made with the same secret.");
+    // A failed precondition must be IMPOSSIBLE to miss: scroll the section
+    // into view, flag the control, and keep the warning up until resolved.
+    // (The secret is deliberately never persisted, so it must be re-picked
+    // after every launch — the exact state a returning tester is in.)
+    $mlSecretBtn.scrollIntoView({ behavior: "smooth", block: "center" });
+    $mlSecretPath.classList.add("bf-field-error");
+    $mlSecretBtn.focus();
+    mlWarn(
+      "Choose your secret file first (it is never stored, so it resets on every app restart), then drop the audio again.",
+      true
+    );
     return;
   }
   if (!workId) {
-    mlWarn("Enter the work id the serial was embedded with.");
+    $mlWorkId.scrollIntoView({ behavior: "smooth", block: "center" });
     $mlWorkId.focus();
+    mlWarn("Enter the work id the serial was embedded with, then drop the audio again.", true);
     return;
   }
+  mlClearWarn();
   try {
     localStorage.setItem(ML_WORKID_STORAGE, workId);
   } catch {
@@ -1496,22 +1763,37 @@ async function mellinPath(path) {
   $mlLoading.hidden = false;
   $mlResult.hidden = true;
   $mlLoadingFile.textContent = `Reading ${prettyPath(path)}…`;
-  try {
-    const res = await invoke("mellin_read", {
+  uiLog(`mellin read: start ${prettyPath(path)}`);
+  const raced = await raceTimeout(
+    invoke("mellin_read", {
       path,
       secretFile: mlSecretFile,
       workId,
       serial,
       repeat: null,
-    });
-    if (!res || !res.ok) {
-      renderMellinError((res && res.error) || "Mellin read failed.", path);
-      return;
-    }
-    renderMellin(res.data, path);
-  } catch (e) {
-    renderMellinError(String(e && e.message ? e.message : e), path);
+    }),
+    120000
+  );
+  if (raced.timedOut) {
+    uiLog("mellin read: TIMED OUT after 120s; invoke never settled");
+    renderMellinError(
+      "The read timed out after 120 seconds without a response from the engine. See the log for details.",
+      path
+    );
+    return;
   }
+  if (raced.error !== undefined) {
+    uiLog(`mellin read: invoke rejected: ${raced.error}`);
+    renderMellinError(String(raced.error && raced.error.message ? raced.error.message : raced.error), path);
+    return;
+  }
+  const res = raced.value;
+  uiLog(`mellin read: settled ok=${!!(res && res.ok)}`);
+  if (!res || !res.ok) {
+    renderMellinError((res && res.error) || "Mellin read failed.", path);
+    return;
+  }
+  renderMellin(res.data, path);
 }
 
 function renderMellin(m, path) {
@@ -1551,17 +1833,28 @@ function renderMellinError(msg, path) {
 
 if ($mlSecretBtn) {
   $mlSecretBtn.addEventListener("click", async () => {
-    const p = await invoke("pick_any_file", { title: "Choose the Mellin secret file" });
-    if (p) {
-      mlSecretFile = p;
-      $mlSecretPath.textContent = prettyPath(p);
+    try {
+      const p = await invoke("pick_any_file", { title: "Choose the Mellin secret file", kind: null });
+      if (p) {
+        mlSecretFile = p;
+        $mlSecretPath.textContent = prettyPath(p);
+        $mlSecretPath.title = p;
+        $mlSecretPath.classList.remove("bf-field-error");
+        mlClearWarn();
+      }
+    } catch (e) {
+      mlWarn("Could not open the file dialog: " + String(e && e.message ? e.message : e));
     }
   });
 }
 if ($mlChooseBtn) {
   $mlChooseBtn.addEventListener("click", async () => {
-    const p = await invoke("pick_any_file", { title: "Choose an audio file to read" });
-    if (p) mellinPath(p);
+    try {
+      const p = await invoke("pick_any_file", { title: "Choose an audio file to read", kind: "audio" });
+      if (p) mellinPath(p);
+    } catch (e) {
+      mlWarn("Could not open the file dialog: " + String(e && e.message ? e.message : e));
+    }
   });
 }
 if ($mlAnother) $mlAnother.addEventListener("click", mlShowEmpty);
@@ -1596,7 +1889,7 @@ document.body.addEventListener("click", (e) => {
 // ---- State dispatch --------------------------------------------------------
 
 function showSignState(name) {
-  for (const el of [$sLoading, $sSetup, $sConnect, $sPublish, $sStale, $sReady]) {
+  for (const el of [$sLoading, $sSetup, $sConnect, $sPublish, $sStale, $sError, $sReady]) {
     el.hidden = true;
   }
   if (name === "loading") $sLoading.hidden = false;
@@ -1604,6 +1897,7 @@ function showSignState(name) {
   else if (name === "connect") $sConnect.hidden = false;
   else if (name === "publish") $sPublish.hidden = false;
   else if (name === "stale") $sStale.hidden = false;
+  else if (name === "error") $sError.hidden = false;
   else if (name === "ready") {
     $sReady.hidden = false;
     resetReadySubstate();
@@ -1647,9 +1941,16 @@ async function refreshKeysTab() {
 
   const listRes = await invoke("kit_list", { dataDir: null });
   if (!listRes.ok) {
+    // A fetch failure must not render as "you have no records" — that tells
+    // the user their published keys vanished. Show the error, and clear any
+    // stale mismatch banner from the previous refresh.
     keysRecords = [];
     $keysRecordsTable.hidden = true;
-    $keysRecordsEmpty.hidden = false;
+    $keysRecordsEmpty.hidden = true;
+    $keysMismatch.hidden = true;
+    setKeysError(
+      "Could not load your atproto records: " + (listRes.error || "unknown error")
+    );
     return;
   }
   keysRecords = listRes.data || [];
@@ -1687,7 +1988,7 @@ function renderKeysLocalCard(identity) {
     if (identity.yubikey_present === true) {
       $keysYkDevice.textContent = "Present (serial " + (identity.yubikey_serial ?? "?") + ")";
     } else if (identity.yubikey_present === false) {
-      $keysYkDevice.textContent = "Not reachable (serial " + (identity.yubikey_serial ?? "?") + " — plug it in)";
+      $keysYkDevice.textContent = "Not reachable (serial " + (identity.yubikey_serial ?? "?") + "; plug it in)";
     } else {
       $keysYkDevice.textContent = "—";
     }
@@ -1696,7 +1997,7 @@ function renderKeysLocalCard(identity) {
       $keysYkPin.hidden = false;
       $keysYkPin.textContent = identity.pin_tries_remaining + " of 3 remaining" +
         (identity.pin_tries_remaining === 1 ? " (one more failed try locks the PIN)" :
-         identity.pin_tries_remaining === 0 ? " — locked, recover via ykman" : "");
+         identity.pin_tries_remaining === 0 ? "; locked, recover via ykman" : "");
     } else {
       $keysYkPinLabel.hidden = true;
       $keysYkPin.hidden = true;
@@ -1861,7 +2162,7 @@ async function handleRevoke(record) {
       "any future signatures by this key as not attested. The record " +
       "stays in atproto history as a tombstone (you can't un-revoke).\n\n" +
       "Fingerprint: " + record.fingerprint;
-  if (!confirm(msg)) return;
+  if (!(await appConfirm(msg))) return;
 
   setKeysError(null);
   const res = await invoke("kit_revoke", {
@@ -1903,18 +2204,18 @@ $keysRotateBtn.addEventListener("click", async () => {
     );
     return;
   }
-  const label = prompt(
+  const label = await appPrompt(
     "Optional label for the new record (e.g. \"studio mac\"):",
     ""
   );
   if (label === null) return; // user cancelled
 
-  if (!confirm(
+  if (!(await appConfirm(
     "Mint a fresh signing key and publish it?\n\n" +
     "This orphans the current key for anything signed with it going " +
     "forward (existing signatures stay valid until the old record's " +
     "validUntil is honored). The old record gets supersededBy linkage."
-  )) return;
+  ))) return;
 
   setKeysError(null);
   setKeysSuccess("Rotating…");
@@ -1949,7 +2250,7 @@ $keysSwitchYubikeyBtn.addEventListener("click", async () => {
     lines.push("No Yubikey detected.");
     lines.push("Plug one into a USB port and try again.");
   } else {
-    lines.push("Detected " + devices.length + " Yubikey(s) — serials: " +
+    lines.push("Detected " + devices.length + " Yubikey(s); serials: " +
       devices.map(d => d.serial).join(", "));
     lines.push("");
     lines.push("Switching to a Yubikey-backed identity needs a terminal " +
@@ -1960,7 +2261,7 @@ $keysSwitchYubikeyBtn.addEventListener("click", async () => {
     lines.push("");
     lines.push("Then return here to publish the new fingerprint.");
   }
-  alert(lines.join("\n"));
+  await appAlert(lines.join("\n"));
 });
 
 async function refreshSignTab() {
@@ -1970,9 +2271,11 @@ async function refreshSignTab() {
   if (!res.ok) {
     signStatus = null;
     paintStrip(null, null);
-    // Show setup as a graceful default; the real error is reported on
-    // any subsequent action.
-    showSignState("setup");
+    // Never show "setup" here: a user who HAS an identity would be offered
+    // a generate button that then refuses with force=true advice the GUI
+    // cannot follow. Show the error and a Retry instead.
+    $sErrorText.textContent = res.error || "Unknown error loading kit status.";
+    showSignState("error");
     return;
   }
   signStatus = res.data;
@@ -2052,7 +2355,7 @@ function renderStaleState(localRecord, allRecords) {
   );
   const lines = [];
   if (orphanActive) {
-    lines.push("# active atproto record uses a key we don't hold locally —");
+    lines.push("# the active atproto record uses a key this box does not hold;");
     lines.push("# revoke it first so no leaked copy can sign in your name");
     lines.push("provcheck-kit revoke " + orphanActive.fingerprint);
     lines.push("");
@@ -2089,6 +2392,8 @@ function paintStrip(identity, session) {
 }
 
 // ---- Init flow -------------------------------------------------------------
+
+if ($sRetryBtn) $sRetryBtn.addEventListener("click", refreshSignTab);
 
 $sInitBtn.addEventListener("click", async () => {
   $sInitBtn.disabled = true;
@@ -2168,9 +2473,12 @@ async function tryRecallPasswordFor(handle) {
   if (!cleaned) return;
   if ($sLoginPassword.value) return;
   try {
+    // ApiResult serializes as {ok, error, data} — the recalled password is
+    // res.data (this read res.value for a while, which silently killed the
+    // prefill; the login still worked, the convenience did not).
     const res = await invoke("kit_recall_password", { handle: cleaned });
-    if (res.ok && typeof res.value === "string" && res.value.length > 0) {
-      $sLoginPassword.value = res.value;
+    if (res.ok && typeof res.data === "string" && res.data.length > 0) {
+      $sLoginPassword.value = res.data;
       $sLoginRemember.checked = true;
     }
   } catch (_e) {
@@ -2186,7 +2494,7 @@ $sLoginHandle.addEventListener("blur", () => {
 });
 
 $signLogoutBtn.addEventListener("click", async () => {
-  if (!confirm("Disconnect this device's atproto session?")) return;
+  if (!(await appConfirm("Disconnect this device's atproto session?"))) return;
   await invoke("kit_logout", { dataDir: null });
   await refreshSignTab();
 });
@@ -2233,7 +2541,7 @@ $sStaleSkipBtn.addEventListener("click", () => {
 window.signOnDrop = async function (path) {
   // Drag-drop dispatcher routes here when Sign tab is active.
   if (!signStatus || !signStatus.identity) {
-    alert("Set up an identity first before signing.");
+    await appAlert("Set up an identity first before signing.");
     return;
   }
   if ($sReady.hidden) {
@@ -2320,13 +2628,15 @@ for (const r of document.getElementsByName("sign-action")) {
 }
 
 function sidecarPath(p) {
-  // Mirror the Rust-side sidecar_signed_path logic in display.
+  // Mirror the Rust-side sidecar_signed_path logic in display. `dot <= 0`
+  // matches Rust's file_stem semantics: a dotfile like ".env" has no
+  // extension, so it becomes ".env.signed", not ".signed.env".
   const norm = p.replace(/\\/g, "/");
   const slash = norm.lastIndexOf("/");
   const dir = slash >= 0 ? p.slice(0, slash + 1) : "";
   const name = slash >= 0 ? p.slice(slash + 1) : p;
   const dot = name.lastIndexOf(".");
-  if (dot < 0) return dir + name + ".signed";
+  if (dot <= 0) return dir + name + ".signed";
   return dir + name.slice(0, dot) + ".signed" + name.slice(dot);
 }
 
@@ -2364,6 +2674,10 @@ $sGoBtn.addEventListener("click", async () => {
     args: {
       file: signStaged.path,
       out,
+      // Explicit: out=null used to SILENTLY mean "sidecar", so the checked
+      // "Replace the original" box wrote a sidecar while the preview claimed
+      // in-place. The backend now implements real in-place replacement.
+      replaceOriginal: !!signStaged.replaceOriginal,
       embedIdentity: signStaged.embed,
       action: signStaged.action || null,
       aiArtistModel: signStaged.aiArtist ? (signStaged.aiModel || "") : null,
@@ -2381,23 +2695,22 @@ $sGoBtn.addEventListener("click", async () => {
   $sDonePath.textContent = res.data.output_path;
   signStaged = { ...signStaged, lastOutput: res.data.output_path };
 
-  // Verify the just-signed file in-process so we can render the
-  // same "About this file" card the audience will see. Pure read,
-  // no network (the local cert chain is self-signed; no attestation
-  // unless the user asks).
+  // Show DONE immediately — the About card below is decoration and must not
+  // hold the user on the "Signing…" spinner. Skip the watermark detectors
+  // outright (runWatermark: false): they added 10+ seconds of silentcipher
+  // inference to every sign, for a card that never displays them.
+  $sAboutCard.hidden = true;
+  showReadySubstate("done");
   const verifyRes = await invoke("verify_file", {
     path: res.data.output_path,
     handle: null,
     did: null,
     requireAttested: false,
+    runWatermark: false,
   });
   if (verifyRes.ok && verifyRes.report) {
     renderAboutCard(verifyRes.report, $sAboutCard);
-  } else {
-    $sAboutCard.hidden = true;
   }
-
-  showReadySubstate("done");
 });
 
 $sAnotherBtn.addEventListener("click", () => {

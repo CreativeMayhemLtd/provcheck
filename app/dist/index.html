@@ -87,9 +87,9 @@
           <line x1="22" y1="46" x2="42" y2="46" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
         </svg>
         <h2>Drop any file here to verify</h2>
-        <p>Audio · Image · Video — anything that carries C2PA Content Credentials.</p>
+        <p>Audio · Image · Video: anything that carries C2PA Content Credentials.</p>
         <button class="btn btn-primary" id="choose-btn">Choose file…</button>
-        <p class="hint">Or run with nothing and this stays put. Private — files never leave your machine.</p>
+        <p class="hint">Or run with nothing and this stays put. Private: files never leave your machine.</p>
       </div>
     </section>
 
@@ -97,6 +97,9 @@
     <section class="loading" id="loading" hidden>
       <div class="spinner"></div>
       <p class="loading-file" id="loading-file">Verifying…</p>
+      <p class="hint" id="loading-hint" hidden>Watermark detection is CPU-heavy on audio and
+        video and can take a few minutes. Uncheck "Run watermark detection" for an
+        instant C2PA-only verify.</p>
     </section>
 
     <!-- Result state -->
@@ -152,7 +155,7 @@
 
   <footer class="footer" id="verify-footer">
     <div class="footer-hint" id="footer-hint">
-      Signed outputs from <strong>rAIdio.bot</strong> and <strong>Doomscroll.fm</strong> verify here out of the box &mdash; try <code id="sample-raidio" role="button" tabindex="0">example: rAIdio.bot</code> or <code id="sample-doomscroll" role="button" tabindex="0">example: Doomscroll.fm</code>.
+      Signed outputs from <strong>rAIdio.bot</strong> and <strong>Doomscroll.fm</strong> verify here out of the box; try <code id="sample-raidio" role="button" tabindex="0">example: rAIdio.bot</code> or <code id="sample-doomscroll" role="button" tabindex="0">example: Doomscroll.fm</code>.
     </div>
     <div class="footer-actions" id="footer-actions" hidden>
       <button class="btn btn-primary" id="verify-another">Verify another</button>
@@ -182,6 +185,18 @@
       </div>
       <button class="btn btn-primary" id="models-install-btn" type="button">Install all models</button>
     </div>
+    <!-- Detector-family selection: each family is real model inference, so
+         scanning only what you care about turns a minutes-long six-family
+         audio scan into a single fast pass. All on by default; persisted. -->
+    <section class="wm-families" id="wm-families" aria-label="Detector families to scan">
+      <span class="wm-families-label">Scan for:</span>
+      <label><input type="checkbox" data-family="silentcipher" checked /> silentcipher <em>(audio)</em></label>
+      <label><input type="checkbox" data-family="audioseal" checked /> AudioSeal <em>(audio)</em></label>
+      <label><input type="checkbox" data-family="wavmark" checked /> WavMark <em>(audio)</em></label>
+      <label><input type="checkbox" data-family="trustmark" checked /> TrustMark <em>(image)</em></label>
+      <label><input type="checkbox" data-family="trustmark-video" checked /> TrustMark <em>(video)</em></label>
+      <label><input type="checkbox" data-family="synthid-text" checked /> SynthID <em>(text)</em></label>
+    </section>
     <section class="dropzone" id="wm-dropzone">
       <div class="dropzone-inner">
         <svg class="dropzone-icon" viewBox="0 0 64 64" fill="none" aria-hidden="true">
@@ -190,15 +205,17 @@
           <line x1="22" y1="46" x2="42" y2="46" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
         </svg>
         <h2>Drop any file here to run watermark detection</h2>
-        <p>Runs all six shipped families: <strong>silentcipher</strong> · <strong>AudioSeal</strong> · <strong>WavMark</strong> on audio, <strong>TrustMark-B</strong> on images, <strong>per-frame TrustMark + temporal vote</strong> on video, <strong>SynthID-text</strong> on text.</p>
+        <p>Scans the families selected above: <strong>silentcipher</strong> · <strong>AudioSeal</strong> · <strong>WavMark</strong> on audio, <strong>TrustMark-B</strong> on images, <strong>per-frame TrustMark + temporal vote</strong> on video, <strong>SynthID-text</strong> on text.</p>
         <button class="btn btn-primary" id="wm-choose-btn">Choose file…</button>
-        <p class="hint">Private — files never leave your machine. Each detector is authoritative about whether it applies to the input file type.</p>
+        <p class="hint">Private: files never leave your machine. Each detector is authoritative about whether it applies to the input file type.</p>
       </div>
     </section>
 
     <section class="loading" id="wm-loading" hidden>
       <div class="spinner"></div>
       <p class="loading-file" id="wm-loading-file">Running watermark detectors…</p>
+      <p class="hint" id="wm-loading-hint">Model inference is CPU-heavy on audio and video;
+        a scan can take a few minutes. Still working while this spins.</p>
     </section>
 
     <section class="result" id="wm-result" hidden>
@@ -237,21 +254,21 @@
         <circle cx="38" cy="34" r="2" fill="currentColor"/>
         <path d="M24 42c2 2 4 3 8 3s6-1 8-3" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
       </svg>
-      <h2>AI-content detection — bring your own detector</h2>
-      <p class="detect-empty-lead">The FOSS core ships the public <code>Detector</code> trait and dispatch registry, but no classifier weights. That is deliberate — provcheck does not bundle any commercial model, and no open-source AI-content detector currently meets our license policy (both code AND weights permissive).</p>
+      <h2>AI-content detection: bring your own detector</h2>
+      <p class="detect-empty-lead">The FOSS core ships the public <code>Detector</code> trait and dispatch registry, but no classifier weights. That is deliberate: provcheck does not bundle any commercial model, and no open-source AI-content detector currently meets our license policy (both code AND weights permissive).</p>
 
       <div class="detect-empty-routes">
         <div class="detect-empty-route">
-          <h3>Route A — paid DLC pack (v1.x, planned)</h3>
+          <h3>Route A: paid DLC pack (v1.x, planned)</h3>
           <p>Creative Mayhem will offer a paid detector pack layered on top of the FOSS core. Install through <code>provcheck-kit dlc install ai-detect</code>; the pack registers a detector against the trait and this tab lights up.</p>
         </div>
         <div class="detect-empty-route">
-          <h3>Route B — operator-supplied wrapper (available now)</h3>
+          <h3>Route B: operator-supplied wrapper (available now)</h3>
           <p>Any Apache-2.0 wrapper crate that implements <code>provcheck_detect::Detector</code> can register itself via <code>DetectorRegistry::register</code> in a fork of <code>app/src-tauri/src/main.rs</code>. Full trait contract lives in <code><a href="https://github.com/CreativeMayhemLtd/provcheck/blob/main/docs/public-api-stability.md" data-external>docs/public-api-stability.md</a></code>.</p>
         </div>
       </div>
 
-      <p class="detect-empty-hint">Not to be confused with the <strong>Watermark</strong> tab — that surface detects <em>embedded provenance marks</em> put there by a known generator at render time (silentcipher, TrustMark, SynthID-text) and does ship live in the FOSS core.</p>
+      <p class="detect-empty-hint">Not to be confused with the <strong>Watermark</strong> tab: that surface detects <em>embedded provenance marks</em> put there by a known generator at render time (silentcipher, TrustMark, SynthID-text) and does ship live in the FOSS core.</p>
     </section>
   </div> <!-- /tab-detect -->
 
@@ -395,7 +412,7 @@
                    autocomplete="current-password" required />
           </label>
           <p class="sign-form-help">
-            App passwords are scoped tokens — generate one at
+            App passwords are scoped tokens; generate one at
             <a href="https://bsky.app/settings/app-passwords" target="_blank" rel="noopener">bsky.app → Settings → App Passwords</a>.
             <strong>Never paste your account password here.</strong>
           </p>
@@ -413,7 +430,7 @@
     <section class="sign-state" id="sign-state-publish" hidden>
       <div class="sign-state-inner">
         <h2>Publish your signing key</h2>
-        <p>One last step — publishing your key's fingerprint to atproto lets verifiers cross-check that you signed your work. Without this they only see "valid signature by unknown."</p>
+        <p>One last step: publishing your key's fingerprint to atproto lets verifiers cross-check that you signed your work. Without this they only see "valid signature by unknown."</p>
         <form class="sign-form" id="sign-publish-form" autocomplete="off">
           <label class="sign-form-field">
             <span>Label (optional)</span>
@@ -422,7 +439,7 @@
           <button type="submit" class="btn btn-primary" id="sign-publish-btn">Publish key</button>
           <p class="sign-form-error" id="sign-publish-error" hidden></p>
         </form>
-        <p class="hint">Or <button type="button" class="link-btn" id="sign-skip-publish-btn">skip and sign locally</button> — works, but no atproto attestation.</p>
+        <p class="hint">Or <button type="button" class="link-btn" id="sign-skip-publish-btn">skip and sign locally</button>; this works, but without atproto attestation.</p>
       </div>
     </section>
 
@@ -450,8 +467,8 @@
         </div>
 
         <p class="hint">
-          Or <button type="button" class="link-btn" id="sign-stale-skip-btn">sign locally without attestation</button>
-          — signature is valid but verifiers will see "signing key not currently attested."
+          Or <button type="button" class="link-btn" id="sign-stale-skip-btn">sign locally without attestation</button>;
+          the signature is valid but verifiers will see "signing key not currently attested."
         </p>
       </div>
     </section>
@@ -468,7 +485,7 @@
               <line x1="22" y1="20" x2="42" y2="20" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
             </svg>
             <h2>Drop a file here to sign</h2>
-            <p>Audio · Image · Video — anything c2pa-rs supports.</p>
+            <p>Audio · Image · Video: anything c2pa-rs supports.</p>
             <p class="hint">Output goes next to the source as <code>&lt;name&gt;.signed.&lt;ext&gt;</code>.</p>
           </div>
         </div>
@@ -492,7 +509,7 @@
                 <dt id="sign-chain-tool-label" hidden>Tool</dt>
                 <dd id="sign-chain-tool" hidden>—</dd>
               </dl>
-              <p class="sign-chain-sub">Your signature will join the chain as a derivative — the original signature stays intact.</p>
+              <p class="sign-chain-sub">Your signature will join the chain as a derivative; the original signature stays intact.</p>
             </div>
           </div>
 
@@ -513,25 +530,25 @@
             <legend>What's your relationship to this file?</legend>
             <label>
               <input type="radio" name="sign-action" value="created" id="sign-action-created" />
-              <span><strong>Created</strong> — I made this from scratch.</span>
+              <span><strong>Created</strong>: I made this from scratch.</span>
             </label>
             <label>
               <input type="radio" name="sign-action" value="opened" id="sign-action-opened" />
-              <span><strong>Opened</strong> — I received this as-is and am vouching for it unchanged.</span>
+              <span><strong>Opened</strong>: I received this as-is and am vouching for it unchanged.</span>
             </label>
             <label>
               <input type="radio" name="sign-action" value="edited" id="sign-action-edited" />
-              <span><strong>Edited</strong> — I modified the source.</span>
+              <span><strong>Edited</strong>: I modified the source.</span>
             </label>
             <label>
               <input type="radio" name="sign-action" value="published" id="sign-action-published" />
-              <span><strong>Published</strong> — I'm publishing this to a feed / platform.</span>
+              <span><strong>Published</strong>: I'm publishing this to a feed / platform.</span>
             </label>
           </fieldset>
 
           <label class="sign-form-remember">
             <input type="checkbox" id="sign-embed-identity" checked />
-            <span>Embed identity assertion (recommended — lets verifiers skip the handle entry step)</span>
+            <span>Embed identity assertion (recommended; lets verifiers skip the handle entry step)</span>
           </label>
           <label class="sign-form-remember">
             <input type="checkbox" id="sign-ai-artist" />
@@ -582,6 +599,18 @@
           <button class="btn btn-primary" id="sign-another-btn">Sign another</button>
           <button class="btn btn-ghost" id="sign-verify-btn">Verify it</button>
         </div>
+      </div>
+    </section>
+
+    <!-- Error state: kit_status failed (transient IO / keychain error).
+         Never show "setup" here — a user WITH an identity would be offered
+         a generate button that then refuses with force=true advice they
+         cannot follow from the GUI. -->
+    <section class="sign-state" id="sign-state-error" hidden>
+      <div class="sign-state-inner">
+        <h2>Could not load your signing status</h2>
+        <p class="hint" id="sign-error-text"></p>
+        <button class="btn btn-primary" id="sign-retry-btn" type="button">Retry</button>
       </div>
     </section>
 
@@ -703,7 +732,7 @@
       <div class="bf-field">
         <span>Secret file <em>(required)</em></span>
         <button class="btn btn-small" id="ml-secret-btn" type="button">Choose secret file</button>
-        <span class="mono" id="ml-secret-path"></span>
+        <span class="mono" id="ml-secret-path">none chosen. The secret is never stored, so pick it again after every launch.</span>
       </div>
       <label class="bf-field">
         <span>Work id <em>(required)</em></span>
@@ -719,9 +748,9 @@
       <div class="dropzone-inner">
         <h2>Choose an audio file to read its serial</h2>
         <button class="btn btn-primary" id="ml-choose-btn" type="button">Choose audio &amp; read</button>
-        <p class="hint" id="ml-hint">Pick your secret file and enter the work id first, then choose the audio.
-          Any format works (WAV, MP3, AAC, FLAC); dragging files onto the window reads the Backfire mark above,
-          so use this button for Mellin.</p>
+        <p class="hint" id="ml-hint">Pick your secret file and enter the work id first, then choose the audio
+          or drop it anywhere on this tab. Any format works (WAV, MP3, AAC, FLAC); audio files read here,
+          images read the Backfire mark above.</p>
       </div>
     </section>
 
@@ -772,20 +801,20 @@
 
         <h3>The fields</h3>
         <ul>
-          <li><strong>Key</strong> (required) &mdash; the secret the mark was written with.</li>
-          <li><strong>Expected serial</strong> (optional) &mdash; a specific id such as
+          <li><strong>Key</strong> (required): the secret the mark was written with.</li>
+          <li><strong>Expected serial</strong> (optional): a specific id such as
             <code>0x7</code> to check for; the result then says whether it matched.</li>
-          <li><strong>Carriers</strong> &mdash; must match how the image was marked. Leave
+          <li><strong>Carriers</strong>: must match how the image was marked. Leave
             <code>band</code> unless it was embedded with <code>edge</code>.</li>
         </ul>
 
         <h3>The result</h3>
         <ul>
-          <li><strong>Identifier</strong> &mdash; the recovered id (<code>0x0</code>&ndash;<code>0xF</code>).</li>
-          <li><strong>Confidence</strong> &mdash; how far the read clears the validity
+          <li><strong>Identifier</strong>: the recovered id (<code>0x0</code>&ndash;<code>0xF</code>).</li>
+          <li><strong>Confidence</strong>: how far the read clears the validity
             threshold. A genuine mark clears it with room; an unmarked or wrong-key image
             reads near the floor.</li>
-          <li><strong>Tamper tripwire</strong> &mdash; flags if the image was band-notched.
+          <li><strong>Tamper tripwire</strong>: flags if the image was band-notched.
             That is the one attack that can strip the mark, and it leaves a loud spectral
             hole this detects.</li>
         </ul>
@@ -802,6 +831,23 @@
           <a href="https://github.com/CreativeMayhemLtd/provcheck/tree/main/backfire" target="_blank" rel="noopener">github.com/CreativeMayhemLtd/provcheck/backfire</a>
         </p>
       </div>
+    </div>
+  </div>
+
+  <!-- Generic in-app dialog, replacing window.alert/confirm/prompt: those
+       are not reliably implemented across Tauri webviews (WKWebView's
+       confirm returns undefined, prompt is a no-op on several backends),
+       which silently disabled destructive-action confirmations. -->
+  <div class="modal-overlay" id="app-dialog" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="app-dialog-msg">
+      <div class="modal-body">
+        <p id="app-dialog-msg" style="white-space:pre-wrap"></p>
+        <input type="text" id="app-dialog-input" class="mono" hidden autocomplete="off" spellcheck="false" style="width:100%;margin-top:10px" />
+      </div>
+      <footer class="footer-actions" style="padding:0 20px 20px">
+        <button class="btn btn-primary" id="app-dialog-ok" type="button">OK</button>
+        <button class="btn" id="app-dialog-cancel" type="button">Cancel</button>
+      </footer>
     </div>
   </div>
 

@@ -34,22 +34,44 @@ use time::format_description::well_known::Rfc3339;
 /// this keeps the JSON envelope byte-identical to what
 /// `verify_file` returns so the frontend can share render code.
 #[tauri::command]
-async fn watermark_only(path: String) -> VerifyResponse {
+async fn watermark_only(path: String, families: Option<Vec<String>>) -> VerifyResponse {
     let path = PathBuf::from(path);
-    tauri::async_runtime::spawn_blocking(move || match verify(&path) {
-        Ok(mut report) => {
-            push_all_watermarks(&path, &mut report);
-            VerifyResponse {
-                ok: true,
-                error: None,
-                report: Some(report),
-            }
+    tauri::async_runtime::spawn_blocking(move || {
+        // A file the C2PA parser rejects (plain text, an exotic container)
+        // still deserves the watermark pass — SynthID-text targets exactly
+        // those. Failing the whole scan here rendered "no watermarks
+        // detected" on files where no detector ever ran.
+        let mut report = match verify(&path) {
+            Ok(r) => r,
+            Err(e) => Report {
+                verified: false,
+                unsigned: true,
+                trusted: None,
+                failure_reason: Some(format!("no C2PA container: {e}")),
+                active_manifest: None,
+                signer: None,
+                signed_at: None,
+                claim_generator: None,
+                assertions: serde_json::Value::Null,
+                ingredient_count: 0,
+                format: None,
+                validation_errors: 0,
+                did_attestation: None,
+                identity: None,
+                parents: Vec::new(),
+                watermarks: Vec::new(),
+                detections: Vec::new(),
+            },
+        };
+        match families {
+            Some(f) => push_selected_watermarks(&path, &mut report, &f),
+            None => push_all_watermarks(&path, &mut report),
         }
-        Err(e) => VerifyResponse {
-            ok: false,
-            error: Some(e.to_string()),
-            report: None,
-        },
+        VerifyResponse {
+            ok: true,
+            error: None,
+            report: Some(report),
+        }
     })
     .await
     .unwrap_or_else(|e| VerifyResponse {
@@ -116,9 +138,11 @@ fn app_log_path() -> Option<PathBuf> {
     let base = if cfg!(windows) {
         std::env::var_os("LOCALAPPDATA").map(PathBuf::from)
     } else {
-        std::env::var_os("XDG_DATA_HOME").map(PathBuf::from).or_else(|| {
-            std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local").join("share"))
-        })
+        std::env::var_os("XDG_DATA_HOME")
+            .map(PathBuf::from)
+            .or_else(|| {
+                std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local").join("share"))
+            })
     }?;
     Some(base.join("provcheck").join("logs").join("provcheck.log"))
 }
@@ -140,9 +164,24 @@ fn log_line(msg: &str) {
         .format(&Rfc3339)
         .unwrap_or_else(|_| "?".into());
     use std::io::Write;
-    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+    {
         let _ = writeln!(f, "[{ts}] {msg}");
     }
+}
+
+/// Frontend diagnostic sink: JS-side errors (window.onerror, unhandled
+/// rejections, flow tracing) land in the same provcheck.log as the backend
+/// events. Without this, a swallowed frontend exception is invisible — a
+/// spinner spins forever and nothing anywhere says why.
+#[tauri::command]
+fn frontend_log(msg: String) {
+    let mut m = msg;
+    m.truncate(500);
+    log_line(&format!("ui: {m}"));
 }
 
 /// The log path as a display string for surfacing in UI error messages.
@@ -160,9 +199,11 @@ fn backfire_home() -> Option<PathBuf> {
     let base = if cfg!(windows) {
         std::env::var_os("LOCALAPPDATA").map(PathBuf::from)
     } else {
-        std::env::var_os("XDG_DATA_HOME").map(PathBuf::from).or_else(|| {
-            std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local").join("share"))
-        })
+        std::env::var_os("XDG_DATA_HOME")
+            .map(PathBuf::from)
+            .or_else(|| {
+                std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local").join("share"))
+            })
     }?;
     Some(base.join("provcheck").join("backfire"))
 }
@@ -301,7 +342,13 @@ fn run_backfire_py_read(
                 let stderr_tail: String = {
                     let s = String::from_utf8_lossy(&out.stderr);
                     let t = s.trim();
-                    t.chars().rev().take(600).collect::<Vec<_>>().into_iter().rev().collect()
+                    t.chars()
+                        .rev()
+                        .take(600)
+                        .collect::<Vec<_>>()
+                        .into_iter()
+                        .rev()
+                        .collect()
                 };
                 log_line(&format!(
                     "backfire read: interpreter={py} exit={:?} stdout_json={} stderr_len={}",
@@ -322,11 +369,15 @@ fn run_backfire_py_read(
             }
             Err(e) => {
                 last_err = format!("could not run {py}: {e}");
-                log_line(&format!("backfire read: interpreter FAILED to start: {last_err}"));
+                log_line(&format!(
+                    "backfire read: interpreter FAILED to start: {last_err}"
+                ));
             }
         }
     }
-    log_line(&format!("backfire read: NO interpreter worked ({last_err})"));
+    log_line(&format!(
+        "backfire read: NO interpreter worked ({last_err})"
+    ));
     Err(format!(
         "no usable Python found for Backfire. Use the Install / Repair button (or run \
          provcheck --install-backfire) to set one up. ({last_err})\nFull log: {}",
@@ -397,7 +448,9 @@ fn refresh_backfire_code(app: &tauri::AppHandle) {
         // same directory. Copying a file onto itself fails with a sharing
         // violation (os error 32); there is nothing to refresh in that layout.
         if same_dir(&src, &home) {
-            log_line("launch: backfire home IS the bundled copy (same directory); no refresh needed");
+            log_line(
+                "launch: backfire home IS the bundled copy (same directory); no refresh needed",
+            );
             return;
         }
         match copy_backfire_tree(&src, &home) {
@@ -498,7 +551,9 @@ async fn install_backfire(app: tauri::AppHandle) -> ApiResult<String> {
         // reported, not fatal.
         let seed_err = match backfire_seed_source(resource.as_deref()) {
             Some(src) if same_dir(&src, &home) => {
-                log_line("backfire install: home IS the bundled copy (same directory); nothing to seed");
+                log_line(
+                    "backfire install: home IS the bundled copy (same directory); nothing to seed",
+                );
                 None
             }
             Some(src) => copy_backfire_tree(&src, &home).err().map(|e| e.to_string()),
@@ -510,8 +565,10 @@ async fn install_backfire(app: tauri::AppHandle) -> ApiResult<String> {
                 seed_err
             ));
             return ApiResult::ok(match seed_err {
-                None => "Backfire is ready (bundled reader present). Enter a key and drop an image."
-                    .to_string(),
+                None => {
+                    "Backfire is ready (bundled reader present). Enter a key and drop an image."
+                        .to_string()
+                }
                 Some(e) => format!(
                     "Backfire is ready (bundled reader present). Note: refreshing the optional \
                      per-user copy was skipped ({e}); the app uses its built-in copy. \
@@ -539,7 +596,10 @@ async fn install_backfire(app: tauri::AppHandle) -> ApiResult<String> {
         let (prog, args): (&str, Vec<String>) = if cfg!(windows) {
             let script = home.join("setup_backfire.ps1");
             if !script.exists() {
-                return ApiResult::err(format!("setup_backfire.ps1 not found in {}", home.display()));
+                return ApiResult::err(format!(
+                    "setup_backfire.ps1 not found in {}",
+                    home.display()
+                ));
             }
             (
                 "powershell",
@@ -555,9 +615,15 @@ async fn install_backfire(app: tauri::AppHandle) -> ApiResult<String> {
         } else {
             let script = home.join("setup_backfire.sh");
             if !script.exists() {
-                return ApiResult::err(format!("setup_backfire.sh not found in {}", home.display()));
+                return ApiResult::err(format!(
+                    "setup_backfire.sh not found in {}",
+                    home.display()
+                ));
             }
-            ("bash", vec![script.to_string_lossy().into_owned(), "--quiet".into()])
+            (
+                "bash",
+                vec![script.to_string_lossy().into_owned(), "--quiet".into()],
+            )
         };
         match Command::new(prog).args(&args).output() {
             Ok(out) if out.status.success() => {
@@ -578,7 +644,9 @@ async fn install_backfire(app: tauri::AppHandle) -> ApiResult<String> {
                 ))
             }
             Err(e) => {
-                log_line(&format!("backfire install: could not start setup script: {e}"));
+                log_line(&format!(
+                    "backfire install: could not start setup script: {e}"
+                ));
                 ApiResult::err(format!(
                     "Could not run the Backfire setup script ({e}). It needs PowerShell on \
                      Windows, or bash on Linux/macOS.\nFull log: {}",
@@ -718,7 +786,13 @@ async fn mellin_read(
                         let stderr_tail: String = {
                             let s = String::from_utf8_lossy(&out.stderr);
                             let t = s.trim();
-                            t.chars().rev().take(600).collect::<Vec<_>>().into_iter().rev().collect()
+                            t.chars()
+                                .rev()
+                                .take(600)
+                                .collect::<Vec<_>>()
+                                .into_iter()
+                                .rev()
+                                .collect()
                         };
                         log_line(&format!(
                             "mellin read: UNPARSEABLE output ({e}); stderr tail: {stderr_tail}"
@@ -744,14 +818,48 @@ async fn mellin_read(
     .unwrap_or_else(|e| ApiResult::err(format!("mellin_read task panicked: {e}")))
 }
 
-/// Open a native "choose any file" dialog (no extension filter) and return the
-/// selected absolute path. Used for the Mellin secret file and audio input,
-/// where an extension filter would only get in the way.
+/// Open a native "choose file" dialog and return the selected absolute path.
+/// `kind` picks the filter set: "media" leads with everything provcheck can
+/// process (all four detector modalities plus the extra containers the C2PA
+/// library parses), "audio" leads with audio, anything else shows all files.
+/// EVERY variant ends with an "All files" filter — a dialog that hides the
+/// user's files behind an inescapable filter is a dead end, never do that.
 #[tauri::command]
-async fn pick_any_file(title: String) -> Option<String> {
+async fn pick_any_file(title: String, kind: Option<String>) -> Option<String> {
+    const IMAGES: &[&str] = &[
+        "png", "jpg", "jpeg", "webp", "bmp", "tif", "tiff", "gif", "svg", "avif", "heic", "heif",
+        "dng",
+    ];
+    const AUDIO: &[&str] = &[
+        "wav", "mp3", "flac", "m4a", "m4b", "aac", "ogg", "oga", "opus", "aif", "aiff",
+    ];
+    const VIDEO: &[&str] = &["mp4", "m4v", "mov", "webm", "avi", "mkv"];
+    const TEXT: &[&str] = &["txt", "md"];
     tauri::async_runtime::spawn_blocking(move || {
-        rfd::FileDialog::new()
-            .set_title(&title)
+        let mut d = rfd::FileDialog::new().set_title(&title);
+        match kind.as_deref() {
+            Some("media") => {
+                let all: Vec<&str> = IMAGES
+                    .iter()
+                    .chain(AUDIO)
+                    .chain(VIDEO)
+                    .chain(TEXT)
+                    .chain(["pdf"].iter())
+                    .copied()
+                    .collect();
+                d = d
+                    .add_filter("All supported media", &all)
+                    .add_filter("Images", IMAGES)
+                    .add_filter("Audio", AUDIO)
+                    .add_filter("Video", VIDEO)
+                    .add_filter("Text", TEXT);
+            }
+            Some("audio") => {
+                d = d.add_filter("Audio", AUDIO);
+            }
+            _ => {}
+        }
+        d.add_filter("All files", &["*"])
             .pick_file()
             .map(|p| p.to_string_lossy().into_owned())
     })
@@ -766,8 +874,15 @@ async fn pick_any_file(title: String) -> Option<String> {
 async fn pick_image() -> Option<String> {
     tauri::async_runtime::spawn_blocking(|| {
         rfd::FileDialog::new()
-            .add_filter("images", &["png", "jpg", "jpeg", "webp", "bmp", "tif", "tiff"])
-            .set_title("Choose a file")
+            .add_filter(
+                "Images",
+                &["png", "jpg", "jpeg", "webp", "bmp", "tif", "tiff"],
+            )
+            // ALWAYS give the user a way out of the filter. A filter with no
+            // all-files fallback hides everything else in the folder and reads
+            // as "the app refuses to show my files".
+            .add_filter("All files", &["*"])
+            .set_title("Choose an image")
             .pick_file()
             .map(|p| p.to_string_lossy().into_owned())
     })
@@ -898,25 +1013,57 @@ fn open_url(url: String) -> Result<(), String> {
 // dispatch of the dedicated Watermark tab).
 // ============================================================================
 
+/// The six shipped detector families, keyed the way the Watermark tab's
+/// family selector names them.
+const ALL_FAMILIES: &[&str] = &[
+    "silentcipher",
+    "audioseal",
+    "wavmark",
+    "trustmark",
+    "trustmark-video",
+    "synthid-text",
+];
+
+/// Run the SELECTED detector families and push each Ok() into the report.
+/// Every family is real model inference, so scanning only what the user
+/// asked for turns a minutes-long six-family audio pass into one fast one.
+fn push_selected_watermarks(path: &Path, report: &mut Report, families: &[String]) {
+    let want = |k: &str| families.iter().any(|f| f == k);
+    if want("silentcipher") {
+        if let Ok(w) = provcheck_watermark::detect(path) {
+            report.watermarks.push(w);
+        }
+    }
+    if want("audioseal") {
+        if let Ok(w) = provcheck_audioseal::detect(path) {
+            report.watermarks.push(w);
+        }
+    }
+    if want("wavmark") {
+        if let Ok(w) = provcheck_wavmark::detect(path) {
+            report.watermarks.push(w);
+        }
+    }
+    if want("trustmark") {
+        if let Ok(w) = provcheck_image::detect(path) {
+            report.watermarks.push(w);
+        }
+    }
+    if want("trustmark-video") {
+        if let Ok(w) = provcheck_video::detect(path) {
+            report.watermarks.push(w);
+        }
+    }
+    if want("synthid-text") {
+        if let Ok(w) = provcheck_synthid_text::detect(path) {
+            report.watermarks.push(w);
+        }
+    }
+}
+
 fn push_all_watermarks(path: &Path, report: &mut Report) {
-    if let Ok(w) = provcheck_watermark::detect(path) {
-        report.watermarks.push(w);
-    }
-    if let Ok(w) = provcheck_audioseal::detect(path) {
-        report.watermarks.push(w);
-    }
-    if let Ok(w) = provcheck_wavmark::detect(path) {
-        report.watermarks.push(w);
-    }
-    if let Ok(w) = provcheck_image::detect(path) {
-        report.watermarks.push(w);
-    }
-    if let Ok(w) = provcheck_video::detect(path) {
-        report.watermarks.push(w);
-    }
-    if let Ok(w) = provcheck_synthid_text::detect(path) {
-        report.watermarks.push(w);
-    }
+    let all: Vec<String> = ALL_FAMILIES.iter().map(|s| s.to_string()).collect();
+    push_selected_watermarks(path, report, &all);
 }
 
 // ============================================================================
@@ -1192,10 +1339,7 @@ async fn kit_status(data_dir: Option<String>) -> ApiResult<KitStatus> {
 /// the OS keychain (no passphrase prompt needed — the OS handles its own
 /// auth flow on first read).
 #[tauri::command]
-async fn kit_init(
-    data_dir: Option<String>,
-    force: Option<bool>,
-) -> ApiResult<IdentitySnapshot> {
+async fn kit_init(data_dir: Option<String>, force: Option<bool>) -> ApiResult<IdentitySnapshot> {
     let dir = match resolve_dir(data_dir) {
         Ok(d) => d,
         Err(e) => return ApiResult::err(e),
@@ -1203,7 +1347,7 @@ async fn kit_init(
 
     if !force.unwrap_or(false) && load_locked(&dir).is_ok() {
         return ApiResult::err(
-            "an identity already exists at this data directory — pass force=true \
+            "an identity already exists at this data directory; pass force=true \
              to regenerate (this orphans any previously-published atproto records)"
                 .to_string(),
         );
@@ -1227,10 +1371,9 @@ async fn kit_init(
 
     // No passphrase prompt — the keychain provider stashes via the OS
     // backend, which has its own auth surface.
-    let mut prompt =
-        |_: NewPassphrasePrompt| -> Result<SecretString, ProviderError> {
-            Ok(SecretString::from(String::new()))
-        };
+    let mut prompt = |_: NewPassphrasePrompt| -> Result<SecretString, ProviderError> {
+        Ok(SecretString::from(String::new()))
+    };
     if let Err(e) = KeychainProvider::new().store(
         &dir,
         &locked.fingerprint,
@@ -1279,8 +1422,7 @@ async fn kit_login(args: LoginArgs) -> ApiResult<SessionSnapshot> {
     };
     let pds = args.pds.unwrap_or_else(|| "https://bsky.social".into());
 
-    let client = match AtprotoClient::login(&pds, &args.handle, &args.app_password).await
-    {
+    let client = match AtprotoClient::login(&pds, &args.handle, &args.app_password).await {
         Ok(c) => c,
         Err(e) => return ApiResult::err(format!("atproto login: {e}")),
     };
@@ -1410,7 +1552,7 @@ async fn kit_publish(args: PublishArgs) -> ApiResult<PublishResult> {
     };
     let client = match AtprotoClient::load_session(&dir).await {
         Ok(c) => c,
-        Err(e) => return ApiResult::err(format!("load session — run kit_login first: {e}")),
+        Err(e) => return ApiResult::err(format!("load session failed (run kit_login first): {e}")),
     };
     let writer = provcheck_publish::RecordWriter::new(&client);
 
@@ -1536,7 +1678,9 @@ async fn kit_revoke(args: RevokeArgs) -> ApiResult<RevokeResult> {
         Ok(r) => r,
         Err(e) => return ApiResult::err(format!("list signing keys: {e}")),
     };
-    let matching = records.iter().find(|(_, rec)| rec.fingerprint == args.fingerprint);
+    let matching = records
+        .iter()
+        .find(|(_, rec)| rec.fingerprint == args.fingerprint);
     let (uri, current) = match matching {
         Some(pair) => pair,
         None => {
@@ -1636,8 +1780,12 @@ async fn kit_rotate(args: RotateArgs) -> ApiResult<RotateResult> {
             Ok(SecretString::from(String::new()))
         };
     let store_result = match old.key_provider {
-        KeyProviderKind::Keychain => provcheck_sign::providers::KeychainProvider::new()
-            .store(&dir, &new_fingerprint, &new_key_secret, &mut store_prompt),
+        KeyProviderKind::Keychain => provcheck_sign::providers::KeychainProvider::new().store(
+            &dir,
+            &new_fingerprint,
+            &new_key_secret,
+            &mut store_prompt,
+        ),
         KeyProviderKind::EncryptedFile => {
             return ApiResult::err(
                 "GUI rotation of age-file-backed identities isn't wired yet. \
@@ -1746,6 +1894,10 @@ struct SignArgs {
     /// When None → sidecar `<stem>.signed.<ext>` next to source.
     /// When Some → write to this path (must differ from `file` AND share extension).
     out: Option<String>,
+    /// When true, sign IN PLACE: write to a temp sibling and replace the
+    /// source file on success. Overrides `out`. Before this existed, the
+    /// GUI's "Replace the original" checkbox silently wrote a sidecar.
+    replace_original: Option<bool>,
     embed_identity: Option<bool>,
     /// One of "created" / "opened" / "edited" / "published" (or
     /// the canonical "c2pa." prefixed form). When None, the
@@ -1825,10 +1977,9 @@ async fn kit_sign(args: SignArgs) -> ApiResult<SignResultDto> {
     // (OS handles it). EncryptedFile backend would need a passphrase UI
     // which is a follow-up — for v1 we only run the GUI flow against
     // keychain-backed identities.
-    let mut prompt =
-        |_: UnlockPrompt| -> Result<SecretString, ProviderError> {
-            Ok(SecretString::from(String::new()))
-        };
+    let mut prompt = |_: UnlockPrompt| -> Result<SecretString, ProviderError> {
+        Ok(SecretString::from(String::new()))
+    };
     let key_pem = match locked.key_provider {
         KeyProviderKind::Keychain => {
             match KeychainProvider::new().fetch(&dir, &locked.fingerprint, &mut prompt) {
@@ -1855,9 +2006,29 @@ async fn kit_sign(args: SignArgs) -> ApiResult<SignResultDto> {
     let unlocked = UnlockedIdentity::new(locked.clone(), key_pem);
 
     let src = PathBuf::from(&args.file);
-    let dst = match args.out.as_ref() {
-        Some(p) => PathBuf::from(p),
-        None => sidecar_signed_path(&src),
+    // Replace-in-place signs to a temp sibling (keeping the extension so the
+    // signer's format detection still works), then overwrites the source on
+    // success below.
+    let replace = args.replace_original.unwrap_or(false);
+    let dst = if replace {
+        let mut name = src
+            .file_stem()
+            .map(|s| s.to_owned())
+            .unwrap_or_else(|| std::ffi::OsString::from("signing"));
+        name.push(".signing-tmp");
+        if let Some(e) = src.extension() {
+            name.push(".");
+            name.push(e);
+        }
+        match src.parent() {
+            Some(p) if !p.as_os_str().is_empty() => p.join(name),
+            _ => PathBuf::from(name),
+        }
+    } else {
+        match args.out.as_ref() {
+            Some(p) => PathBuf::from(p),
+            None => sidecar_signed_path(&src),
+        }
     };
 
     // Inspect the source for prior provenance so we can pick the
@@ -1894,7 +2065,7 @@ async fn kit_sign(args: SignArgs) -> ApiResult<SignResultDto> {
             }
             None => {
                 return ApiResult::err(
-                    "embed-identity requires a DID — run kit_login first".to_string(),
+                    "embed-identity requires a DID; run kit_login first".to_string(),
                 );
             }
         }
@@ -1907,8 +2078,26 @@ async fn kit_sign(args: SignArgs) -> ApiResult<SignResultDto> {
         Err(e) => return ApiResult::err(format!("c2pa sign: {e}")),
     };
 
+    let output_path = if replace {
+        // Overwrite the original with the signed temp, then drop the temp.
+        // fs::copy rather than rename: Windows rename refuses to clobber an
+        // existing file. On failure the signed temp is left for recovery and
+        // the error names it.
+        if let Err(e) = std::fs::copy(&dst, &src) {
+            return ApiResult::err(format!(
+                "signed OK but could not replace the original ({e}); the signed \
+                 file was left at {}",
+                dst.display()
+            ));
+        }
+        let _ = std::fs::remove_file(&dst);
+        src.clone()
+    } else {
+        result.output_path.clone()
+    };
+
     ApiResult::ok(SignResultDto {
-        output_path: result.output_path.to_string_lossy().into_owned(),
+        output_path: output_path.to_string_lossy().into_owned(),
         manifest_bytes: result.manifest_bytes.len(),
         identity_embedded: embedded_did,
         action: action.as_c2pa_label().to_string(),
@@ -1941,7 +2130,7 @@ fn default_manifest(
     ai_artist_model: Option<&str>,
 ) -> Result<String, String> {
     let format = format_from_extension(asset)
-        .ok_or_else(|| "unrecognised file extension — custom manifest needed".to_string())?;
+        .ok_or_else(|| "unrecognised file extension; custom manifest needed".to_string())?;
     let title = asset
         .file_name()
         .and_then(|s| s.to_str())
@@ -2042,6 +2231,8 @@ fn main() {
             install_backfire,
             mellin_read,
             mellin_status,
+            // Frontend errors and flow traces land in the diagnostic log.
+            frontend_log,
             // Native "choose file" dialogs shared by the tabs.
             pick_image,
             pick_any_file,

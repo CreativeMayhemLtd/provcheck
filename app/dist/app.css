@@ -100,6 +100,12 @@ body {
 .attribution {
   font-size: 11px;
   color: var(--text-muted);
+  /* Flex-center the row: as inline boxes, the provcheck.ai link's baseline
+   * derives from the 14px globe icon (not its text), landing its label 1px
+   * off the sibling link's baseline. Centered flex items with equal
+   * font-size share one text midline, so the baselines coincide exactly. */
+  display: inline-flex;
+  align-items: center;
 }
 .attribution a {
   color: var(--text-secondary);
@@ -127,6 +133,53 @@ body {
 .attribution .sep {
   margin: 0 8px;
   color: var(--border-strong);
+}
+
+/* Loading-state hints: centered and column-width under the spinner, never a
+ * full-width wall of text glued to the window edges. */
+.loading .hint {
+  max-width: 46ch;
+  margin: 12px auto 0;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+/* Detector-family selector on the Watermark tab. */
+.wm-families {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding: 10px 4px 14px;
+}
+.wm-families .wm-families-label {
+  color: var(--text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.wm-families label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.wm-families em {
+  font-style: normal;
+  color: var(--text-muted);
+}
+
+/* Muted signpost under the blind-scan results: keyed marks (Backfire,
+ * Mellin) are undetectable without the key BY DESIGN, and without this
+ * line a user with a keyed-marked file reads the scan as "missing" it. */
+.watermarks-keyed-note {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 8px 2px 0;
 }
 
 /* Identity bar — optional bsky handle / DID input for the
