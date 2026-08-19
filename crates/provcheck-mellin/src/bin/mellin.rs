@@ -1,5 +1,5 @@
 //! `provcheck-mellin` — embed and read a keyed per-copy serial watermark in
-//! audio files, using the BUSL-1.1 Fourier-Mellin channel.
+//! audio files, using the keyed Fourier-Mellin channel.
 //!
 //! This binary lives in the opt-in, standalone crate and is never part of the
 //! Apache-2.0 provcheck release. Build it with:

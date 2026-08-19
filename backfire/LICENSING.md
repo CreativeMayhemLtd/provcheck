@@ -28,7 +28,7 @@ provcheck's core is Apache-2.0, and `WATERMARK_LICENSE_POLICY.md` requires every
 bundled into the shipped binary to be permissively licensed. Backfire is a standalone
 Python tool: it is **not** compiled into, linked with, or shipped inside the provcheck
 `.exe`, so its copyleft license never reaches the permissive binary. This is the same
-isolation `provcheck-mellin` (BUSL-1.1) uses. Apache-2.0 code may be combined into an
+isolation `provcheck-mellin` (AGPL-3.0-or-later) uses. Apache-2.0 code may be combined into an
 AGPL-3.0 work, so Backfire may depend on the Apache-licensed helpers; the reverse is
 not permitted, so no Apache-licensed part of provcheck may depend on Backfire.
 

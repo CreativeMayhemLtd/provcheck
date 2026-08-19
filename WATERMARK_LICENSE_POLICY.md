@@ -107,12 +107,13 @@ Six detector families ship live as of v0.9.x:
 
 Not added: SynthID Audio (weights unreleased), Stable Signature (non-commercial clause), the classical fallback rows (no model surface).
 
-## The one source-available exception: `provcheck-mellin` (opt-in, never bundled)
+## The source-available audio option: `provcheck-mellin` (AGPL, opt-in, never bundled)
 
 `crates/provcheck-mellin/` is a keyed forensic watermark channel (Fourier-Mellin
 spectral embed + detect) ported from Lysn.fm's `lysn-watermark` crate. It is
-**BUSL-1.1** (converting to Apache-2.0 on 2030-01-01), which fails the bundling
-rule above, so it is handled the way the rule demands:
+dual-licensed **AGPL-3.0-or-later OR a commercial license** (copyleft; see its
+`LICENSE` and `LICENSING.md`), which fails the bundling rule above, so it is
+handled the way the rule demands:
 
 - It is **excluded from the workspace** (`exclude` in the root `Cargo.toml`) and
   built only on request via

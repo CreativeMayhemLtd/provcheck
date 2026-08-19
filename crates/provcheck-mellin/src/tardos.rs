@@ -1,4 +1,5 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-provcheck-mellin-Commercial
+// Copyright (C) 2026 Creative Mayhem UG (haftungsbeschränkt)
 //! Tardos collusion-resistant fingerprinting — the pure, hermetic core (no
 //! media, no ML).
 //!

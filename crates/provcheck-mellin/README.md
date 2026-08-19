@@ -7,10 +7,10 @@ embed and detect over i16 LE PCM. Ported from Lysn.fm's `lysn-watermark` crate
 ## This crate is opt-in, and it is NOT in the release binary
 
 provcheck is Apache-2.0, and `WATERMARK_LICENSE_POLICY.md` requires everything
-bundled into the binary to be permissively licensed. This crate is **BUSL-1.1**
-(see `LICENSE`; it converts to Apache-2.0 on 2030-01-01), so it is excluded from
-the workspace, never wired into the detector dispatch, and never shipped in the
-`.exe`. Build it standalone:
+bundled into the binary to be permissively licensed. This crate is dual-licensed
+**AGPL-3.0-or-later OR a commercial license** (see `LICENSE` and `LICENSING.md`),
+which is copyleft, so it is excluded from the workspace, never wired into the
+detector dispatch, and never shipped in the `.exe`. Build it standalone:
 
 ```
 cargo build --manifest-path crates/provcheck-mellin/Cargo.toml
