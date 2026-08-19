@@ -17,7 +17,7 @@ import backfire as bf
 
 KEY = b"unit-test-key"
 SIZE = 256
-THRESH = 1.5      # default per-bit margin threshold for a valid read
+THRESH = 2.5      # default per-bit margin threshold for a valid read (robust noise floor)
 
 
 def _synthetic_marked(key: bytes, idv: int, size: int = SIZE, amp: float = 0.03, seed: int = 0):

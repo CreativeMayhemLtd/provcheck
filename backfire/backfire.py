@@ -25,6 +25,13 @@ LO, HI = 6.0, 40.0                 # mid-frequency carrier band (radial px @ 256
 ID_BITS, ID_REPS = 4, 8            # 4-bit keyed id (16 per key; keyspace unbounded), 8 reps
 NBITS = ID_BITS * ID_REPS          # 32 carriers, all id (reliability over capacity)
 
+def _scaled_band(lo: float, hi: float, size: int):
+    """Scale an @256 radial-bin band to `size` so the same *relative* frequency
+    (cycles/pixel) is used at any resolution. size=256 returns (lo, hi) unchanged, so
+    every 256px mark, golden vector, and test stays byte-identical."""
+    s = size / 256.0
+    return lo * s, hi * s
+
 def _key_bytes(k: str, is_hex: bool) -> bytes:
     return bytes.fromhex(k) if is_hex else k.encode()
 
@@ -34,7 +41,8 @@ def keyed_carriers(key: bytes, size: int, label: bytes = b"backfire/carrier"):
     the real carriers from the decoy carriers used for detection normalization."""
     yy, xx = np.mgrid[0:size, 0:size].astype(np.float32)
     rad = np.sqrt((xx - size/2)**2 + (yy - size/2)**2)
-    band = ((rad > LO) & (rad < HI)).astype(np.float32)
+    lo, hi = _scaled_band(LO, HI, size)
+    band = ((rad > lo) & (rad < hi)).astype(np.float32)
     out = np.empty((NBITS, size, size), np.float32)
     for i in range(NBITS):
         seed = int.from_bytes(hmac.new(key, label + i.to_bytes(4, "big"),
@@ -65,7 +73,8 @@ def edge_carriers(key: bytes, size: int, lum, label: bytes = b"backfire/carrier"
     the image under test (the read path passes the image being checked as `lum`)."""
     yy, xx = np.mgrid[0:size, 0:size].astype(np.float32)
     rad = np.sqrt((xx - size/2)**2 + (yy - size/2)**2)
-    band = ((rad > LO_EDGE) & (rad < HI_EDGE)).astype(np.float32)
+    lo, hi = _scaled_band(LO_EDGE, HI_EDGE, size)
+    band = ((rad > lo) & (rad < hi)).astype(np.float32)
     M = _edge_mask(lum, size)
     out = np.empty((NBITS, size, size), np.float32)
     for i in range(NBITS):
@@ -92,16 +101,22 @@ def target_signs(key: bytes, idv: int):
     return s
 
 def decode(img_gray, C, C_decoy):
-    """Soft-vote each id bit, and score trust by the weakest bit's margin over the
-    decoy noise floor. A marginal or flipped bit (the false-valid failure mode) has
-    a small margin and is rejected; a genuinely marked image clears the floor on
-    every bit. Returns (id, mean_margin, min_margin). Margin ~1 means at the noise
-    floor (unmarked or wrong key); well above 1 on every bit means marked."""
+    """Soft-vote each id bit, and score trust by the weakest bit's margin over the decoy
+    noise floor. The noise floor is a robust null-scale estimate from ALL the decoy
+    carriers (sqrt(ID_REPS) times the std of the decoy correlations), so a single
+    chance-small decoy cannot inflate the margins. On unmarked or wrong-key images every
+    bit's margin sits near or below 1; a genuinely marked image clears the floor on every
+    bit by a wide margin. Returns (id, mean_margin, min_margin). This normalization only
+    affects the margin; the recovered id is unchanged."""
     g = img_gray - img_gray.mean()
     corr = (C * g).sum((1, 2))
     dcorr = (C_decoy * g).sum((1, 2))
     votes = [float(corr[b:NBITS:ID_BITS].sum()) for b in range(ID_BITS)]
-    dnoise = float(np.abs([dcorr[b:NBITS:ID_BITS].sum() for b in range(ID_BITS)]).mean()) + 1e-8
+    # A bit-vote is a sum of ID_REPS carrier correlations, so under the null its scale is
+    # sqrt(ID_REPS) * (per-carrier corr std). Estimating that std from all NBITS decoy
+    # correlations is far more stable than the old mean of only ID_BITS decoy bit-sums,
+    # which had a chance-small denominator ~2% of the time and produced false positives.
+    dnoise = float(np.sqrt(ID_REPS) * dcorr.std()) + 1e-8
     idv = sum((1 << b) for b in range(ID_BITS) if votes[b] > 0)
     margins = [abs(v) / dnoise for v in votes]
     return idv, float(np.mean(margins)), float(min(margins))
@@ -116,7 +131,8 @@ def _band_notch_np(rgb, size):
     """Numpy band-notch (suppress the LO..HI ring) for per-image robustness assessment."""
     yy, xx = np.mgrid[0:size, 0:size].astype(np.float32)
     rad = np.sqrt((xx - size/2)**2 + (yy - size/2)**2)
-    band = (rad > LO) & (rad < HI)
+    lo, hi = _scaled_band(LO, HI, size)
+    band = (rad > lo) & (rad < hi)
     out = np.empty_like(rgb)
     for c in range(rgb.shape[2]):
         F = np.fft.fftshift(np.fft.fft2(rgb[:, :, c])); F[band] = 0.0
@@ -126,10 +142,13 @@ def _band_notch_np(rgb, size):
 # A sophisticated attacker can strip the mark with an aggressive band-notch, but that
 # notch is loud: it carves an anomalous suppressed ring into the FFT. Natural images have
 # a smooth power-law radial spectrum, so a notch shows up as a localized dip far below
-# trend. Every notch strong enough to strip the mark clears the threshold (measured: clean
-# images top out near 1.15, mark-stripping notches read 2 to 4), so the mark and this
-# tripwire together leave the attacker no move that both removes the mark and stays quiet.
-NOTCH_TAMPER_THRESHOLD = 1.3
+# trend. Every notch strong enough to strip the mark clears the threshold (measured over
+# 300 clean COCO images: clean tops out near 1.15 at 256px and 1.39 at 512px, while
+# mark-stripping notches read 4 and up), so the mark and this tripwire together leave the
+# attacker no move that both removes the mark and stays quiet. 1.45 sits above the clean
+# tail at both resolutions and well below every stripping notch (0 gaps over an 81-config
+# feathered-notch grid at each size).
+NOTCH_TAMPER_THRESHOLD = 1.45
 
 def notch_tamper_stat(gray, size):
     """Deepest below-trend suppression in the radial power spectrum. > threshold means a
@@ -243,23 +262,37 @@ def embed_cmd(a):
             keep = torch.where((rad2 > lo) & (rad2 < hi), torch.tensor(res, device=dev), one)
             Fm = torch.fft.fftshift(torch.fft.fft2(img), dim=(-2, -1)) * keep
             return torch.real(torch.fft.ifft2(torch.fft.ifftshift(Fm, dim=(-2, -1))))
+        nsc = a.size / 256.0                 # @256 band units, scaled to the embed resolution
         def sample_notch():  # a family of band-stops, not one fixed notch
-            lo = float(nrng.uniform(3, 18)); hi = lo + float(nrng.uniform(12, 44)); res = float(nrng.uniform(0.0, 0.3))
-            return lo, hi, res
+            lo = float(nrng.uniform(3, 18)) * nsc; hi = lo + float(nrng.uniform(12, 44)) * nsc
+            res = float(nrng.uniform(0.0, 0.3)); return lo, hi, res
     w = (0.01 * torch.randn_like(host)).requires_grad_(True)   # tiny nonzero: the RMS projection has no defined direction at w=0
     opt = torch.optim.Adam([w], lr=a.lr)
+    eot_terms = [(pf, s, n) for pf in purifiers for s in strengths for n in noises]
+    n_eot = len(eot_terms)
     for it in range(a.iters):
         opt.zero_grad()
-        x = make_x(w)
-        post = torch.stack([(corrs(pf["purify"](x, n, pf["ts_by_s"][s]))*tsign).mean()
-                            for pf in purifiers for s in strengths for n in noises]).mean()
-        loss = -(post + a.direct*(corrs(x)*tsign).mean())
+        x = make_x(w)                              # graph: w -> x
+        # Accumulate gradients over the EOT purifier passes one at a time, freeing each
+        # pass's autograd graph before building the next. Peak memory is ONE purifier
+        # backprop, not all n_eot at once, which is what lets 512px embeds fit: the
+        # differentiable purifier (not the mark) is the memory cost, and it scales with
+        # the number of live EOT graphs. Math is identical to one stacked .mean().backward().
+        xd = x.detach().requires_grad_(True)
+        post = 0.0
+        for pf, s, n in eot_terms:
+            li = (corrs(pf["purify"](xd, n, pf["ts_by_s"][s])) * tsign).mean()
+            (-li / n_eot).backward()               # d(-post/n_eot)/dxd, accumulated into xd.grad
+            post += li.item() / n_eot
+        extra = -a.direct * (corrs(xd) * tsign).mean()   # pre-attack readability term
         if a.notch_eot > 0:
             lo, hi, res = sample_notch()
-            loss = loss - a.notch_eot * (corrs(dnotch(x, lo, hi, res))*tsign).mean()
-        loss.backward(); opt.step()
+            extra = extra - a.notch_eot * (corrs(dnotch(xd, lo, hi, res)) * tsign).mean()
+        extra.backward()                           # accumulate the direct/notch grads into xd.grad
+        x.backward(xd.grad)                         # propagate xd.grad through make_x back to w
+        opt.step()
         if it % 40 == 0 or it == a.iters-1:
-            log(f"  iter {it:4d}  E[post]={post.item():+.3f}")
+            log(f"  iter {it:4d}  E[post]={post:+.3f}")
 
     marked = make_x(w).detach()
     m_np = marked[0].permute(1, 2, 0).cpu().numpy()
@@ -303,7 +336,7 @@ def main():
     e.add_argument("--lr", type=float, default=4e-3)
     e.add_argument("--direct", type=float, default=0.7, help="pre-attack readability weight")
     e.add_argument("--eot-strengths", default="0.2,0.3"); e.add_argument("--eot-noises", type=int, default=4)
-    e.add_argument("--threshold", type=float, default=1.5, help="min per-bit margin for a valid read")
+    e.add_argument("--threshold", type=float, default=2.5, help="min per-bit margin for a valid read")
     e.add_argument("--carriers", choices=["band", "edge"], default="band", help="band (default) or content-coupled edge-masked mid-low carriers")
     e.add_argument("--notch-eot", type=float, default=0.0, help="weight on staying readable after a band-notch (notch-in-the-loop hardening; 0 = off)")
     e.add_argument("--assess", action="store_true", help="after embed, measure this mark's survival vs the purifier and a band-notch, and emit a per-image rating")
@@ -313,9 +346,9 @@ def main():
     e.set_defaults(func=embed_cmd)
     r = sub.add_parser("read", help="recover the keyed id (numpy only, no GPU)")
     r.add_argument("infile"); r.add_argument("--key", required=True); r.add_argument("--hexkey", action="store_true")
-    r.add_argument("--size", type=int, default=256); r.add_argument("--threshold", type=float, default=1.5)
+    r.add_argument("--size", type=int, default=256); r.add_argument("--threshold", type=float, default=2.5)
     r.add_argument("--carriers", choices=["band", "edge"], default="band", help="must match how the image was embedded")
-    r.add_argument("--notch-threshold", type=float, default=NOTCH_TAMPER_THRESHOLD, help="band-notch tamper tripwire threshold (clean images < 1.15, mark-stripping notches > 2)")
+    r.add_argument("--notch-threshold", type=float, default=NOTCH_TAMPER_THRESHOLD, help="band-notch tamper tripwire threshold (clean images < 1.4, mark-stripping notches > 4)")
     r.add_argument("--expect", type=lambda x: int(x, 0), default=None, help="exit 0 iff this id is read and valid")
     r.set_defaults(func=read_cmd)
     a = ap.parse_args(); a.func(a)
