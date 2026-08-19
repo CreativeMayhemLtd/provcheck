@@ -1,5 +1,5 @@
 {
   "bundle": {
-    "resources": ["onnxruntime.dll", "backfire/**/*", "mellin/**/*"]
+    "resources": ["onnxruntime.dll", "backfire/**/*", "mellin/**/*", "test-files/**/*"]
   }
 }

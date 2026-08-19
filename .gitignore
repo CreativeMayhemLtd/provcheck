@@ -66,3 +66,6 @@ app/src-tauri/onnxruntime.dll
 app/src-tauri/backfire/
 # in-project staged copy of the mellin tool for GUI resource bundling (build artifact)
 app/src-tauri/mellin/
+# in-project staged sample/test files for GUI resource bundling (build artifact;
+# rAIdio.bot-derived content is operator-curated before it lands here)
+app/src-tauri/test-files/
