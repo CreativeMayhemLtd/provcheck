@@ -69,3 +69,6 @@ app/src-tauri/mellin/
 # in-project staged sample/test files for GUI resource bundling (build artifact;
 # rAIdio.bot-derived content is operator-curated before it lands here)
 app/src-tauri/test-files/
+
+# operator-curated rAIdio.bot source audio for sample packaging (never committed)
+radiobot_examples/
