@@ -9,9 +9,10 @@ Backfire is **source-available and dual-licensed**. You may use it under either:
    **non-commercial** production use of Backfire. Personal use, academic
    research, teaching, evaluation, security research, and non-profit use are
    covered. BUSL includes a **Change Date** on which the license automatically
-   converts to an open-source Change License; that date and the target license
-   are **not yet finalized** for Backfire and will be set by Creative Mayhem
-   before any public release.
+   converts to an open-source Change License. For each released version of
+   Backfire the Change Date is **four years from that version's first public
+   distribution**; the target Change License is not yet named and will be set
+   by Creative Mayhem before any public release.
 
 2. **A commercial license** — required for any commercial or for-profit
    production use before the Change Date (embedding Backfire in a paid product
@@ -49,8 +50,8 @@ Backfire is a frontier forensic tool, and Creative Mayhem sells commercial
 licenses for it as a revenue product. BUSL keeps the full method open and
 reproducible (the `read` side needs only numpy and pillow, so anyone can verify
 our claims and limits), lets non-commercial users run it freely, and reserves
-commercial production use for paying customers, while still reserving a switch
-to an open-source license on a future Change Date, which Creative Mayhem will
-set before any public release. The permissive Apache
+commercial production use for paying customers, while still committing each
+released version to convert to an open-source license four years after its
+first public distribution. The permissive Apache
 core still gives the broader provcheck ecosystem its low-friction path to
 ubiquity; Backfire, as the frontier piece, is held under BUSL until it opens.

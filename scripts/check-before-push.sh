@@ -181,6 +181,31 @@ if [[ ! -t 0 ]]; then
         # matters); write anything relevant to the release-
         # readiness statement + link the iterations that
         # constitute the FC scope.
+        # (3b) BUSL parameter check. A v*.*.0 tag is the public-release
+        # trigger (publish-release.sh pushes main to the public mirror), and
+        # BUSL is not validly parameterized with TBD placeholders. The Change
+        # Date is policy-fixed (four years from each version's first public
+        # distribution, operator decision 2026-08-19) and already in the
+        # files; the Change License must be NAMED (a GPL-compatible license,
+        # operator decision) before anything ships publicly.
+        for busl_file in backfire/LICENSE crates/provcheck-mellin/LICENSE; do
+            if git show "HEAD:$busl_file" 2>/dev/null | grep -qE '^Change (Date|License):[[:space:]]+TBD'; then
+                red ""
+                red "==============================================================="
+                red " RELEASE GATE FAIL: TBD BUSL parameter in $busl_file"
+                red "==============================================================="
+                red "  A release-line tag publishes BUSL-licensed components, and"
+                red "  the MariaDB covenants require a concrete Change Date and a"
+                red "  GPL-compatible Change License. Change Date policy is four"
+                red "  years per released version (already in the file when this"
+                red "  gate is healthy); the Change License is the operator's"
+                red "  naming decision. Set it in the LICENSE + LICENSING.md of"
+                red "  the flagged component, commit, and re-tag."
+                red "==============================================================="
+                exit 1
+            fi
+        done
+
         fc_marker="docs/release-fc/${tag_name}.md"
         if ! git ls-tree -r --name-only HEAD | grep -qxF "$fc_marker"; then
             red ""

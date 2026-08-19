@@ -114,9 +114,10 @@ spectral embed + detect) ported from Lysn.fm's `lysn-watermark` crate. It is
 **source-available under BUSL-1.1 OR a commercial license** (free for
 non-commercial use, commercial use already authorized under a Creative Mayhem
 product license such as raidio.bot, vAIdeo.bot, or Lysn.fm is covered by that
-product's license, and a switch to an open-source license is reserved for a
-future Change Date; see its `LICENSE` and `LICENSING.md`), which fails the
-bundling rule above, so it is handled the way the rule demands:
+product's license, and each released version converts to an open-source license
+four years after its first public distribution; see its `LICENSE` and
+`LICENSING.md`), which fails the bundling rule above, so it is handled the way
+the rule demands:
 
 - It is **excluded from the workspace** (`exclude` in the root `Cargo.toml`) and
   built only on request via
@@ -145,9 +146,9 @@ the purifier). It is the image-side analogue of `provcheck-mellin`, and it is ha
 the same way:
 
 - It is **source-available under BUSL-1.1 OR a commercial license** (Creative Mayhem
-  UG; free for non-commercial use, with a switch to an open-source license reserved
-  for a future Change Date), which fails the Apache-2.0 bundling rule above, so it
-  is kept out of the shipped artefact.
+  UG; free for non-commercial use, and each released version converts to an
+  open-source license four years after its first public distribution), which fails
+  the Apache-2.0 bundling rule above, so it is kept out of the shipped artefact.
 - It is a **standalone Python tool, not a workspace crate**: it is never added to the
   Rust workspace, never wired into the `detect(path)` dispatch, and never ships in the
   release binary. The binary stays pure Apache-2.0. Run it directly
