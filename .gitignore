@@ -64,3 +64,5 @@ app/src-tauri/onnxruntime.dll
 
 # in-project staged copy of backfire for GUI resource bundling (build artifact)
 app/src-tauri/backfire/
+# in-project staged copy of the mellin tool for GUI resource bundling (build artifact)
+app/src-tauri/mellin/

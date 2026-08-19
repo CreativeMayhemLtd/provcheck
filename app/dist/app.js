@@ -1419,6 +1419,160 @@ async function installBackfire() {
 if ($bfInstallBtn) $bfInstallBtn.addEventListener("click", installBackfire);
 refreshBackfireStatus();
 
+// ---- Mellin section (Keyed marks tab, audio-side keyed forensics) ---------
+// Shells out to the standalone BUSL-licensed provcheck-mellin binary via the
+// mellin_read command. Secret-keyed: needs the seller secret FILE (picked via
+// a native dialog so we get a real path) and the work id. The secret path is
+// held in JS memory only — never persisted, never logged.
+
+const $mlStatus = document.getElementById("ml-status");
+const $mlSecretBtn = document.getElementById("ml-secret-btn");
+const $mlSecretPath = document.getElementById("ml-secret-path");
+const $mlWorkId = document.getElementById("ml-workid");
+const $mlSerial = document.getElementById("ml-serial");
+const $mlChooseBtn = document.getElementById("ml-choose-btn");
+const $mlZone = document.getElementById("ml-zone");
+const $mlLoading = document.getElementById("ml-loading");
+const $mlLoadingFile = document.getElementById("ml-loading-file");
+const $mlResult = document.getElementById("ml-result");
+const $mlVerdict = document.getElementById("ml-verdict");
+const $mlResultTitle = document.getElementById("ml-result-title");
+const $mlResultFile = document.getElementById("ml-result-file");
+const $mlFields = document.getElementById("ml-fields");
+const $mlAnother = document.getElementById("ml-another");
+const $mlHint = document.getElementById("ml-hint");
+const ML_HINT_DEFAULT = $mlHint ? $mlHint.textContent : "";
+const ML_WORKID_STORAGE = "provcheck.mellin.workid";
+
+let mlSecretFile = null; // absolute path, session-only
+
+async function refreshMellinStatus() {
+  if (!$mlStatus) return;
+  try {
+    const ready = await invoke("mellin_status");
+    $mlStatus.textContent =
+      ready === true
+        ? "Ready. The tool ships inside the app; pick your secret file and work id to read."
+        : "Not found. Reinstall provcheck, or set MELLIN_BIN to the provcheck-mellin binary.";
+  } catch (e) {
+    $mlStatus.textContent = "Status check failed: " + String(e && e.message ? e.message : e);
+  }
+}
+
+function mlShowEmpty() {
+  $mlZone.hidden = false;
+  $mlLoading.hidden = true;
+  $mlResult.hidden = true;
+}
+
+function mlWarn(msg) {
+  if (!$mlHint) return;
+  $mlHint.textContent = msg;
+  $mlHint.classList.add("bf-hint-warn");
+  setTimeout(() => {
+    $mlHint.textContent = ML_HINT_DEFAULT;
+    $mlHint.classList.remove("bf-hint-warn");
+  }, 2600);
+}
+
+async function mellinPath(path) {
+  const workId = ($mlWorkId.value || "").trim();
+  if (!mlSecretFile) {
+    mlWarn("Choose your secret file first — Mellin can only read a serial made with the same secret.");
+    return;
+  }
+  if (!workId) {
+    mlWarn("Enter the work id the serial was embedded with.");
+    $mlWorkId.focus();
+    return;
+  }
+  try {
+    localStorage.setItem(ML_WORKID_STORAGE, workId);
+  } catch {
+    /* storage blocked — non-fatal */
+  }
+  const serial = ($mlSerial.value || "").trim() || null;
+  $mlZone.hidden = true;
+  $mlLoading.hidden = false;
+  $mlResult.hidden = true;
+  $mlLoadingFile.textContent = `Reading ${prettyPath(path)}…`;
+  try {
+    const res = await invoke("mellin_read", {
+      path,
+      secretFile: mlSecretFile,
+      workId,
+      serial,
+      repeat: null,
+    });
+    if (!res || !res.ok) {
+      renderMellinError((res && res.error) || "Mellin read failed.", path);
+      return;
+    }
+    renderMellin(res.data, path);
+  } catch (e) {
+    renderMellinError(String(e && e.message ? e.message : e), path);
+  }
+}
+
+function renderMellin(m, path) {
+  $mlZone.hidden = true;
+  $mlLoading.hidden = true;
+  $mlResult.hidden = false;
+  $mlResultFile.textContent = prettyPath(path);
+  const full = !!(m && m.fully_recovered === true);
+  $mlVerdict.classList.remove("is-verified", "is-unsigned", "is-invalid");
+  $mlVerdict.classList.add(full ? "is-verified" : "is-unsigned");
+  $mlResultTitle.textContent = full ? "Mellin serial recovered" : "No full Mellin serial";
+
+  const bits = m && m.bits_recovered != null ? m.bits_recovered : 0;
+  const votes = m && m.min_bit_votes != null ? m.min_bit_votes : 0;
+  const erasure = m && m.erasure_rate != null ? (m.erasure_rate * 100).toFixed(1) + "%" : "—";
+
+  $mlFields.replaceChildren();
+  $mlFields.appendChild(bfRow("Serial", full ? m.serial : "—"));
+  $mlFields.appendChild(bfRow("Bits recovered", `${bits}/64`));
+  $mlFields.appendChild(bfRow("Erasure rate", erasure));
+  $mlFields.appendChild(bfRow("Min bit votes", String(votes)));
+  if (m && m.match != null) {
+    $mlFields.appendChild(bfRow("Matches expected serial", m.match ? "yes" : "no"));
+  }
+}
+
+function renderMellinError(msg, path) {
+  $mlZone.hidden = true;
+  $mlLoading.hidden = true;
+  $mlResult.hidden = false;
+  $mlResultFile.textContent = prettyPath(path);
+  $mlVerdict.classList.remove("is-verified", "is-unsigned", "is-invalid");
+  $mlVerdict.classList.add("is-invalid");
+  $mlResultTitle.textContent = "Mellin could not run";
+  $mlFields.replaceChildren(bfRow("Error", msg));
+}
+
+if ($mlSecretBtn) {
+  $mlSecretBtn.addEventListener("click", async () => {
+    const p = await invoke("pick_any_file", { title: "Choose the Mellin secret file" });
+    if (p) {
+      mlSecretFile = p;
+      $mlSecretPath.textContent = prettyPath(p);
+    }
+  });
+}
+if ($mlChooseBtn) {
+  $mlChooseBtn.addEventListener("click", async () => {
+    const p = await invoke("pick_any_file", { title: "Choose an audio file to read" });
+    if (p) mellinPath(p);
+  });
+}
+if ($mlAnother) $mlAnother.addEventListener("click", mlShowEmpty);
+try {
+  const savedWorkId = localStorage.getItem(ML_WORKID_STORAGE);
+  if (savedWorkId && $mlWorkId) $mlWorkId.value = savedWorkId;
+} catch {
+  /* storage blocked */
+}
+refreshMellinStatus();
+
 // External-URL click interceptor. Tauri 2 sandboxes `target="_blank"`
 // anchors, so provcheck.ai / creativemayhem.com links in the top bar
 // (and any `[data-external]` link in the Detect tab or elsewhere) go

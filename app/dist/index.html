@@ -47,7 +47,7 @@
     <button class="tab" id="tab-detect-btn" role="tab" aria-selected="false" aria-controls="tab-detect">Detect</button>
     <button class="tab" id="tab-keys-btn" role="tab" aria-selected="false" aria-controls="tab-keys">Keys</button>
     <button class="tab" id="tab-sign-btn" role="tab" aria-selected="false" aria-controls="tab-sign">Sign</button>
-    <button class="tab" id="tab-backfire-btn" role="tab" aria-selected="false" aria-controls="tab-backfire">Backfire</button>
+    <button class="tab" id="tab-backfire-btn" role="tab" aria-selected="false" aria-controls="tab-backfire">Keyed marks</button>
   </nav>
 
   <!-- =====================================================================
@@ -673,6 +673,74 @@
       <div class="bf-fields" id="bf-fields"></div>
       <footer class="footer-actions">
         <button class="btn btn-primary" id="bf-another" type="button">Read another</button>
+      </footer>
+    </section>
+
+    <!-- ============ Mellin (audio-side keyed forensics) ============
+         Same keyed-marks concept as Backfire, audio channel. Shells out
+         to the standalone BUSL-licensed provcheck-mellin binary via the
+         mellin_read command. Secret-keyed: needs the seller secret FILE
+         and the work id; without them there is nothing to read.  -->
+    <hr style="border:none;border-top:1px solid rgba(128,128,128,0.25);margin:32px 0" />
+    <div class="bf-header">
+      <div>
+        <h2 class="bf-title">Read a keyed Mellin serial <span class="bf-badge">Experimental</span></h2>
+        <p class="bf-subtitle">Audio-side keyed forensics: recover the 64-bit per-copy serial you
+          embedded with the standalone, BUSL-licensed provcheck-mellin tool (free for
+          non-commercial use, separate from provcheck). Needs your seller secret file and work id;
+          everything stays on your machine.</p>
+      </div>
+    </div>
+
+    <div class="models-banner" id="ml-status-banner">
+      <div class="models-banner-text">
+        <strong>Mellin reader</strong>
+        <span id="ml-status">Checking status…</span>
+      </div>
+    </div>
+
+    <section class="bf-controls">
+      <div class="bf-field">
+        <span>Secret file <em>(required)</em></span>
+        <button class="btn btn-small" id="ml-secret-btn" type="button">Choose secret file</button>
+        <span class="mono" id="ml-secret-path"></span>
+      </div>
+      <label class="bf-field">
+        <span>Work id <em>(required)</em></span>
+        <input type="text" id="ml-workid" placeholder="the work id used at embed" autocomplete="off" spellcheck="false" />
+      </label>
+      <label class="bf-field">
+        <span>Expected serial <em>(optional)</em></span>
+        <input type="text" id="ml-serial" placeholder="e.g. 0xDEADBEEF" autocomplete="off" spellcheck="false" />
+      </label>
+    </section>
+
+    <section class="dropzone" id="ml-zone">
+      <div class="dropzone-inner">
+        <h2>Choose an audio file to read its serial</h2>
+        <button class="btn btn-primary" id="ml-choose-btn" type="button">Choose audio &amp; read</button>
+        <p class="hint" id="ml-hint">Pick your secret file and enter the work id first, then choose the audio.
+          Any format works (WAV, MP3, AAC, FLAC); dragging files onto the window reads the Backfire mark above,
+          so use this button for Mellin.</p>
+      </div>
+    </section>
+
+    <section class="loading" id="ml-loading" hidden>
+      <div class="spinner"></div>
+      <p class="loading-file" id="ml-loading-file">Reading Mellin serial…</p>
+    </section>
+
+    <section class="result" id="ml-result" hidden>
+      <div class="verdict" id="ml-verdict">
+        <div class="verdict-icon"></div>
+        <div class="verdict-text">
+          <h2 id="ml-result-title">Mellin</h2>
+          <p id="ml-result-file" class="mono"></p>
+        </div>
+      </div>
+      <div class="bf-fields" id="ml-fields"></div>
+      <footer class="footer-actions">
+        <button class="btn btn-primary" id="ml-another" type="button">Read another</button>
       </footer>
     </section>
   </div> <!-- /tab-backfire -->

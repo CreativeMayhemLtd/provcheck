@@ -591,6 +591,174 @@ async fn install_backfire(app: tauri::AppHandle) -> ApiResult<String> {
     .unwrap_or_else(|e| ApiResult::err(format!("install_backfire task panicked: {e}")))
 }
 
+/// Locate the standalone `provcheck-mellin` binary. Order: `$MELLIN_BIN`
+/// (explicit operator override), the app's bundled resource copy (read-only
+/// and version-matched to this build), then a `mellin` folder or bare binary
+/// beside the exe. Like Backfire, Mellin is BUSL-licensed and NEVER linked
+/// into this Apache-2.0 app; the process boundary is the license boundary.
+fn locate_mellin_bin(resource: Option<&Path>) -> Option<PathBuf> {
+    let exe_name = if cfg!(windows) {
+        "provcheck-mellin.exe"
+    } else {
+        "provcheck-mellin"
+    };
+    if let Some(p) = std::env::var("MELLIN_BIN")
+        .ok()
+        .map(PathBuf::from)
+        .filter(|p| p.exists())
+    {
+        return Some(p);
+    }
+    if let Some(res) = resource {
+        let p = res.join("mellin").join(exe_name);
+        if p.exists() {
+            return Some(p);
+        }
+    }
+    if let Some(dir) = std::env::current_exe()
+        .ok()
+        .and_then(|e| e.parent().map(|d| d.to_path_buf()))
+    {
+        for cand in [dir.join("mellin").join(exe_name), dir.join(exe_name)] {
+            if cand.exists() {
+                return Some(cand);
+            }
+        }
+    }
+    None
+}
+
+/// Whether the Mellin read environment is usable right now: the standalone
+/// binary is locatable. Ships inside the installer, so on a normal install
+/// this is true on first launch with zero setup.
+#[tauri::command]
+async fn mellin_status(app: tauri::AppHandle) -> bool {
+    let resource = app.path().resource_dir().ok();
+    match locate_mellin_bin(resource.as_deref()) {
+        Some(bin) => {
+            log_line(&format!("mellin status: READY (bin={})", bin.display()));
+            true
+        }
+        None => {
+            log_line("mellin status: NOT READY (no provcheck-mellin binary found)");
+            false
+        }
+    }
+}
+
+/// Experimental Mellin verify (Keyed marks tab). Shells out to the standalone
+/// BUSL-licensed `provcheck-mellin` binary, never compiled into or linked with
+/// this Apache-2.0 app, and returns its parsed `read --json` line. Mellin is
+/// secret-keyed seller-side forensics: the seller secret travels ONLY as a
+/// file path handed to the child's `--secret-file`; neither the secret nor
+/// its path nor the work id is ever logged.
+#[tauri::command]
+async fn mellin_read(
+    app: tauri::AppHandle,
+    path: String,
+    secret_file: String,
+    work_id: String,
+    serial: Option<String>,
+    repeat: Option<u32>,
+) -> ApiResult<serde_json::Value> {
+    let resource = app.path().resource_dir().ok();
+    tauri::async_runtime::spawn_blocking(move || {
+        use std::process::Command;
+        if secret_file.trim().is_empty() || work_id.trim().is_empty() {
+            return ApiResult::err(
+                "A secret file and a work id are required to read a Mellin serial.".to_string(),
+            );
+        }
+        if !Path::new(&secret_file).exists() {
+            return ApiResult::err(
+                "The chosen secret file does not exist (or is not readable).".to_string(),
+            );
+        }
+        let Some(bin) = locate_mellin_bin(resource.as_deref()) else {
+            log_line("mellin read: FAILED, no provcheck-mellin binary found anywhere");
+            return ApiResult::err(format!(
+                "Mellin tool not found. Reinstall provcheck (the tool ships inside the \
+                 installer), or set the MELLIN_BIN environment variable to the \
+                 provcheck-mellin binary.\nFull log: {}",
+                log_path_display()
+            ));
+        };
+        let mut argv: Vec<String> = vec![
+            "read".into(),
+            path.clone(),
+            "--secret-file".into(),
+            secret_file.clone(),
+            "--work-id".into(),
+            work_id.clone(),
+            "--json".into(),
+        ];
+        if let Some(s) = serial.filter(|s| !s.trim().is_empty()) {
+            argv.push("--expect".into());
+            argv.push(s);
+        }
+        if let Some(r) = repeat {
+            argv.push("--repeat".into());
+            argv.push(r.to_string());
+        }
+        // NOTE: argv contains the secret-file path and work id — never log argv.
+        log_line(&format!("mellin read: file={path} bin={}", bin.display()));
+        match Command::new(&bin).args(&argv).output() {
+            Ok(out) => {
+                let stdout = String::from_utf8_lossy(&out.stdout);
+                let line = stdout.lines().last().unwrap_or("").trim();
+                log_line(&format!(
+                    "mellin read: exit={:?} stdout_json={} stderr_len={}",
+                    out.status.code(),
+                    !line.is_empty(),
+                    out.stderr.len()
+                ));
+                match serde_json::from_str::<serde_json::Value>(line) {
+                    Ok(v) => ApiResult::ok(v),
+                    Err(e) => {
+                        let stderr_tail: String = {
+                            let s = String::from_utf8_lossy(&out.stderr);
+                            let t = s.trim();
+                            t.chars().rev().take(600).collect::<Vec<_>>().into_iter().rev().collect()
+                        };
+                        log_line(&format!(
+                            "mellin read: UNPARSEABLE output ({e}); stderr tail: {stderr_tail}"
+                        ));
+                        ApiResult::err(format!(
+                            "Mellin produced unparseable output ({e}). stderr: {stderr_tail}\n\
+                             Full log: {}",
+                            log_path_display()
+                        ))
+                    }
+                }
+            }
+            Err(e) => {
+                log_line(&format!("mellin read: could not start binary: {e}"));
+                ApiResult::err(format!(
+                    "Could not run the Mellin tool ({e}).\nFull log: {}",
+                    log_path_display()
+                ))
+            }
+        }
+    })
+    .await
+    .unwrap_or_else(|e| ApiResult::err(format!("mellin_read task panicked: {e}")))
+}
+
+/// Open a native "choose any file" dialog (no extension filter) and return the
+/// selected absolute path. Used for the Mellin secret file and audio input,
+/// where an extension filter would only get in the way.
+#[tauri::command]
+async fn pick_any_file(title: String) -> Option<String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        rfd::FileDialog::new()
+            .set_title(&title)
+            .pick_file()
+            .map(|p| p.to_string_lossy().into_owned())
+    })
+    .await
+    .unwrap_or(None)
+}
+
 /// Open a native "choose file" dialog and return the selected absolute path, or None if
 /// the user cancelled. The webview sandbox hides real paths from `<input type=file>`, so
 /// the picker runs here in Rust; the frontend then routes the path to the active tab.
@@ -1867,12 +2035,16 @@ fn main() {
             // v1.1.0: dedicated Watermark + Detect tabs.
             watermark_only,
             detect_only,
-            // Experimental Backfire verify tab (shells out to the BUSL tool).
+            // Experimental keyed-marks tab (Backfire + Mellin, both shell out
+            // to their standalone BUSL tools; never linked).
             backfire_read,
             backfire_status,
             install_backfire,
-            // Native "choose file" dialog shared by all tabs.
+            mellin_read,
+            mellin_status,
+            // Native "choose file" dialogs shared by the tabs.
             pick_image,
+            pick_any_file,
             // Watermark-detection model management (download-on-demand weights).
             install_models,
             models_status,
