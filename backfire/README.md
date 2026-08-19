@@ -26,14 +26,17 @@ Instead of hiding the mark where the purifier deletes it, Backfire **optimizes t
 
 ## What we measured
 
-- **It amplifies.** After a real diffusion purifier, the identifier reads back on 10 to 12 of 12 across our test sets, *more* than before the attack; on random real-world photos, all of them.
-- **It generalizes.** Against a purifier it was never tuned on, still 11 of 12. A property of diffusion purification, not one model.
-- **No false positives observed.** Across the sets we ran (our internal set and samples from COCO val2017), no false positive and no wrong identifier accepted. Failing safe is the point.
-- **Invisible.** Around 34 dB PSNR.
+Everything below is at 512 px on 24 diverse COCO val2017 photos, attacked with a real 50-step diffusion purifier. The numpy `read` side reproduces all of it.
+
+- **It survives, and amplifies.** The keyed identifier reads back valid on 24 of 24 photos after the purifier, and *stronger* than before the attack on 21 of 24.
+- **It generalizes.** Against a purifier it was never tuned on (a different, distilled diffusion model), still 24 of 24. A property of diffusion purification, not one model.
+- **No false positives.** Reading 1,000 unmarked images with the key, and with wrong keys, gives zero valid reads at the default threshold, at both 256 and 512 px. The margin is normalized against a robust decoy noise floor, so the unmarked-image margin stays below 1.6 while a real mark clears 4. Failing safe is the point.
+- **It shrugs off everyday handling.** The mark survives JPEG (quality 50 to 90), downscaling to half size, blur, and sensor noise. It does *not* survive a hard crop, the carriers are position-locked; we disclose that rather than hide it.
+- **Invisible.** 34 dB PSNR.
 
 ## The weakness, and its answer
 
-A sophisticated attacker who reads this source can strip the mark with an aggressive **band-notch**; we could not make the linear mark survive that, and we say so. But the notch is loud, it carves a spectral hole natural images lack, so `read` also runs a tamper tripwire. Across 300 clean images and 81 notch configurations (feathered evasions included), no notch both strips the mark and evades detection:
+A sophisticated attacker who reads this source can strip the mark with an aggressive **band-notch**; we could not make the linear mark survive that, and we say so. But the notch is loud, it carves a spectral hole natural images lack, so `read` also runs a tamper tripwire. Across 300 clean images and 81 notch configurations (feathered evasions included), no notch both strips the mark and evades detection, at either resolution:
 
 | attacker's move | the mark | the tripwire |
 | --- | --- | --- |
@@ -45,7 +48,7 @@ Remove the mark or stay quiet. Not both.
 
 ## Honest limits
 
-4-bit keyed identifier today (unbounded keyspace); minutes-per-image embed (`read` is instant); 256 px; validated at research scale, not production millions; the amplification claim is scoped to purification-class strippers, and the notch boundary is detected, not survived.
+4-bit keyed identifier today (unbounded keyspace); minutes-per-image embed (`read` is instant); operates at 256 or 512 px (512 is Stable Diffusion's native resolution and needs a 16 GB-class GPU to embed); the mark is not crop-invariant (position-locked carriers); validated at research scale, not production millions; the amplification claim is scoped to purification-class strippers, and the notch boundary is detected, not survived.
 
 ## Why we publish the whole method
 
