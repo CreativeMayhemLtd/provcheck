@@ -1,2 +1,6 @@
 __pycache__/
 *.pyc
+# Self-contained interpreter + deps created by setup_backfire.(ps1|sh). Large
+# (~100 MB read tier, several GB with the embed tier), machine-specific, and
+# reproducible from the script, so it is never committed.
+pyembed/

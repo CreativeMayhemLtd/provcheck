@@ -597,7 +597,7 @@
   <!-- ============================================================
        BACKFIRE TAB (experimental)
        Keyed, per-image watermark verify. Shells out to the
-       standalone AGPL backfire.py tool via the backfire_read
+       standalone BUSL-licensed backfire.py tool via the backfire_read
        command. A key is required; the image never leaves the box.
        ============================================================ -->
   <div class="tab-pane" id="tab-backfire" role="tabpanel" aria-labelledby="tab-backfire-btn" hidden>
@@ -612,10 +612,18 @@
       <p>
         <strong>Experimental.</strong> Backfire is a keyed, per-image watermark that AI
         provenance-stripping attacks amplify instead of remove. This tab runs the standalone,
-        <strong>AGPL-licensed</strong> Backfire tool (separate from provcheck) via Python on your
-        machine. You can only read a mark embedded with the same key.
+        <strong>BUSL-licensed</strong> (free for non-commercial use) Backfire tool, separate from
+        provcheck, on your machine. You can only read a mark embedded with the same key.
       </p>
       <button class="btn btn-small" id="bf-ack" type="button">Got it</button>
+    </div>
+
+    <div class="models-banner" id="bf-install-banner">
+      <div class="models-banner-text">
+        <strong>Backfire reader</strong>
+        <span id="bf-install-status">Checking status…</span>
+      </div>
+      <button class="btn btn-primary" id="bf-install-btn" type="button">Install / Repair</button>
     </div>
 
     <section class="bf-controls">
@@ -717,7 +725,8 @@
         <p class="modal-note">
           <strong>Experimental research.</strong> This tab <em>reads</em> marks only. Creating
           a mark (embedding) is a separate, GPU-bound step run with the standalone Backfire
-          tool, which is AGPL-licensed and separate from provcheck. Robustness is per-image
+          tool, which is BUSL-licensed (free for non-commercial use) and separate from
+          provcheck. Robustness is per-image
           and the method is early; treat results as experimental.
         </p>
         <p class="modal-docs">

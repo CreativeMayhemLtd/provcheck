@@ -27,8 +27,9 @@ use provcheck_platform::{AttestationOptions, verify_with_attestation};
     long_about = None,
 )]
 struct Args {
-    /// Path to the file to verify. Optional only when `--install-models` is used.
-    #[arg(required_unless_present = "install_models")]
+    /// Path to the file to verify. Optional only when `--install-models` or
+    /// `--install-backfire` is used.
+    #[arg(required_unless_present_any = ["install_models", "install_backfire"])]
     file: Option<PathBuf>,
 
     /// Download every watermark-detection model (the manifest weights) into the
@@ -36,6 +37,14 @@ struct Args {
     /// detection work; C2PA verification needs no models. No FILE is required.
     #[arg(long)]
     install_models: bool,
+
+    /// Set up the experimental Backfire keyed-watermark reader, then exit. Runs
+    /// Backfire's one-command installer (`setup_backfire.ps1` on Windows,
+    /// `setup_backfire.sh` elsewhere), which stands up a self-contained Python
+    /// for the numpy-only read path and smoke-tests it, so `--backfire-read`
+    /// works on a clean box with no system Python. No FILE is required.
+    #[arg(long)]
+    install_backfire: bool,
 
     /// Emit machine-readable JSON instead of the human-readable report.
     /// Handy for CI and scripting — schema matches `provcheck::Report`.
@@ -148,11 +157,12 @@ struct Args {
     /// Experimental: also verify a keyed **Backfire** image watermark and check
     /// for band-notch tampering.
     ///
-    /// Backfire is a separate, AGPL-licensed, opt-in tool, NOT part of the
-    /// Apache-2.0 core. This shells out to it (never links it) and requires
-    /// `python` on PATH plus the tool present (locate it via `$BACKFIRE_PY`, or
-    /// run from a directory containing `backfire/backfire.py`). Backfire is
-    /// keyed: it verifies a mark YOU embedded, so `--backfire-key` is required.
+    /// Backfire is a separate, BUSL-licensed (free for non-commercial use),
+    /// opt-in tool, NOT part of the Apache-2.0 core. This shells out to it
+    /// (never links it). Run `provcheck --install-backfire` once to set up its
+    /// self-contained reader, or locate an existing one via `$BACKFIRE_PY` or a
+    /// `backfire/backfire.py` in the current directory. Backfire is keyed: it
+    /// verifies a mark YOU embedded, so `--backfire-key` is required.
     /// Robustness is per-image and experimental.
     #[arg(long)]
     backfire_read: bool,
@@ -180,8 +190,8 @@ enum DetectScope {
     Ai,
 }
 
-/// Shell out to the separate Backfire tool (AGPL, never linked into this
-/// Apache binary) and return its parsed JSON. Locates `backfire.py` via
+/// Shell out to the separate Backfire tool (BUSL-licensed, never linked into
+/// this Apache binary) and return its parsed JSON. Locates `backfire.py` via
 /// `$BACKFIRE_PY` or `backfire/backfire.py` beside the current directory, and
 /// needs `python` (tries `python3` then `python`). `read` exits 0/1 on the
 /// `--expect` check, so we parse stdout regardless of the exit status.
@@ -192,19 +202,29 @@ fn run_backfire_read(
     carriers: &str,
 ) -> Result<serde_json::Value, String> {
     use std::process::Command;
-    let script = std::env::var("BACKFIRE_PY")
-        .ok()
-        .map(std::path::PathBuf::from)
-        .filter(|p| p.exists())
-        .or_else(|| {
-            let p = std::path::PathBuf::from("backfire/backfire.py");
-            p.exists().then_some(p)
-        })
-        .ok_or_else(|| {
-            "Backfire tool not found. Set BACKFIRE_PY to backfire.py, or run from a \
-             directory containing backfire/backfire.py."
-                .to_string()
-        })?;
+    let script = backfire_script().ok_or_else(|| {
+        "Backfire tool not found. Run `provcheck --install-backfire` to set it up, \
+         set BACKFIRE_PY to backfire.py, or run from a directory containing \
+         backfire/backfire.py."
+            .to_string()
+    })?;
+
+    // Prefer the self-contained interpreter that `--install-backfire` builds
+    // beside backfire.py, so the read path works with no system Python. Fall
+    // back to python3 / python on PATH.
+    let mut interpreters: Vec<String> = Vec::new();
+    if let Some(dir) = script.parent() {
+        let bundled = if cfg!(windows) {
+            dir.join("pyembed").join("python.exe")
+        } else {
+            dir.join("pyembed").join("bin").join("python3")
+        };
+        if bundled.exists() {
+            interpreters.push(bundled.to_string_lossy().into_owned());
+        }
+    }
+    interpreters.push("python3".into());
+    interpreters.push("python".into());
 
     let mut argv: Vec<String> = vec![
         script.to_string_lossy().into_owned(),
@@ -221,7 +241,7 @@ fn run_backfire_read(
     }
 
     let mut last_err = String::new();
-    for py in ["python3", "python"] {
+    for py in &interpreters {
         match Command::new(py).args(&argv).output() {
             Ok(out) => {
                 let stdout = String::from_utf8_lossy(&out.stdout);
@@ -236,7 +256,83 @@ fn run_backfire_read(
             Err(e) => last_err = format!("could not run {py}: {e}"),
         }
     }
-    Err(format!("python not found ({last_err})"))
+    Err(format!(
+        "no usable Python found for Backfire. Run `provcheck --install-backfire` to set one up. ({last_err})"
+    ))
+}
+
+/// Locate `backfire.py`: `$BACKFIRE_PY` if it points at an existing file, else
+/// `backfire/backfire.py` relative to the current directory. Shared by
+/// `run_backfire_read` and `install_backfire`.
+fn backfire_script() -> Option<std::path::PathBuf> {
+    if let Some(p) = std::env::var("BACKFIRE_PY")
+        .ok()
+        .map(std::path::PathBuf::from)
+        .filter(|p| p.exists())
+    {
+        return Some(p);
+    }
+    let p = std::path::PathBuf::from("backfire/backfire.py");
+    p.exists().then_some(p)
+}
+
+/// Run Backfire's one-command environment installer, then exit. This is the
+/// "auto-get Backfire like a DLC" entry point behind `--install-backfire`: it
+/// finds the installer script beside backfire.py and shells out to it
+/// (PowerShell on Windows, bash elsewhere), streaming its output.
+fn install_backfire() -> ExitCode {
+    use std::process::Command;
+    let dir = match backfire_script().and_then(|s| s.parent().map(|d| d.to_path_buf())) {
+        Some(d) => d,
+        None => {
+            eprintln!(
+                "provcheck: could not locate the backfire folder. Set BACKFIRE_PY to \
+                 backfire.py, or run from a directory containing backfire/backfire.py."
+            );
+            return ExitCode::FAILURE;
+        }
+    };
+    let (prog, prog_args): (&str, Vec<String>) = if cfg!(windows) {
+        let script = dir.join("setup_backfire.ps1");
+        if !script.exists() {
+            eprintln!("provcheck: setup_backfire.ps1 not found in {}", dir.display());
+            return ExitCode::FAILURE;
+        }
+        (
+            "powershell",
+            vec![
+                "-ExecutionPolicy".into(),
+                "Bypass".into(),
+                "-File".into(),
+                script.to_string_lossy().into_owned(),
+            ],
+        )
+    } else {
+        let script = dir.join("setup_backfire.sh");
+        if !script.exists() {
+            eprintln!("provcheck: setup_backfire.sh not found in {}", dir.display());
+            return ExitCode::FAILURE;
+        }
+        ("bash", vec![script.to_string_lossy().into_owned()])
+    };
+    println!("Setting up the Backfire read environment (one-time). This downloads a self-contained Python.");
+    match Command::new(prog).args(&prog_args).status() {
+        Ok(s) if s.success() => {
+            println!("Backfire is ready. Verify a marked image with:  provcheck --backfire-read --backfire-key <KEY> <IMAGE>");
+            ExitCode::SUCCESS
+        }
+        Ok(s) => {
+            eprintln!("provcheck: Backfire setup exited with status {s}");
+            ExitCode::FAILURE
+        }
+        Err(e) => {
+            eprintln!(
+                "provcheck: could not run the Backfire setup script ({e}). It needs \
+                 PowerShell on Windows, or bash on Linux/macOS."
+            );
+            ExitCode::FAILURE
+        }
+    }
 }
 
 /// Human-readable Backfire block, printed under the main report.
@@ -321,11 +417,15 @@ fn main() -> ExitCode {
     if args.install_models {
         return install_all_models(args.quiet);
     }
-    // Safe: clap requires FILE unless --install-models, handled above.
+    if args.install_backfire {
+        return install_backfire();
+    }
+    // Safe: clap requires FILE unless --install-models / --install-backfire,
+    // both handled above.
     let file: &std::path::Path = args
         .file
         .as_deref()
-        .expect("clap enforces FILE unless --install-models");
+        .expect("clap enforces FILE unless an --install-* flag");
 
     // require_attested needs an identity input. clap's `requires`
     // only takes a single arg name, so enforce the OR here.
@@ -493,7 +593,7 @@ fn main() -> ExitCode {
     }
 
     // Experimental Backfire keyed-watermark verification (opt-in). Shells out
-    // to the separate AGPL tool; never linked into this Apache binary. Additive
+    // to the separate BUSL-licensed tool; never linked into this Apache binary. Additive
     // and informational: it does not change the C2PA exit code.
     let backfire = if args.backfire_read {
         let key = match args.backfire_key.as_deref() {
@@ -507,9 +607,9 @@ fn main() -> ExitCode {
         };
         if !args.quiet {
             eprintln!(
-                "provcheck: Backfire is EXPERIMENTAL and AGPL-licensed, separate from the \
-                 Apache-2.0 core. It verifies a keyed mark you embedded and flags band-notch \
-                 tampering; robustness is per-image."
+                "provcheck: Backfire is EXPERIMENTAL and BUSL-licensed (free for non-commercial \
+                 use), separate from the Apache-2.0 core. It verifies a keyed mark you embedded \
+                 and flags band-notch tampering; robustness is per-image."
             );
         }
         match run_backfire_read(
@@ -557,6 +657,28 @@ fn main() -> ExitCode {
             }
         } else {
             print!("{}", report);
+            // If watermark detection ran but some models are not installed,
+            // give ONE clear instruction. Otherwise the user just sees a
+            // "not installed" note on every watermark line and reasonably
+            // reads it as "broken" rather than "run one setup command".
+            if !args.no_watermark {
+                let statuses = provcheck_weights::status();
+                let n_missing = statuses.iter().filter(|s| !s.cached.exists).count();
+                if n_missing > 0 {
+                    let missing_mb = statuses
+                        .iter()
+                        .filter(|s| !s.cached.exists)
+                        .map(|s| s.entry.size_bytes)
+                        .sum::<u64>() as f64
+                        / 1e6;
+                    eprintln!(
+                        "[hint] {n_missing} watermark-detection model(s) are not installed, so those \
+                         lines read \"not installed\". Enable all detection with:  provcheck \
+                         --install-models  (one-time, {missing_mb:.0} MB). C2PA verification does not \
+                         need them."
+                    );
+                }
+            }
             // Hint: when the file embeds an identity claim but the
             // user did NOT ask for any attestation, suggest the
             // shortcut. Only emit when nothing else surfaces the

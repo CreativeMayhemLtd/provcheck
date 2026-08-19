@@ -19,6 +19,7 @@ use provcheck_sign::sign::{
 use provcheck_sign::types::{KeyProviderKind, LockedIdentity, UnlockedIdentity};
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
+use tauri::Manager;
 use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
 
@@ -58,8 +59,8 @@ async fn watermark_only(path: String) -> VerifyResponse {
     })
 }
 
-/// Experimental Backfire verify (its own tab). Shells out to the standalone AGPL
-/// `backfire.py` tool, which is never compiled into or linked with this Apache-2.0
+/// Experimental Backfire verify (its own tab). Shells out to the standalone
+/// BUSL-licensed `backfire.py` tool, which is never compiled into or linked with this Apache-2.0
 /// app, and returns its parsed JSON. Backfire is keyed: it reads a mark YOU
 /// embedded, so a key is required. The tool is located via `$BACKFIRE_PY` or a
 /// `backfire/backfire.py` beside the working directory. `read` auto-detects the
@@ -67,29 +68,39 @@ async fn watermark_only(path: String) -> VerifyResponse {
 /// parsed regardless of exit status.
 #[tauri::command]
 async fn backfire_read(
+    app: tauri::AppHandle,
     path: String,
     key: String,
     serial: Option<String>,
     carriers: Option<String>,
 ) -> ApiResult<serde_json::Value> {
+    let resource = app.path().resource_dir().ok();
     tauri::async_runtime::spawn_blocking(move || {
         if key.trim().is_empty() {
             return ApiResult::err("A key is required to read a Backfire mark.".to_string());
         }
-        let script = match locate_backfire_py() {
+        let script = match locate_backfire_py(resource.as_deref()) {
             Some(p) => p,
             None => {
-                return ApiResult::err(
-                    "Backfire tool not found. Set the BACKFIRE_PY environment variable to \
-                     backfire.py (the standalone tool is AGPL and ships separately from \
-                     provcheck), or run from a directory containing backfire/backfire.py."
-                        .to_string(),
-                );
+                log_line("backfire read: FAILED, no backfire.py found anywhere");
+                return ApiResult::err(format!(
+                    "Backfire tool not found. Use the Install / Repair button to set it up, set \
+                     the BACKFIRE_PY environment variable to backfire.py, or reinstall provcheck \
+                     (the reader ships inside the installer).\nFull log: {}",
+                    log_path_display()
+                ));
             }
         };
         let carriers = carriers.unwrap_or_else(|| "band".to_string());
         let serial = serial.filter(|s| !s.trim().is_empty());
-        match run_backfire_py_read(&script, &path, &key, serial.as_deref(), &carriers) {
+        match run_backfire_py_read(
+            &script,
+            resource.as_deref(),
+            &path,
+            &key,
+            serial.as_deref(),
+            &carriers,
+        ) {
             Ok(v) => ApiResult::ok(v),
             Err(e) => ApiResult::err(e),
         }
@@ -98,22 +109,165 @@ async fn backfire_read(
     .unwrap_or_else(|e| ApiResult::err(format!("backfire_read task panicked: {e}")))
 }
 
-/// Locate the standalone `backfire.py`: `$BACKFIRE_PY` first, then a
-/// `backfire/backfire.py` relative to the working directory.
-fn locate_backfire_py() -> Option<PathBuf> {
+/// Diagnostic log file: `%LOCALAPPDATA%\provcheck\logs\provcheck.log` on
+/// Windows, `~/.local/share/provcheck/logs/provcheck.log` elsewhere. Plain
+/// text, one timestamped line per event, rotated at ~1 MB to `.log.old`.
+fn app_log_path() -> Option<PathBuf> {
+    let base = if cfg!(windows) {
+        std::env::var_os("LOCALAPPDATA").map(PathBuf::from)
+    } else {
+        std::env::var_os("XDG_DATA_HOME").map(PathBuf::from).or_else(|| {
+            std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local").join("share"))
+        })
+    }?;
+    Some(base.join("provcheck").join("logs").join("provcheck.log"))
+}
+
+/// Append one timestamped line to the diagnostic log. Strictly best-effort:
+/// logging must never crash, block, or alter app behavior. Secrets (keys,
+/// serials) are never passed to this function.
+fn log_line(msg: &str) {
+    let Some(path) = app_log_path() else { return };
+    if let Some(dir) = path.parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    if let Ok(m) = std::fs::metadata(&path) {
+        if m.len() > 1_000_000 {
+            let _ = std::fs::rename(&path, path.with_extension("log.old"));
+        }
+    }
+    let ts = OffsetDateTime::now_utc()
+        .format(&Rfc3339)
+        .unwrap_or_else(|_| "?".into());
+    use std::io::Write;
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
+        let _ = writeln!(f, "[{ts}] {msg}");
+    }
+}
+
+/// The log path as a display string for surfacing in UI error messages.
+fn log_path_display() -> String {
+    app_log_path()
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|| "(log path unavailable)".into())
+}
+
+/// Per-user, writable Backfire home: `%LOCALAPPDATA%\provcheck\backfire` on
+/// Windows, `$XDG_DATA_HOME/provcheck/backfire` (or `~/.local/share/...`)
+/// elsewhere. The Install Backfire button seeds the tool here and builds its
+/// self-contained Python here, so nothing is written under Program Files.
+fn backfire_home() -> Option<PathBuf> {
+    let base = if cfg!(windows) {
+        std::env::var_os("LOCALAPPDATA").map(PathBuf::from)
+    } else {
+        std::env::var_os("XDG_DATA_HOME").map(PathBuf::from).or_else(|| {
+            std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local").join("share"))
+        })
+    }?;
+    Some(base.join("provcheck").join("backfire"))
+}
+
+/// Whether two paths resolve to the same directory. Canonicalizes both, so
+/// `\\?\`-prefixed and plain spellings of one location compare equal.
+fn same_dir(a: &Path, b: &Path) -> bool {
+    match (std::fs::canonicalize(a), std::fs::canonicalize(b)) {
+        (Ok(x), Ok(y)) => x == y,
+        _ => false,
+    }
+}
+
+/// A `backfire` folder shipped beside the app executable, if it has backfire.py.
+fn exe_backfire_dir() -> Option<PathBuf> {
+    let dir = std::env::current_exe().ok()?.parent()?.join("backfire");
+    dir.join("backfire.py").exists().then_some(dir)
+}
+
+/// Locate `backfire.py`. Order matters: `$BACKFIRE_PY` (explicit operator
+/// override) first, then the APP'S BUNDLED RESOURCE COPY — it is read-only and
+/// always version-matched to this build, so a stale or half-written per-user
+/// copy can never shadow it — then the per-user home, a `backfire` folder
+/// beside the exe, and finally `./backfire` (dev tree).
+fn locate_backfire_py(resource: Option<&Path>) -> Option<PathBuf> {
     if let Some(p) = std::env::var("BACKFIRE_PY").ok().map(PathBuf::from) {
         if p.exists() {
             return Some(p);
         }
     }
+    if let Some(res) = resource {
+        let p = res.join("backfire").join("backfire.py");
+        if p.exists() {
+            return Some(p);
+        }
+    }
+    if let Some(home) = backfire_home() {
+        let p = home.join("backfire.py");
+        if p.exists() {
+            return Some(p);
+        }
+    }
+    if let Some(dir) = exe_backfire_dir() {
+        return Some(dir.join("backfire.py"));
+    }
     let p = PathBuf::from("backfire/backfire.py");
     p.exists().then_some(p)
+}
+
+/// The directory to seed the Backfire home FROM: the app's bundled resource copy,
+/// else a `backfire` folder beside the exe, else `./backfire`.
+fn backfire_seed_source(resource: Option<&Path>) -> Option<PathBuf> {
+    if let Some(res) = resource {
+        let d = res.join("backfire");
+        if d.join("backfire.py").exists() {
+            return Some(d);
+        }
+    }
+    if let Some(d) = exe_backfire_dir() {
+        return Some(d);
+    }
+    let d = PathBuf::from("backfire");
+    d.join("backfire.py").exists().then_some(d)
+}
+
+/// Recursively copy `src` into `dst`, skipping large or generated dirs
+/// (`pyembed`, `__pycache__`, `.pytest_cache`). Seeds the writable Backfire
+/// home from the read-only bundled copy.
+fn copy_backfire_tree(src: &Path, dst: &Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(dst)?;
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let name = entry.file_name();
+        if matches!(
+            name.to_string_lossy().as_ref(),
+            "pyembed" | "__pycache__" | ".pytest_cache"
+        ) {
+            continue;
+        }
+        let from = entry.path();
+        let to = dst.join(&name);
+        if from.is_dir() {
+            copy_backfire_tree(&from, &to)?;
+        } else if let Err(e) = std::fs::copy(&from, &to) {
+            // Name the exact file so a lock (antivirus, indexer, lingering
+            // process) is diagnosable from the log instead of a bare os error.
+            log_line(&format!(
+                "backfire seed: copy FAILED {} -> {}: {e}",
+                from.display(),
+                to.display()
+            ));
+            return Err(std::io::Error::new(
+                e.kind(),
+                format!("copying {} -> {}: {e}", from.display(), to.display()),
+            ));
+        }
+    }
+    Ok(())
 }
 
 /// Run `backfire.py read` (tries `python3` then `python`) and parse its last stdout
 /// line as JSON. `read` auto-detects the mark's resolution (256 or 512).
 fn run_backfire_py_read(
     script: &Path,
+    resource: Option<&Path>,
     path: &str,
     key: &str,
     serial: Option<&str>,
@@ -133,23 +287,308 @@ fn run_backfire_py_read(
         argv.push("--expect".into());
         argv.push(s.to_string());
     }
+    // NOTE: argv contains the user's key — never log argv itself.
+    log_line(&format!(
+        "backfire read: file={path} script={}",
+        script.display()
+    ));
     let mut last_err = String::new();
-    for py in ["python3", "python"] {
-        match Command::new(py).args(&argv).output() {
+    for py in backfire_interpreters(script, resource) {
+        match Command::new(&py).args(&argv).output() {
             Ok(out) => {
                 let stdout = String::from_utf8_lossy(&out.stdout);
                 let line = stdout.lines().last().unwrap_or("").trim();
+                let stderr_tail: String = {
+                    let s = String::from_utf8_lossy(&out.stderr);
+                    let t = s.trim();
+                    t.chars().rev().take(600).collect::<Vec<_>>().into_iter().rev().collect()
+                };
+                log_line(&format!(
+                    "backfire read: interpreter={py} exit={:?} stdout_json={} stderr_len={}",
+                    out.status.code(),
+                    !line.is_empty(),
+                    out.stderr.len()
+                ));
                 return serde_json::from_str::<serde_json::Value>(line).map_err(|e| {
+                    log_line(&format!(
+                        "backfire read: UNPARSEABLE output ({e}); stderr tail: {stderr_tail}"
+                    ));
                     format!(
-                        "Backfire produced unparseable output ({e}). stderr: {}",
-                        String::from_utf8_lossy(&out.stderr).trim()
+                        "Backfire produced unparseable output ({e}). stderr: {stderr_tail}\n\
+                         Full log: {}",
+                        log_path_display()
                     )
                 });
             }
-            Err(e) => last_err = format!("could not run {py}: {e}"),
+            Err(e) => {
+                last_err = format!("could not run {py}: {e}");
+                log_line(&format!("backfire read: interpreter FAILED to start: {last_err}"));
+            }
         }
     }
-    Err(format!("python not found ({last_err})"))
+    log_line(&format!("backfire read: NO interpreter worked ({last_err})"));
+    Err(format!(
+        "no usable Python found for Backfire. Use the Install / Repair button (or run \
+         provcheck --install-backfire) to set one up. ({last_err})\nFull log: {}",
+        log_path_display()
+    ))
+}
+
+/// The `pyembed` interpreter inside a given backfire dir, if present.
+fn pyembed_in(dir: &Path) -> Option<PathBuf> {
+    let py = if cfg!(windows) {
+        dir.join("pyembed").join("python.exe")
+    } else {
+        dir.join("pyembed").join("bin").join("python3")
+    };
+    py.exists().then_some(py)
+}
+
+/// Interpreters to try for Backfire, in order: the one beside the resolved
+/// backfire.py, the interpreter SHIPPED INSIDE the installed app's resources
+/// (works on a clean box, offline, with zero setup), one beside the exe, then
+/// `python3` / `python` on PATH as a last resort.
+fn backfire_interpreters(script: &Path, resource: Option<&Path>) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    let mut push = |p: PathBuf| {
+        let s = p.to_string_lossy().into_owned();
+        if !out.contains(&s) {
+            out.push(s);
+        }
+    };
+    if let Some(dir) = script.parent() {
+        if let Some(py) = pyembed_in(dir) {
+            push(py);
+        }
+    }
+    if let Some(res) = resource {
+        if let Some(py) = pyembed_in(&res.join("backfire")) {
+            push(py);
+        }
+    }
+    if let Some(dir) = exe_backfire_dir() {
+        if let Some(py) = pyembed_in(&dir) {
+            push(py);
+        }
+    }
+    out.push("python3".into());
+    out.push("python".into());
+    out
+}
+
+/// On launch, refresh the Backfire code in the writable home from the app's
+/// bundled copy, keeping the already-built Python (`pyembed`). This self-heals a
+/// stale or broken `backfire.py` left by an earlier install, without the user
+/// hunting for an install button that is hidden once Backfire is set up. No-op
+/// if Backfire was never set up on this box.
+fn refresh_backfire_code(app: &tauri::AppHandle) {
+    let Some(home) = backfire_home() else {
+        return;
+    };
+    // Only refresh an existing install; do not auto-create one on launch.
+    if !home.join("backfire.py").exists() {
+        log_line("launch: no per-user backfire home; nothing to refresh (bundled copy is used)");
+        return;
+    }
+    let resource = app.path().resource_dir().ok();
+    if let Some(src) = backfire_seed_source(resource.as_deref()) {
+        // With the NSIS per-user default, the install dir IS
+        // %LOCALAPPDATA%\provcheck, so the "home" and the bundled copy are the
+        // same directory. Copying a file onto itself fails with a sharing
+        // violation (os error 32); there is nothing to refresh in that layout.
+        if same_dir(&src, &home) {
+            log_line("launch: backfire home IS the bundled copy (same directory); no refresh needed");
+            return;
+        }
+        match copy_backfire_tree(&src, &home) {
+            Ok(()) => log_line(&format!(
+                "launch: refreshed backfire home {} from {}",
+                home.display(),
+                src.display()
+            )),
+            Err(e) => log_line(&format!(
+                "launch: refresh of backfire home FAILED (non-fatal, bundled copy is preferred): {e}"
+            )),
+        }
+    }
+}
+
+/// Whether the Backfire read environment is usable right now: a backfire.py is
+/// locatable AND a self-contained interpreter exists in any of the places
+/// `backfire_interpreters` searches (beside the script, inside the app's
+/// bundled resources, or beside the exe). With the interpreter shipped in the
+/// installer this is true on first launch with zero setup.
+#[tauri::command]
+async fn backfire_status(app: tauri::AppHandle) -> bool {
+    let resource = app.path().resource_dir().ok();
+    let Some(script) = locate_backfire_py(resource.as_deref()) else {
+        log_line("backfire status: NOT READY (no backfire.py found anywhere)");
+        return false;
+    };
+    let ready_via = if script.parent().and_then(pyembed_in).is_some() {
+        Some("script-adjacent")
+    } else if resource
+        .as_deref()
+        .and_then(|r| pyembed_in(&r.join("backfire")))
+        .is_some()
+    {
+        Some("app-resources")
+    } else if exe_backfire_dir().as_deref().and_then(pyembed_in).is_some() {
+        Some("exe-adjacent")
+    } else {
+        None
+    };
+    match ready_via {
+        Some(via) => {
+            log_line(&format!(
+                "backfire status: READY (script={}, interpreter={via})",
+                script.display()
+            ));
+            true
+        }
+        None => {
+            log_line(&format!(
+                "backfire status: NOT READY (script={} found, but no pyembed interpreter)",
+                script.display()
+            ));
+            false
+        }
+    }
+}
+
+/// Install / repair Backfire's read environment. The interpreter ships INSIDE
+/// the installed app's resources, so on a normal install there is nothing to
+/// download: this refreshes the per-user home's code from the bundle and
+/// reports ready. Only when no interpreter exists anywhere (e.g. a stripped
+/// portable copy) does it fall back to the network installer script.
+#[tauri::command]
+async fn install_backfire(app: tauri::AppHandle) -> ApiResult<String> {
+    let resource = app.path().resource_dir().ok();
+    tauri::async_runtime::spawn_blocking(move || {
+        use std::process::Command;
+        let Some(home) = backfire_home() else {
+            log_line("backfire install: FAILED, LOCALAPPDATA unset");
+            return ApiResult::err(
+                "Could not resolve a writable Backfire folder (LOCALAPPDATA unset).".to_string(),
+            );
+        };
+        log_line(&format!(
+            "backfire install: start (home={}, resource={})",
+            home.display(),
+            resource
+                .as_deref()
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|| "none".into())
+        ));
+        // The reader ships inside the app's resources, so if that (or any other)
+        // interpreter is present, the app is ALREADY functional and nothing below
+        // may fail the install. Check first.
+        let have_interpreter = resource
+            .as_deref()
+            .and_then(|r| pyembed_in(&r.join("backfire")))
+            .is_some()
+            || pyembed_in(&home).is_some()
+            || exe_backfire_dir().and_then(|d| pyembed_in(&d)).is_some();
+        // Best-effort: refresh the per-user home's code from the bundled copy
+        // (copy_backfire_tree skips pyembed). When the install dir IS the home
+        // (NSIS per-user default installs to %LOCALAPPDATA%\provcheck) they are
+        // the same directory and there is nothing to copy. A locked file here
+        // (antivirus, indexer, a lingering python process) must never break a
+        // working app, so with an interpreter present a copy failure is
+        // reported, not fatal.
+        let seed_err = match backfire_seed_source(resource.as_deref()) {
+            Some(src) if same_dir(&src, &home) => {
+                log_line("backfire install: home IS the bundled copy (same directory); nothing to seed");
+                None
+            }
+            Some(src) => copy_backfire_tree(&src, &home).err().map(|e| e.to_string()),
+            None => None,
+        };
+        if have_interpreter {
+            log_line(&format!(
+                "backfire install: READY via bundled interpreter (seed_err={:?})",
+                seed_err
+            ));
+            return ApiResult::ok(match seed_err {
+                None => "Backfire is ready (bundled reader present). Enter a key and drop an image."
+                    .to_string(),
+                Some(e) => format!(
+                    "Backfire is ready (bundled reader present). Note: refreshing the optional \
+                     per-user copy was skipped ({e}); the app uses its built-in copy. \
+                     Full log: {}",
+                    log_path_display()
+                ),
+            });
+        }
+        if let Some(e) = seed_err {
+            log_line(&format!("backfire install: FAILED seeding home: {e}"));
+            return ApiResult::err(format!(
+                "Could not set up the Backfire folder at {}: {e}\nFull log: {}",
+                home.display(),
+                log_path_display()
+            ));
+        }
+        if !home.join("backfire.py").exists() {
+            log_line("backfire install: FAILED, no seed source and no existing home copy");
+            return ApiResult::err(
+                "Backfire files not found to install. Reinstall provcheck, or set BACKFIRE_PY."
+                    .to_string(),
+            );
+        }
+        log_line("backfire install: no bundled interpreter; falling back to network setup script");
+        let (prog, args): (&str, Vec<String>) = if cfg!(windows) {
+            let script = home.join("setup_backfire.ps1");
+            if !script.exists() {
+                return ApiResult::err(format!("setup_backfire.ps1 not found in {}", home.display()));
+            }
+            (
+                "powershell",
+                vec![
+                    "-NoProfile".into(),
+                    "-ExecutionPolicy".into(),
+                    "Bypass".into(),
+                    "-File".into(),
+                    script.to_string_lossy().into_owned(),
+                    "-Quiet".into(),
+                ],
+            )
+        } else {
+            let script = home.join("setup_backfire.sh");
+            if !script.exists() {
+                return ApiResult::err(format!("setup_backfire.sh not found in {}", home.display()));
+            }
+            ("bash", vec![script.to_string_lossy().into_owned(), "--quiet".into()])
+        };
+        match Command::new(prog).args(&args).output() {
+            Ok(out) if out.status.success() => {
+                log_line("backfire install: network setup script succeeded");
+                ApiResult::ok("Backfire is ready. Enter a key and drop an image.".to_string())
+            }
+            Ok(out) => {
+                let stderr = String::from_utf8_lossy(&out.stderr);
+                log_line(&format!(
+                    "backfire install: setup script FAILED exit={:?}: {}",
+                    out.status.code(),
+                    stderr.trim()
+                ));
+                ApiResult::err(format!(
+                    "Backfire setup failed: {}\nFull log: {}",
+                    stderr.trim(),
+                    log_path_display()
+                ))
+            }
+            Err(e) => {
+                log_line(&format!("backfire install: could not start setup script: {e}"));
+                ApiResult::err(format!(
+                    "Could not run the Backfire setup script ({e}). It needs PowerShell on \
+                     Windows, or bash on Linux/macOS.\nFull log: {}",
+                    log_path_display()
+                ))
+            }
+        }
+    })
+    .await
+    .unwrap_or_else(|e| ApiResult::err(format!("install_backfire task panicked: {e}")))
 }
 
 /// Open a native "choose file" dialog and return the selected absolute path, or None if
@@ -1403,13 +1842,35 @@ fn main() {
     // when the backup UI lands.
     let _ = resolve_recovery_recipients as fn(&[provcheck_sign::types::RecoveryRecipient]) -> _;
     tauri::Builder::default()
+        .setup(|app| {
+            // Launch banner in the diagnostic log: version + the paths every
+            // Backfire decision derives from.
+            let res = app
+                .path()
+                .resource_dir()
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|_| "unresolvable".into());
+            let exe = std::env::current_exe()
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|_| "unknown".into());
+            log_line(&format!(
+                "launch: provcheck-app v{} exe={exe} resource_dir={res}",
+                env!("CARGO_PKG_VERSION")
+            ));
+            // Self-heal any stale/broken Backfire code from a prior install so the
+            // read path always runs the bundled (current) backfire.py.
+            refresh_backfire_code(app.handle());
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             verify_file,
             // v1.1.0: dedicated Watermark + Detect tabs.
             watermark_only,
             detect_only,
-            // Experimental Backfire verify tab (shells out to the AGPL tool).
+            // Experimental Backfire verify tab (shells out to the BUSL tool).
             backfire_read,
+            backfire_status,
+            install_backfire,
             // Native "choose file" dialog shared by all tabs.
             pick_image,
             // Watermark-detection model management (download-on-demand weights).

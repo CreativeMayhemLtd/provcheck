@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Backfire-Commercial
+# SPDX-License-Identifier: BUSL-1.1 OR LicenseRef-Backfire-Commercial
 # Copyright (C) 2026 Creative Mayhem UG (haftungsbeschränkt)
 """Backfire: an imperceptible, keyed image watermark that AI provenance-stripping
 attacks *amplify* instead of remove.
@@ -166,9 +166,18 @@ def notch_tamper_stat(gray, size):
     F = np.fft.fftshift(np.fft.fft2(gray)); p = F.real**2 + F.imag**2
     L = np.array([np.log(p[rbin == r].mean() + 1e-8) if (rbin == r).any() else 0.0 for r in range(rmax)])
     r = np.arange(1, rmax); y = L[1:rmax]; x = np.log(r)
+    if x.size < 6:                                         # too few radial bins to fit a degree-4 trend
+        return 0.0
     coef = np.polyfit(x, y, 4); base = np.polyval(coef, x)
-    keep = (y - base) > -np.std(y - base)                 # drop deep dips, refit the trend
-    coef = np.polyfit(x[keep], y[keep], 4); base = np.polyval(coef, x)
+    resid = y - base
+    sd = float(np.std(resid))
+    # Refit the trend without deep dips. On a near-flat spectrum (a solid or very
+    # low-texture image) the first fit is already near-perfect, so sd is ~0 and
+    # there are no dips to drop; keep every point then. Never let the mask collapse
+    # below what a degree-4 fit needs, or np.polyfit raises on an empty vector.
+    keep = resid > -sd if sd > 1e-9 else np.ones(resid.shape, dtype=bool)
+    if int(keep.sum()) >= 6:
+        coef = np.polyfit(x[keep], y[keep], 4); base = np.polyval(coef, x)
     dip = base - y
     return float(np.convolve(np.clip(dip, 0, None), np.ones(5) / 5, mode="same").max())
 
@@ -185,7 +194,12 @@ def read_cmd(a):
         gray = (np.asarray(rgb.resize((size, size)), np.float32) / 255.0).mean(2)
         idv, conf, margin = decode_keyed(gray, key, size, a.carriers)
         valid = bool(margin > a.threshold)   # every id bit must clear the decoy noise floor
-        tamper = notch_tamper_stat(gray, size)
+        # The tamper tripwire is advisory: never let it kill the whole read. Any
+        # failure degrades to 0.0 (no tamper detected) so read always emits JSON.
+        try:
+            tamper = notch_tamper_stat(gray, size)
+        except Exception:
+            tamper = 0.0
         if best is None or valid:
             best = (size, idv, conf, margin, valid, tamper)
         if valid:

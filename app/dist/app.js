@@ -1183,7 +1183,7 @@ $wmChooseBtn.addEventListener("click", openFilePicker);
 $wmAnother.addEventListener("click", showWmEmpty);
 
 // ---- Backfire tab (experimental keyed image-watermark verify) ------------
-// Shells out to the standalone AGPL backfire.py via the backfire_read command.
+// Shells out to the standalone BUSL-licensed backfire.py via the backfire_read command.
 // A key is required (Backfire reads only a mark embedded with the same key).
 
 const BF_KEY_STORAGE = "provcheck.backfire.key";
@@ -1374,6 +1374,50 @@ async function installAllModels() {
 
 if ($modelsInstallBtn) $modelsInstallBtn.addEventListener("click", installAllModels);
 refreshModelsStatus();
+
+// ---- Backfire reader setup (auto-get the self-contained read environment) ----
+const $bfInstallBanner = document.getElementById("bf-install-banner");
+const $bfInstallStatus = document.getElementById("bf-install-status");
+const $bfInstallBtn = document.getElementById("bf-install-btn");
+
+// The banner is ALWAYS visible: it reports the reader's real state and the
+// button always works as install-or-repair. Never hide it — a hidden control
+// on a box that needs repair is a dead end.
+async function refreshBackfireStatus() {
+  if (!$bfInstallBanner) return;
+  $bfInstallBanner.hidden = false;
+  try {
+    const ready = await invoke("backfire_status");
+    $bfInstallStatus.textContent =
+      ready === true
+        ? "Ready. The reader ships inside the app; Install / Repair re-copies it if anything is broken."
+        : "Not set up. Install / Repair copies the bundled reader into place — no downloads needed.";
+  } catch (e) {
+    $bfInstallStatus.textContent =
+      "Status check failed: " + String(e && e.message ? e.message : e);
+  }
+}
+
+async function installBackfire() {
+  if (!$bfInstallBtn) return;
+  const orig = $bfInstallBtn.textContent;
+  $bfInstallBtn.disabled = true;
+  $bfInstallBtn.textContent = "Working…";
+  $bfInstallStatus.textContent = "Installing / repairing the Backfire reader…";
+  try {
+    const res = await invoke("install_backfire");
+    $bfInstallStatus.textContent =
+      res && res.ok ? res.data || "Done." : (res && res.error) || "Setup failed.";
+  } catch (e) {
+    $bfInstallStatus.textContent = String(e && e.message ? e.message : e);
+  } finally {
+    $bfInstallBtn.disabled = false;
+    $bfInstallBtn.textContent = orig;
+  }
+}
+
+if ($bfInstallBtn) $bfInstallBtn.addEventListener("click", installBackfire);
+refreshBackfireStatus();
 
 // External-URL click interceptor. Tauri 2 sandboxes `target="_blank"`
 // anchors, so provcheck.ai / creativemayhem.com links in the top bar

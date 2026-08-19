@@ -61,3 +61,6 @@ target-gate/
 signing.json
 logs/
 app/src-tauri/onnxruntime.dll
+
+# in-project staged copy of backfire for GUI resource bundling (build artifact)
+app/src-tauri/backfire/

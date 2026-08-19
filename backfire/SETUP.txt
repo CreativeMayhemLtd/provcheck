@@ -1,0 +1,73 @@
+Backfire (experimental) - quick setup
+=====================================
+
+Backfire is a keyed image watermark that ships as a separate tool next to
+provcheck (it is NOT inside provcheck.exe). It is free for non-commercial use
+under the Business Source License 1.1; commercial use needs a license from
+Creative Mayhem (licensing@creativemayhem.com). See LICENSE, LICENSING.md,
+EULA.md, and TOS.md.
+
+
+ONE-COMMAND SETUP (verify side)
+-------------------------------
+From the folder that contains provcheck.exe, run:
+
+    provcheck.exe --install-backfire
+
+That is all. It downloads a small, self-contained Python (no system Python is
+needed and nothing else has to be installed), sets up the numpy-only read
+path, and smoke-tests it. When it prints "Backfire is ready", verification
+works. It needs to reach python.org and PyPI once; after that the read path is
+fully offline.
+
+
+VERIFY A MARKED IMAGE
+---------------------
+The bundle includes a sample marked with a demo key:
+
+    provcheck.exe --backfire-read --backfire-key backfire-demo-key backfire\repro\sample_marked.png
+        -> expect: mark VALID (id 0x7), tamper none
+
+    provcheck.exe --backfire-read --backfire-key backfire-demo-key backfire\repro\sample.png
+        -> expect: mark not detected (this is the unmarked control)
+
+Use your own key to verify images you marked yourself. Or run the tool
+directly, no provcheck needed:
+
+    backfire\pyembed\python.exe backfire\backfire.py read <image> --key <YOUR-KEY>
+
+
+EMBEDDING (creator side, optional, large and GPU-bound)
+-------------------------------------------------------
+Writing a Backfire mark needs a GPU, PyTorch, a diffusion model, and minutes
+per image, so it is a separate, opt-in setup:
+
+    powershell -ExecutionPolicy Bypass -File backfire\setup_backfire.ps1 -Embed
+
+That installs torch, diffusers, and transformers and pre-fetches the diffusion
+weights (several GB). For GPU embed, install a CUDA torch build for your
+platform (pytorch.org) into backfire\pyembed afterwards. Then:
+
+    backfire\pyembed\python.exe backfire\backfire.py embed <in.png> <out.png> --key <YOUR-KEY> --serial 0x5
+
+
+TROUBLESHOOTING
+---------------
+- "Backfire tool not found" -> run  provcheck.exe --install-backfire  first, or
+  set BACKFIRE_PY to the full path of backfire.py.
+- To rebuild the environment from scratch:
+      powershell -ExecutionPolicy Bypass -File backfire\setup_backfire.ps1 -Force
+- On Linux or macOS, use backfire/setup_backfire.sh instead of the .ps1 (it
+  builds a virtualenv from your system python3).
+
+
+WHAT PROVCHECK VERIFICATION NEEDS (separate from Backfire)
+----------------------------------------------------------
+Core C2PA verification needs nothing extra. To also detect the standard
+watermarks (TrustMark, silentcipher, AudioSeal, WavMark, SynthID-text), install
+their models once:
+
+    provcheck.exe --install-models
+
+That and --install-backfire are independent: the first enables the built-in
+watermark detectors, the second enables the experimental Backfire reader.

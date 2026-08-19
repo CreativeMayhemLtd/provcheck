@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Backfire-Commercial
+# SPDX-License-Identifier: BUSL-1.1 OR LicenseRef-Backfire-Commercial
 # Copyright (C) 2026 Creative Mayhem UG (haftungsbeschränkt)
 """Unit tests for Backfire's read/decode path.
 
@@ -80,6 +80,22 @@ def test_margin_separates_marked_from_unmarked():
         plain_margins.append(bf.decode_keyed(host, KEY, SIZE)[2])
     assert min(marked_margins) > max(plain_margins), \
         f"classes overlap: marked min {min(marked_margins):.2f} vs unmarked max {max(plain_margins):.2f}"
+
+
+def test_notch_tamper_stat_survives_degenerate_images():
+    """Regression: a solid or near-flat image makes the radial power spectrum fit
+    the degree-4 trend perfectly, so the dip-drop mask collapsed to empty and the
+    refit `np.polyfit` raised "expected non-empty vector for x", killing the whole
+    read. The stat must now return a finite number for these inputs, not crash."""
+    for size in (256, 512):
+        for img in (
+            np.full((size, size), 0.5, np.float32),   # solid gray
+            np.zeros((size, size), np.float32),        # solid black
+            np.ones((size, size), np.float32),         # solid white
+        ):
+            stat = bf.notch_tamper_stat(img, size)
+            assert isinstance(stat, float) and np.isfinite(stat) and stat >= 0.0, \
+                f"degenerate {size}px image gave {stat!r}"
 
 
 if __name__ == "__main__":
