@@ -32,6 +32,10 @@ hound = "3"
 # Decoding leaked copies in any format on the read side (MP3/AAC/FLAC/etc.), so
 # the transcode-invariant channel can actually be exercised against real leaks.
 symphonia = { version = "0.5", features = ["mp3", "aac", "flac", "isomp4", "ogg", "vorbis", "wav"] }
+# Machine-readable --json output for read/accuse, the protocol provcheck's
+# Apache-side shell-out parses. Real JSON (not hand-rolled) because accuse
+# emits user-controlled buyer labels that need proper escaping.
+serde_json = "1"
 
 # The keyed-serial file watermark CLI. Opt-in binary, never in the FOSS release.
 [[bin]]

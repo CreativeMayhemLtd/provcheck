@@ -46,9 +46,9 @@ fn usage() -> ! {
     eprintln!(
         "usage:\n  \
          provcheck-mellin embed --secret <hex> --work-id <str> --serial <hex> [--repeat N] [--strength F] <in.wav> -o <out.wav>\n  \
-         provcheck-mellin read  --secret <hex> --work-id <str> [--repeat N] [--strength F] [--expect <hex>] <in.wav>\n  \
+         provcheck-mellin read  --secret <hex> --work-id <str> [--repeat N] [--strength F] [--expect <hex>] [--json] <in.wav>\n  \
          provcheck-mellin trace-embed --secret <hex> --work-id <str> --buyer <str> --positions M --colluders C [--strength F] <in.wav> -o <out.wav>\n  \
-         provcheck-mellin accuse --secret <hex> --work-id <str> --positions M --colluders C --buyers <file> [--fp-log10 K] [--strength F] <leak>\n\n\
+         provcheck-mellin accuse --secret <hex> --work-id <str> --positions M --colluders C --buyers <file> [--fp-log10 K] [--strength F] [--json] <leak>\n\n\
          embed/read carry a fixed 64-bit per-copy serial; trace-embed/accuse carry a\n  \
          collusion-resistant Tardos codeword and name at least one colluder from a leak."
     );
@@ -68,6 +68,12 @@ fn parse(args: &[String]) -> (Vec<String>, HashMap<String, String>) {
             _ => None,
         };
         match name {
+            // Boolean flags take no value. `--json` switches stdout to one
+            // machine-readable line (the protocol provcheck shells into).
+            Some("json") => {
+                flags.insert("json".to_string(), "1".to_string());
+                i += 1;
+            }
             Some(n) => {
                 let v = args
                     .get(i + 1)
@@ -214,19 +220,47 @@ fn main() {
         "read" => {
             let input = pos.first().unwrap_or_else(|| die("need <in.wav>"));
             let ch = channel(&flags);
+            let json = flags.contains_key("json");
             let (channels, _sr) = decode_planar_i16le(input).unwrap_or_else(|e| die(e));
             let r = read_serial_channels(&ch, &channels, repeat_of(&flags));
-            println!("channels:        {}", channels.len());
-            println!("serial:          0x{:016X}", r.serial);
-            println!("bits recovered:  {}/{}", r.bits_recovered, 64);
-            println!("erasure rate:    {:.1}%", r.erasure_rate * 100.0);
-            println!("min bit votes:   {}", r.min_bit_votes);
-            if let Some(expect) = flags.get("expect") {
-                let want = u64_hex(expect);
-                if r.serial == want && r.fully_recovered() {
-                    println!("MATCH 0x{want:016X}");
+            // With --expect: Some(true/false); without: None (surfaced as JSON null).
+            let matched = flags
+                .get("expect")
+                .map(|e| u64_hex(e))
+                .map(|want| (want, r.serial == want && r.fully_recovered()));
+            if json {
+                // EXACTLY one line on stdout: the protocol the provcheck
+                // shell-out parses. The serial is a hex STRING because a u64
+                // does not survive parsing as a JS/JSON number.
+                println!(
+                    "{}",
+                    serde_json::json!({
+                        "channels": channels.len(),
+                        "serial": format!("0x{:016X}", r.serial),
+                        "bits_recovered": r.bits_recovered,
+                        "erasure_rate": r.erasure_rate,
+                        "min_bit_votes": r.min_bit_votes,
+                        "fully_recovered": r.fully_recovered(),
+                        "match": matched.map(|(_, m)| m),
+                    })
+                );
+            } else {
+                println!("channels:        {}", channels.len());
+                println!("serial:          0x{:016X}", r.serial);
+                println!("bits recovered:  {}/{}", r.bits_recovered, 64);
+                println!("erasure rate:    {:.1}%", r.erasure_rate * 100.0);
+                println!("min bit votes:   {}", r.min_bit_votes);
+            }
+            // Exit semantics are identical with and without --json.
+            if let Some((want, m)) = matched {
+                if m {
+                    if !json {
+                        println!("MATCH 0x{want:016X}");
+                    }
                 } else {
-                    println!("NO MATCH (expected 0x{want:016X})");
+                    if !json {
+                        println!("NO MATCH (expected 0x{want:016X})");
+                    }
                     exit(1);
                 }
             }
@@ -322,7 +356,33 @@ fn main() {
                 &ledger,
                 fp_log10,
             );
-            if suspects.is_empty() {
+            if flags.contains_key("json") {
+                // One machine-readable line; exit semantics unchanged below.
+                let refused = observed < floor;
+                let th = (!refused)
+                    .then(|| provcheck_mellin::tardos::threshold(observed, buyers.len().max(1), fp_log10));
+                println!(
+                    "{}",
+                    serde_json::json!({
+                        "positions": positions,
+                        "observed": observed,
+                        "floor": floor,
+                        "refused_below_floor": refused,
+                        "threshold": th,
+                        "accused": suspects
+                            .iter()
+                            .map(|s| serde_json::json!({
+                                "label": s.label,
+                                "score": s.score,
+                                "threshold": s.threshold,
+                            }))
+                            .collect::<Vec<_>>(),
+                    })
+                );
+                if suspects.is_empty() {
+                    exit(1);
+                }
+            } else if suspects.is_empty() {
                 if observed < floor {
                     println!(
                         "NO ACCUSATION (only {observed} observed positions, below the {floor} floor)"
@@ -331,13 +391,14 @@ fn main() {
                     println!("NO ACCUSATION (no buyer scored above threshold)");
                 }
                 exit(1);
-            }
-            println!("accused (strongest first):");
-            for s in &suspects {
-                println!(
-                    "  {}  score {:.2}  (threshold {:.2})",
-                    s.label, s.score, s.threshold
-                );
+            } else {
+                println!("accused (strongest first):");
+                for s in &suspects {
+                    println!(
+                        "  {}  score {:.2}  (threshold {:.2})",
+                        s.label, s.score, s.threshold
+                    );
+                }
             }
         }
         "-h" | "--help" | "help" => usage(),
