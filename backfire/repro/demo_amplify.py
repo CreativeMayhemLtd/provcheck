@@ -69,58 +69,81 @@ def purify(marked_path, out_path, strength, steps, seed, size):
 def draw(original, marked, purified, m_marked, m_purified, m_wrong, out_path):
     from PIL import Image, ImageDraw, ImageFont
 
-    def font(sz):
-        for p in (r"C:\Windows\Fonts\segoeui.ttf", r"C:\Windows\Fonts\arial.ttf",
-                  "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"):
+    def font(sz, bold=False):
+        cands = ([r"C:\Windows\Fonts\segoeuib.ttf", r"C:\Windows\Fonts\arialbd.ttf",
+                  "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"] if bold else
+                 [r"C:\Windows\Fonts\segoeui.ttf", r"C:\Windows\Fonts\arial.ttf",
+                  "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"])
+        for p in cands:
             if os.path.exists(p):
                 return ImageFont.truetype(p, sz)
         return ImageFont.load_default()
 
-    IMG, GAP, PADX, TOP = 240, 40, 40, 110
-    W = PADX * 2 + IMG * 3 + GAP * 2
-    H = TOP + IMG + 250
-    BG, FG, SUB = (17, 18, 22), (235, 236, 240), (150, 153, 162)
-    GREEN, BAR, TRACK, GREY = (46, 204, 113), (39, 174, 96), (44, 46, 54), (120, 123, 130)
+    IMG, GAP, MARG = 400, 44, 64
+    W = MARG * 2 + IMG * 3 + GAP * 2
+    BG, FG, SUB = (16, 17, 21), (238, 239, 243), (148, 151, 160)
+    GREEN, BAR, TRACK = (52, 211, 122), (42, 176, 99), (40, 42, 50)
+    HAIR = (52, 55, 64)
+
+    # Vertical rhythm, computed top to bottom so nothing overlaps.
+    y_title = 56
+    y_tag = y_title + 62
+    y_img = y_tag + 58
+    y_label = y_img + IMG + 16
+    y_cap = y_label + 34
+    y_bar = y_cap + 24
+    y_val = y_bar + 34
+    y_amp = y_val + 40
+    y_rule = y_amp + 44
+    y_ctrl = y_rule + 26
+    y_ctrl2 = y_ctrl + 30
+    y_foot = y_ctrl2 + 44
+    H = y_foot + 48
+
     c = Image.new("RGB", (W, H), BG)
     d = ImageDraw.Draw(c)
-    d.text((PADX, 34), "Backfire", font=font(40), fill=FG)
-    d.text((PADX, 82), "the watermark that gets STRONGER when you attack it",
-           font=font(19), fill=GREEN)
+    d.text((MARG, y_title), "Backfire", font=font(52, bold=True), fill=FG)
+    d.text((MARG, y_tag), "the watermark that gets stronger when you attack it",
+           font=font(24), fill=GREEN)
+
     cols = [
         (original, "Original", None),
         (marked, "Marked (invisible)", m_marked),
         (purified, "After an AI stripper", m_purified),
     ]
-    maxm = max(m_marked, m_purified) * 1.15
+    maxm = max(m_marked, m_purified) * 1.12
     for i, (path, label, m) in enumerate(cols):
-        x = PADX + i * (IMG + GAP)
-        c.paste(Image.open(path).convert("RGB").resize((IMG, IMG)), (x, TOP))
-        d.rectangle([x, TOP, x + IMG, TOP + IMG], outline=(60, 62, 70))
-        d.text((x, TOP + IMG + 12), label, font=font(17), fill=FG)
-        by = TOP + IMG + 46
+        x = MARG + i * (IMG + GAP)
+        c.paste(Image.open(path).convert("RGB").resize((IMG, IMG)), (x, y_img))
+        d.rectangle([x, y_img, x + IMG, y_img + IMG], outline=HAIR)
+        d.text((x, y_label), label, font=font(21, bold=True), fill=FG)
         if m is None:
-            d.text((x, by + 8), "(unwatermarked)", font=font(15), fill=SUB)
+            d.text((x, y_cap), "(unwatermarked)", font=font(16), fill=SUB)
             continue
-        d.text((x, by), "watermark confidence", font=font(13), fill=SUB)
-        d.rounded_rectangle([x, by + 22, x + IMG, by + 42], 6, fill=TRACK)
+        d.text((x, y_cap), "WATERMARK CONFIDENCE", font=font(13), fill=SUB)
+        d.rounded_rectangle([x, y_bar, x + IMG, y_bar + 24], 8, fill=TRACK)
         w = int(IMG * min(1.0, m / maxm))
-        d.rounded_rectangle([x, by + 22, x + w, by + 42], 6, fill=BAR)
-        d.text((x, by + 50), f"{m:.1f}   VALID", font=font(20), fill=GREEN)
-    d.text((PADX + IMG + 8, TOP + IMG + 78),
-           f"->  x{m_purified / m_marked:.1f} stronger  ->", font=font(15), fill=GREEN)
-    # Control: the SAME attacked image read with a WRONG key scores ~0. This proves the
-    # high read is the key finding the mark, not a changed image reading high.
-    cy = TOP + IMG + 130
-    d.line([PADX, cy, W - PADX, cy], fill=(44, 46, 54), width=1)
-    d.text((PADX, cy + 12),
-           f"Control: the same attacked image, read with a WRONG key  ->  {m_wrong:.2f}   nothing.",
-           font=font(15), fill=GREY)
-    d.text((PADX, cy + 36),
+        d.rounded_rectangle([x, y_bar, x + w, y_bar + 24], 8, fill=BAR)
+        d.text((x, y_val), f"{m:.1f}", font=font(30, bold=True), fill=GREEN)
+        vw = d.textlength(f"{m:.1f}", font=font(30, bold=True))
+        d.text((x + vw + 14, y_val + 7), "VALID", font=font(19), fill=GREEN)
+    # Amplification callout: its own line under the right panel, nothing overlaps.
+    ax = MARG + 2 * (IMG + GAP)
+    d.text((ax, y_amp), f"{m_purified / m_marked:.1f}x stronger than before the attack",
+           font=font(17), fill=GREEN)
+
+    # Control block: the SAME attacked image read with a WRONG key scores ~0,
+    # proving the high read is the key finding the mark.
+    d.line([MARG, y_rule, W - MARG, y_rule], fill=HAIR, width=1)
+    d.text((MARG, y_ctrl),
+           f"Control: the same attacked image, read with a wrong key, scores {m_wrong:.2f}. Nothing.",
+           font=font(18), fill=FG)
+    d.text((MARG, y_ctrl2),
            "The high read is your key finding your mark, not the changed image reading high. "
-           "The mark is in the key, not the picture.", font=font(13), fill=SUB)
-    d.text((PADX, H - 26),
-           "Imperceptible keyed mark. Stock diffusers img2img regeneration; the keyed "
-           "identifier survives it and reads back stronger.", font=font(12), fill=SUB)
+           "The mark is in the key, not the picture.", font=font(15), fill=SUB)
+    d.text((MARG, y_foot),
+           "Imperceptible keyed mark, 512 px. Stock diffusers img2img regeneration; "
+           "the keyed identifier survives it and reads back stronger.", font=font(13), fill=SUB)
     c.save(out_path)
 
 
