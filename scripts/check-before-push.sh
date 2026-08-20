@@ -57,6 +57,13 @@ done
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
+# ffmpeg is installed at C:\tools\ffmpeg (2026-08-20) so the AAC delivery
+# smoke (step 4) actually runs instead of silently skipping. Some shells do
+# not carry the box's PATH, so the gate finds it itself.
+if ! command -v ffmpeg >/dev/null 2>&1 && [ -x "/c/tools/ffmpeg/bin/ffmpeg.exe" ]; then
+    export PATH="$PATH:/c/tools/ffmpeg/bin"
+fi
+
 red()    { printf "\033[31m%s\033[0m\n" "$*" >&2; }
 green()  { printf "\033[32m%s\033[0m\n" "$*"; }
 yellow() { printf "\033[33m%s\033[0m\n" "$*"; }

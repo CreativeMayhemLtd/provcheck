@@ -15,7 +15,7 @@
 name = "provcheck-mellin"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.88"
 license = "BUSL-1.1 OR LicenseRef-provcheck-mellin-Commercial"
 authors = ["Creative Mayhem UG <info@rAIdio.bot>"]
 repository = "https://github.com/CreativeMayhemLtd/provcheck"
