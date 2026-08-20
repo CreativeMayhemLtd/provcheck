@@ -397,10 +397,10 @@ fn write_age(
     encryptor: age::Encryptor,
     plaintext: &[u8],
 ) -> Result<u64, BackupError> {
-    if let Some(parent) = out_path.parent() {
-        if !parent.as_os_str().is_empty() {
-            fs::create_dir_all(parent)?;
-        }
+    if let Some(parent) = out_path.parent()
+        && !parent.as_os_str().is_empty()
+    {
+        fs::create_dir_all(parent)?;
     }
     let tmp = out_path.with_extension("age.tmp");
     {

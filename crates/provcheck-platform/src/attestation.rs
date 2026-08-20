@@ -225,18 +225,17 @@ fn is_record_active(record: &SigningKeyRecord, now: SystemTime) -> bool {
         .as_deref()
         .unwrap_or(record.created_at.as_str());
 
-    if let Some(from) = parse_rfc3339(from_str) {
-        if now < from {
-            return false;
-        }
+    if let Some(from) = parse_rfc3339(from_str)
+        && now < from
+    {
+        return false;
     }
 
-    if let Some(until_str) = record.valid_until.as_deref() {
-        if let Some(until) = parse_rfc3339(until_str) {
-            if now >= until {
-                return false;
-            }
-        }
+    if let Some(until_str) = record.valid_until.as_deref()
+        && let Some(until) = parse_rfc3339(until_str)
+        && now >= until
+    {
+        return false;
     }
 
     true

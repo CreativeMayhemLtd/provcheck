@@ -225,12 +225,12 @@ fn sign_with_brand(src: &Path, dest: &Path, brand: Brand, manifest_json: String)
     // For MP3 specifically, the manifest bytes are the sidecar
     // contents — write them adjacent so the Reader::from_file path
     // can find the manifest alongside the MP3.
-    if let Some(ext) = dest.extension().and_then(|e| e.to_str()) {
-        if ext.eq_ignore_ascii_case("mp3") {
-            let sidecar = dest.with_extension("c2pa");
-            std::fs::write(&sidecar, &_manifest_bytes)
-                .with_context(|| format!("write sidecar {}", sidecar.display()))?;
-        }
+    if let Some(ext) = dest.extension().and_then(|e| e.to_str())
+        && ext.eq_ignore_ascii_case("mp3")
+    {
+        let sidecar = dest.with_extension("c2pa");
+        std::fs::write(&sidecar, &_manifest_bytes)
+            .with_context(|| format!("write sidecar {}", sidecar.display()))?;
     }
 
     println!(

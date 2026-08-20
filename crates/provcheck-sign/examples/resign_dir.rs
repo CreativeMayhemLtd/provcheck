@@ -318,13 +318,14 @@ fn main() {
 
         match sign_asset_with_signer(signer.as_ref(), src, &tmp, &manifest) {
             Ok(_) => {
-                if args.backup && !backup.exists() {
-                    if let Err(e) = fs::rename(src, &backup) {
-                        eprintln!("  {}: backup rename failed: {e}", src.display());
-                        let _ = fs::remove_file(&tmp);
-                        fail_count += 1;
-                        continue;
-                    }
+                if args.backup
+                    && !backup.exists()
+                    && let Err(e) = fs::rename(src, &backup)
+                {
+                    eprintln!("  {}: backup rename failed: {e}", src.display());
+                    let _ = fs::remove_file(&tmp);
+                    fail_count += 1;
+                    continue;
                 }
                 if let Err(e) = fs::rename(&tmp, src) {
                     eprintln!("  {}: tmp -> src rename failed: {e}", src.display());

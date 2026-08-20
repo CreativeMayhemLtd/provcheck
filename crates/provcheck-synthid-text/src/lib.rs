@@ -219,8 +219,8 @@ fn not_text() -> WatermarkResult {
 /// extensionless files so well-formed text without a familiar
 /// extension still gets a chance.
 fn looks_like_text(path: &Path, meta: &std::fs::Metadata) -> bool {
-    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-        if matches!(
+    if let Some(ext) = path.extension().and_then(|e| e.to_str())
+        && matches!(
             ext.to_ascii_lowercase().as_str(),
             "txt"
                 | "md"
@@ -241,9 +241,9 @@ fn looks_like_text(path: &Path, meta: &std::fs::Metadata) -> bool {
                 | "conf"
                 | "srt"
                 | "vtt"
-        ) {
-            return true;
-        }
+        )
+    {
+        return true;
     }
     // No extension OR an extension we do not recognise: sniff the
     // first chunk for valid UTF-8 with a high printable-ratio. We

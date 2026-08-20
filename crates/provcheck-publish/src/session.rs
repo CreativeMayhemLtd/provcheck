@@ -277,10 +277,10 @@ fn file_to_atp_session(f: &SessionFile) -> Result<AtpSession, SessionError> {
 /// other persistence layers, with owner-only perms on Unix.
 fn write_session_file(dir: &Path, file: &SessionFile) -> Result<(), SessionError> {
     let path = session_path(dir);
-    if let Some(parent) = path.parent() {
-        if !parent.as_os_str().is_empty() {
-            std::fs::create_dir_all(parent)?;
-        }
+    if let Some(parent) = path.parent()
+        && !parent.as_os_str().is_empty()
+    {
+        std::fs::create_dir_all(parent)?;
     }
     let tmp = path.with_extension("json.tmp");
     let json = serde_json::to_vec_pretty(file).map_err(|e| SessionError::Format(e.to_string()))?;

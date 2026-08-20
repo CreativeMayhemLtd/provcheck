@@ -43,10 +43,10 @@ struct HandleCacheEntry {
 pub fn resolve_handle(handle: &str, config: &AttestationConfig) -> Result<String, String> {
     let handle = handle.trim_start_matches('@');
 
-    if !config.bypass_cache {
-        if let Some(cached) = cache_read::<HandleCacheEntry>(config, "handle", handle) {
-            return Ok(cached.did);
-        }
+    if !config.bypass_cache
+        && let Some(cached) = cache_read::<HandleCacheEntry>(config, "handle", handle)
+    {
+        return Ok(cached.did);
     }
 
     if let Ok(did) = try_well_known_handle(handle, config) {
@@ -120,10 +120,10 @@ struct PdsCacheEntry {
 
 /// Resolve a DID to its PDS endpoint URL. Caches the result.
 pub fn resolve_pds_endpoint(did: &str, config: &AttestationConfig) -> Result<String, String> {
-    if !config.bypass_cache {
-        if let Some(cached) = cache_read::<PdsCacheEntry>(config, "pds", did) {
-            return Ok(cached.endpoint);
-        }
+    if !config.bypass_cache
+        && let Some(cached) = cache_read::<PdsCacheEntry>(config, "pds", did)
+    {
+        return Ok(cached.endpoint);
     }
 
     let doc = fetch_did_document(did, config)?;
@@ -219,10 +219,10 @@ pub fn list_signing_keys(
     config: &AttestationConfig,
 ) -> Result<Vec<SigningKeyRecord>, String> {
     let cache_key = format!("{did}__{COLLECTION}");
-    if !config.bypass_cache {
-        if let Some(cached) = cache_read::<RecordsCacheEntry>(config, "records", &cache_key) {
-            return Ok(cached.records);
-        }
+    if !config.bypass_cache
+        && let Some(cached) = cache_read::<RecordsCacheEntry>(config, "records", &cache_key)
+    {
+        return Ok(cached.records);
     }
 
     let url = format!(
