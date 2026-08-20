@@ -428,6 +428,20 @@ jobs:
           cp "onnxruntime-win-x64-${ORT_VER}/lib/onnxruntime.dll" app/src-tauri/onnxruntime.dll
           ls -la app/src-tauri/onnxruntime.dll
 
+      # Windows GUI also bundles the keyed-tools resources (the Backfire
+      # reader with its self-contained Python, the provcheck-mellin binary
+      # with its license set, and the sample test-files) via the same
+      # bundle.resources mechanism. Those folders are gitignored build
+      # artifacts, so CI assembles them here; the script also generates and
+      # VERIFIES the Mellin sample pair from the committed source track,
+      # which doubles as a keyed-read end-to-end test in every release
+      # build. v1.2.0's first matrix run failed exactly here: the resource
+      # globs matched nothing on a fresh checkout.
+      - name: Stage keyed-tools GUI resources (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/stage-gui-resources.ps1
+
       - name: tauri build
         working-directory: app
         run: npm run tauri:build
