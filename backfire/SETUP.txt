@@ -4,8 +4,9 @@ Backfire (experimental) - quick setup
 Backfire is a keyed image watermark that ships as a separate tool next to
 provcheck (it is NOT inside provcheck.exe). It is free for non-commercial use
 under the Business Source License 1.1; commercial use needs a license from
-Creative Mayhem (licensing@creativemayhem.com). See LICENSE, LICENSING.md,
-EULA.md, and TOS.md.
+Creative Mayhem (licensing@creativemayhem.com). Every released version becomes
+open source (AGPL-3.0-or-later) four years after its first public release.
+See LICENSE, LICENSING.md, EULA.md, and TOS.md.
 
 
 ONE-COMMAND SETUP (verify side)
