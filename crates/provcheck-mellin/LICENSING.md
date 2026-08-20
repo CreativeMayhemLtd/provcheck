@@ -12,8 +12,9 @@ either:
    covered. BUSL includes a **Change Date** on which the license automatically
    converts to an open-source Change License. For each released version of
    provcheck-mellin the Change Date is **four years from that version's first
-   public distribution**; the target Change License is not yet named and will
-   be set by Creative Mayhem before any public release.
+   public distribution**, and the Change License is the **GNU Affero General
+   Public License v3.0 or later**: an aged version opens as hard copyleft, so
+   derivatives and hosted services built on it must publish their source.
 
 2. **A commercial license** — required for any commercial or for-profit
    production use before the Change Date (embedding provcheck-mellin in a paid
