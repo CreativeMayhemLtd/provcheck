@@ -3803,7 +3803,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "c2pa",
  "hound",
@@ -3818,7 +3818,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-attestation-spec"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "pem",
  "serde",
@@ -3829,7 +3829,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-audioseal"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "anyhow",
  "hound",
@@ -3847,7 +3847,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-cli"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "clap",
  "provcheck",
@@ -3866,7 +3866,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-detect"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -3875,7 +3875,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-examples"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "anyhow",
  "c2pa",
@@ -3885,7 +3885,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-image"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "image",
  "ndarray",
@@ -3900,7 +3900,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-kit"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "age",
  "anyhow",
@@ -3928,7 +3928,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-platform"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "c2pa",
  "dirs",
@@ -3948,7 +3948,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-publish"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "atrium-api",
  "atrium-identity",
@@ -3965,7 +3965,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-sign"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "age",
  "c2pa",
@@ -3991,7 +3991,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-stream-detect"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "provcheck-detect",
  "serde",
@@ -4001,7 +4001,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-synthid-text"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "provcheck",
  "serde",
@@ -4012,7 +4012,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-video"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "provcheck",
  "provcheck-image",
@@ -4025,7 +4025,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-watermark"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "anyhow",
  "hound",
@@ -4047,7 +4047,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-wavmark"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "anyhow",
  "hound",
@@ -4065,7 +4065,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-weights"
-version = "1.2.0"
+version = "1.3.0"
 dependencies = [
  "dirs",
  "sha2",

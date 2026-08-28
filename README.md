@@ -29,125 +29,54 @@ you run `publish` or `verify`.
 
 ## Status
 
-**v0.9.0 shipped 2026-06-29.** Video and SynthID-text **watermark**
-detection now run real algorithms — per-frame TrustMark + temporal
-vote on the video side, Bayesian tournament-sampling z-score on
-the text side. (These are watermark detectors — TrustMark by Adobe,
-SynthID-text by Google. They detect content that was deliberately
-marked at generation time. They are NOT deepfake detectors.) The
-ComfyUI node is live, shelling out to `provcheck-kit stamp` per
-generation, brand-agnostic for any creator running their own
-pipeline. The CUDA EP fallback bug from public issue #32 is fixed;
-default CPU builds unaffected.
+**v1.3.0 shipped 2026-08-28.** This is the current release. provcheck is a
+feature-complete, Apache-2.0 provenance verifier and creator kit, with two
+opt-in keyed forensic watermark add-ons under a separate source-available
+license.
 
-Deepfake detection (asking "is this AI-generated even without a
-watermark?") is a separate problem and not shipped in this repo
-at any version. The v0.9 plumbing exposes a `Detector` trait so
-operators can wire their own classifier (commercial pack as
-paid DLC after v1.0, or an existing open-source third-party
-detector — bring-your-own-model either way). See
-`docs/v0.9-roadmap/README.md` section 9b for the precise contract.
+**The Apache-2.0 core (stable since v1.0.0, 2026-07-01):**
 
-"Redhat the provenance market" — every newly-added user-facing
-surface for watermark detection + provenance signing is in the
-Apache-2.0 FOSS core.
+- **`provcheck`** verifies C2PA Content Credentials offline: who signed a file,
+  what tool produced it, which AI model generated it (if any), the chain of
+  edits back to the source, and whether the file carries a recognised neural
+  watermark. The watermark cross-check spans six detector families:
+  silentcipher, AudioSeal, and WavMark on audio, TrustMark-B on image,
+  per-frame TrustMark with a temporal vote on video, and SynthID-text on text.
+- **`provcheck-kit`** is the creator side: mint a signing cert, sign your media,
+  and publish the cert fingerprint to your atproto DID, so downstream verifiers
+  can confirm the signature came from the handle on the file.
+- Both CLI binaries and the desktop GUI ship as pre-built downloads for Windows,
+  Linux, and macOS. Detector weights download on demand, never automatically.
+  Deepfake detection (asking whether a file is AI-generated with no watermark
+  present) is a separate problem and is not shipped at any version; the
+  `Detector` trait lets operators wire their own classifier as a bring-your-own
+  model or a future paid DLC.
 
-**v0.7.0 shipped 2026-06-28.** Multimodal expansion: image
-watermarking (TrustMark-B by Adobe / Content Authenticity
-Initiative) lands as a fully wired detector + embedder with
-BCH-5 ecosystem interop, the kit gains a one-call creator
-pipeline (`kit stamp`), every detector's weights move to a
-download-on-demand DLC pattern that drops the kit binary from
-~143 MB to ~22 MB, and the verifier extends to video + text
-modalities (fully wired in v0.9.0: per-frame TrustMark with
-temporal majority-vote on the video side, Bayesian
-tournament-sampling z-score on the SynthID-text side).
-"Always respect the user" — weights never auto-download.
+**The keyed forensic add-ons (BUSL-1.1, opt-in, never bundled into the
+Apache-2.0 binary):**
 
-Both CLI binaries (`provcheck`, `provcheck-kit`) and the desktop
-GUI ship as pre-built downloads for Windows / Linux /
-macOS-aarch64. The creator-side flow (mint identity → sign →
-publish to atproto → verifier cross-checks) is production-ready
-and battle-tested against rAIdio.bot music renders and
-doomscroll.fm voice mixdowns. v0.6.0 closes the throughput +
-memory + GPU story for long-form audio; v0.7.0 expands to
-multimodal (image + video scaffold + text scaffold + DLC weight
-delivery slimming the kit from ~143 MB to ~22 MB); v0.9.0
-wires the video + text modalities through with real algorithms
-and lands the ComfyUI node. The v0.9.x line carries the
-pre-v1.0 test-coverage push (iteration tags only; see
-CONTRIBUTING.md "Release cadence").
+- **Backfire** (in `backfire/`) is an imperceptible, keyed image watermark
+  optimised to be a fixed point of AI provenance-stripping attacks, so running
+  the stripper leaves the keyed identifier readable instead of erasing it.
+  **Backfire 3.0 (v1.3.0)** makes the mark a joint fixed point of two removers
+  at once, a diffusion purifier and a learned neural codec, and survives the
+  published removal tool behind the "invisible watermarks are provably
+  removable" result (Zhao et al., arXiv:2306.01953) 20 of 20 on the diffusion
+  attack and 19 to 20 of 20 on the neural-codec attack across a twenty-image
+  set at 30 dB, with zero false positives over 1,000 unmarked images. It does
+  not survive controllable regeneration from clean noise; the honest limit is
+  documented in `backfire/LIMITS.md`.
+- **provcheck-mellin** (in `crates/provcheck-mellin/`) is the opt-in
+  Fourier-Mellin audio channel: a keyed, per-copy serial for leak attribution,
+  under the same BUSL-1.1 model.
 
-**v0.6.0 headlines:**
+Both keyed tools convert to AGPL-3.0-or-later four years after each version's
+first public distribution, integrate only across a process boundary
+(`provcheck --backfire-read`, `provcheck --mellin-read`, and dedicated desktop
+tabs), and require the user's own key.
 
-- **CUDA backend** for the silentcipher embed encoder via the new
-  `cuda` feature flag (`cargo build --release --features cuda
-  --bin provcheck-kit`). 56-minute stereo episode embed drops from
-  29 minutes on a 4-wide CPU (v0.5.4's 2× real-time baseline was
-  ~70 min — v0.6.0 already shaves that) to **6.6 minutes on an
-  NVIDIA 3090** (0.12× real-time). Routes through `ort` 2.x's
-  `CUDAExecutionProvider`. Operator installs `onnxruntime-gpu` +
-  CUDA 12.x + cuDNN; NVIDIA libraries are not redistributed per
-  their licensing. Default download stays a single tract-only CPU
-  binary; the CUDA build is opt-in.
-- **Streaming embed** that never materialises the full
-  spectrogram. New `--memory-budget streaming` value on `kit
-  watermark` runs a two-pass chunk-fused pipeline (pass 1 streams
-  utterance_norm, pass 2 streams the chunk loop directly into an
-  overlap-add ring-buffer iSTFT). On a 56-minute stereo episode
-  peak RSS drops from 11.5 GB (default 4-wide mode) to 5.0 GB.
-  Trade-off is ~1.6× real-time wall clock vs default's 0.52×.
-  Ships for memory-constrained operators on 8-16 GB containers.
-- **Chunk-parallel embed.** Default mode now uses rayon to fan
-  out up to 4 chunks of silentcipher encoder inference per call,
-  matching the detector-side P1 pattern. Delivers the 4× CPU
-  speedup baseline above; the `--memory-budget low` knob backs it
-  off to sequential for memory-constrained hosts.
-- **Kit serve mode.** New `kit serve` subcommand exposes the
-  watermark embed pipeline over a JSON-line stdin/stdout
-  protocol. Single model load amortised across an entire batch;
-  the cold-start tract optimisation pass (about 3 seconds) runs
-  once instead of once per file. Built for batch-processing
-  consumers like doomscroll.fm's nightly cycle.
-
-**v0.5.x highlights:**
-
-- **v0.5.3:** AAC-in-MP4/M4A detector priming fix. symphonia 0.5.5's
-  `isomp4` reader does not surface the MP4 `edts/elst` edit list or
-  the `iTunSMPB` tag as `codec_params.delay`, so prior to v0.5.3 every
-  STFT frame on AAC-in-MP4/M4A was one AAC frame out of phase with
-  the embedder's frame grid and detection returned conf 0.000. The
-  fix hardcodes the standard 1024-sample AAC LC priming when
-  symphonia leaves `delay = None` for an AAC track, and adds `mp4`,
-  `m4b`, and `mov` to the audio-extension allowlist. Public issue #24.
-- **v0.5.2:** Stereo embed. New `--channels {auto, mono, stereo}` on
-  `kit watermark` runs two independent mono embeds with the same
-  payload so a stereo delivery pipeline keeps the mark across the
-  downmix-then-upmix roundtrip. silentcipher default SDR drops 47 ➝
-  30 dB so libmp3lame 192k delivery survives at conf 0.95+. AudioSeal
-  default alpha rises 1.0 ➝ 3.0 so both AAC 192k and libmp3lame 192k
-  delivery survive at conf 0.999. Always-on `--verify-after-embed`
-  self-test deletes the output file and exits non-zero when the
-  freshly-embedded mark fails to detect at conf >= 0.50. Public
-  issue #23.
-- **v0.5.1:** silentcipher embed OOM fix on multi-minute MP3s. Public
-  issue #17.
-- **v0.5.0:** Hardware-backed identity custody via Yubikey PIV slot
-  9c. `provcheck-kit init --yubikey` mints an ES256 keypair on-device;
-  the private key is never extractable, every signature gates on the
-  PIV PIN. A new GUI "Keys" tab shows local-vs-atproto state side by
-  side, surfaces mismatches (superseded local key, orphan active
-  record), and offers one-click revoke and rotate without dropping
-  to a terminal. See
-  [For creators — sign + publish](#for-creators--sign--publish) below.
-
-All three neural-watermark detector families ship live: silentcipher
-40-bit payload at 44.1 kHz, AudioSeal 16-bit ECC-protected brand ID
-at 16 kHz, WavMark 32-bit payload at 16 kHz. Verifier output carries
-per-detector time-span localisation (`marked_regions`); both the CLI
-text report and the GUI timeline strip show where inside the audio
-the mark sits. Codec compatibility matrix and parity-vs-upstream
-findings live in [`docs/v0.5.2-codec-survival/`](docs/v0.5.2-codec-survival/).
+The full version-by-version history is in [Release history](#release-history)
+below.
 
 ## Install
 
