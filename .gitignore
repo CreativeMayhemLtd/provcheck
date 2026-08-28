@@ -75,3 +75,5 @@ radiobot_examples/
 
 __pycache__/
 *.pyc
+/target-check
+/target-check/

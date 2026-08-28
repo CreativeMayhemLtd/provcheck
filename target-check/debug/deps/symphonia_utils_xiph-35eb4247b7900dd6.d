@@ -1,8 +1,0 @@
-C:\dev2\pc-main\./target-check\debug\deps\symphonia_utils_xiph-35eb4247b7900dd6.d: C:\Users\Administrator\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\symphonia-utils-xiph-0.5.5\src\lib.rs C:\Users\Administrator\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\symphonia-utils-xiph-0.5.5\src\flac\mod.rs C:\Users\Administrator\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\symphonia-utils-xiph-0.5.5\src\flac\metadata.rs C:\Users\Administrator\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\symphonia-utils-xiph-0.5.5\src\vorbis\mod.rs
-
-C:\dev2\pc-main\./target-check\debug\deps\libsymphonia_utils_xiph-35eb4247b7900dd6.rmeta: C:\Users\Administrator\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\symphonia-utils-xiph-0.5.5\src\lib.rs C:\Users\Administrator\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\symphonia-utils-xiph-0.5.5\src\flac\mod.rs C:\Users\Administrator\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\symphonia-utils-xiph-0.5.5\src\flac\metadata.rs C:\Users\Administrator\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\symphonia-utils-xiph-0.5.5\src\vorbis\mod.rs
-
-C:\Users\Administrator\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\symphonia-utils-xiph-0.5.5\src\lib.rs:
-C:\Users\Administrator\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\symphonia-utils-xiph-0.5.5\src\flac\mod.rs:
-C:\Users\Administrator\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\symphonia-utils-xiph-0.5.5\src\flac\metadata.rs:
-C:\Users\Administrator\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\symphonia-utils-xiph-0.5.5\src\vorbis\mod.rs:

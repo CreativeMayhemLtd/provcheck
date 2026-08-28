@@ -1,2 +1,0 @@
-cargo:rerun-if-changed=src/srgb_gamma.rs
-cargo:rerun-if-changed=build.rs

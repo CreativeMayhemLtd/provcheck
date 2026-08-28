@@ -1,1 +1,0 @@
-{"rustc":3720210673988096810,"features":"[]","declared_features":"[]","target":10988954735838561470,"profile":2241668132362809309,"path":12692383946627202177,"deps":[],"local":[{"CheckDepInfo":{"dep_info":"debug\\.fingerprint\\extfmt-f363f3671a1f9d53\\dep-lib-extfmt","checksum":false}}],"rustflags":["-C","target-feature=+crt-static"],"config":9396254390672932401,"compile_kind":0}

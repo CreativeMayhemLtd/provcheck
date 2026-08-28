@@ -1,8 +1,0 @@
-C:\dev2\pc-main\./target-check\debug\deps\fluent_langneg-66941d0ff34ddbfe.d: C:\Users\Administrator\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\fluent-langneg-0.13.1\src\lib.rs C:\Users\Administrator\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\fluent-langneg-0.13.1\src\accepted_languages.rs C:\Users\Administrator\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\fluent-langneg-0.13.1\src\negotiate\mod.rs C:\Users\Administrator\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\fluent-langneg-0.13.1\src\negotiate\likely_subtags.rs
-
-C:\dev2\pc-main\./target-check\debug\deps\libfluent_langneg-66941d0ff34ddbfe.rmeta: C:\Users\Administrator\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\fluent-langneg-0.13.1\src\lib.rs C:\Users\Administrator\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\fluent-langneg-0.13.1\src\accepted_languages.rs C:\Users\Administrator\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\fluent-langneg-0.13.1\src\negotiate\mod.rs C:\Users\Administrator\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\fluent-langneg-0.13.1\src\negotiate\likely_subtags.rs
-
-C:\Users\Administrator\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\fluent-langneg-0.13.1\src\lib.rs:
-C:\Users\Administrator\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\fluent-langneg-0.13.1\src\accepted_languages.rs:
-C:\Users\Administrator\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\fluent-langneg-0.13.1\src\negotiate\mod.rs:
-C:\Users\Administrator\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\fluent-langneg-0.13.1\src\negotiate\likely_subtags.rs:
