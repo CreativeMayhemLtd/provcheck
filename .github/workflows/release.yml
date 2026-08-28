@@ -41,7 +41,7 @@ jobs:
   # NEW advisory not in SECURITY.md's tolerated table. Forces an
   # explicit decision: either bump the dep, or add the row to
   # SECURITY.md in the same commit. See
-  # feedback_release_prep_gates.md + feedback_tolerated_advisories_watch.md.
+  # an internal note + an internal note
   #
   # The --ignore IDs below MUST mirror SECURITY.md exactly. Adding
   # a new tolerated advisory means: update SECURITY.md AND add the

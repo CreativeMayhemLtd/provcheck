@@ -75,7 +75,7 @@ Independent of the codec / attack columns:
 
 ## What "guarantees" mean in practice
 
-The table's ✓ marks are grounded in v0.5.2's empirical parity sweep (see [`project_v0.5.2_codec_survival.md`](../../../.claude/projects/C--dev2-provcheck-dev/memory/project_v0.5.2_codec_survival.md) — memory drawer) and the ongoing pre-push AAC delivery smoke gate ([`scripts/check-before-push.sh`](../scripts/check-before-push.sh) step 3). silentcipher-fine-tune's ✓ marks are **planned targets** — the fine-tune training plan is at [`silentcipher-codec-robust-fine-tune.md`](./silentcipher-codec-robust-fine-tune.md). Actual post-training numbers land in that doc's validation-results section when the training completes.
+The table's ✓ marks are grounded in v0.5.2's empirical parity sweep — memory drawer) and the ongoing pre-push AAC delivery smoke gate ([`scripts/check-before-push.sh`](../scripts/check-before-push.sh) step 3). silentcipher-fine-tune's ✓ marks are **planned targets** — the fine-tune training plan is at [`silentcipher-codec-robust-fine-tune.md`](./silentcipher-codec-robust-fine-tune.md). Actual post-training numbers land in that doc's validation-results section when the training completes.
 
 ## What this range statement is not
 

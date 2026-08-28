@@ -24,8 +24,7 @@
 //!   recipients), PKCS#12 interop backup, C2PA signing
 //!   orchestration.
 //!
-//! See `C:\Users\Administrator\.claude\plans\ok-its-been-a-replicated-wadler.md`
-//! Phase 2 for the full design.
+//! The full design is maintained separately.
 
 pub mod backup;
 pub mod cache;

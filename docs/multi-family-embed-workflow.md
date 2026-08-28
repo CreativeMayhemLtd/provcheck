@@ -97,7 +97,7 @@ Provenance intact even if the cryptographic layer got stripped by the container 
 
 ## Cost trade-offs
 
-**Time cost**: three sequential embeds. At v0.6.0's chunk-parallel silentcipher throughput on CPU (about 0.7 × realtime on a 30-min episode), the full three-family run is roughly 5 minutes per 30-minute episode of wall-clock. GPU-accelerated silentcipher embed drops the silentcipher pass to ~2 minutes for a 1-hour episode (per [`project_gpu_embed_production_verified.md`](../../../.claude/projects/C--dev2-provcheck-dev/memory/project_gpu_embed_production_verified.md)); AudioSeal and WavMark are seconds-to-tens-of-seconds on CPU.
+**Time cost**: three sequential embeds. At v0.6.0's chunk-parallel silentcipher throughput on CPU (about 0.7 × realtime on a 30-min episode), the full three-family run is roughly 5 minutes per 30-minute episode of wall-clock. GPU-accelerated silentcipher embed drops the silentcipher pass to ~2 minutes for a 1-hour episode); AudioSeal and WavMark are seconds-to-tens-of-seconds on CPU.
 
 **Audibility cost**: cumulative alpha across all three embeds adds ~0.5–1.0 dB to the audibility floor. Still inaudible under normal listening conditions. If audibility is a critical constraint (mastered music at reference volume through studio monitors), consider embedding only silentcipher + one of AudioSeal / WavMark. Two of three still gets you significant redundancy.
 

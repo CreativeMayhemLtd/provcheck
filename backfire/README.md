@@ -26,13 +26,14 @@ Instead of hiding the mark where the purifier deletes it, Backfire **optimizes t
 
 ## What we measured
 
-Everything below is at 512 px on 24 diverse COCO val2017 photos, attacked with a real 50-step diffusion purifier. The numpy `read` side reproduces all of it.
+All of it on the shipped mark (256 px, 30 dB), attacked and then read back through Backfire's own reader at its default threshold, so every number is what the tool actually reports, not a friendlier proxy. Measured over 20 COCO val2017 photos (a larger corpus is running).
 
-- **It survives, and amplifies.** The keyed identifier reads back valid on 24 of 24 photos after the purifier, and *stronger* than before the attack on 21 of 24.
-- **It generalizes.** Against a purifier it was never tuned on (a different, distilled diffusion model), still 24 of 24. A property of diffusion purification, not one model.
-- **No false positives.** Reading 1,000 unmarked images with the key, and with wrong keys, gives zero valid reads at the default threshold, at both 256 and 512 px. The margin is normalized against a robust decoy noise floor, so the unmarked-image margin stays below 1.6 while a real mark clears 4. Failing safe is the point.
-- **It shrugs off everyday handling.** The mark survives JPEG (quality 50 to 90), downscaling to half size, blur, and sensor noise. It does *not* survive a hard crop, the carriers are position-locked; we disclose that rather than hide it.
-- **Invisible.** 34 dB PSNR.
+- **It survives the real removal attack.** Against the published Zhao et al. WatermarkAttacker ([arXiv:2306.01953](https://arxiv.org/abs/2306.01953)), the keyed identifier reads back valid on 20 of 20 photos after the diffusion regeneration, on the matched model *and* a held-out one. That the mark reads *stronger* after the attack, the amplification Backfire is named for, is reproducible with `repro/demo_amplify.py`.
+- **It survives a neural-codec re-encode too.** Against the same paper's VAE codec attacker, 19 to 20 of 20 survive, including on compression models the mark was never tuned against. So Backfire survives *both* removers behind the "provably removable" result, not just the diffusion one.
+- **No false positives.** Zero valid reads over 50 unmarked images and every wrong-key read, at the default threshold. The reader normalizes each margin against a robust decoy noise floor, which holds the false-positive rate to zero over 1,000 unmarked images too (see `LIMITS.md`): the unmarked margin sits near the floor while a real mark clears it several times over. Failing safe is the point.
+- **It shrugs off everyday handling.** JPEG (quality 50 to 90), half-size downscale, and blur: 20 of 20 each. It does *not* survive a hard crop, the carriers are position-locked; we disclose that rather than hide it.
+- **Imperceptible.** 30 dB PSNR. A quieter mark trades survival for invisibility.
+- **What it does not survive, stated plainly.** Controllable regeneration from clean noise (for example CtrlRegen) rebuilds the image from scratch and removes the mark at real strength; an aggressive band-notch it detects rather than survives. No watermark is unremovable; Backfire wins against the deployed strippers and is honest about the frontier it does not. See `LIMITS.md`.
 
 ## The weakness, and its answer
 
@@ -48,7 +49,7 @@ Remove the mark or stay quiet. Not both.
 
 ## Honest limits
 
-4-bit keyed identifier today (unbounded keyspace); minutes-per-image embed (`read` is instant); operates at 256 or 512 px (512 is Stable Diffusion's native resolution and needs a 16 GB-class GPU to embed); the mark is not crop-invariant (position-locked carriers); validated at research scale, not production millions; the amplification claim is scoped to purification-class strippers, and the notch boundary is detected, not survived.
+4-bit keyed identifier today (unbounded keyspace); minutes-per-image embed (`read` is instant); operates at 256 or 512 px (512 is Stable Diffusion's native resolution and needs a 16 GB-class GPU to embed); the mark is not crop-invariant (position-locked carriers); validated at research scale, not production millions; the amplification claim is scoped to purification-class strippers, and the notch boundary is detected, not survived. It does **not** survive controllable regeneration from clean noise (for example CtrlRegen), a newer and stronger attack that rebuilds the image instead of editing it; see `LIMITS.md`.
 
 ## Why we publish the whole method
 

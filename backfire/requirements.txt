@@ -5,3 +5,7 @@ pillow>=10.0
 # install torch for your platform separately (see pytorch.org), then:
 diffusers>=0.27
 transformers>=4.40
+# neural-codec EOT (--codec-eot / --codec-iter, on by default); its pretrained
+# codecs download at embed time like the diffusion weights. For the diffusion-only
+# mark (--codec-eot 0 --codec-iter 0) this is not needed.
+compressai>=1.2

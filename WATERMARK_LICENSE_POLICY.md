@@ -110,10 +110,10 @@ Not added: SynthID Audio (weights unreleased), Stable Signature (non-commercial 
 ## The source-available audio option: `provcheck-mellin` (BUSL, opt-in, never bundled)
 
 `crates/provcheck-mellin/` is a keyed forensic watermark channel (Fourier-Mellin
-spectral embed + detect) ported from Lysn.fm's `lysn-watermark` crate. It is
+spectral embed + detect) ported from a reference audio-watermark implementation. It is
 **source-available under BUSL-1.1 OR a commercial license** (free for
 non-commercial use, commercial use already authorized under a Creative Mayhem
-product license such as raidio.bot, vAIdeo.bot, or Lysn.fm is covered by that
+product license such as raidio.bot, vAIdeo.bot is covered by that
 product's license, and each released version converts to AGPL-3.0-or-later
 four years after its first public distribution; see its `LICENSE` and
 `LICENSING.md`), which fails the bundling rule above, so it is handled the way
@@ -162,7 +162,7 @@ the same way:
   shipped detector.
 
 As with mellin, this does not weaken the rule: Backfire never ships inside the
-Apache-2.0 artefact. (Roadmap: provcheck experimental option now, `lysn` integration
+Apache-2.0 artefact. (Roadmap: provcheck experimental option now, `the reference` integration
 later, consumer bots much later.)
 
 ## Process for adding a new detector

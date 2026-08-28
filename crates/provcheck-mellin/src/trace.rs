@@ -13,7 +13,7 @@
 //!
 //! Embed and accuse must agree on `(secret, work_id, positions, colluders)` so
 //! the bias vector and the channel key match on both sides. All provcheck-only;
-//! the underlying keying stays bit-identical with lysn.
+//! the underlying keying stays bit-identical with the reference.
 
 use hmac::{Hmac, Mac};
 use sha2::Sha256;

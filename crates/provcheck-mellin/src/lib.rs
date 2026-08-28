@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1 OR LicenseRef-provcheck-mellin-Commercial
 // Copyright (C) 2026 Creative Mayhem UG (haftungsbeschränkt)
 //! **Spectral (magnitude-domain) forensic watermark channel** — the scale/stretch-invariant tier,
-//! ported from lysn (`crates/lysn-watermark/src/mellin.rs`).
+//! ported from the reference (`crates/the reference implementation/src/mellin.rs`).
 //!
 //! A classical time-domain chip is SMEARED by a pitch-preserving time-stretch (WSOLA / `atempo`): it
 //! splices overlapping waveform windows to change tempo, destroying a Nyquist-rate chip even after
@@ -21,9 +21,9 @@
 //! ## Compatibility contract
 //!
 //! The keying here (HMAC label `lysn-mellin-key/v1`, the PRNG, the ±1 pattern derivation) is
-//! **bit-identical** with the lysn source. Marks embedded by Lysn.fm detect here with the same seller
+//! **bit-identical** with the the reference source. Marks embedded by the reference implementation detect here with the same seller
 //! secret + work id, and vice versa. Do not change any constant, label, or derivation without changing
-//! it in lysn in the same breath.
+//! it in the reference in the same breath.
 //!
 //! ## License
 //!
@@ -35,8 +35,8 @@ use hmac::{Hmac, Mac};
 use sha2::Sha256;
 
 // File-facing layers built ON TOP of the ported channel. These are provcheck-only
-// (lysn has no file layer), so they carry no cross-repo bit-identity obligation:
-// only the channel keying/DSP above must stay in lockstep with lysn-watermark.
+// (the reference has no file layer), so they carry no cross-repo bit-identity obligation:
+// only the channel keying/DSP above must stay in lockstep with the reference implementation.
 pub mod audio;
 pub mod serial;
 pub mod tardos;
@@ -67,11 +67,11 @@ const FREQ_SCALE_STEPS: usize = 17; // 0.5% grid
 const ENVELOPE_SMOOTH: usize = 4;
 
 // ---------------------------------------------------------------------------
-// Keying primitives (bit-identical with lysn's crates/lysn-watermark/src/dsp.rs
+// Keying primitives (bit-identical with the reference crates/the reference implementation/src/dsp.rs
 // and tardos.rs — the compatibility contract above depends on it).
 // ---------------------------------------------------------------------------
 
-/// splitmix64-style PRNG, identical to lysn's `tardos::Prng`.
+/// splitmix64-style PRNG, identical to the reference `tardos::Prng`.
 struct Prng(u64);
 
 impl Prng {
@@ -145,7 +145,7 @@ impl Default for MellinChannel {
 }
 
 impl MellinChannel {
-    /// Per-work keyed channel. The label matches lysn exactly, so the same seller secret + work id
+    /// Per-work keyed channel. The label matches the reference exactly, so the same seller secret + work id
     /// derive the same key on both sides.
     pub fn for_work(secret: &[u8], work_id: &[u8], strength: f32) -> Self {
         let key = work_key(secret, b"lysn-mellin-key/v1", work_id);
@@ -463,7 +463,7 @@ mod tests {
     }
 
     #[test]
-    fn work_key_matches_lysn_derivation() {
+    fn work_key_matches_reference_derivation() {
         // Domain separation + determinism; the label constant is the cross-repo contract.
         let (secret, work) = (b"seller-secret", b"work-1");
         assert_ne!(
@@ -472,14 +472,14 @@ mod tests {
             "different labels must derive different keys"
         );
         // CROSS-REPO GOLDEN VECTOR. This exact value must also be asserted in
-        // lysn-watermark; if either side drifts, the channel key stops matching
+        // the reference implementation; if either side drifts, the channel key stops matching
         // and marks no longer round-trip between the two. Independently verified
         // against an HMAC-SHA256 reference (label ‖ work_id, first 8 bytes LE).
         // Pin in BOTH repos; never edit one without the other.
         assert_eq!(
             work_key(b"seller-secret", b"lysn-mellin-key/v1", b"work-1"),
             0x02A1_613B_8C40_8F51,
-            "channel work_key golden vector changed — lysn interop broken"
+            "channel work_key golden vector changed — reference interop broken"
         );
     }
 }

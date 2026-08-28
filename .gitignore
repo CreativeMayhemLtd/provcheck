@@ -72,3 +72,6 @@ app/src-tauri/test-files/
 
 # operator-curated rAIdio.bot source audio for sample packaging (never committed)
 radiobot_examples/
+
+__pycache__/
+*.pyc

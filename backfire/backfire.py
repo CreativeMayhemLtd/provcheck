@@ -9,7 +9,13 @@ watermarks by projecting the image back onto the natural-image manifold. Backfir
 instead optimizes the mark to be a fixed point / attractor of that very process,
 so running a stripper's own purifier makes the keyed id read *stronger*.
 
-  embed  optimize + write a marked image        (needs torch + a diffusion model)
+The mark is optimized to be a fixed point of TWO regeneration attacks at once: a
+diffusion purifier AND a learned neural codec (a VAE compression re-encode, the
+Zhao VAEWMAttacker class). So it survives both a diffusion stripper and a
+neural-codec re-encode, not just one. (Set --codec-eot 0 --codec-iter 0 for the
+diffusion-only variant, which needs no compressai.)
+
+  embed  optimize + write a marked image        (needs torch + a diffusion model + compressai)
   read   recover the keyed id from an image      (numpy only; fast, no GPU)
 
 The read side never loads a model: detection is a keyed FFT correlation, so it is
@@ -215,6 +221,7 @@ def read_cmd(a):
 # ------------------------------- embed (torch) ------------------------------
 def embed_cmd(a):
     import torch
+    import torch.nn.functional as F
     from diffusers import AutoencoderKL, UNet2DConditionModel, DDIMScheduler
     from transformers import CLIPTextModel, CLIPTokenizer
     dev = a.device
@@ -260,6 +267,31 @@ def embed_cmd(a):
     lat_ch = purifiers[0]["in_ch"]
     if any(p["in_ch"] != lat_ch for p in purifiers):
         raise SystemExit("backfire: --models must share a latent channel count (SD-family)")
+
+    # Neural-codec EOT (the 3.0 addition). Diffusion purification is not the only
+    # regeneration attack: a learned compression autoencoder (the Zhao VAEWMAttacker class)
+    # re-encodes the image through a trained bottleneck and drops off-manifold detail. We
+    # add a lean codec ensemble (bmshj2018 quality 1 and 3) as extra fixed-point targets, so
+    # the mark survives a neural-codec re-encode too, plus a focused ITERATED-codec term
+    # (bmshj q1 applied twice) that buys down the one axis pure single-pass EOT leaves weak.
+    # Off (0 weights) => no compressai needed and behavior is the diffusion-only 2.x mark.
+    codecs = None
+    if a.codec_eot > 0 or a.codec_iter > 0:
+        from compressai.zoo import bmshj2018_factorized
+        log("loading neural codec ensemble bmshj2018 q1,q3 (train-mode) ...")
+        codecs = [bmshj2018_factorized(quality=q, pretrained=True).to(dev).float() for q in (1, 3)]
+        for cm in codecs:
+            for p in cm.parameters(): p.requires_grad_(False)
+            cm.train()                              # train-mode: differentiable, no quantization round
+        cq1 = codecs[0]
+        def codec_single(x, cm):
+            x512 = F.interpolate(x, (512, 512), mode="bilinear", align_corners=False)
+            o = cm(x512)["x_hat"].clamp(0, 1)
+            return F.interpolate(o, (a.size, a.size), mode="bilinear", align_corners=False)
+        def codec_iterated(x):                      # the focused iterated term: q1 applied twice
+            x512 = F.interpolate(x, (512, 512), mode="bilinear", align_corners=False)
+            o = cq1(cq1(x512)["x_hat"].clamp(0, 1))["x_hat"].clamp(0, 1)
+            return F.interpolate(o, (a.size, a.size), mode="bilinear", align_corners=False)
 
     key = _key_bytes(a.key, a.hexkey)
     host_np = np.asarray(Image.open(a.infile).convert("RGB").resize((a.size, a.size)), np.float32)/255.0
@@ -320,6 +352,12 @@ def embed_cmd(a):
             li = (corrs(pf["purify"](xd, n, pf["ts_by_s"][s])) * tsign).mean()
             (-li / n_eot).backward()               # d(-post/n_eot)/dxd, accumulated into xd.grad
             post += li.item() / n_eot
+        if codecs is not None:                     # neural-codec EOT, accumulated one term at a time like the diffusion passes
+            for cm in codecs:
+                lc = (corrs(codec_single(xd, cm)) * tsign).mean()
+                (-a.codec_eot * lc / len(codecs)).backward()
+            lit = (corrs(codec_iterated(xd)) * tsign).mean()
+            (-a.codec_iter * lit).backward()       # focused iterated-codec term, full weight
         extra = -a.direct * (corrs(xd) * tsign).mean()   # pre-attack readability term
         if a.notch_eot > 0:
             lo, hi, res = sample_notch()
@@ -368,10 +406,12 @@ def main():
     e.add_argument("--serial", type=lambda x: int(x, 0), required=True, help="0..15 keyed id (4-bit)")
     e.add_argument("--size", type=int, default=256); e.add_argument("--iters", type=int, default=240)
     e.add_argument("--eps", type=float, default=12/255, help="per-pixel bound on the mark's shape before energy projection")
-    e.add_argument("--target-psnr", type=float, default=34.0, help="content-adaptive mark energy: projected PSNR floor")
+    e.add_argument("--target-psnr", type=float, default=30.0, help="content-adaptive mark energy: projected PSNR floor")
     e.add_argument("--lr", type=float, default=4e-3)
-    e.add_argument("--direct", type=float, default=0.7, help="pre-attack readability weight")
+    e.add_argument("--direct", type=float, default=1.0, help="pre-attack readability weight")
     e.add_argument("--eot-strengths", default="0.2,0.3"); e.add_argument("--eot-noises", type=int, default=4)
+    e.add_argument("--codec-eot", type=float, default=1.2, help="neural-codec EOT weight (bmshj2018 q1,q3): makes the mark survive a learned VAE/neural-codec re-encode, not just diffusion. 0 = off (diffusion-only 2.x mark, no compressai needed)")
+    e.add_argument("--codec-iter", type=float, default=0.5, help="focused iterated-codec term weight (bmshj q1 applied twice): buys down the repeated-compression axis. 0 = off")
     e.add_argument("--threshold", type=float, default=2.5, help="min per-bit margin for a valid read")
     e.add_argument("--carriers", choices=["band", "edge"], default="band", help="band (default) or content-coupled edge-masked mid-low carriers. edge is a documented dead end (see LIMITS.md): it did not improve notch survival; shipped only to reproduce that result")
     e.add_argument("--notch-eot", type=float, default=0.0, help="weight on staying readable after a band-notch (notch-in-the-loop). A documented dead end (see LIMITS.md): it never reached notch robustness; shipped only to reproduce that result, not recommended. 0 = off")

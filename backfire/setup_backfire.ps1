@@ -9,7 +9,7 @@
 # pip-capable, installs numpy and pillow, and smoke-tests a known marked image.
 #
 # Embed tier (-Embed): additionally installs torch, diffusers, and transformers
-# and pre-fetches the diffusion and TrustMark weights the GPU embed path needs.
+# and pre-fetches the diffusion weights the GPU embed path needs.
 # This is large (multiple GB) and is for creators, not verifiers.
 #
 # Usage:
@@ -112,11 +112,11 @@ Say "Backfire read path is ready. Verified: sample_marked.png -> id $($res.id_he
 
 if ($Embed) {
     Step "Embed tier: installing torch, diffusers, transformers (large download)"
-    & $PyExe -m pip install --no-warn-script-location 'torch' 'diffusers>=0.27' 'transformers>=4.40' 'huggingface_hub'
+    & $PyExe -m pip install --no-warn-script-location 'torch' 'diffusers>=0.27' 'transformers>=4.40' 'huggingface_hub' 'compressai>=1.2'
     if ($LASTEXITCODE -ne 0) { Die "installing embed dependencies failed" }
     Say "  Note: this installed the default (CPU) torch wheel. For GPU embed, install a CUDA torch build for your platform (see pytorch.org) into $PyEmbedDir."
 
-    Step "Pre-fetching the diffusion purifier and TrustMark weights (several GB)"
+    Step "Pre-fetching the diffusion purifier weights (several GB)"
     $fetch = @'
 import sys
 from huggingface_hub import snapshot_download

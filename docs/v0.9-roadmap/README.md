@@ -6,7 +6,7 @@ into ComfyUI + streaming deepfake detection.
 
 ## Strategic frame
 
-Per [`project_redhat_provenance_market`](../../) in memory: v0.9 is
+Per [an internal note](../../) in memory: v0.9 is
 the staging release that wires up the architectural slots
 v1.0 needs, while keeping every newly-added user-facing surface in
 the FOSS core (Apache-2.0). The v1.0 paid DLC slots into the

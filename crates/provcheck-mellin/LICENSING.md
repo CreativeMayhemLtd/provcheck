@@ -25,7 +25,7 @@ either:
    legal@creativemayhem.com).
 
 Commercial use that is already authorized under a Creative Mayhem product
-license, including raidio.bot, vAIdeo.bot, or Lysn.fm, is covered by that
+license, including raidio.bot, vAIdeo.bot, is covered by that
 product's own license and needs no separate grant.
 
 Each source file carries the SPDX identifier

@@ -58,6 +58,6 @@ Tardos code length, i.e. with audio duration (see the README capacity note).
 2. **Large speed changes (> ~4%)** fall outside the frequency-scale search grid.
 3. **Cropping a clip** breaks the proportional position alignment; whole-work
    leaks trace, trimmed excerpts do not (yet).
-4. These are channel-level constants shared bit-for-bit with lysn-watermark;
+4. These are channel-level constants shared bit-for-bit with the reference implementation;
    widening the search grid or adding trim-resync is a coordinated cross-repo
    change, not a local tweak.

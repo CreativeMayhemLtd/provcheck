@@ -7,7 +7,7 @@
 # Read tier (default): builds a self-contained virtualenv for Backfire's
 # numpy-only READ path and smoke-tests a known marked image. Embed tier
 # (--embed): additionally installs torch, diffusers, transformers, and
-# pre-fetches the diffusion and TrustMark weights (multiple GB, for creators).
+# pre-fetches the diffusion weights (multiple GB, for creators).
 #
 # Usage:
 #   ./setup_backfire.sh           # read tier
@@ -75,9 +75,9 @@ say "Backfire read path is ready. Verified: sample_marked.png -> id $IDHEX, vali
 
 if [ "$EMBED" -eq 1 ]; then
   step "Embed tier: installing torch, diffusers, transformers (large download)"
-  "$PY" -m pip install 'torch' 'diffusers>=0.27' 'transformers>=4.40' 'huggingface_hub' || die "installing embed dependencies failed"
+  "$PY" -m pip install 'torch' 'diffusers>=0.27' 'transformers>=4.40' 'huggingface_hub' 'compressai>=1.2' || die "installing embed dependencies failed"
   say "  Note: for GPU embed, install a CUDA torch build for your platform (see pytorch.org) into $VENV_DIR."
-  step "Pre-fetching the diffusion purifier and TrustMark weights (several GB)"
+  step "Pre-fetching the diffusion purifier weights (several GB)"
   "$PY" - <<'PYEOF' || die "model pre-fetch failed (network or Hugging Face reachability)"
 from huggingface_hub import snapshot_download
 snapshot_download("huanzi05/stable-diffusion-2-1-base",

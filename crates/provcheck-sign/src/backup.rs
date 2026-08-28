@@ -319,7 +319,7 @@ pub fn resolve_recovery_recipients(
 ///   provcheck-side security profile.
 ///
 /// Re-check on any next release-line cadence; log findings in a
-/// `project_pkcs12_ecosystem_survey_<date>.md` memory drawer.
+/// an internal note memory drawer.
 ///
 /// This function exists as a placeholder so the CLI surface for
 /// `kit export-pkcs12` compiles. It returns an explicit

@@ -108,7 +108,7 @@ def draw(original, marked, purified, m_marked, m_purified, m_wrong, out_path):
 
     cols = [
         (original, "Original", None),
-        (marked, "Marked (invisible)", m_marked),
+        (marked, "Marked (imperceptible)", m_marked),
         (purified, "After an AI stripper", m_purified),
     ]
     maxm = max(m_marked, m_purified) * 1.12

@@ -3,9 +3,8 @@
 // --manifest-path crates/provcheck-image/Cargo.toml`.
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let src = std::path::PathBuf::from(r"C:\Users\Administrator\AppData\Local\Temp\test.png");
-    let dst =
-        std::path::PathBuf::from(r"C:\Users\Administrator\AppData\Local\Temp\test-marked.png");
+    let src = std::env::temp_dir().join("test.png");
+    let dst = std::env::temp_dir().join("test-marked.png");
     let brand_id_5bit = 2; // BRAND_RAIDIO per audioseal::registry
     eprintln!(
         "embedding brand_id={brand_id_5bit} into {} -> {}",

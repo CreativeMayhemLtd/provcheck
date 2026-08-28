@@ -2080,7 +2080,7 @@ pub mod rotate {
     //! and a subcommand adds surface + tests + docs for a rare-
     //! path recovery. Revisit if operator telemetry shows
     //! reconcile is a frequent ask. Memory drawer:
-    //! `project_kit_reconcile_decision.md`.
+    //! an internal note
 
     use std::path::PathBuf;
 

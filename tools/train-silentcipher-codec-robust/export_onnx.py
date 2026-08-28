@@ -129,7 +129,7 @@ Encodec (Meta FAIR, MIT), LibriSpeech training corpus (CC-BY-4.0).
 
 ## Reproducing this checkpoint
 
-1. Clone provcheck-dev at the commit that produced this deliverable
+1. Clone the development repository at the commit that produced this deliverable
    (see `train.log` first line for the SHA).
 2. `cd tools/train-silentcipher-codec-robust/`
 3. `python -m venv .venv && source .venv/bin/activate`

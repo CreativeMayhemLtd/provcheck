@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// This file contains code adapted from rAIdio.bot
-// (C:\dev2\rAIdio.bot-rust\src-tauri\src\c2pa\signer.rs lines
-// 765-819), originally LicenseRef-Proprietary, relicensed under
-// Apache-2.0 by the rAIdio.bot owner (Chris Neitzert,
-// authorisation 2026-06-13) for inclusion in provcheck-sign.
+// This file contains code adapted from rAIdio.bot, originally
+// LicenseRef-Proprietary, relicensed under Apache-2.0 by the
+// rAIdio.bot owner (Chris Neitzert) for inclusion in provcheck-sign.
 //
 // The original `generate_es256_keypair_pems` is parameterised
 // through `SubjectInfo` here; the cryptographic structure (P-256

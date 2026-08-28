@@ -8,9 +8,9 @@
 #
 #   cargo build --manifest-path crates/provcheck-mellin/Cargo.toml
 #
-# Ported from lysn (crates/lysn-watermark/src/mellin.rs). The keying (HMAC
+# Ported from the reference (crates/the reference implementation/src/mellin.rs). The keying (HMAC
 # label "lysn-mellin-key/v1", PRNG, ±1 pattern) MUST stay bit-identical with
-# the lysn source so marks embedded there detect here and vice versa.
+# the the reference source so marks embedded there detect here and vice versa.
 [package]
 name = "provcheck-mellin"
 version = "0.1.0"

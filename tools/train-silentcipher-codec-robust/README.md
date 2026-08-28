@@ -122,4 +122,4 @@ Explicit non-goals for the first pass:
 - [`docs/silentcipher-codec-robust-fine-tune.md`](../../docs/silentcipher-codec-robust-fine-tune.md) — the formal plan
 - [`docs/audio-watermark-survival-range.md`](../../docs/audio-watermark-survival-range.md) — the range this fine-tune contributes to
 - [`docs/multi-family-embed-workflow.md`](../../docs/multi-family-embed-workflow.md) — the composite delivery strategy
-- Session memory drawers: `project_v0.5.2_codec_survival` (empirical AAC-survival finding); `project_gpu_embed_production_verified` (30x realtime measured on 3090)
+- Session memory drawers: an internal note.5.2_codec_survival` (empirical AAC-survival finding); an internal note (30x realtime measured on 3090)

@@ -40,7 +40,7 @@ NVIDIA CUDA drivers); macOS gets CoreML EP in a v0.7.x release.
 
 The GUI app stays tract-only. The Tauri release matrix is already
 heavy (~25 EUR / week of GH Actions burn at our cadence per
-`feedback_release_cadence_budget.md`); adding a CUDA GUI build is
+an internal note); adding a CUDA GUI build is
 not justified by the demand.
 
 ### Cargo feature flag

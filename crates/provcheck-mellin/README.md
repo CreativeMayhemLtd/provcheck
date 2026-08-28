@@ -1,7 +1,7 @@
 # provcheck-mellin
 
 Keyed spectral (Fourier-Mellin) forensic watermark channel: scale/stretch-invariant
-embed and detect over i16 LE PCM. Ported from Lysn.fm's `lysn-watermark` crate
+embed and detect over i16 LE PCM. Ported from a reference audio-watermark implementation
 (`src/mellin.rs`) so the provenance suite can run seller-side forensic detection.
 
 ## This crate is opt-in, and it is NOT in the release binary
@@ -72,7 +72,7 @@ so stereo is materially more robust through a lossy leak than mono at the same
 settings. A mono input is simply the one-channel case.
 
 **Scope:** WAV out (the lossless home format); any decodable format in. Only the
-channel keys against Lysn.fm; the serial framing, decode, WAV write, and CLI are
+channel keys against the reference implementation; the serial framing, decode, WAV write, and CLI are
 provcheck-only.
 
 ## Collusion-resistant traitor tracing (Tardos)
@@ -116,12 +116,12 @@ property of long-form content (albums, mixes, podcasts). `trace-embed` reports t
 indicative capacity; short clips are capacity-limited and should lean on the plain
 serial. Embed and accuse must pass the same `--positions` and `--colluders`.
 
-## Compatibility contract with Lysn.fm
+## Interop contract
 
-Two layers are bit-identical with `lysn-watermark`:
+Two layers are bit-identical with the reference crate:
 
 - the **channel** keying (HMAC label `lysn-mellin-key/v1`, the splitmix64-style
-  PRNG, the keyed ±1 pattern), so a mark embedded by Lysn.fm reads here with the
+  PRNG, the keyed ±1 pattern), so a mark embedded by the reference implementation reads here with the
   same seller secret and work id, and
 - the **Tardos** math (labels `lysn-tardos/bias` and `lysn-tardos/codeword`, the
   bias distribution, the codeword rule, the symmetric score, the threshold, and

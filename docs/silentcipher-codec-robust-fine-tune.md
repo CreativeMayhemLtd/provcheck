@@ -138,7 +138,7 @@ Run `validate.py` on the night 1 best checkpoint. Decision:
 
 **Primary location:** `C:\local_dev_tmp\silentcipher-codec-robust\` (operator-chosen path outside the repo; keeps ~500 MB of training artefacts off git). Peak working set for this first pass is ~3.5 GB — well under any local-disk pressure.
 
-**Overflow location (documented for future runs):** `Z:\boxbu\5090\nas_dev_tmp\silentcipher-codec-robust\` on the NAS at 192.168.2.40. Use this when:
+**Overflow location (documented for future runs):** an internal scratch path on internal storage. Use this when:
 
 1. Training corpus expands beyond LibriSpeech (music sets like FMA / MusicNet run 20–100 GB).
 2. Multiple concurrent training runs share the box, each producing its own rotating checkpoints.
@@ -202,13 +202,13 @@ Preparation only; actual wiring lands in a follow-up iteration commit once train
 - ONNX + model card + validation numbers land in the deliverable directory.
 - Follow-up iteration commit wires `provcheck-weights` MANIFEST + kit CLI variant flag. That commit is `[skip ci]` until an operator issues a "build" — at which point the next `v*.x.0` cuts a release with the codec-robust variant available as a DLC.
 - Range table in [`audio-watermark-survival-range.md`](./audio-watermark-survival-range.md) updates the silentcipher-fine-tune column from "planned" to "shipped" with the empirical numbers.
-- Memory drawer `project_silentcipher_codec_robust_shipped.md` captures the outcome + reproduction pointer.
+- Memory drawer an internal note captures the outcome + reproduction pointer.
 
 ## After the run: what happens if it doesn't work
 
 - Best checkpoint stays in `work/silentcipher-codec-robust/` for future work; not shipped.
 - Range table stays with silentcipher-fine-tune column as "planned" / "in-progress".
-- Memory drawer `project_silentcipher_codec_robust_attempted.md` captures what was tried, what failed, and the follow-up leads (Option B, different LR, different augmentation strength).
+- Memory drawer an internal note captures what was tried, what failed, and the follow-up leads (Option B, different LR, different augmentation strength).
 - AudioSeal + WavMark continue to be the AAC-delivery path via the multi-family workflow in [`multi-family-embed-workflow.md`](./multi-family-embed-workflow.md).
 
 ## Reference docs
@@ -216,4 +216,4 @@ Preparation only; actual wiring lands in a follow-up iteration commit once train
 - [`audio-watermark-survival-range.md`](./audio-watermark-survival-range.md) — the honest range this fine-tune contributes to
 - [`multi-family-embed-workflow.md`](./multi-family-embed-workflow.md) — how the resulting variant slots into the multi-family embed
 - [`WATERMARK_LICENSE_POLICY.md`](../WATERMARK_LICENSE_POLICY.md) — the FOSS-license constraints preserved throughout
-- Memory drawer `project_v0.5.2_codec_survival.md` (session-local) — the 2026-06-24 empirical parity sweep that produced the "silentcipher cannot survive AAC at any setting" finding this fine-tune tries to overturn
+- Memory drawer an internal note.5.2_codec_survival.md` (session-local) — the 2026-06-24 empirical parity sweep that produced the "silentcipher cannot survive AAC at any setting" finding this fine-tune tries to overturn

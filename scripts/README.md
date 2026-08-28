@@ -16,10 +16,7 @@ Requires Python 3.8+ and ffmpeg on `PATH` (or set `$FFMPEG`).
 
 ## `publish-release.sh`
 
-Manual-sync a release from the private dev repo
-(`CreativeMayhemLtd/provcheck-dev`) to the public release repo
-(`CreativeMayhemLtd/provcheck`), then cut a GitHub Release with
-platform binaries attached.
+Cut a GitHub Release with platform binaries attached.
 
 ```bash
 scripts/publish-release.sh v0.1.0 \

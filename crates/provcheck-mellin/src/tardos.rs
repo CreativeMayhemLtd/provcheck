@@ -32,11 +32,11 @@
 //! The deterministic math here — the HMAC labels `lysn-tardos/bias` and
 //! `lysn-tardos/codeword`, the bias distribution, the codeword rule, the
 //! symmetric score, the threshold, and the Acklam quantile — is **bit-identical**
-//! with lysn-watermark's `tardos.rs`. Given the same serial bytes and work seed,
-//! a codeword generated in Lysn.fm scores here identically, and vice versa. The
+//! with the reference implementation's `tardos.rs`. Given the same serial bytes and work seed,
+//! a codeword generated in the reference implementation scores here identically, and vice versa. The
 //! enrollment types ([`Serial`], [`TraceLedger`]) are provcheck-only bookkeeping
 //! and carry no cross-repo obligation. Do not change any label, constant, or
-//! formula without changing lysn in the same breath.
+//! formula without changing the reference in the same breath.
 
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
@@ -113,7 +113,7 @@ impl TraceLedger {
     }
 
     /// Enroll a buyer with an already-derived serial (e.g. one supplied by an
-    /// interoperating Lysn.fm pipeline).
+    /// interoperating the reference implementation pipeline).
     pub fn enroll_serial(&mut self, serial: Serial, label: impl Into<String>) {
         self.entries.push(Entry {
             serial,
@@ -288,7 +288,7 @@ pub fn accuse(
 
 /// A tiny deterministic PRNG (splitmix64). Used ONLY to model the attacker
 /// (collusion strategy, channel noise) reproducibly — the tracing math itself
-/// never uses randomness. Bit-identical with lysn's `tardos::Prng`.
+/// never uses randomness. Bit-identical with the reference `tardos::Prng`.
 #[derive(Debug, Clone)]
 pub struct Prng(pub u64);
 
@@ -378,7 +378,7 @@ pub fn apply_noise(detected: &mut [Option<bool>], flip_prob: f64, rng: &mut Prng
 // ─────────────────────────────── inverse normal CDF (Acklam) ───────────────────────────────
 
 /// Inverse standard-normal CDF (Acklam's rational approximation, accurate to
-/// ~1e-9). `p` in (0,1). Bit-identical with lysn.
+/// ~1e-9). `p` in (0,1). Bit-identical with the reference.
 fn normal_quantile(p: f64) -> f64 {
     const A: [f64; 6] = [
         -3.969_683_028_665_376e1,
@@ -499,9 +499,9 @@ mod tests {
     }
 
     #[test]
-    fn tardos_golden_vector_matches_lysn() {
+    fn tardos_golden_vector_matches_reference() {
         // CROSS-REPO GOLDEN VECTOR. The bias distribution and codeword rule must
-        // be bit-identical with lysn-watermark; these exact values must also be
+        // be bit-identical with the reference implementation; these exact values must also be
         // asserted there. Independently verified against an HMAC-SHA256 reference.
         // Serial is a FIXED byte string (not derived) so the vector depends only on
         // the shared math, not either repo's enrollment scheme. Pin in BOTH repos.
@@ -525,7 +525,7 @@ mod tests {
         assert_eq!(
             codeword,
             [false, true, false, false, true, false, false, false],
-            "Tardos codeword golden vector changed — lysn interop broken"
+            "Tardos codeword golden vector changed — reference interop broken"
         );
     }
 
