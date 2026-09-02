@@ -148,8 +148,7 @@ struct Args {
     /// pack can request the detection pass without changing the
     /// rest of the command-line surface.
     ///
-    /// See `docs/v0.9-roadmap/README.md` section 9a for the design
-    /// rationale and `docs/public-api-stability.md` for the trait
+    /// See `docs/public-api-stability.md` for the trait
     /// contract.
     #[arg(long = "detect")]
     detect: Option<DetectScope>,

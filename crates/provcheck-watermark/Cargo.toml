@@ -20,7 +20,7 @@ default = []
 # routes the encoder ONNX call through ort with the CUDA
 # execution provider instead of tract-onnx. Requires the
 # onnxruntime CUDA shared libraries installed on the host at
-# runtime (see docs/v0.6.0-roadmap/p4-ort-cuda-backend-design.md).
+# runtime.
 # Build with `cargo build --release --features cuda` and produce
 # a `provcheck-kit-cuda` target separate from the default
 # tract-only kit binary.

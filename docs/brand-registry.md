@@ -1,7 +1,7 @@
 # Brand registry — numeric IDs for short-payload watermarks
 
 silentcipher's 40-bit payload encodes brands as ASCII triplets
-(`DFM` = doomscroll.fm, `RAI` = rAIdio.bot, `VAI` = vAIdeo.bot).
+(`DFM` = Doomscroll.FM, `RAI` = rAIdio.bot, `VAI` = vAIdeo.bot).
 The shorter payloads of AudioSeal (16 bits) and WavMark (32 bits)
 don't have room for ASCII. Instead, they use **numeric** IDs from
 the registry below.
@@ -14,7 +14,7 @@ re-used by `provcheck-wavmark`.
 
 | 16-bit ID | Brand | Display label | ASCII equivalent (silentcipher) |
 |---|---|---|---|
-| `0x0001` | doomscroll.fm | `doomscroll.fm` | `DFM\x01\x00` |
+| `0x0001` | Doomscroll.FM | `Doomscroll.FM` | `DFM\x01\x00` |
 | `0x0002` | rAIdio.bot | `rAIdio.bot` | `RAI\x01\x00` |
 | `0x0003` | vAIdeo.bot | `vAIdeo.bot` | `VAI\x01\x00` |
 
@@ -43,7 +43,7 @@ payload[0]  payload[1]
 ID = (high << 8) | low
 ```
 
-Example: doomscroll.fm marked content has payload bytes `00 01`,
+Example: Doomscroll.FM marked content has payload bytes `00 01`,
 which reads as ID `0x0001`.
 
 ### WavMark (32-bit payload)

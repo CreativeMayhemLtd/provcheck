@@ -1,0 +1,16 @@
+# The release guard and its data files MUST stay LF. A CR breaks the shell that
+# runs the hooks and, worse, defeats the exclude/term matching in
+# guard-public-push.sh (a trailing CR on every pattern makes it match nothing),
+# which would silently let internal-only files reach the public mirror.
+*.sh              text eol=lf
+.claude/hooks/**  text eol=lf
+scripts/public-exclude.txt        text eol=lf
+scripts/public-term-denylist.txt  text eol=lf
+
+# Line-parsed data + config formats: keep LF so nothing that reads them line by
+# line (or diffs them) is surprised by a stray CR on a Windows checkout.
+*.json  text eol=lf
+*.txt   text eol=lf
+*.py    text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf

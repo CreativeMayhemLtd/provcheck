@@ -57,16 +57,72 @@ done
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
-# ffmpeg is installed at C:\tools\ffmpeg (2026-08-20) so the AAC delivery
-# smoke (step 4) actually runs instead of silently skipping. Some shells do
-# not carry the box's PATH, so the gate finds it itself.
-if ! command -v ffmpeg >/dev/null 2>&1 && [ -x "/c/tools/ffmpeg/bin/ffmpeg.exe" ]; then
-    export PATH="$PATH:/c/tools/ffmpeg/bin"
+# The AAC delivery smoke (step 4) needs ffmpeg. If a login shell has not put it
+# on PATH, look in $FFMPEG_DIR (or a common install location) before skipping.
+FFMPEG_DIR="${FFMPEG_DIR:-/c/tools/ffmpeg/bin}"
+if ! command -v ffmpeg >/dev/null 2>&1 && [ -x "$FFMPEG_DIR/ffmpeg.exe" ]; then
+    export PATH="$PATH:$FFMPEG_DIR"
 fi
 
 red()    { printf "\033[31m%s\033[0m\n" "$*" >&2; }
 green()  { printf "\033[32m%s\033[0m\n" "$*"; }
 yellow() { printf "\033[33m%s\033[0m\n" "$*"; }
+
+# ---- Public-content gate (git-native; mirrors .claude/hooks/guard-public-push.sh) ----
+# Enforce the internal-content strip at the git layer so it does not depend on the
+# agent-side hook. Only engages when this pre-push targets the PUBLIC mirror (git passes
+# the remote URL as $2). Refuses the push if any tracked file matches
+# scripts/public-exclude.txt, or if any denylisted term in scripts/public-term-denylist.txt
+# appears in a non-excluded shipping file. Both lists are LF-tolerant (a stray CR would
+# otherwise make every pattern match nothing — see the guard-hook postmortem).
+PUSH_URL="${2:-}"
+if printf '%s' "$PUSH_URL" | grep -qE 'CreativeMayhemLtd/provcheck(\.git)?$'; then
+    EXCL="$REPO_ROOT/scripts/public-exclude.txt"
+    DENY="$REPO_ROOT/scripts/public-term-denylist.txt"
+    pc_tracked="$(git ls-tree -r --name-only HEAD 2>/dev/null || true)"
+    pc_hits=""
+    if [ -f "$EXCL" ]; then
+        while IFS= read -r pat || [ -n "$pat" ]; do
+            pat="${pat%$'\r'}"; [ -z "$pat" ] && continue; case "$pat" in \#*) continue ;; esac
+            re="$(printf '%s' "$pat" | sed -e 's/\./[.]/g' -e 's/\*/.*/g')"
+            m="$(printf '%s\n' "$pc_tracked" | grep -iE -- "$re" || true)"
+            [ -n "$m" ] && pc_hits="$pc_hits$m
+"
+        done < "$EXCL"
+    fi
+    if [ -n "$pc_hits" ]; then
+        red "PUBLIC-CONTENT GATE: internal-only files are present and must not reach the public mirror:"
+        printf '%s\n' "$pc_hits" | sort -u | sed 's/^/  /' >&2
+        red "Publish a SANITIZED tree (git rm the excluded paths) before pushing to public."
+        exit 1
+    fi
+    if [ -f "$DENY" ] && [ -f "$EXCL" ]; then
+        pc_terms="$(grep -vE '^[[:space:]]*(#|$)' "$DENY" | tr -d '\r' | paste -sd '|' - || true)"
+        if [ -n "$pc_terms" ]; then
+            pc_raw="$(git grep -nEiI -e "$pc_terms" HEAD -- . 2>/dev/null || true)"
+            pc_tviol=""
+            while IFS= read -r line; do
+                [ -z "$line" ] && continue
+                rest="${line#*:}"; path="${rest%%:*}"; excl=no
+                while IFS= read -r pat || [ -n "$pat" ]; do
+                    pat="${pat%$'\r'}"; [ -z "$pat" ] && continue; case "$pat" in \#*) continue ;; esac
+                    re="$(printf '%s' "$pat" | sed -e 's/\./[.]/g' -e 's/\*/.*/g')"
+                    printf '%s' "$path" | grep -qiE -- "$re" && { excl=yes; break; }
+                done < "$EXCL"
+                [ "$excl" = no ] && pc_tviol="$pc_tviol$line
+"
+            done <<PC_EOF
+$pc_raw
+PC_EOF
+            if [ -n "$pc_tviol" ]; then
+                red "PUBLIC-CONTENT GATE: forbidden term(s) present in shipping files:"
+                printf '%s\n' "$pc_tviol" | sed 's/^/  /' >&2
+                exit 1
+            fi
+        fi
+    fi
+    green "  public-content gate OK (no internal-only files or terms reaching public)"
+fi
 
 # ---- Release-tag gate (v1.1.0 addition; never bypassable except --no-verify) --
 #
@@ -77,11 +133,10 @@ yellow() { printf "\033[33m%s\033[0m\n" "$*"; }
 # The gate REFUSES two failure modes on `refs/tags/v[0-9]+.[0-9]+.0`:
 #
 #   1. Cadence violation — another v*.*.0 tag was created within the
-#      last 24 hours. Memory rule feedback_release_cadence_budget.md
-#      (Max one v* tag per 24h) exists because tagging on consecutive
-#      days burned ~€25/week of Actions minutes across the Tauri + 10x
-#      macOS matrix. Also because it usually means the previous tag
-#      was a mistake in-flight being corrected too quickly.
+#      last 24 hours. The release-cadence policy (at most one v*.*.0 tag
+#      per 24h) exists because back-to-back release tags re-run the full
+#      build and signing matrix, and usually mean the previous tag is
+#      being corrected in a hurry.
 #
 #   2. Force-rewrite — the tag already exists on origin at a different
 #      SHA. Memory rule feedback_iteration_tags_for_fixes.md flatly
@@ -158,11 +213,10 @@ if [[ ! -t 0 ]]; then
             red "  attempting to push: $tag_name"
             red "  most recent v*.*.0: $recent_offender (${ago_h}h ${ago_m}m ago)"
             red ""
-            red "  Memory rule 'release-cadence-budget': Max one v* tag per 24h."
-            red "  Reason: consecutive v*.*.0 tags burned ~€25/week of Actions"
-            red "  when v0.4.1+v0.4.2+v0.5.0 fired on back-to-back days. Same"
-            red "  failure mode fired 6+ times on 2026-07-01 (recovery cycle)"
-            red "  which is what got this gate wired in."
+            red "  Policy: at most one v*.*.0 release tag per 24 hours."
+            red "  Back-to-back release tags re-run the entire build and signing"
+            red "  matrix, and usually mean the previous tag is being corrected"
+            red "  in a hurry."
             red ""
             red "  If this is a fix / correction of the most recent release:"
             red "  DO NOT tag as vX.Y.0 — use an iteration tag vX.Y.Z (Z>0)"

@@ -52,7 +52,7 @@ Three reasons, in priority order:
    (LICENSE-of-LICENSEs files, mandatory attribution layers, redistribution
    carve-outs) every time someone re-hosts it. The free-software default is
    "you can re-host this." We protect that default.
-3. **Symmetry with what we ship.** rAIdio.bot, doomscroll.fm, and the rest of
+3. **Symmetry with what we ship.** rAIdio.bot, Doomscroll.FM, and the rest of
    the Creative Mayhem suite are open. The verifier should be too. A detector
    we'd refuse to sign off on for the artist-side tools doesn't belong on the
    verifier either.
@@ -78,9 +78,6 @@ Three reasons, in priority order:
 | **StegaStamp** | Tancik et al, UC Berkeley | MIT (code) | unclear (Google Drive download without LICENSE.md) | hold | **Not added.** Code is permissive; weights status is the open question. Acceptable if upstream confirms permissive weights OR if we retrain from CC0/CC-BY data. |
 | **HiDDeN** | community reimpl of Stanford paper (Zhu et al, ECCV 2018) | MIT (community code) | no canonical publishable weights | hold | **Not added.** Academic baseline; no publishable-as-FOSS weights checkpoint. Defer in favour of TrustMark. |
 | classical DCT-DWT methods | — | — | — | ✓ | **Fallback only.** No model-weights concern by construction. Robustness ceiling sits below TrustMark on real-world delivery pipelines. Standby in case TrustMark license re-verification at 7b fails. |
-
-Full image-family survey rationale lives at
-[`docs/v0.7.0-roadmap/7a-image-watermark-survey.md`](docs/v0.7.0-roadmap/7a-image-watermark-survey.md).
 
 ### Video (2026-06-28; wired v0.9.0)
 
@@ -112,9 +109,9 @@ Not added: SynthID Audio (weights unreleased), Stable Signature (non-commercial 
 `crates/provcheck-mellin/` is a keyed forensic watermark channel (Fourier-Mellin
 spectral embed + detect) ported from a reference audio-watermark implementation. It is
 **source-available under BUSL-1.1 OR a commercial license** (free for
-non-commercial use, commercial use already authorized under a Creative Mayhem
-product license such as raidio.bot, vAIdeo.bot is covered by that
-product's license, and each released version converts to AGPL-3.0-or-later
+non-commercial use; commercial use is authorized when the work is covered by a
+Creative Mayhem product license, such as rAIdio.bot or vAIdeo.bot; and each
+released version converts to AGPL-3.0-or-later
 four years after its first public distribution; see its `LICENSE` and
 `LICENSING.md`), which fails the bundling rule above, so it is handled the way
 the rule demands:
@@ -157,13 +154,11 @@ the same way:
   individuation, leak tracing, and purification-resistant provenance, so like mellin
   it would not fit the blind `detect(path)` dispatch anyway.
 - It is **experimental**: the amplification-under-purification property is validated
-  (generalizes across purifiers), but capacity, embed speed, and adaptive-attacker
-  hardening are works in progress. Treat it as an opt-in research option, not a
-  shipped detector.
+  (generalizes across purifiers), but capacity and embed speed are works in
+  progress. Treat it as an opt-in research option, not a shipped detector.
 
 As with mellin, this does not weaken the rule: Backfire never ships inside the
-Apache-2.0 artefact. (Roadmap: provcheck experimental option now, `the reference` integration
-later, consumer bots much later.)
+Apache-2.0 artefact.
 
 ## Process for adding a new detector
 
@@ -180,7 +175,7 @@ later, consumer bots much later.)
    changes are needed — CLI Display, GUI rendering, and JSON serialization
    all iterate `report.watermarks` already.
 5. Re-verify the clean-Windows-sandbox release gate (see
-   `.cargo/config.toml` + the project memory).
+   `.cargo/config.toml`).
 
 ## Re-survey trigger
 

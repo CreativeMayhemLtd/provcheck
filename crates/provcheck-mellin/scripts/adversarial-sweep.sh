@@ -2,7 +2,7 @@
 # Audio-domain adversarial sweep for the provcheck-mellin channel.
 #
 # Embeds a known serial, applies each attack with ffmpeg, and reads it back,
-# printing a survival table (the source of ROBUSTNESS.md). Audio-domain signal
+# printing a survival table. Audio-domain signal
 # processing is the real adversary for an audio watermark; the image/text/metadata
 # provenance strippers cannot engage it.
 #

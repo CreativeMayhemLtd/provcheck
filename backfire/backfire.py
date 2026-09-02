@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: BUSL-1.1 OR LicenseRef-Backfire-Commercial
 # Copyright (C) 2026 Creative Mayhem UG (haftungsbeschränkt)
-"""Backfire: an imperceptible, keyed image watermark that AI provenance-stripping
-attacks *amplify* instead of remove.
+"""Backfire: a keyed image watermark that AI provenance-stripping attacks
+*amplify* instead of remove.
 
-Diffusion "purification" (regeneration) provably removes ordinary invisible
+Diffusion "purification" (regeneration) removes ordinary invisible
 watermarks by projecting the image back onto the natural-image manifold. Backfire
 instead optimizes the mark to be a fixed point / attractor of that very process,
 so running a stripper's own purifier makes the keyed id read *stronger*.
@@ -33,10 +33,10 @@ NBITS = ID_BITS * ID_REPS          # 32 carriers, all id (reliability over capac
 
 # Diffusion purifier proxy. Stability withdrew the original SD-2.1 weights from Hugging
 # Face (the whole 2.x line is gone, not merely gated), so there is no official checkpoint
-# to point at. We develop against a complete community mirror of those weights, pinned to
+# to point at. We develop against our own complete mirror of those weights, pinned to
 # an exact revision for reproducibility. Override with --model / --revision.
-DEFAULT_MODEL = "huanzi05/stable-diffusion-2-1-base"
-DEFAULT_REV = "f71d7867a2745c420aa93441638b119c85995963"
+DEFAULT_MODEL = "memescreamer/stable-diffusion-2-1-base"
+DEFAULT_REV = "c9032bc99e813018fc11605cd92f11b8709f585a"
 
 def _scaled_band(lo: float, hi: float, size: int):
     """Scale an @256 radial-bin band to `size` so the same *relative* frequency
@@ -308,11 +308,42 @@ def embed_cmd(a):
 
     # Content-adaptive strength: eps*tanh(w) sets the mark's *shape*; we then project
     # it to a fixed perturbation energy (a target PSNR floor). PSNR is a function of
-    # perturbation RMS, so this gives every image the same mark energy regardless of
-    # content, lifting busy/high-frequency images that otherwise under-use the budget.
-    target_rms = 10 ** (-a.target_psnr / 20.0)
+    # perturbation RMS, so this gives every image the same GLOBAL mark energy regardless
+    # of content, lifting busy/high-frequency images that otherwise under-use the budget.
+    #
+    # --pmask adds SPATIAL (perceptual / local-SNR) adaptivity on top: weight the mark by
+    # the host's local texture (local luminance std) so energy concentrates where the eye
+    # can't see it (detail) and is suppressed in flat regions (the visible-swirl areas),
+    # at the SAME global RMS -> survival budget preserved, flat-region visibility cut.
+    # floor keeps a minimum everywhere so the mark still covers flat content. 0 = off.
+    g1 = host.mean(1, keepdim=True)
+    mu = F.avg_pool2d(g1, 7, stride=1, padding=3)
+    sig = (F.avg_pool2d(g1 * g1, 7, stride=1, padding=3) - mu * mu).clamp_min(0.0).sqrt()  # local luminance std
+    if a.pmask > 0:
+        sal = sig / sig.amax().clamp_min(1e-6)
+        pmask = a.pmask + (1.0 - a.pmask) * sal        # in [pmask, 1]
+    else:
+        pmask = 1.0
+    if a.auto:
+        # Content-adaptive per-image energy computed UP FRONT from a perceptual (Noise
+        # Visibility Function / JND) budget, so the mark is OPTIMIZED at this energy. Rescaling
+        # a mark that was optimized at a different energy breaks the diffusion-fixed-point
+        # survival (v1 bug: every auto mark came back "weak"). The JND budget is pure host math;
+        # pmask is the shape proxy for the percentile normalization, so this needs no optimized
+        # mark and can be calibrated offline. Flat images -> quiet (high dB), busy -> louder
+        # (low dB, better survival), at constant visual invisibility.
+        jnd = a.jnd_floor + a.jnd_gain * sig
+        shp = pmask if a.pmask > 0 else torch.ones_like(g1)
+        shp_rms = shp.pow(2).mean().clamp_min(1e-12).sqrt()
+        p95 = torch.quantile((shp / jnd.clamp_min(1e-6)).flatten(), 0.95).clamp_min(1e-9)
+        target_rms = float((a.jnd_target * shp_rms / p95).item())
+        log(f"auto-psnr: content-adaptive energy = PSNR {-20.0 * np.log10(max(target_rms, 1e-12)):.1f}dB for this image")
+    else:
+        target_rms = 10 ** (-a.target_psnr / 20.0)
     def make_x(w):
-        d = a.eps * torch.tanh(w)
+        d = a.eps * torch.tanh(w) * pmask
+        if a.luma:                                  # luminance-only: no chroma artifacts; the reader is luma-only anyway
+            d = d.mean(1, keepdim=True).expand_as(d)
         d = d * (target_rms / d.pow(2).mean().clamp_min(1e-12).sqrt())
         return (host + d).clamp(0, 1)
 
@@ -341,6 +372,12 @@ def embed_cmd(a):
     for it in range(a.iters):
         opt.zero_grad()
         x = make_x(w)                              # graph: w -> x
+        # Quantization-aware: round-trip the mark through 8-bit (straight-through
+        # estimator, forward = quantize, backward = identity) so the mark is OPTIMIZED
+        # to survive a PNG save. Without this, a quiet mark reads valid in float but
+        # drops below threshold once written to 8-bit (the quantization tax hits quiet
+        # marks hardest). All the EOT/read terms below now see the saved-file pixels.
+        x = x + (torch.round(x.clamp(0.0, 1.0) * 255.0) / 255.0 - x).detach()
         # Accumulate gradients over the EOT purifier passes one at a time, freeing each
         # pass's autograd graph before building the next. Peak memory is ONE purifier
         # backprop, not all n_eot at once, which is what lets 512px embeds fit: the
@@ -369,9 +406,12 @@ def embed_cmd(a):
             log(f"  iter {it:4d}  E[post]={post:+.3f}")
 
     marked = make_x(w).detach()
-    m_np = marked[0].permute(1, 2, 0).cpu().numpy()
-    Image.fromarray((m_np*255).astype("uint8")).save(a.out)
-    psnr = 10*np.log10(1.0/max(float(((marked-host)**2).mean()), 1e-12))
+    Image.fromarray((marked[0].permute(1, 2, 0).cpu().numpy() * 255).clip(0, 255).astype("uint8")).save(a.out)
+    # Honest self-read + assess: reload the SAVED 8-bit file so every number reported is what
+    # a downstream reader actually gets after the PNG round-trip, not the optimistic float mark.
+    m_np = np.asarray(Image.open(a.out).convert("RGB"), np.float32) / 255.0
+    marked = torch.from_numpy(m_np).permute(2, 0, 1).unsqueeze(0).to(dev)
+    psnr = 10 * np.log10(1.0 / max(float(((m_np - host_np) ** 2).mean()), 1e-12))
     idv, conf, margin = decode_keyed(m_np.mean(2), key, a.size, a.carriers)
     log(f"wrote {a.out}  PSNR={psnr:.1f}dB  self-read id=0x{idv:X} margin={margin:.2f}")
 
@@ -407,6 +447,12 @@ def main():
     e.add_argument("--size", type=int, default=256); e.add_argument("--iters", type=int, default=240)
     e.add_argument("--eps", type=float, default=12/255, help="per-pixel bound on the mark's shape before energy projection")
     e.add_argument("--target-psnr", type=float, default=30.0, help="content-adaptive mark energy: projected PSNR floor")
+    e.add_argument("--pmask", type=float, default=0.0, help="perceptual / local-SNR mask floor (0=off, uniform energy). e.g. 0.2 concentrates the mark in textured regions and suppresses it in flat areas at the same global energy, cutting flat-region visibility without changing the survival budget")
+    e.add_argument("--luma", action="store_true", help="constrain the mark to LUMINANCE (grayscale perturbation). The reader correlates luminance only, so chroma energy is invisible to detection but shows as visible color splotches; --luma moves all energy into luma, removing the color artifacts at no detection cost")
+    e.add_argument("--auto", action="store_true", help="content-adaptive energy: set the mark strength PER IMAGE from a perceptual (Noise-Visibility-Function / JND) budget instead of a fixed --target-psnr. Flat images auto-get a quieter mark (higher effective dB), busy images a louder one (lower dB, better survival), at a constant low-visibility (perceptual) budget. Overrides --target-psnr for the final energy; reports the effective dB it chose")
+    e.add_argument("--jnd-floor", type=float, default=0.006, help="(--auto) flat-region invisible perturbation amplitude in [0,1] units (~1.5/255)")
+    e.add_argument("--jnd-gain", type=float, default=0.5, help="(--auto) how much local texture raises the invisible budget (masking gain on local luminance std)")
+    e.add_argument("--jnd-target", type=float, default=1.0, help="(--auto) perceptual load headroom at the 95th percentile (1.0 = ride the JND; <1 = quieter/safer)")
     e.add_argument("--lr", type=float, default=4e-3)
     e.add_argument("--direct", type=float, default=1.0, help="pre-attack readability weight")
     e.add_argument("--eot-strengths", default="0.2,0.3"); e.add_argument("--eot-noises", type=int, default=4)

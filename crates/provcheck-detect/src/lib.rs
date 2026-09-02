@@ -54,9 +54,7 @@
 //! - `DetectionFamily` is `Copy + Eq + Hash + Serialize +
 //!   Deserialize` so dispatch can filter by modality.
 //!
-//! See `docs/public-api-stability.md` for the stability contract
-//! and `docs/v0.9-roadmap/README.md` section 9a + 9b for the
-//! design rationale.
+//! See `docs/public-api-stability.md` for the stability contract.
 
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]

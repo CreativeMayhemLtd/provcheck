@@ -1062,8 +1062,8 @@ mod tests {
     fn default_action_routes_on_provenance() {
         assert_eq!(default_action_for(None), SignAction::Created);
         let stub = SourceProvenance {
-            claim_generator: Some("Doomscroll.fm/0.1.0".into()),
-            signer: Some("Doomscroll.fm".into()),
+            claim_generator: Some("Doomscroll.FM/0.1.0".into()),
+            signer: Some("Doomscroll.FM".into()),
             title: Some("clip.mp4".into()),
             label: "urn:c2pa:1234".into(),
             format: Some("video/mp4".into()),

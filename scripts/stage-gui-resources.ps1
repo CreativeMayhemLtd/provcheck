@@ -43,7 +43,7 @@ $mlDst = "app/src-tauri/mellin"
 New-Item -ItemType Directory -Force $mlDst | Out-Null
 $mlSrc = "crates/provcheck-mellin"
 Copy-Item "$mlSrc/target/release/provcheck-mellin.exe" $mlDst -Force
-foreach ($f in @("LICENSE","LICENSING.md","EULA.md","TOS.md","README.md","ROBUSTNESS.md")) {
+foreach ($f in @("LICENSE","LICENSING.md","EULA.md","TOS.md","README.md")) {
     Copy-Item "$mlSrc/$f" $mlDst -Force
 }
 

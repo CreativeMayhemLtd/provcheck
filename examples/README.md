@@ -31,7 +31,7 @@ provcheck examples/rAIdio.bot-sample.mp3
 ## `doomscroll.fm-sample.mp4`
 
 ~660 KB short AI-generated video bumper from
-[**Doomscroll.fm**](https://doomscroll.fm) — an autonomous AI
+[**Doomscroll.FM**](https://doomscroll.fm) — an autonomous AI
 satirical news broadcast by [Creative Mayhem UG](https://creativemayhem.com),
 producing ~10–12 episodes per day, all signed at source.
 
@@ -100,12 +100,12 @@ files by the in-tree `provcheck-examples` binary:
 ```
 cargo run --release -p provcheck-examples -- \
   --audio-in <path-to-rAIdio-mp3> \
-  --video-in <path-to-Doomscroll.fm-bumper-mp4> \
+  --video-in <path-to-Doomscroll.FM-bumper-mp4> \
   --out-dir examples
 ```
 
 Each run synthesises a fresh ES256 cert chain (the common-name on
-the signing cert is the brand — rAIdio.bot or Doomscroll.fm — which
+the signing cert is the brand — rAIdio.bot or Doomscroll.FM — which
 is what `provcheck` surfaces as `signer`). No private keys ship with
 this repo.
 

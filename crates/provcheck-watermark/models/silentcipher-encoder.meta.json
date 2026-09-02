@@ -1,4 +1,6 @@
 {
+  "license": "MIT",
+  "model_source": "sony/silentcipher",
   "model_type": "44.1k",
   "sample_rate": 44100,
   "n_fft": 4096,

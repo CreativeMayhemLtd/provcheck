@@ -27,7 +27,7 @@ Standard semver: `MAJOR.MINOR.PATCH`.
 ### Iteration counter (`Z`) has no cap; no automatic promotion
 
 The `Z` in `vX.Y.Z` (the iteration / patch counter) increments
-without bound. Direction from Chris, 2026-07-01: iteration goes
+without bound. Project policy: iteration goes
 `1, 2, 3, ..., 9, 10, 11, ..., 99, 100, ..., 999, 1000, ...`.
 There is **no** rollover, no overflow-based promotion, no
 "patch is full, bump minor" rule. If the iteration cadence

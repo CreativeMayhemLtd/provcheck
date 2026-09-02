@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Measure provcheck detection survival against the watermarks-remover
+"""Measure provcheck detection survival against a published
 provenance-stripping tool, and refresh the committed golden fixtures.
 
-This is the live re-measurement driver behind
-`docs/provenance-stripping-survival.md`. It is intentionally NOT run in
-CI (it needs a watermarks-remover checkout and, for the pixel tier, GPU
+This is the live re-measurement driver for the committed golden fixtures.
+It is intentionally NOT run in
+CI (it needs a checkout of the provenance-stripping tool and, for the pixel tier, GPU
 ML backends). CI's deterministic anchor is
 `crates/provcheck/tests/provenance_stripping.rs`, which runs against the
 frozen fixtures this script produces.
@@ -25,7 +25,7 @@ What it does, per row:
 
 Prerequisites:
   - Release binaries: `cargo build --release -p provcheck-cli -p provcheck-kit`.
-  - A watermarks-remover checkout (--wr-dir or $WATERMARKS_REMOVER_DIR).
+  - A checkout of the provenance-stripping tool (--wr-dir or $STRIP_TOOL_DIR).
   - Python 3.10+ with Pillow and numpy for fixture synthesis.
   - Image rows need an ONNX Runtime 1.22.x DLL on --ort-dylib or
     $ORT_DYLIB_PATH (provcheck-image loads ort via load-dynamic; a
@@ -35,7 +35,7 @@ Prerequisites:
 
 Usage:
   python scripts/provenance-strip-matrix.py \
-      --wr-dir /path/to/watermarks-remover \
+      --wr-dir /path/to/strip-tool \
       --ort-dylib /path/to/onnxruntime.dll \
       [--pixel] [--refresh-fixtures] [--json result.json]
 """
@@ -174,7 +174,7 @@ def row_c2pa(pc: Path, kit: Path, wr: Path, work: Path, env: dict, refresh: bool
     if refresh and signed.exists() and stripped.exists():
         GOLDEN.mkdir(parents=True, exist_ok=True)
         shutil.copy(signed, GOLDEN / "signed.jpg")
-        shutil.copy(stripped, GOLDEN / "watermarks-remover-v0.5.0-stripped.jpg")
+        shutil.copy(stripped, GOLDEN / "stripped-v0.5.0.jpg")
     return {
         "row": "c2pa",
         "baseline": {"verified": base.get("verified"), "unsigned": base.get("unsigned")},
@@ -220,8 +220,8 @@ def row_trustmark(pc: Path, kit: Path, wr: Path, work: Path, env: dict, pixel: b
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--wr-dir", default=os.environ.get("WATERMARKS_REMOVER_DIR"),
-                    help="watermarks-remover checkout root")
+    ap.add_argument("--wr-dir", default=os.environ.get("STRIP_TOOL_DIR"),
+                    help="provenance-stripping-tool checkout root")
     ap.add_argument("--ort-dylib", default=os.environ.get("ORT_DYLIB_PATH"),
                     help="path to an ONNX Runtime 1.22.x DLL/so for the image rows")
     ap.add_argument("--work", default=None, help="scratch dir (default: a temp dir)")
@@ -234,7 +234,7 @@ def main() -> int:
     args = ap.parse_args()
 
     if not args.wr_dir:
-        sys.exit("need --wr-dir (or $WATERMARKS_REMOVER_DIR): a watermarks-remover checkout")
+        sys.exit("need --wr-dir (or $STRIP_TOOL_DIR): a provenance-stripping-tool checkout")
     wr = Path(args.wr_dir).resolve()
     pc, kit = bin_path("provcheck"), bin_path("provcheck-kit")
 
@@ -243,7 +243,7 @@ def main() -> int:
         env["ORT_DYLIB_PATH"] = str(Path(args.ort_dylib).resolve())
 
     import tempfile
-    work = Path(args.work).resolve() if args.work else Path(tempfile.mkdtemp(prefix="provstrip-"))
+    work = Path(args.work).resolve() if args.work else Path(tempfile.mkdtemp(prefix="strip-matrix-"))
     work.mkdir(parents=True, exist_ok=True)
 
     rows = [r.strip() for r in args.rows.split(",") if r.strip()]

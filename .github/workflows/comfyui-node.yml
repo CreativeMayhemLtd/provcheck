@@ -3,11 +3,11 @@ name: comfyui-node
 on:
   push:
     paths:
-      - "python/comfyui-node/**"
+      - "Apps/comfyui-node/**"
       - ".github/workflows/comfyui-node.yml"
   pull_request:
     paths:
-      - "python/comfyui-node/**"
+      - "Apps/comfyui-node/**"
       - ".github/workflows/comfyui-node.yml"
 
 jobs:
@@ -37,8 +37,8 @@ jobs:
           # exercise the wrapper layer; the real watermark math
           # never runs (kit is mocked in every test).
           pip install --index-url https://download.pytorch.org/whl/cpu torch
-          pip install -e python/comfyui-node
+          pip install -e Apps/comfyui-node
           pip install pytest
 
-      - name: pytest python/comfyui-node/tests/
-        run: pytest python/comfyui-node/tests/ -v
+      - name: pytest Apps/comfyui-node/tests/
+        run: pytest Apps/comfyui-node/tests/ -v

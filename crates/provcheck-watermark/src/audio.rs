@@ -105,8 +105,7 @@ pub fn decode_to_mono_44k1(path: &Path) -> Result<Vec<f32>, AudioError> {
     // an MP3-decoded mono buffer starts 1105 samples earlier and
     // ends ~1109 samples later than what librosa/ffmpeg yield,
     // which shifts every downstream STFT frame and breaks the
-    // silentcipher per-position mode vote. See
-    // docs/v0.3.3-detection-gap/ for the empirical alignment proof.
+    // silentcipher per-position mode vote.
     let enc_delay = effective_priming(track) as usize;
     let enc_padding = track.codec_params.padding.unwrap_or(0) as usize;
 

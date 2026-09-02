@@ -1,8 +1,6 @@
 //! Adversarial regression tests against a real provenance-stripping tool.
 //!
-//! These are the CI-side anchor for the survival matrix in
-//! [`docs/provenance-stripping-survival.md`]. The premise, stated in
-//! that document, is a non-negotiable invariant:
+//! These are the CI-side anchor for a non-negotiable invariant:
 //!
 //!   **provcheck must never report a stripped asset as verified.**
 //!
@@ -12,11 +10,9 @@
 //!
 //! - `signed.jpg` — a JPEG carrying an embedded C2PA manifest (signed
 //!   by a throwaway provcheck-kit identity).
-//! - `watermarks-remover-v0.5.0-stripped.jpg` — the exact byte output
-//!   of running that signed JPEG through
-//!   [watermarks-remover](https://github.com/guillaumemeyer/watermarks-remover)
-//!   v0.5.0 `clean_image.py`. Its own report confirmed
-//!   `still_has_c2pa: false`.
+//! - `stripped-v0.5.0.jpg` — the exact byte output of running that
+//!   signed JPEG through a published provenance-stripping tool
+//!   (v0.5.0). Its own report confirmed `still_has_c2pa: false`.
 //!
 //! The test asserts that provcheck sees a manifest on the first and
 //! reports the second as unsigned and unverified. These call the
@@ -29,8 +25,8 @@
 //! trust chain, so a committed fixture cannot go flaky when its test
 //! cert ages out.
 //!
-//! To refresh these fixtures against a newer watermarks-remover
-//! release, see `scripts/provenance-strip-matrix.py`.
+//! To refresh these fixtures against a newer release of that tool,
+//! see `scripts/provenance-strip-matrix.py`.
 
 use std::path::PathBuf;
 
@@ -61,8 +57,7 @@ fn signed_baseline_has_manifest() {
 /// manifest-less file report `verified`, this fails loudly.
 #[test]
 fn adversary_stripped_asset_never_verifies() {
-    let report =
-        verify(&fixture("watermarks-remover-v0.5.0-stripped.jpg")).expect("verify returns Ok");
+    let report = verify(&fixture("stripped-v0.5.0.jpg")).expect("verify returns Ok");
     assert!(
         !report.verified,
         "INVARIANT VIOLATED: a stripped asset reported verified; got {report:?}"

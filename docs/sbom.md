@@ -112,7 +112,7 @@ sha256sum -c provcheck-vX.Y.Z.spdx.json.sha256
 The `.sha256` sidecars are produced inside the same workflow step that
 emits the SBOM, on a GitHub Actions hosted runner. If you want
 stronger supply-chain attestation (signed SBOM, SLSA provenance),
-file an issue — Sigstore + SLSA L3 is on the roadmap but not in v0.9.x.
+file an issue — Sigstore + SLSA L3 is on the roadmap but not yet shipped.
 
 ## Why we ship both CycloneDX *and* SPDX
 

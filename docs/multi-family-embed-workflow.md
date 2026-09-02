@@ -8,9 +8,10 @@ Each detector family survives a different attack profile. Details in [`audio-wat
 
 | Attack | Recovered by |
 |---|---|
-| Lossless / MP3 320 / AAC 320 | silentcipher + AudioSeal + WavMark |
-| MP3 192 / AAC 192 (with silentcipher fine-tune) | all three |
-| MP3 128 / AAC 128 | AudioSeal + WavMark (silentcipher-fine-tune degrades) |
+| Lossless / MP3 320 | silentcipher + AudioSeal + WavMark |
+| MP3 192 | silentcipher + AudioSeal + WavMark |
+| AAC 192 / AAC 320 | AudioSeal + WavMark |
+| MP3 128 / AAC 128 | AudioSeal + WavMark |
 | AAC 96 / Opus 64 | AudioSeal |
 | Tempo / pitch change ±5% | AudioSeal (partial) |
 | Loudness normalisation ±6 dB | all three |
@@ -88,7 +89,7 @@ If the file was re-encoded through AAC 192 kbps between publish and verify, the 
 ```
 [VERIFIED]  (or [UNSIGNED] if C2PA manifest stripped by re-encode)
 [watermarks]
-  silentcipher: detected — <brand> (86% confidence)   ← survives with fine-tune
+  silentcipher: not detected (dropped by the AAC re-encode)
   audioseal:    detected — <brand> (93% confidence)
   wavmark:      detected — <brand> (87% confidence)
 ```
@@ -97,7 +98,7 @@ Provenance intact even if the cryptographic layer got stripped by the container 
 
 ## Cost trade-offs
 
-**Time cost**: three sequential embeds. At v0.6.0's chunk-parallel silentcipher throughput on CPU (about 0.7 × realtime on a 30-min episode), the full three-family run is roughly 5 minutes per 30-minute episode of wall-clock. GPU-accelerated silentcipher embed drops the silentcipher pass to ~2 minutes for a 1-hour episode); AudioSeal and WavMark are seconds-to-tens-of-seconds on CPU.
+**Time cost**: three sequential embeds, dominated by the silentcipher pass. At v0.6.0's chunk-parallel silentcipher throughput on CPU (about 0.7x realtime), silentcipher on a 30-minute episode is roughly 20 minutes of wall-clock, and AudioSeal and WavMark add only seconds-to-tens-of-seconds each. GPU-accelerated silentcipher embed (about 10x faster) drops the silentcipher pass to a couple of minutes on the same episode.
 
 **Audibility cost**: cumulative alpha across all three embeds adds ~0.5–1.0 dB to the audibility floor. Still inaudible under normal listening conditions. If audibility is a critical constraint (mastered music at reference volume through studio monitors), consider embedding only silentcipher + one of AudioSeal / WavMark. Two of three still gets you significant redundancy.
 
@@ -110,7 +111,7 @@ For low-audibility masters (studio music, mastered advertising) where a single f
 | Delivery pipeline | Single-family choice |
 |---|---|
 | Lossless / MP3 320 delivery only | silentcipher (highest payload capacity + best imperceptibility) |
-| AAC 192 kbps streaming (YouTube / Spotify / Apple Music) | AudioSeal alpha=3.0 (or silentcipher-fine-tune when it ships) |
+| AAC 192 kbps streaming (YouTube / Spotify / Apple Music) | AudioSeal alpha=3.0 |
 | Podcast delivery (MP3 128–192 kbps stereo) | silentcipher at SDR 30 dB (v0.5.2 default) |
 | Voice content that may be re-recorded through room mics | AudioSeal alpha=3.0 |
 
@@ -126,11 +127,10 @@ The multi-family stack does not defeat every attack. Marks may drop under:
 - Chopped-and-reordered DJ remixes with pitch shift + tempo change + effects
 - Speech codecs (Speex, AMR, GSM)
 
-For those scenarios, the honest answer today is that no shipped watermark technology recovers reliably. This is active research territory (spectral-shape-invariant marks, semantic-content marks tied to source separation). See [`audio-watermark-survival-range.md`](./audio-watermark-survival-range.md) for the full table.
+For those scenarios, the honest answer today is that no shipped watermark technology recovers reliably. This is active research territory. See [`audio-watermark-survival-range.md`](./audio-watermark-survival-range.md) for the full table.
 
 ## Reference
 
 - [`audio-watermark-survival-range.md`](./audio-watermark-survival-range.md) — per-attack, per-family table
-- [`silentcipher-codec-robust-fine-tune.md`](./silentcipher-codec-robust-fine-tune.md) — the fine-tune plan that extends silentcipher's AAC survival
 - [`brand-registry.md`](./brand-registry.md) — 5-bit brand ID numeric registry
 - [`WATERMARK_LICENSE_POLICY.md`](../WATERMARK_LICENSE_POLICY.md) — the license policy every family passes

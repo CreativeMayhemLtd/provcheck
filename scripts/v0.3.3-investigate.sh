@@ -75,5 +75,4 @@ cargo run --release --quiet -p provcheck-watermark --example decode_diff -- \
   "$rust_json" "$python_json"
 echo
 
-echo "Done. First DIFF stage is the bug. See docs/v0.3.3-detection-gap/README.md"
-echo "for the candidate-cause mapping."
+echo "Done. The first DIFF stage to diverge is where the decode drifts."

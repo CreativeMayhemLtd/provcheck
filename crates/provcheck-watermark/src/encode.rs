@@ -746,8 +746,7 @@ fn build_model() -> Result<Runnable, String> {
 /// CUDA-backed encoder session. Loads ONNX once, pins CUDA EP at
 /// session-build time. If the CUDA EP is not available on the
 /// host (driver missing, runtime libs not installed) ort falls
-/// back to CPU EP automatically — slower but functional. Document
-/// the CUDA install path in `docs/v0.6.0-roadmap/p4-ort-cuda-backend-design.md`.
+/// back to CPU EP automatically — slower but functional.
 #[cfg(feature = "cuda")]
 fn build_model() -> Result<Runnable, String> {
     use ort::execution_providers::CUDAExecutionProvider;
@@ -782,8 +781,7 @@ fn build_model() -> Result<Runnable, String> {
                 "provcheck-watermark: WARNING — `--features cuda` was built in, \
                  but the CUDA execution provider could not initialise: {e}. \
                  Falling back to CPU. Verify onnxruntime-gpu + CUDA 12.x + \
-                 cuDNN are installed on this host; see \
-                 docs/v0.6.0-roadmap/p4-cuda-implementation-notes.md."
+                 cuDNN are installed on this host."
             );
             Session::builder()
                 .map_err(|e| e.to_string())?

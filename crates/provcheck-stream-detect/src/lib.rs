@@ -14,9 +14,6 @@
 //! operator-supplied open-source third-party detector wrapped via
 //! the public trait.
 //!
-//! See `docs/v0.9-roadmap/README.md` section 9b for the design
-//! rationale.
-//!
 //! ## Streams covered
 //!
 //! - **Audio PCM chunks**: feed `f32` mono PCM samples at a known

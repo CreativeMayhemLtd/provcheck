@@ -2079,8 +2079,7 @@ pub mod rotate {
     //! rotation drop is rare, the manual workflow above is bounded,
     //! and a subcommand adds surface + tests + docs for a rare-
     //! path recovery. Revisit if operator telemetry shows
-    //! reconcile is a frequent ask. Memory drawer:
-    //! an internal note
+    //! reconcile is a frequent ask.
 
     use std::path::PathBuf;
 

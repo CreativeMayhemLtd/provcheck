@@ -1,0 +1,44 @@
+[project]
+name = "provcheck-comfyui"
+version = "0.2.0"
+description = "ComfyUI nodes for provcheck: free FOSS watermarks (TrustMark / silentcipher), C2PA signing with an atproto identity, generation-provenance capture, and in-graph watermark detection."
+authors = [{ name = "Christopher Neitzert", email = "chris@creativemayhem.com" }]
+license = "Apache-2.0"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.23",
+    "Pillow>=9.0",
+    "torch>=1.13",
+]
+
+[project.urls]
+Homepage = "https://provcheck.ai"
+Repository = "https://github.com/CreativeMayhemLtd/ComfyUI-Provcheck"
+Source = "https://github.com/CreativeMayhemLtd/ComfyUI-Provcheck"
+
+# ComfyUI Registry metadata (registry.comfy.org). The registry id must not include
+# "ComfyUI"; the discovery repo convention is a separate "ComfyUI-Provcheck" repo.
+[tool.comfy]
+PublisherId = "CreativeMayhemLtd"
+DisplayName = "Provcheck"
+
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["provcheck_comfyui*"]
+
+[tool.setuptools.package-data]
+# Ship the web assets (logo + JS extension + per-node help markdown) so they
+# install with pip and ComfyUI can serve them under /extensions/provcheck-comfyui/.
+provcheck_comfyui = ["web/*", "web/img/*", "web/docs/*"]
+
+[tool.pytest.ini_options]
+# The repo root has an __init__.py (the ComfyUI clone entrypoint), which the default
+# "prepend" import mode tries to import during collection (its relative import fails
+# outside a package). importlib mode collects test files by path and avoids that.
+testpaths = ["tests"]
+addopts = "--import-mode=importlib"

@@ -12,6 +12,9 @@ we did not, and will not, ship a turnkey provenance stripper.
 | `demo_amplify.py` | GPU + [embed deps](../requirements.txt) | embed a mark, run a diffusion regeneration attack, watch the keyed identifier read back **stronger** |
 | `notch_limit.py` | numpy + pillow | the honest weakness: an aggressive band-notch **strips** the linear mark |
 | `tripwire_dilemma.py` | numpy + pillow | the answer: that notch is **loud**, so the tamper tripwire catches it |
+| `plot_survival.py` | matplotlib | the scale proof: survival across all 200 photos as one chart, recomputed from the raw verdicts |
+
+`survival_200.jsonl` is the raw per-image result set (200 records, one pass/fail set per photo); `survival_200.png` is the chart `plot_survival.py` writes from it. Every bar is the tool's own verdict, so the aggregate is auditable, not a summary you have to trust.
 
 ## Run it
 
@@ -29,7 +32,7 @@ python demo_amplify.py --image your_photo.jpg --key "your-secret-key" --serial 0
 ```
 
 `demo_amplify.py` writes a `demo.png` like [`demo_result.png`](demo_result.png): the
-original, the marked copy (invisible, same picture), and the image after a stock
+original, the marked copy (same picture, low-visibility mark), and the image after a stock
 `diffusers` img2img regeneration, with the confidence meter growing across the three.
 
 ## The one number that matters
@@ -56,7 +59,7 @@ at, so Backfire develops against a complete community **mirror** of those weight
 an exact revision for reproducibility:
 
 ```
-huanzi05/stable-diffusion-2-1-base @ f71d7867a2745c420aa93441638b119c85995963
+memescreamer/stable-diffusion-2-1-base @ c9032bc99e813018fc11605cd92f11b8709f585a
 ```
 
 Both the embed default and this demo use that pinned revision, so the demo is single-model

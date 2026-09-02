@@ -1,8 +1,8 @@
 # provcheck-mellin
 
 Keyed spectral (Fourier-Mellin) forensic watermark channel: scale/stretch-invariant
-embed and detect over i16 LE PCM. Ported from a reference audio-watermark implementation
-(`src/mellin.rs`) so the provenance suite can run seller-side forensic detection.
+embed and detect over i16 LE PCM, for seller-side forensic detection in the provenance
+suite.
 
 ## This crate is opt-in, and it is NOT in the release binary
 
@@ -118,16 +118,16 @@ serial. Embed and accuse must pass the same `--positions` and `--colluders`.
 
 ## Interop contract
 
-Two layers are bit-identical with the reference crate:
+Two layers are a fixed interop contract:
 
 - the **channel** keying (HMAC label `lysn-mellin-key/v1`, the splitmix64-style
-  PRNG, the keyed ±1 pattern), so a mark embedded by the reference implementation reads here with the
+  PRNG, the keyed ±1 pattern), so a mark embedded by any conforming implementation reads here with the
   same seller secret and work id, and
 - the **Tardos** math (labels `lysn-tardos/bias` and `lysn-tardos/codeword`, the
   bias distribution, the codeword rule, the symmetric score, the threshold, and
   the Acklam quantile), so a codeword scores identically given the same serial
   bytes and work seed.
 
-Any change to a constant, label, or derivation in either must land in both repos
-together. Everything else (the serial framing, the audio codeword mapping,
+Any change to a constant, label, or derivation in either is a breaking wire-format
+change. Everything else (the serial framing, the audio codeword mapping,
 enrollment, WAV I/O, and the CLI) is provcheck-only and carries no such obligation.

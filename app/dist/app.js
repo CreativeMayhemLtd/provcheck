@@ -458,7 +458,7 @@ function formatBrand(brand) {
   if (!brand || typeof brand !== "object") return "unrecognized source";
   switch (brand.code) {
     case "raidio":     return "rAIdio.bot";
-    case "doomscroll": return "doomscroll.fm";
+    case "doomscroll": return "Doomscroll.FM";
     case "vaideo":     return "vAIdeo.bot";
     case "unknown_ascii": {
       const letters = Array.isArray(brand.letters) ? brand.letters : [];
@@ -931,9 +931,9 @@ function explainSample(productName, fileName) {
       failure_reason:
         "The " +
         productName +
-        " sample isn't installed alongside this build yet. Grab " +
+        " sample isn't bundled with the app. Download " +
         fileName +
-        " from provcheck.ai (examples/ folder in the source tree) and drag it into the window.",
+        " from provcheck.ai and drag it into the window to verify it.",
       active_manifest: null,
       signer: null,
       signed_at: null,
@@ -949,12 +949,12 @@ function explainSample(productName, fileName) {
   );
 }
 $sampleRaidio.addEventListener("click", () => explainSample("rAIdio.bot", "rAIdio.bot-sample.mp3"));
-$sampleDoomscroll.addEventListener("click", () => explainSample("Doomscroll.fm", "doomscroll.fm-sample.mp4"));
+$sampleDoomscroll.addEventListener("click", () => explainSample("Doomscroll.FM", "doomscroll.fm-sample.mp4"));
 $sampleRaidio.addEventListener("keydown", (e) => {
   if (e.key === "Enter" || e.key === " ") explainSample("rAIdio.bot", "rAIdio.bot-sample.mp3");
 });
 $sampleDoomscroll.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" || e.key === " ") explainSample("Doomscroll.fm", "doomscroll.fm-sample.mp4");
+  if (e.key === "Enter" || e.key === " ") explainSample("Doomscroll.FM", "doomscroll.fm-sample.mp4");
 });
 
 // Identity inputs — hydrate from localStorage, persist on every change.
@@ -1522,9 +1522,8 @@ function renderBackfireError(msg, path) {
 }
 
 // Restore the acknowledge-once experimental warning. The Backfire KEY is a
-// secret and is deliberately NOT persisted (it used to sit in plaintext
-// localStorage, contradicting the Mellin section's session-only handling);
-// the removeItem below also scrubs any key an earlier build left behind.
+// secret and is session-only: it is deliberately never persisted, and the
+// removeItem below scrubs any key an earlier build may have left behind.
 try {
   localStorage.removeItem(BF_KEY_STORAGE);
   if (localStorage.getItem(BF_ACK_STORAGE) === "1") $bfWarning.hidden = true;
@@ -2402,7 +2401,7 @@ $sInitBtn.addEventListener("click", async () => {
   $sInitBtn.disabled = false;
   $sInitBtn.textContent = "Generate signing key";
   if (!res.ok) {
-    alert("Failed to generate identity:\n" + (res.error || "unknown error"));
+    await appAlert("Failed to generate identity:\n" + (res.error || "unknown error"));
     return;
   }
   await refreshSignTab();

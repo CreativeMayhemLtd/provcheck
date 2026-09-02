@@ -17,10 +17,10 @@ need to satisfy this checklist. See
 
 ## Cadence cap
 
-**Max one `vX.Y.0` tag pushed per 24 hours.** Burning ~€25/week
-of Actions credits in a single batch is what prompted this rule
-(per the `feedback_release_cadence_budget` memory note from the
-v0.4.x ship). Single-tag-per-day exceptions are reserved for:
+**Max one `vX.Y.0` tag pushed per 24 hours.** Each `vX.Y.0` tag
+re-runs the full build and signing matrix across every platform,
+so batching several in one day multiplies CI cost for little
+benefit. Single-tag-per-day exceptions are reserved for:
 
 - Production crashes
 - Data-loss bugs

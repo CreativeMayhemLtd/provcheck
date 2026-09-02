@@ -538,8 +538,7 @@ body {
 }
 
 /* Watermark badges — independent secondary signals under the
- * verdict. Each enabled detector (silentcipher today; AudioSeal
- * and others when they ship) renders its own badge in
+ * verdict. Each enabled detector renders its own badge in
  * registration order. They share the verdict's coloured-left-
  * border vocabulary so the eye reads each as "another verdict,
  * smaller scope". */
@@ -632,7 +631,7 @@ body {
 }
 .detect-empty-route code {
   font-family: var(--font-mono);
-  background: var(--bg-med);
+  background: var(--bg-medium);
   padding: 1px 5px;
   border-radius: 3px;
   font-size: 12px;

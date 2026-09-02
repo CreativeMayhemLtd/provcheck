@@ -48,6 +48,10 @@ jobs:
   # ID here in the same commit, with a sentence in the commit body
   # explaining the rationale.
   cargo-audit:
+    # Only run on the development repo. The tag is mirrored to the public repo,
+    # which lacks the signing secrets; without this guard the whole matrix re-fires
+    # there and produces unsigned artifacts + a red failure on the public project.
+    if: github.repository == 'CreativeMayhemLtd/provcheck-dev'
     name: cargo audit (RUSTSEC gate)
     runs-on: ubuntu-latest
     steps:
@@ -73,6 +77,7 @@ jobs:
             --ignore RUSTSEC-2026-0217
 
   build:
+    if: github.repository == 'CreativeMayhemLtd/provcheck-dev'
     name: build (${{ matrix.target }})
     needs: cargo-audit
     strategy:
@@ -355,6 +360,7 @@ jobs:
   # ships unsigned. macOS bundles are unsigned (no Apple Developer
   # ID yet). Linux has no code-signing convention.
   build-gui:
+    if: github.repository == 'CreativeMayhemLtd/provcheck-dev'
     name: build-gui (${{ matrix.gui_suffix }})
     needs: cargo-audit
     strategy:
@@ -597,6 +603,7 @@ jobs:
   # In parallel with the build / build-gui jobs so it doesn't
   # extend the critical path.
   build-sbom:
+    if: github.repository == 'CreativeMayhemLtd/provcheck-dev'
     needs: cargo-audit
     name: build-sbom
     runs-on: ubuntu-latest

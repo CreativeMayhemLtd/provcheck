@@ -121,8 +121,8 @@ if ($Embed) {
 import sys
 from huggingface_hub import snapshot_download
 # SD-2.1 base community mirror, pinned revision (Stability withdrew the original).
-snapshot_download("huanzi05/stable-diffusion-2-1-base",
-                  revision="f71d7867a2745c420aa93441638b119c85995963")
+snapshot_download("memescreamer/stable-diffusion-2-1-base",
+                  revision="c9032bc99e813018fc11605cd92f11b8709f585a")
 print("models fetched")
 '@
     $fetch | & $PyExe -

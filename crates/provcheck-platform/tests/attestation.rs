@@ -323,7 +323,7 @@ fn future_record_ignored() {
 
 #[test]
 fn auto_bust_on_stale_cache_promotes_mismatch_to_match() {
-    // Models the post-rotation footgun the 5060 smoke test surfaced:
+    // Models the post-rotation footgun the clean-box smoke test surfaced:
     // first verify caches the pre-rotation record set; a re-verify
     // after the creator rotates and re-signs would, with naive
     // caching, report MISMATCH because the cached records still list

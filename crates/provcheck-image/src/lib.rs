@@ -22,9 +22,6 @@
 //! the residual + blend recipe ported from upstream
 //! `trustmark.py`.
 //!
-//! See [`docs/v0.7.0-roadmap/7a-image-watermark-survey.md`](https://github.com/CreativeMayhemLtd/provcheck/blob/main/docs/v0.7.0-roadmap/7a-image-watermark-survey.md)
-//! for the library-survey rationale.
-//!
 //! ## License posture
 //!
 //! Both code AND model weights are permissively licensed per the

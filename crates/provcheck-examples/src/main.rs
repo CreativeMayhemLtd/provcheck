@@ -61,7 +61,7 @@ fn main() -> Result<()> {
         Brand::DoomscrollFm,
         doomscroll_manifest_json(),
     )
-    .context("signing Doomscroll.fm video sample")?;
+    .context("signing Doomscroll.FM video sample")?;
 
     println!("\nRegenerated:");
     println!("  {}", audio_out.display());
@@ -87,10 +87,10 @@ impl Brand {
     fn common_name(self) -> &'static str {
         match self {
             Brand::RaidioBot => "rAIdio.bot",
-            // Doomscroll.fm is a separate workflow / broadcast — not
+            // Doomscroll.FM is a separate workflow / broadcast — not
             // a vAIdeo.bot product. Sibling-product attribution waits
             // for vAIdeo.bot's own pre-release announcement.
-            Brand::DoomscrollFm => "Doomscroll.fm",
+            Brand::DoomscrollFm => "Doomscroll.FM",
         }
     }
 }
@@ -143,7 +143,7 @@ fn raidio_manifest_json() -> String {
 }
 
 fn doomscroll_manifest_json() -> String {
-    // Doomscroll.fm is an autonomous AI-generated satirical news
+    // Doomscroll.FM is an autonomous AI-generated satirical news
     // broadcast — its own workflow, not a product under another
     // Creative Mayhem brand. Attribute to the broadcast directly.
     //
@@ -162,7 +162,7 @@ fn doomscroll_manifest_json() -> String {
     // against that.
     r#"{
       "claim_generator": "doomscroll.fm/3.0",
-      "title": "Sample: Doomscroll.fm AI-generated video (episode bumper)",
+      "title": "Sample: Doomscroll.FM AI-generated video (episode bumper)",
       "assertions": [
         {
           "label": "c2pa.actions",
@@ -177,7 +177,7 @@ fn doomscroll_manifest_json() -> String {
         {
           "label": "com.doomscroll.broadcast",
           "data": {
-            "broadcast": "Doomscroll.fm",
+            "broadcast": "Doomscroll.FM",
             "broadcastUrl": "https://doomscroll.fm",
             "broadcastVendor": "Creative Mayhem UG",
             "broadcastDescription": "Autonomous AI-generated satirical news broadcast. Approximately 10–12 episodes per day. All content is C2PA-signed at source."
@@ -186,11 +186,11 @@ fn doomscroll_manifest_json() -> String {
         {
           "label": "com.doomscroll.distribution",
           "data": {
-            "provenanceStatement": "A valid C2PA signature from Doomscroll.fm attests that this file's bytes are authentic to the copy Doomscroll.fm originally published. It is a cryptographic attestation of provenance — not a truth claim about the content itself, and not a judgement on whether the content is accurate or inaccurate.",
+            "provenanceStatement": "A valid C2PA signature from Doomscroll.FM attests that this file's bytes are authentic to the copy Doomscroll.FM originally published. It is a cryptographic attestation of provenance — not a truth claim about the content itself, and not a judgement on whether the content is accurate or inaccurate.",
             "canonicalSource": "https://doomscroll.fm",
-            "canonicalSourceDescription": "The authoritative, always-signed publication of every Doomscroll.fm clip. If you have a copy that fails C2PA verification, retrieve the version here — that one is cryptographically demonstrable as authentic to the original Doomscroll.fm publication.",
-            "rebroadcastDisclaimer": "Some redistribution platforms re-encode media during upload and may strip the embedded C2PA manifest in the process. A file that fails verification has not necessarily been altered — it may simply have lost its cryptographic link back to the original publication during re-encoding. To confirm that a clip you encountered elsewhere is authentic to Doomscroll.fm's original publication, retrieve the canonical signed copy and verify that one.",
-            "integrityRecommendation": "When ingesting Doomscroll.fm content for archival or republication, pulling from the canonical source preserves the signature chain and keeps provenance verifiable end-to-end."
+            "canonicalSourceDescription": "The authoritative, always-signed publication of every Doomscroll.FM clip. If you have a copy that fails C2PA verification, retrieve the version here — that one is cryptographically demonstrable as authentic to the original Doomscroll.FM publication.",
+            "rebroadcastDisclaimer": "Some redistribution platforms re-encode media during upload and may strip the embedded C2PA manifest in the process. A file that fails verification has not necessarily been altered — it may simply have lost its cryptographic link back to the original publication during re-encoding. To confirm that a clip you encountered elsewhere is authentic to Doomscroll.FM's original publication, retrieve the canonical signed copy and verify that one.",
+            "integrityRecommendation": "When ingesting Doomscroll.FM content for archival or republication, pulling from the canonical source preserves the signature chain and keeps provenance verifiable end-to-end."
           }
         },
         {

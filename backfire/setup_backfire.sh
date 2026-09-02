@@ -80,8 +80,8 @@ if [ "$EMBED" -eq 1 ]; then
   step "Pre-fetching the diffusion purifier weights (several GB)"
   "$PY" - <<'PYEOF' || die "model pre-fetch failed (network or Hugging Face reachability)"
 from huggingface_hub import snapshot_download
-snapshot_download("huanzi05/stable-diffusion-2-1-base",
-                  revision="f71d7867a2745c420aa93441638b119c85995963")
+snapshot_download("memescreamer/stable-diffusion-2-1-base",
+                  revision="c9032bc99e813018fc11605cd92f11b8709f585a")
 print("models fetched")
 PYEOF
   touch "$EMBED_MARKER"

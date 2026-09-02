@@ -181,7 +181,7 @@ Pull the Linux binary into your container:
 
 ```dockerfile
 FROM debian:bookworm-slim
-ARG PROVCHECK_VERSION=v0.6.0
+ARG PROVCHECK_VERSION=v1.4.0
 RUN apt-get update && apt-get install -y curl ca-certificates && rm -rf /var/lib/apt/lists/*
 RUN curl -L \
     "https://github.com/CreativeMayhemLtd/provcheck/releases/download/${PROVCHECK_VERSION}/provcheck-kit-${PROVCHECK_VERSION}-linux-x86_64.tar.gz" \
@@ -255,7 +255,6 @@ set PATH=%PATH%;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8\bin
 
 NVIDIA libraries are not redistributed in our release archives
 per their license terms; install them separately on the host.
-Full design notes at [`docs/v0.6.0-roadmap/`](../docs/v0.6.0-roadmap/).
 
 ### CI verification gate
 

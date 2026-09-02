@@ -362,7 +362,7 @@ fn end_to_end_identity_assertion_round_trip() {
 
 #[test]
 fn in_place_sign_round_trip_uses_sibling_tempfile() {
-    // Regression test for the 5060 smoke-test bug: `kit sign foo.wav`
+    // Regression test for the clean-box smoke-test bug: `kit sign foo.wav`
     // with no --out claimed "in-place" but c2pa-rs refuses src == dst.
     // The fix uses a sidecar temp file and atomic-renames over the
     // source on success. This test drives the library functions

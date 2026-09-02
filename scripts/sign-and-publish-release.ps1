@@ -27,8 +27,8 @@
   Release tag to attach to, e.g. v1.1.0.
 
 .EXAMPLE
-  gh run download <run-id> --repo CreativeMayhemLtd/provcheck --dir C:\local_dev_tmp\v110-dist
-  scripts\sign-and-publish-release.ps1 -DistDir C:\local_dev_tmp\v110-dist -Tag v1.1.0
+  gh run download <run-id> --repo CreativeMayhemLtd/provcheck --dir C:\path\to\dist
+  scripts\sign-and-publish-release.ps1 -DistDir C:\path\to\dist -Tag vX.Y.0
 #>
 param(
   [Parameter(Mandatory = $true)][string]$DistDir,

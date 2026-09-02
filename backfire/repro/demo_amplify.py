@@ -25,8 +25,8 @@ import sys
 BF = os.path.join(os.path.dirname(__file__), os.pardir, "backfire.py")
 # Stability withdrew the official SD-2.1 weights; use the same pinned community mirror the
 # embed side defaults to, so the demo is single-model (embed and attack on identical weights).
-MODEL = os.environ.get("BACKFIRE_SD_MODEL", "huanzi05/stable-diffusion-2-1-base")
-MODEL_REV = os.environ.get("BACKFIRE_SD_REVISION", "f71d7867a2745c420aa93441638b119c85995963")
+MODEL = os.environ.get("BACKFIRE_SD_MODEL", "memescreamer/stable-diffusion-2-1-base")
+MODEL_REV = os.environ.get("BACKFIRE_SD_REVISION", "c9032bc99e813018fc11605cd92f11b8709f585a")
 
 
 def sh_read(path, key, carriers, size):
@@ -52,7 +52,7 @@ def purify(marked_path, out_path, strength, steps, seed, size):
 
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     dtype = torch.float16 if dev == "cuda" else torch.float32
-    rev = MODEL_REV if MODEL == "huanzi05/stable-diffusion-2-1-base" else None
+    rev = MODEL_REV if MODEL == "memescreamer/stable-diffusion-2-1-base" else None
     pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
         MODEL, revision=rev, torch_dtype=dtype, safety_checker=None
     )
@@ -108,7 +108,7 @@ def draw(original, marked, purified, m_marked, m_purified, m_wrong, out_path):
 
     cols = [
         (original, "Original", None),
-        (marked, "Marked (imperceptible)", m_marked),
+        (marked, "Marked (low-visibility)", m_marked),
         (purified, "After an AI stripper", m_purified),
     ]
     maxm = max(m_marked, m_purified) * 1.12
@@ -142,7 +142,7 @@ def draw(original, marked, purified, m_marked, m_purified, m_wrong, out_path):
            "The high read is your key finding your mark, not the changed image reading high. "
            "The mark is in the key, not the picture.", font=font(15), fill=SUB)
     d.text((MARG, y_foot),
-           "Imperceptible keyed mark, 512 px. Stock diffusers img2img regeneration; "
+           "Keyed mark, 512 px. Stock diffusers img2img regeneration; "
            "the keyed identifier survives it and reads back stronger.", font=font(13), fill=SUB)
     c.save(out_path)
 

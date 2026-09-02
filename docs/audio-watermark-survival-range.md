@@ -16,39 +16,39 @@ Operators embed **one, two, or all three** on the same audio. Each family surviv
 
 Legend: ✓ = mark survives with recoverable payload; ~ = degraded confidence (Status=Degraded reported); ✗ = mark does not survive reliably.
 
-| Attack / condition | silentcipher (upstream Sony) | silentcipher (codec-robust fine-tune, planned) | AudioSeal (alpha=3.0) | WavMark |
-|---|---|---|---|---|
-| Lossless (FLAC / WAV / ALAC / AIFF) | ✓ | ✓ | ✓ | ✓ |
-| MP3 320 kbps | ✓ | ✓ | ✓ | ✓ |
-| MP3 192 kbps | ✓ (v0.5.2 default) | ✓ | ✓ | ✓ |
-| MP3 128 kbps | ~ | ✓ | ✓ | ✓ |
-| AAC 320 kbps | ✗ | ✓ | ✓ | ✓ |
-| AAC 192 kbps | ✗ (v0.5.2 codec-survival finding) | ✓ (fine-tune target) | ✓ | ✓ |
-| AAC 128 kbps | ✗ | ~ | ~ | ~ |
-| AAC 96 kbps | ✗ | ✗ | ~ | ✗ |
-| Opus 128 kbps | ✗ | ✓ | ✓ | ~ |
-| Opus 96 kbps | ✗ | ~ | ✓ | ✗ |
-| Opus 64 kbps | ✗ | ✗ | ~ | ✗ |
-| Speech codecs (Speex, AMR, GSM) | ✗ | ✗ | ✗ | ✗ |
-| Loudness normalisation ±6 dB | ✓ | ✓ | ✓ | ✓ |
-| Loudness normalisation ±12 dB | ~ | ~ | ✓ | ~ |
-| Tempo change ±2% | ✓ | ✓ | ✓ | ✓ |
-| Tempo change ±5% | ~ | ~ | ✓ | ~ |
-| Tempo change ±10% | ✗ | ~ | ~ | ✗ |
-| Pitch shift ±10 cents | ✓ | ✓ | ✓ | ✓ |
-| Pitch shift ±semitone | ✗ | ~ | ~ | ✗ |
-| Pitch shift ±octave | ✗ | ✗ | ✗ | ✗ |
-| Mild parametric EQ ±6 dB | ✓ | ✓ | ✓ | ✓ |
-| Aggressive EQ / tilt ±12 dB | ~ | ~ | ✓ | ~ |
-| Small-room reverb | ✓ | ✓ | ✓ | ✓ |
-| Concert-hall reverb | ~ | ~ | ~ | ✗ |
-| Trim to ≥ 5-second window | ✓ | ✓ | ✓ | ✓ |
-| Trim to 3-5 second window | ~ | ~ | ~ | ~ |
-| Trim to < 3-second segment | ✗ | ✗ | ✗ | ✗ |
-| Chopped and reordered clips (each ≥ 5 s) | ✓ | ✓ | ✓ | ✓ |
-| Speaker → mic re-recording (clean room) | ✗ | ✗ | ~ | ✗ |
-| Speaker → mic re-recording (noisy) | ✗ | ✗ | ✗ | ✗ |
-| Full DJ remix (chop + pitch + tempo + effects) | ✗ | ✗ | ✗ | ✗ |
+| Attack / condition | silentcipher | AudioSeal (alpha=3.0) | WavMark |
+|---|---|---|---|
+| Lossless (FLAC / WAV / ALAC / AIFF) | ✓ | ✓ | ✓ |
+| MP3 320 kbps | ✓ | ✓ | ✓ |
+| MP3 192 kbps | ✓ (v0.5.2 default) | ✓ | ✓ |
+| MP3 128 kbps | ~ | ✓ | ✓ |
+| AAC 320 kbps | ✗ | ✓ | ✓ |
+| AAC 192 kbps | ✗ (v0.5.2 codec-survival finding) | ✓ | ✓ |
+| AAC 128 kbps | ✗ | ~ | ~ |
+| AAC 96 kbps | ✗ | ~ | ✗ |
+| Opus 128 kbps | ✗ | ✓ | ~ |
+| Opus 96 kbps | ✗ | ✓ | ✗ |
+| Opus 64 kbps | ✗ | ~ | ✗ |
+| Speech codecs (Speex, AMR, GSM) | ✗ | ✗ | ✗ |
+| Loudness normalisation ±6 dB | ✓ | ✓ | ✓ |
+| Loudness normalisation ±12 dB | ~ | ✓ | ~ |
+| Tempo change ±2% | ✓ | ✓ | ✓ |
+| Tempo change ±5% | ~ | ✓ | ~ |
+| Tempo change ±10% | ✗ | ~ | ✗ |
+| Pitch shift ±10 cents | ✓ | ✓ | ✓ |
+| Pitch shift ±semitone | ✗ | ~ | ✗ |
+| Pitch shift ±octave | ✗ | ✗ | ✗ |
+| Mild parametric EQ ±6 dB | ✓ | ✓ | ✓ |
+| Aggressive EQ / tilt ±12 dB | ~ | ✓ | ~ |
+| Small-room reverb | ✓ | ✓ | ✓ |
+| Concert-hall reverb | ~ | ~ | ✗ |
+| Trim to ≥ 5-second window | ✓ | ✓ | ✓ |
+| Trim to 3-5 second window | ~ | ~ | ~ |
+| Trim to < 3-second segment | ✗ | ✗ | ✗ |
+| Chopped and reordered clips (each ≥ 5 s) | ✓ | ✓ | ✓ |
+| Speaker → mic re-recording (clean room) | ✗ | ~ | ✗ |
+| Speaker → mic re-recording (noisy) | ✗ | ✗ | ✗ |
+| Full DJ remix (chop + pitch + tempo + effects) | ✗ | ✗ | ✗ |
 
 ## Sample-rate, bit-depth, channel-layout range
 
@@ -66,21 +66,22 @@ Independent of the codec / attack columns:
 
 | Condition | Multi-family embed outcome |
 |---|---|
-| Lossless / MP3 320 / AAC 320 | all three recover; brand ID redundant across families |
-| MP3 192 / AAC 192 (with silentcipher fine-tune) | all three recover |
-| MP3 128 / AAC 128 | AudioSeal + WavMark recover; silentcipher-fine-tune degrades to ~; verifier reports what it recovered |
+| Lossless / MP3 320 | all three recover; brand ID redundant across families |
+| MP3 192 | all three recover |
+| AAC 192 / AAC 320 | AudioSeal + WavMark recover; verifier reports what it recovered |
+| MP3 128 / AAC 128 | AudioSeal + WavMark recover; verifier reports what it recovered |
 | AAC 96 / Opus 64 | AudioSeal recovers; others may drop |
 | Tempo/pitch change ±5% | AudioSeal recovers; others may degrade |
 | DJ-remix territory | Nothing survives reliably |
 
 ## What "guarantees" mean in practice
 
-The table's ✓ marks are grounded in v0.5.2's empirical parity sweep — memory drawer) and the ongoing pre-push AAC delivery smoke gate ([`scripts/check-before-push.sh`](../scripts/check-before-push.sh) step 3). silentcipher-fine-tune's ✓ marks are **planned targets** — the fine-tune training plan is at [`silentcipher-codec-robust-fine-tune.md`](./silentcipher-codec-robust-fine-tune.md). Actual post-training numbers land in that doc's validation-results section when the training completes.
+The table's ✓ marks are grounded in v0.5.2's empirical parity sweep and the ongoing pre-push AAC delivery smoke gate ([`scripts/check-before-push.sh`](../scripts/check-before-push.sh) step 3).
 
 ## What this range statement is not
 
 - **Not a proof of unforgeability.** A determined adversary with enough compute can defeat any single-family watermark; the multi-family embed makes this quantitatively harder but not impossible.
-- **Not a DJ-remix-survival claim.** No shipped watermark technology in 2026 reliably survives arbitrary chop + pitch + tempo + effects transforms. This is active research territory (spectral-shape-invariant marks, semantic-content marks tied to source separation). provcheck does not claim to solve it.
+- **Not a DJ-remix-survival claim.** No shipped watermark technology in 2026 reliably survives arbitrary chop + pitch + tempo + effects transforms. This is active research territory, and provcheck does not claim to solve it.
 - **Not a re-recording-survival claim.** Speaker → mic → codec is an acoustic attack; AudioSeal partially handles clean-room re-recording but degrades in noisy environments. Not a shipped guarantee.
 - **Not a zero-false-positive guarantee on synthetic signals.** Neural detectors are trained on real-world audio. On fully synthetic content (pure tones plus broadband noise), AudioSeal's detector false-positives hard: measured 2026-08-19 at 0.99 confidence on an unmarked synthetic 60 s WAV, versus 0.006 on real-world audio from the same pipeline, with silentcipher and WavMark correctly quiet on both. Treat a detection hit on synthetic or tone-generated content with skepticism, and build test fixtures from real-world audio, never from generated tones.
 
@@ -96,6 +97,5 @@ Full attack-by-attack table above is the underlying reference this summary is de
 
 ## Related docs
 
-- [`silentcipher-codec-robust-fine-tune.md`](./silentcipher-codec-robust-fine-tune.md) — the fine-tune plan that extends silentcipher's AAC survival
 - [`multi-family-embed-workflow.md`](./multi-family-embed-workflow.md) — operator-side workflow for stacking all three families on the same source
 - [`WATERMARK_LICENSE_POLICY.md`](../WATERMARK_LICENSE_POLICY.md) — the license policy every detector family passes

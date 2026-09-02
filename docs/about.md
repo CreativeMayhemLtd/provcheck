@@ -14,7 +14,7 @@ cross-check on top. Three independent provenance signals, one
 verifier, every platform. It runs locally (files never leave your
 machine), ships as a single binary plus a small GUI, and is
 permissively licensed (Apache-2.0). It composes into other software
-(rAIdio.bot, doomscroll.fm, third-party render pipelines) and
+(rAIdio.bot, Doomscroll.FM, third-party render pipelines) and
 verifies any C2PA-signed content from any vendor — not just ours.
 
 ## What problem it solves
@@ -46,7 +46,7 @@ provcheck reports on three orthogonal claims about a file:
 2. **Identity attestation (atproto).** Has the signer published this
    cert fingerprint to their atproto DID? Is the bsky handle on the
    file really backed by the person who signed it?
-3. **Neural watermark.** Six detector families ship live in v0.9:
+3. **Neural watermark.** Six detector families ship live:
    silentcipher + AudioSeal + WavMark on audio, TrustMark-B on
    images, per-frame TrustMark + temporal majority-vote on video,
    and Bayesian tournament-sampling z-score for SynthID-text on
@@ -57,7 +57,7 @@ provcheck reports on three orthogonal claims about a file:
 
 These signals are independent. Any subset can pass or fail. A
 reasonable file might be C2PA-signed but not attested (creator didn't
-publish their cert). A doomscroll.fm clip might have silentcipher
+publish their cert). A Doomscroll.FM clip might have silentcipher
 detection but no C2PA signature yet (if the signing step isn't in
 their render pipeline). The verifier shows what's there and what
 isn't — no false binary verdicts.
@@ -114,22 +114,22 @@ Drag a file into the GUI or run `provcheck <file>`. Output:
 ```
 [VERIFIED]
   manifest: urn:c2pa:455a6826-3bfa-4d18-9359-9874dd824ce2
-  signer: Doomscroll.fm
+  signer: Doomscroll.FM
   attested by: @doomscroll.fm.bsky.social
 [watermarks]
-  silentcipher: detected — doomscroll.fm (72% confidence)
+  silentcipher: detected — Doomscroll.FM (72% confidence)
     payload: 44464d0100
   audioseal: not detected
   wavmark: not detected
 [assertions]
   c2pa.actions.v2 = {"actions":[{"action":"c2pa.created","softwareAgent":"doomscroll.fm/3.0",...}]}
-  com.doomscroll.broadcast = {"broadcast":"Doomscroll.fm",...}
+  com.doomscroll.broadcast = {"broadcast":"Doomscroll.FM",...}
 ```
 
 Each section is independent: VERIFIED is the C2PA signature;
 `attested by` is the atproto cross-check; the `[watermarks]` block
-shows every detector's verdict. The detectors that ship live as
-of v0.9 are silentcipher / AudioSeal / WavMark for audio,
+shows every detector's verdict. The detectors that ship live
+are silentcipher / AudioSeal / WavMark for audio,
 TrustMark-B for images, per-frame TrustMark with temporal
 majority-vote for video, and SynthID-text for text — each runs
 independently and reports its own verdict. JSON output (`--json`)
@@ -211,7 +211,7 @@ provcheck --quiet --require-trusted --trust-store roots.pem rendered.wav || {
 
 - [rAIdio.bot](https://store.steampowered.com/app/4600000) signs
   every music render at output time.
-- doomscroll.fm signs voice mixdowns (full C2PA + atproto identity)
+- Doomscroll.FM signs voice mixdowns (full C2PA + atproto identity)
   and applies silentcipher watermarks to music renders.
 
 ## Trust model — what we prove, what we don't
@@ -236,7 +236,7 @@ doesn't carry the signal. provcheck reports `[UNSIGNED]` and exits 1
 
 **What a watermark detection means.** The file's bytes carry a
 recognised brand-stamp embedded by a known generator at render
-time. Six detector families ship live in v0.9: silentcipher /
+time. Six detector families ship live: silentcipher /
 AudioSeal / WavMark on audio, TrustMark-B on images, per-frame
 TrustMark + temporal majority-vote on video, and Bayesian
 tournament-sampling z-score for SynthID-text on text. Audio +
@@ -362,20 +362,9 @@ model weights) in [`docs/sbom.md`](./sbom.md).
 
 ## Release history
 
-| Version | Date | Highlights |
-|---|---|---|
-| **v0.3.7** | 2026-06-18 | Chunked watermark inference — fixes ~25 GB RSS blowup on multi-minute MP3s. Caps peak memory at ~1.5 GB regardless of audio length. |
-| v0.3.6 | 2026-06-16 | SBOMs land — every release ships CycloneDX 1.6 + SPDX 2.3 per binary. Release script hardened against transient GitHub API 502s. |
-| v0.3.4 | 2026-06-16 | Docs sweep + GUI bundle naming fix. New `docs/creator-workflow.md`. |
-| v0.3.3 | 2026-06-16 | silentcipher detector accuracy fix — honors MP3 LAME encoder delay. Diagnostic harness (`decode_dump` / `decode_diff` / `align_check`) + Python reference dump. |
-| v0.3.2 | 2026-06-15 | Responsive verify UI (async + spawn_blocking). GUI watermark toggle. |
-| v0.3.1 | 2026-06-14 | Publisher-attestation flow — `kit sign` on an already-signed file auto-chains as a derivative. |
-| v0.3.0 | 2026-06-14 | Full creator side: `provcheck-kit` + GUI Sign tab + `app.provcheck.identity` assertion + auto-bust attestation cache. |
-| v0.2.0 | 2026-06-10 | silentcipher detector live. Multi-detector slot scaffolded. GUI attestation parity. |
-| v0.1.0 | 2026-06-04 | CLI + library on crates.io. Release binaries Win/Mac/Linux. Initial Tauri GUI. |
-
-Per-release commit + tag notes in
-[`release-notes/`](../release-notes/).
+The full, per-version release history lives in the
+[README](../README.md#release-history); per-release commit and tag
+notes are in [`release-notes/`](../release-notes/).
 
 ## Roadmap
 
@@ -385,13 +374,6 @@ Per-release commit + tag notes in
 - **SLSA L3 provenance** — Sigstore-signed SBOMs and build-provenance
   attestations. Currently we ship SHA-256 sidecars; full SLSA is the
   next supply-chain hardening tier.
-- **More watermark detectors live** — AudioSeal and WavMark scaffolds
-  exist in the repo as Vec slots inside the report; awaiting
-  permissively-licensed model weights for both.
-- **Image / video neural watermarks** — silentcipher is audio-only.
-  Image-side equivalents (Truepic-style hashes, ImageNet-trained
-  watermark detectors) are an open question; we won't ship something
-  we can't FOSS-license.
 - **`lexicon.community` submission** — the `app.provcheck.signingKey`
   and `app.provcheck.identity` lexicons get submitted to the
   community registry once the wire format has soaked. DNS TXT record
@@ -399,12 +381,10 @@ Per-release commit + tag notes in
 - **Standalone lexicons repo** — current lexicons live inside the
   provcheck repo. Eventually they get spun out so non-provcheck
   implementations can pull a single canonical source.
-- **Hardware-backed key custody** — Yubikey / Secure Enclave / TPM
-  integration via the `KeyProvider` trait we already shipped. Not
-  blocked on anything; waiting for the first creator to ask.
-- **EV code signing for desktop bundles.** SSL.com cert is the next
-  signing-side hardening. Until then, GUI bundles trigger
-  SmartScreen / Gatekeeper warnings on first launch.
+- **Secure Enclave / TPM key custody** — extend the hardware-backed
+  `KeyProvider` path (Yubikey already ships) to Apple Secure Enclave
+  and TPM. Not blocked on anything; waiting for the first creator to
+  ask.
 
 ## Brand context and authorship
 
@@ -418,7 +398,7 @@ adjacent products:
 - **[rAIdio.bot](https://store.steampowered.com/app/4600000)** —
   local-first AI music generation studio. Every render is
   C2PA-signed; provcheck is bundled.
-- **doomscroll.fm** — autonomous AI-generated satirical news
+- **Doomscroll.FM** — autonomous AI-generated satirical news
   broadcast. Every clip is C2PA-signed at source; voice mixdowns
   carry the full provcheck identity assertion; music renders carry
   silentcipher watermarks.
