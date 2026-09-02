@@ -91,7 +91,7 @@ pem = "3"
 # x509-cert is what `yubikey::piv::generate` returns its
 # SubjectPublicKeyInfoOwned through. We re-encode to DER bytes via
 # the `der` feature's Encode trait to hand off to rcgen.
-x509-cert = "0.2"
+x509-cert = "0.3"
 
 [dev-dependencies]
 # Round-trip tests: re-read the rcgen output via x509-parser to
