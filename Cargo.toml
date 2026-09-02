@@ -39,7 +39,7 @@ readme = "README.md"
 # `default-features = false` + `rust_native_crypto` avoids the openssl-sys
 # build (which needs a working OpenSSL + Perl toolchain — painful on
 # Windows). `file_io` turns on the path-based reader/writer API.
-c2pa = { version = "0.78", default-features = false, features = ["file_io", "rust_native_crypto"] }
+c2pa = { version = "0.85", default-features = false, features = ["file_io", "rust_native_crypto"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 clap = { version = "4", features = ["derive"] }
