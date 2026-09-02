@@ -45,7 +45,7 @@ tract-onnx = "0.21"
 ort = { version = "2.0.0-rc.4", optional = true, default-features = false, features = ["std", "ndarray", "cuda", "load-dynamic"] }
 # ndarray for the ort path's input tensor construction. Behind
 # the cuda feature so we don't pull it into the default CPU build.
-ndarray = { version = "0.16", optional = true }
+ndarray = { version = "0.17", optional = true }
 # NNEF format support — used to load a pre-optimised version of the
 # silentcipher decoder so tract's graph optimiser doesn't have to
 # run on every cold process start. The model itself is committed
