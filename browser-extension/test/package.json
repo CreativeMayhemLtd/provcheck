@@ -1,0 +1,11 @@
+{
+  "name": "provcheck-extension-tests",
+  "private": true,
+  "description": "Headless tests for the provcheck browser extension. No browser required.",
+  "scripts": {
+    "test": "node logic.test.js && node integration.test.js"
+  },
+  "devDependencies": {
+    "jsdom": "^24.0.0"
+  }
+}

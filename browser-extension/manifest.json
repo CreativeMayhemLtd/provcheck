@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Provcheck AI Blur",
+  "version": "1.4.1",
+  "description": "Detect C2PA provenance and AI markers on any page, and blur or hide media by C2PA presence, AI presence, or keyword. Local only, no telemetry.",
+  "permissions": ["storage", "activeTab", "contextMenus", "scripting"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js",
+    "scripts": ["background.js"]
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Provcheck AI Blur",
+    "default_icon": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" }
+  },
+  "icons": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "provcheck@provcheck.ai",
+      "strict_min_version": "142.0",
+      "data_collection_permissions": { "required": ["none"] }
+    }
+  }
+}
