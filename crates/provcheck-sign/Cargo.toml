@@ -81,7 +81,7 @@ yubikey = "0.8"
 # ASN.1 DER `SEQUENCE { r, s }`, but COSE ES256 (what c2pa-rs
 # expects) wants the raw P1363 64-byte concatenation. The p256 crate
 # already speaks both formats. Apache-2.0 / MIT.
-p256 = { version = "0.13", features = ["ecdsa"] }
+p256 = { version = "0.14", features = ["ecdsa"] }
 
 # pem-parse the persisted chain inside YubikeySigner::certs() so we
 # can hand DER blobs to c2pa. (Was previously a dev-dep only; now a
