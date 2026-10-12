@@ -8,7 +8,7 @@ pillow>=10.0
 #   diffusers.loaders.single_file_model collides with torch's inductor mega-cache).
 #   0.27.2 / transformers 4.37.2 is the tested pair (validated with torch 2.11.0+cu128).
 diffusers==0.27.2
-transformers==4.37.2
+transformers==5.10.1
 # diffusers 0.27.2 imports huggingface_hub.cached_download, which hub>=0.26 removed;
 # 0.24.0 still has it AND satisfies accelerate>=0.21 (0.20.x does not). Pin it so a
 # fresh (or --system-site-packages) install cannot float hub past the break.
