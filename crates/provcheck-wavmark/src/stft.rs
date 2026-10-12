@@ -88,8 +88,7 @@ pub fn stft(signal: &[f32], cfg: &StftConfig) -> Vec<f32> {
     let mut input = vec![0.0_f32; cfg.n_fft];
     let mut spectrum = fft.make_output_vec();
 
-    // Output layout: out[bin][frame][2] flattened as
-    //   out[bin * t_frames * 2 + frame * 2 + (0|1)]
+    // Layout: out[bin * t_frames * 2 + frame * 2 + (0|1)].
     let mut out = vec![0.0_f32; freq_bins * t_frames * 2];
 
     for frame in 0..t_frames {
@@ -138,11 +137,7 @@ pub fn istft(spec: &[f32], signal_len: usize, cfg: &StftConfig) -> Vec<f32> {
             c.re = spec[idx];
             c.im = spec[idx + 1];
         }
-        // realfft requires DC (bin 0) and Nyquist (last bin) to be
-        // strictly real. HiNet output carries ~1e-3 numerical noise
-        // in their imaginary parts; clamp to zero. This matches what
-        // torch.istft does internally — neither bin contributes an
-        // imaginary component to a real-valued time-domain signal.
+        // realfft requires strictly-real DC and Nyquist bins; clamp HiNet's ~1e-3 imaginary noise to zero (as torch.istft does).
         spectrum[0].im = 0.0;
         spectrum[nyquist_bin].im = 0.0;
         ifft.process(&mut spectrum, &mut output)

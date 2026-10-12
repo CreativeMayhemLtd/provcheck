@@ -340,8 +340,6 @@ pub fn export_pkcs12_deferred(
     ))
 }
 
-// ---- private helpers ----
-
 fn envelope_from_unlocked(unlocked: &UnlockedIdentity) -> Result<EncryptedEnvelope, BackupError> {
     Ok(EncryptedEnvelope {
         bundle_version: BACKUP_BUNDLE_VERSION,
@@ -437,14 +435,7 @@ fn decrypt_age(
             reader.read_to_end(&mut buf)?;
             Ok(buf)
         }
-        // Three error variants all mean "your supplied unwrap
-        // material can't open this file":
-        //   - DecryptionFailed   : the payload MAC failed
-        //   - KeyDecryptionFailed: a recipient stanza was attempted
-        //     and failed (e.g. wrong scrypt passphrase)
-        //   - NoMatchingKeys     : none of the supplied identities
-        //     matched any recipient stanza
-        // The user-facing answer is the same in all three cases.
+        // All three variants mean "your unwrap material can't open this file"; same user-facing answer.
         Err(age::DecryptError::DecryptionFailed)
         | Err(age::DecryptError::KeyDecryptionFailed)
         | Err(age::DecryptError::NoMatchingKeys) => Err(BackupError::AuthenticationFailed),
@@ -507,8 +498,6 @@ mod tests {
         assert_eq!(bundle.key_provider, id.locked.key_provider);
         assert_eq!(bundle.chain_pem, id.locked.chain_pem);
 
-        // Convert into an UnlockedIdentity and confirm the key
-        // matches what we put in.
         let restored = bundle.into_unlocked(None);
         assert_eq!(
             restored.key_pem().expose_secret(),
@@ -522,7 +511,6 @@ mod tests {
         let out = dir.path().join("backup.age");
         let id = sample_unlocked();
 
-        // Generate a fresh recipient + identity for the test.
         let identity = age::x25519::Identity::generate();
         let recipient = identity.to_public();
 
@@ -621,7 +609,6 @@ mod tests {
         let summary = export_with_recipients(&id, &out, &recipients).unwrap();
         assert_eq!(summary.recipient_count, 3);
 
-        // Each one independently decrypts.
         for ident in [&a, &b, &c] {
             let bundle = import_with_x25519_identity(&out, ident).unwrap();
             assert_eq!(bundle.fingerprint, id.locked.fingerprint);
@@ -655,9 +642,7 @@ mod tests {
 
     #[test]
     fn pkcs12_export_is_explicitly_deferred() {
-        // The placeholder returns a typed error rather than
-        // panicking. This locks in that the CLI surface won't
-        // accidentally start producing PKCS#12 files via stubs.
+        // Placeholder returns a typed error, not a panic — the CLI surface won't silently start producing PKCS#12.
         let dir = TempDir::new().unwrap();
         let out = dir.path().join("backup.p12");
         let id = sample_unlocked();

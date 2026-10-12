@@ -17,15 +17,16 @@ members = [
     "crates/provcheck-stream-detect",
     "crates/provcheck-cli",
     "crates/provcheck-examples",
+    "crates/provcheck-dlc",
 ]
 # provcheck-mellin is BUSL-1.1 or commercial (source-available, non-Apache) and must stay out of the
 # Apache-2.0 workspace and release binary per WATERMARK_LICENSE_POLICY.md. Opt-in:
 # `cargo build --manifest-path crates/provcheck-mellin/Cargo.toml`.
-exclude = ["crates/provcheck-mellin"]
+exclude = ["crates/provcheck-keying", "crates/provcheck-mellin", "crates/provcheck-idmark", "crates/provcheck-backfire-audio", "crates/provcheck-credential"]
 resolver = "3"
 
 [workspace.package]
-version = "1.4.0"
+version = "1.5.0"
 edition = "2024"
 rust-version = "1.88"
 license = "Apache-2.0"

@@ -23,10 +23,14 @@ import subprocess
 import sys
 
 BF = os.path.join(os.path.dirname(__file__), os.pardir, "backfire.py")
-# Stability withdrew the official SD-2.1 weights; use the same pinned community mirror the
-# embed side defaults to, so the demo is single-model (embed and attack on identical weights).
-MODEL = os.environ.get("BACKFIRE_SD_MODEL", "memescreamer/stable-diffusion-2-1-base")
-MODEL_REV = os.environ.get("BACKFIRE_SD_REVISION", "c9032bc99e813018fc11605cd92f11b8709f585a")
+# Stability withdrew the official SD-2.1 weights. Bring your own SD-family weights: set
+# BACKFIRE_SD_MODEL to a Hugging Face repo id (or local dir) you have rights to, so the demo is
+# single-model (embed and attack on identical weights). The default embed path is codec-only and
+# needs no diffusion weights; this amplification demo is the one place that does.
+MODEL = os.environ.get("BACKFIRE_SD_MODEL")
+MODEL_REV = os.environ.get("BACKFIRE_SD_REVISION")
+if not MODEL:
+    sys.exit("demo_amplify: set BACKFIRE_SD_MODEL to your own SD-family weights (hf repo id or local dir); there is no bundled default")
 
 
 def sh_read(path, key, carriers, size):
@@ -52,7 +56,7 @@ def purify(marked_path, out_path, strength, steps, seed, size):
 
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     dtype = torch.float16 if dev == "cuda" else torch.float32
-    rev = MODEL_REV if MODEL == "memescreamer/stable-diffusion-2-1-base" else None
+    rev = MODEL_REV or None
     pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
         MODEL, revision=rev, torch_dtype=dtype, safety_checker=None
     )

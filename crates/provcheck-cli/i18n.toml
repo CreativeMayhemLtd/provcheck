@@ -1,0 +1,6 @@
+# i18n-embed configuration for provcheck-cli (brick C0). Fluent .ftl catalogs live under
+# i18n/<lang>/provcheck-cli.ftl; en is the fallback language and source of truth.
+fallback_language = "en"
+
+[fluent]
+assets_dir = "i18n"

@@ -111,25 +111,17 @@ Say "Backfire read path is ready. Verified: sample_marked.png -> id $($res.id_he
 # --- Embed tier (opt-in): torch + diffusers + model weights ---------------
 
 if ($Embed) {
-    Step "Embed tier: installing torch, diffusers, transformers (large download)"
-    & $PyExe -m pip install --no-warn-script-location 'torch' 'diffusers>=0.27' 'transformers>=4.40' 'huggingface_hub' 'compressai>=1.2'
+    Step "Embed tier: installing torch + the permissive neural codec (compressai)"
+    & $PyExe -m pip install --no-warn-script-location 'torch' 'compressai>=1.2'
     if ($LASTEXITCODE -ne 0) { Die "installing embed dependencies failed" }
     Say "  Note: this installed the default (CPU) torch wheel. For GPU embed, install a CUDA torch build for your platform (see pytorch.org) into $PyEmbedDir."
+    Say "  The default embed is codec-only (license-clean, no diffusion weights). To opt into the"
+    Say "  diffusion fixed point (--diff-eot > 0), install 'diffusers transformers huggingface_hub' and"
+    Say "  supply your own SD-family weights via --model / --weights-dir."
 
-    Step "Pre-fetching the diffusion purifier weights (several GB)"
-    $fetch = @'
-import sys
-from huggingface_hub import snapshot_download
-# SD-2.1 base community mirror, pinned revision (Stability withdrew the original).
-snapshot_download("memescreamer/stable-diffusion-2-1-base",
-                  revision="c9032bc99e813018fc11605cd92f11b8709f585a")
-print("models fetched")
-'@
-    $fetch | & $PyExe -
-    if ($LASTEXITCODE -ne 0) { Die "model pre-fetch failed (network or Hugging Face reachability)" }
     New-Item -ItemType File -Force -Path $EmbedMarker | Out-Null
     Say ""
-    Say "Backfire embed tier is ready (torch + diffusion weights installed)."
+    Say "Backfire embed tier is ready (codec-only, license-clean)."
 }
 
 Say ""

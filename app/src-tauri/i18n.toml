@@ -1,0 +1,7 @@
+# i18n-embed configuration for provcheck-app. Fluent .ftl catalogs live under
+# i18n/<lang>/provcheck_app.ftl (the fl! macro derives the domain from the package
+# name, sanitizing '-' to '_'); en is the fallback language and source of truth.
+fallback_language = "en"
+
+[fluent]
+assets_dir = "i18n"

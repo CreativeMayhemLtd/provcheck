@@ -1,0 +1,647 @@
+{
+  "headerSubtitle": {
+    "message": "امضا و تأیید C2PA Content Credentials"
+  },
+  "tabVerify": {
+    "message": "تأیید"
+  },
+  "tabWatermark": {
+    "message": "واترمارک"
+  },
+  "tabDetect": {
+    "message": "تشخیص"
+  },
+  "tabKeys": {
+    "message": "کلیدها"
+  },
+  "tabSign": {
+    "message": "امضا"
+  },
+  "tabKeyedMarks": {
+    "message": "نشانه‌های کلیددار"
+  },
+  "btnChooseFile": {
+    "message": "انتخاب فایل…"
+  },
+  "btnVerifyAnother": {
+    "message": "تأیید فایل دیگر"
+  },
+  "btnCopyJson": {
+    "message": "کپی به‌صورت JSON"
+  },
+  "btnCheckAnother": {
+    "message": "بررسی فایل دیگر"
+  },
+  "btnReadAnother": {
+    "message": "خواندن فایل دیگر"
+  },
+  "btnLogOut": {
+    "message": "خروج از حساب"
+  },
+  "btnConnect": {
+    "message": "اتصال"
+  },
+  "btnCopy": {
+    "message": "کپی"
+  },
+  "btnRetry": {
+    "message": "تلاش مجدد"
+  },
+  "btnSign": {
+    "message": "امضا"
+  },
+  "btnOK": {
+    "message": "تأیید"
+  },
+  "btnCancel": {
+    "message": "لغو"
+  },
+  "btnGotIt": {
+    "message": "متوجه شدم"
+  },
+  "btnHowItWorks": {
+    "message": "نحوه عملکرد"
+  },
+  "btnInstallRepair": {
+    "message": "نصب / تعمیر"
+  },
+  "btnChooseSecret": {
+    "message": "انتخاب فایل مخفی"
+  },
+  "btnClose": {
+    "message": "بستن"
+  },
+  "badgeExperimental": {
+    "message": "آزمایشی"
+  },
+  "loadingGeneric": {
+    "message": "در حال بارگذاری…"
+  },
+  "statusChecking": {
+    "message": "در حال بررسی..."
+  },
+  "statusCheckingStatus": {
+    "message": "در حال بررسی وضعیت…"
+  },
+  "labelFingerprint": {
+    "message": "اثر انگشت"
+  },
+  "labelAlgorithm": {
+    "message": "الگوریتم"
+  },
+  "labelBackend": {
+    "message": "بک‌اند"
+  },
+  "labelCreated": {
+    "message": "تاریخ ایجاد"
+  },
+  "labelDID": {
+    "message": "DID"
+  },
+  "labelHandle": {
+    "message": "شناسه"
+  },
+  "labelYubikey": {
+    "message": "Yubikey"
+  },
+  "labelPinTries": {
+    "message": "تلاش‌های PIN"
+  },
+  "labelStatus": {
+    "message": "وضعیت"
+  },
+  "labelLabel": {
+    "message": "برچسب"
+  },
+  "labelBy": {
+    "message": "توسط"
+  },
+  "labelTool": {
+    "message": "ابزار"
+  },
+  "labelFile": {
+    "message": "فایل"
+  },
+  "labelYourIdentity": {
+    "message": "هویت شما"
+  },
+  "labelOutput": {
+    "message": "خروجی"
+  },
+  "aboutLinks": {
+    "message": "پیوندها"
+  },
+  "identityBskyHandle": {
+    "message": "شناسه Bsky"
+  },
+  "identityRunWatermark": {
+    "message": "اجرای تشخیص واترمارک"
+  },
+  "identityRequireAttested": {
+    "message": "نیازمند تأیید"
+  },
+  "identityHandlePh": {
+    "message": "اختیاری · مثلاً creator.bsky.social یا did:plc:…"
+  },
+  "dropzoneTitle": {
+    "message": "برای تأیید، هر فایلی را اینجا رها کنید"
+  },
+  "dropzoneSub": {
+    "message": "صدا · تصویر · ویدئو: هر چیزی که C2PA Content Credentials دارد."
+  },
+  "verifyDropHint": {
+    "message": "یا بدون چیزی اجرا کنید و این ناحیه همین‌طور باقی می‌ماند. خصوصی: فایل‌ها هرگز از دستگاه شما خارج نمی‌شوند."
+  },
+  "verifyLoading": {
+    "message": "در حال تأیید…"
+  },
+  "verifyLoadingHint": {
+    "message": "تشخیص واترمارک برای صدا و ویدئو از نظر پردازشی سنگین است و ممکن است چند دقیقه طول بکشد. برای تأیید فوری و فقط C2PA، تیک \"اجرای تشخیص واترمارک\" را بردارید."
+  },
+  "showRawManifest": {
+    "message": "نمایش جزئیات خام مانیفست"
+  },
+  "claimsHeading": {
+    "message": "ادعاها"
+  },
+  "wmModelsNeeded": {
+    "message": "تشخیص واترمارک به مدل‌ها نیاز دارد."
+  },
+  "wmInstallAll": {
+    "message": "نصب همه مدل‌ها"
+  },
+  "wmScanFor": {
+    "message": "اسکن برای:"
+  },
+  "wmDropTitle": {
+    "message": "برای اجرای تشخیص واترمارک، هر فایلی را اینجا رها کنید"
+  },
+  "wmDropHint": {
+    "message": "خصوصی: فایل‌ها هرگز از دستگاه شما خارج نمی‌شوند. هر آشکارساز خودش تعیین می‌کند که آیا برای نوع فایل ورودی قابل‌اعمال است یا نه."
+  },
+  "wmLoading": {
+    "message": "در حال اجرای آشکارسازهای واترمارک…"
+  },
+  "wmLoadingHint": {
+    "message": "استنتاج مدل برای صدا و ویدئو از نظر پردازشی سنگین است؛ اسکن ممکن است چند دقیقه طول بکشد. در حین چرخش، کار همچنان ادامه دارد."
+  },
+  "wmResultTitle": {
+    "message": "تشخیص واترمارک"
+  },
+  "detectTitle": {
+    "message": "تشخیص محتوای هوش مصنوعی: آشکارساز خودتان را بیاورید"
+  },
+  "detectRouteAHead": {
+    "message": "مسیر A: بسته DLC پولی (v1.x، برنامه‌ریزی‌شده)"
+  },
+  "detectRouteBHead": {
+    "message": "مسیر B: پوششی ارائه‌شده توسط اپراتور (اکنون در دسترس)"
+  },
+  "keysLocalIdentity": {
+    "message": "هویت محلی"
+  },
+  "keysNoIdentity": {
+    "message": "هیچ هویتی روی این دستگاه وجود ندارد."
+  },
+  "keysMismatchTitle": {
+    "message": "عدم تطابق وضعیت هویت"
+  },
+  "keysRotateBtn": {
+    "message": "ایجاد جدید + انتشار"
+  },
+  "keysRotateTitle": {
+    "message": "یک کلید امضای جدید ایجاد کرده و آن را به‌عنوان رکورد فعال جدید منتشر کنید"
+  },
+  "keysSwitchYubikey": {
+    "message": "تغییر به هویت Yubikey…"
+  },
+  "keysSwitchYubikeyTitle": {
+    "message": "جایگزینی هویت فعلی با هویتی مبتنی بر Yubikey"
+  },
+  "keysPublishedRecords": {
+    "message": "رکوردهای منتشرشده (atproto)"
+  },
+  "keysRecordsEmptyHint": {
+    "message": "در تب امضا وارد شوید و اثر انگشت محلی خود را منتشر کنید."
+  },
+  "keysNotLoggedIn": {
+    "message": "وارد atproto نشده‌اید."
+  },
+  "keysNoSessionHint": {
+    "message": "برای دریافت رکوردهای منتشرشده خود، در تب امضا وارد شوید."
+  },
+  "signIdentityLabel": {
+    "message": "هویت:"
+  },
+  "signNotSetUp": {
+    "message": "راه‌اندازی نشده"
+  },
+  "signSessionLabel": {
+    "message": "نشست:"
+  },
+  "signDisconnected": {
+    "message": "قطع شده"
+  },
+  "signSetupTitle": {
+    "message": "هویت امضای خود را راه‌اندازی کنید"
+  },
+  "signSetupBody": {
+    "message": "این کار یک کلید رمزنگاری روی این دستگاه ایجاد می‌کند و آن را در زنجیره کلید سیستم‌عامل شما ذخیره می‌کند. فقط یک بار نیاز به انجام این کار دارید."
+  },
+  "signGenerateKey": {
+    "message": "ایجاد کلید امضا"
+  },
+  "signSetupHint": {
+    "message": "کلید هرگز از دستگاه شما خارج نمی‌شود. سیستم‌عامل شما درخواست‌های دسترسی را مدیریت می‌کند."
+  },
+  "signConnectTitle": {
+    "message": "هویت bsky خود را متصل کنید"
+  },
+  "signConnectBody": {
+    "message": "کلید امضای خود را به شناسه atproto خود متصل کنید تا تأییدکنندگان بدانند این کلید متعلق به شماست."
+  },
+  "signHandlePh": {
+    "message": "creator.bsky.social"
+  },
+  "signAppPassword": {
+    "message": "رمز عبور برنامه"
+  },
+  "signRememberDevice": {
+    "message": "من را روی این دستگاه به‌خاطر بسپار"
+  },
+  "signPublishTitle": {
+    "message": "کلید امضای خود را منتشر کنید"
+  },
+  "signPublishBody": {
+    "message": "یک قدم آخر: انتشار اثر انگشت کلید شما در atproto به تأییدکنندگان اجازه می‌دهد بررسی متقابل کنند که شما اثر خود را امضا کرده‌اید. بدون این، آن‌ها فقط \"امضای معتبر از فردی ناشناس\" را می‌بینند."
+  },
+  "signLabelOptional": {
+    "message": "برچسب (اختیاری)"
+  },
+  "signLabelPh": {
+    "message": "مثلاً استودیو مک"
+  },
+  "signPublishKey": {
+    "message": "انتشار کلید"
+  },
+  "signStaleTitle": {
+    "message": "کلید امضای شما قدیمی است"
+  },
+  "signRecoverHeading": {
+    "message": "بازیابی از ترمینال:"
+  },
+  "signStaleHint": {
+    "message": "این کار یک کلید جدید ایجاد می‌کند، آن را به‌عنوان رکورد فعال جدید منتشر می‌کند و (در صورت نیاز) رکورد یتیم را باطل می‌کند تا هیچ‌کس نتواند با کلید گم‌شده به نام شما امضا کند."
+  },
+  "signDropTitle": {
+    "message": "برای امضا، یک فایل را اینجا رها کنید"
+  },
+  "signDropSub": {
+    "message": "صدا · تصویر · ویدئو: هر چیزی که c2pa-rs پشتیبانی می‌کند."
+  },
+  "signReadyToSign": {
+    "message": "آماده امضا"
+  },
+  "signChainTitle": {
+    "message": "این فایل قبلاً امضا شده است."
+  },
+  "signChainSub": {
+    "message": "امضای شما به‌عنوان یک نسخه مشتق به زنجیره می‌پیوندد؛ امضای اصلی دست‌نخورده باقی می‌ماند."
+  },
+  "signRelationshipQ": {
+    "message": "رابطه شما با این فایل چیست؟"
+  },
+  "signEmbedIdentity": {
+    "message": "جاسازی تأییدیه هویت (توصیه‌شده؛ به تأییدکنندگان اجازه می‌دهد مرحله وارد کردن شناسه را رد کنند)"
+  },
+  "signModelPh": {
+    "message": "مثلاً ACE-Step v1.0"
+  },
+  "signReplaceOriginal": {
+    "message": "جایگزینی فایل اصلی (به‌جای نوشتن یک فایل کناری)"
+  },
+  "signPickDifferent": {
+    "message": "انتخاب فایل دیگر"
+  },
+  "signSigning": {
+    "message": "در حال امضا…"
+  },
+  "signSigned": {
+    "message": "امضا شد"
+  },
+  "signAnother": {
+    "message": "امضای فایل دیگر"
+  },
+  "signVerifyIt": {
+    "message": "آن را تأیید کنید"
+  },
+  "signErrorTitle": {
+    "message": "بارگذاری وضعیت امضای شما ممکن نبود"
+  },
+  "bfBackfireTitle": {
+    "message": "خواندن یک نشانه کلیددار Backfire"
+  },
+  "bfBackfireSub": {
+    "message": "تأیید یک واترمارک به‌ازای هر تصویر که ابزارهای حذف منشأ هوش مصنوعی به‌جای حذف، آن را تقویت می‌کنند."
+  },
+  "bfReaderLabel": {
+    "message": "خواننده Backfire"
+  },
+  "bfDropTitle": {
+    "message": "برای خواندن نشانه آن، یک تصویر را اینجا رها کنید یا یکی انتخاب کنید"
+  },
+  "bfChooseRead": {
+    "message": "انتخاب تصویر و خواندن"
+  },
+  "bfHint": {
+    "message": "ابتدا کلید خود را در بالا وارد کنید، سپس یک تصویر را رها کنید یا انتخاب کنید. به‌طور خودکار خوانده می‌شود و روی دستگاه شما باقی می‌ماند."
+  },
+  "bfLoading": {
+    "message": "در حال خواندن نشانه Backfire…"
+  },
+  "mlTitle": {
+    "message": "خواندن یک شماره سریال کلیددار Mellin"
+  },
+  "mlSub": {
+    "message": "پزشکی قانونی کلیددار در سمت صدا: شماره سریال ۶۴ بیتی به‌ازای هر نسخه‌ای که با ابزار مستقل provcheck-mellin با مجوز BUSL جاسازی کرده‌اید را بازیابی کنید (رایگان برای استفاده غیرتجاری، جدا از provcheck). به فایل مخفی فروشنده و شناسه اثر شما نیاز دارد؛ همه‌چیز روی دستگاه شما باقی می‌ماند."
+  },
+  "mlReaderLabel": {
+    "message": "خواننده Mellin"
+  },
+  "mlSecretNone": {
+    "message": "چیزی انتخاب نشده. فایل مخفی هرگز ذخیره نمی‌شود، پس بعد از هر اجرا دوباره آن را انتخاب کنید."
+  },
+  "mlWorkidPh": {
+    "message": "شناسه اثری که هنگام جاسازی استفاده شد"
+  },
+  "mlDropTitle": {
+    "message": "برای خواندن شماره سریال آن، یک فایل صوتی انتخاب کنید"
+  },
+  "mlChooseRead": {
+    "message": "انتخاب صدا و خواندن"
+  },
+  "mlHint": {
+    "message": "ابتدا فایل مخفی خود را انتخاب کرده و شناسه اثر را وارد کنید، سپس صدا را انتخاب کنید یا آن را در هر جای این تب رها کنید. هر فرمتی کار می‌کند (WAV، MP3، AAC، FLAC)؛ فایل‌های صوتی اینجا خوانده می‌شوند، تصاویر از نشانه Backfire در بالا خوانده می‌شوند."
+  },
+  "mlLoading": {
+    "message": "در حال خواندن شماره سریال Mellin…"
+  },
+  "imTitle": {
+    "message": "خواندن یک نشانه هویتی کلیددار idmark"
+  },
+  "imSub": {
+    "message": "هویت کلیددار در سمت تصویر: نشانه مقاوم در برابر برش، رمزگذاری مجدد و چرخش به‌ازای هر نسخه که با ابزار مستقل provcheck-idmark با مجوز BUSL جاسازی شده را بخوانید (رایگان برای استفاده غیرتجاری، جدا از provcheck). بدون فایل مخفی، نشانه داخلی را بررسی می‌کند؛ برای نسبت‌دادن یک نسخه، فایل مخفی و یک صندلی خود را اضافه کنید. همه‌چیز روی دستگاه شما باقی می‌ماند."
+  },
+  "imReaderLabel": {
+    "message": "خواننده idmark"
+  },
+  "imSecretNone": {
+    "message": "چیزی انتخاب نشده. برای خواندن نشانه داخلی، خالی بگذارید؛ فایل مخفی هرگز ذخیره نمی‌شود."
+  },
+  "imDropTitle": {
+    "message": "برای خواندن نشانه آن، یک تصویر انتخاب کنید"
+  },
+  "imChooseRead": {
+    "message": "انتخاب تصویر و خواندن"
+  },
+  "imHint": {
+    "message": "به‌صورت اختیاری، ابتدا فایل مخفی و یک صندلی خود را انتخاب کنید، سپس تصویر را انتخاب کنید. PNG یا JPEG. این نشانه هویتی idmark را می‌خواند؛ نشانه Backfire و شماره‌های سریال Mellin در بخش‌های بالا خوانده می‌شوند."
+  },
+  "imLoading": {
+    "message": "در حال خواندن idmark…"
+  },
+  "bfModalTitle": {
+    "message": "Backfire چگونه کار می‌کند"
+  },
+  "vVerified": {
+    "message": "تأیید شد"
+  },
+  "vUnsigned": {
+    "message": "امضانشده"
+  },
+  "vNotVerified": {
+    "message": "تأیید نشده"
+  },
+  "attAttestedBy": {
+    "message": "تأییدشده توسط $1"
+  },
+  "attMatchSub": {
+    "message": "گواهی امضا با کلیدی که تحت این هویت منتشر شده مطابقت دارد."
+  },
+  "attMismatch": {
+    "message": "عدم تطابق تأییدیه برای $1"
+  },
+  "attMismatchSub": {
+    "message": "گواهی امضا با هیچ کلیدی که تحت این هویت منتشر شده مطابقت ندارد."
+  },
+  "attNotPublished": {
+    "message": "هیچ کلیدی تحت $1 منتشر نشده است"
+  },
+  "attNotPublishedSub": {
+    "message": "این هویت وجود دارد اما هیچ رکورد signingKey منتشر نکرده است."
+  },
+  "attResolveFailed": {
+    "message": "امکان تحلیل $1 وجود نداشت"
+  },
+  "attResolveFailedSub": {
+    "message": "تحلیل هویت ناموفق بود (شناسه/DID در دسترس نیست)."
+  },
+  "attThisIdentity": {
+    "message": "این هویت"
+  },
+  "kvSigner": {
+    "message": "امضاکننده"
+  },
+  "kvSignedAt": {
+    "message": "زمان امضا"
+  },
+  "kvFormat": {
+    "message": "قالب"
+  },
+  "kvManifest": {
+    "message": "مانیفست"
+  },
+  "kvIngredients": {
+    "message": "اجزا"
+  },
+  "kvIngredientsVal": {
+    "message": "$1 (محتوای مشتق‌شده: این فایل با ویرایش فایل‌های امضاشده قبلی ساخته شده است)"
+  },
+  "kvValidationErrors": {
+    "message": "خطاهای اعتبارسنجی"
+  },
+  "wmEmpty": {
+    "message": "هیچ واترمارکی توسط خانواده‌های آشکارساز اجراشده تشخیص داده نشد."
+  },
+  "wmKeyedNote": {
+    "message": "نشانه‌های کلیددار (Backfire، Mellin) بخشی از این اسکن نیستند. آن‌ها فقط با کلید شما، در تب نشانه‌های کلیددار، قابل خواندن هستند."
+  },
+  "wmConfidence": {
+    "message": "$1% اطمینان"
+  },
+  "wmDegraded": {
+    "message": "$1% اطمینان؛ نشانه تخریب‌شده است (احتمال خرابی جزئی)"
+  },
+  "wmNa": {
+    "message": "$1: نامشخص"
+  },
+  "wmNoMark": {
+    "message": "$1: نشانه‌ای تشخیص داده نشد"
+  },
+  "wmTimelineAria": {
+    "message": "حضور واترمارک در طول زمان: $1"
+  },
+  "wmUnrecognizedSource": {
+    "message": "منبع ناشناخته"
+  },
+  "btnCopied": {
+    "message": "کپی شد"
+  },
+  "scanError": {
+    "message": "امکان اسکن این فایل نبود: $1"
+  },
+  "autoFilled": {
+    "message": "به‌طور خودکار از فایل پر شد"
+  },
+  "dragFileOnto": {
+    "message": "فایل را روی پنجره بکشید"
+  },
+  "aiGenerated": {
+    "message": "تولیدشده با هوش مصنوعی"
+  },
+  "btnCopiedBang": {
+    "message": "کپی شد!"
+  },
+  "bfCouldNotRun": {
+    "message": "اجرای Backfire ممکن نبود"
+  },
+  "btnInstalling": {
+    "message": "در حال نصب…"
+  },
+  "downloadingModels": {
+    "message": "در حال دانلود مدل‌ها، این کار ممکن است یک دقیقه طول بکشد…"
+  },
+  "btnWorking": {
+    "message": "در حال کار…"
+  },
+  "bfInstalling": {
+    "message": "در حال نصب / تعمیر خواننده Backfire…"
+  },
+  "statusCheckFailed": {
+    "message": "بررسی وضعیت ناموفق بود: $1"
+  },
+  "readingFile": {
+    "message": "در حال خواندن $1…"
+  },
+  "mlCouldNotRun": {
+    "message": "اجرای Mellin ممکن نبود"
+  },
+  "imCouldNotRun": {
+    "message": "اجرای idmark ممکن نبود"
+  },
+  "keysMismSuperseded": {
+    "message": "کلید محلی شما جایگزین شده است"
+  },
+  "keysMismRevoked": {
+    "message": "کلید محلی شما باطل شده است"
+  },
+  "keysMismActiveNoKey": {
+    "message": "رکورد فعال از کلیدی استفاده می‌کند که شما ندارید"
+  },
+  "thisBox": {
+    "message": "(این کادر)"
+  },
+  "btnRevoke": {
+    "message": "باطل کردن"
+  },
+  "checkingPublishedKeys": {
+    "message": "در حال بررسی کلیدهای منتشرشده…"
+  },
+  "btnGenerating": {
+    "message": "در حال ایجاد…"
+  },
+  "btnConnecting": {
+    "message": "در حال اتصال…"
+  },
+  "btnPublishing": {
+    "message": "در حال انتشار…"
+  },
+  "signReadyToPublish": {
+    "message": "آماده انتشار"
+  },
+  "bfMarkFound": {
+    "message": "نشانه Backfire یافت شد"
+  },
+  "bfNoValidMark": {
+    "message": "هیچ نشانه معتبر Backfire وجود ندارد"
+  },
+  "mlSerialRecovered": {
+    "message": "شماره سریال Mellin بازیابی شد"
+  },
+  "mlNoFullSerial": {
+    "message": "شماره سریال کامل Mellin وجود ندارد"
+  },
+  "imPresent": {
+    "message": "نشانه idmark موجود است"
+  },
+  "imNoDetected": {
+    "message": "idmark تشخیص داده نشد"
+  },
+  "fieldIdentifier": {
+    "message": "شناسه"
+  },
+  "fieldConfidenceMargin": {
+    "message": "اطمینان (حاشیه حداقل بیت)"
+  },
+  "fieldValid": {
+    "message": "معتبر"
+  },
+  "fieldMatchesSerial": {
+    "message": "با شماره سریال مورد انتظار مطابقت دارد"
+  },
+  "fieldTamperTripwire": {
+    "message": "هشداردهنده دستکاری"
+  },
+  "fieldSerial": {
+    "message": "شماره سریال"
+  },
+  "fieldBitsRecovered": {
+    "message": "بیت‌های بازیابی‌شده"
+  },
+  "fieldErasureRate": {
+    "message": "نرخ حذف"
+  },
+  "fieldMinBitVotes": {
+    "message": "حداقل رأی‌های بیت"
+  },
+  "fieldMarkPresent": {
+    "message": "نشانه موجود است"
+  },
+  "fieldSeat": {
+    "message": "صندلی"
+  },
+  "fieldMargin": {
+    "message": "حاشیه"
+  },
+  "fieldReadVia": {
+    "message": "خوانده‌شده از طریق"
+  },
+  "fieldEstRotation": {
+    "message": "چرخش تخمینی"
+  },
+  "fieldError": {
+    "message": "خطا"
+  },
+  "valYes": {
+    "message": "بله"
+  },
+  "valNo": {
+    "message": "خیر"
+  },
+  "bfTamperDetected": {
+    "message": "دستکاری شیار تشخیص داده شد (آمار $1)"
+  },
+  "bfTamperClean": {
+    "message": "پاک (آمار $1)"
+  }
+}

@@ -58,14 +58,6 @@ mod tests {
     use super::*;
     use crate::report::WatermarkStatus;
 
-    // ----- Threshold constant pins ----------
-    //
-    // These constants are the canonical thresholds every
-    // detector family re-exports. Bumping them silently
-    // shifts every Detected / Degraded verdict in every
-    // signed asset's report. Pin the values explicitly so
-    // any change comes paired with a deliberate test update.
-
     #[test]
     fn detected_threshold_is_seventy_percent() {
         assert_eq!(DETECTED_THRESHOLD, 0.70);
@@ -78,8 +70,7 @@ mod tests {
 
     #[test]
     fn detected_threshold_exceeds_degraded() {
-        // Constants are compile-time visible; hide in black_box
-        // so clippy doesn't fold and complain.
+        // black_box so clippy doesn't const-fold the comparison.
         let detected = std::hint::black_box(DETECTED_THRESHOLD);
         let degraded = std::hint::black_box(DEGRADED_THRESHOLD);
         assert!(detected > degraded);
@@ -92,13 +83,8 @@ mod tests {
         }
     }
 
-    // ----- classify(valid, confidence) ----------
-
     #[test]
     fn invalid_always_returns_not_detected_regardless_of_confidence() {
-        // The valid flag is load-bearing — even a 1.0 confidence
-        // can't promote an invalid result to Detected. This is
-        // the false-positive defence.
         for c in [0.0, 0.5, 0.7, 0.9, 1.0] {
             assert_eq!(
                 classify(false, c),
@@ -121,9 +107,6 @@ mod tests {
 
     #[test]
     fn confidence_at_degraded_threshold_exactly_is_degraded() {
-        // 0.50 is the inclusive lower bound for Degraded. Pin
-        // the boundary behaviour so a future maintainer doesn't
-        // silently shift the strict / non-strict comparison.
         assert_eq!(
             classify(true, DEGRADED_THRESHOLD),
             WatermarkStatus::Degraded
@@ -143,7 +126,6 @@ mod tests {
 
     #[test]
     fn confidence_at_detected_threshold_exactly_is_detected() {
-        // 0.70 is the inclusive lower bound for Detected.
         assert_eq!(
             classify(true, DETECTED_THRESHOLD),
             WatermarkStatus::Detected
@@ -163,25 +145,14 @@ mod tests {
 
     #[test]
     fn classify_handles_nan_safely() {
-        // f32::NAN compared against anything returns false, so
-        // every < comparison fails → falls through to Detected
-        // branch. This is technically a misclassification but
-        // it's deterministic and not a panic. Pin the behaviour
-        // so a future maintainer who tries to "handle NaN" doesn't
-        // silently change downstream verdicts.
+        // NaN fails every `<` comparison; result is deterministic, not a panic — don't "fix" it.
         let r = classify(true, f32::NAN);
-        // We accept either NotDetected or Detected (the actual
-        // arm depends on the comparison order); the load-bearing
-        // contract is "no panic, deterministic result".
         let _ = r;
     }
 
     #[test]
     fn confidence_just_below_detected_threshold_is_degraded_not_detected() {
-        // The strict inequality `confidence < DETECTED_THRESHOLD`
-        // means a value like 0.6999 must be Degraded, not
-        // Detected. Pin this boundary explicitly.
-        // Use 0.69 since f32 epsilon may not represent 0.6999 exactly.
+        // Use 0.69, not 0.6999: f32 may not represent 0.6999 exactly.
         assert_eq!(classify(true, 0.69), WatermarkStatus::Degraded);
     }
 

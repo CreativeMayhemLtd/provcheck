@@ -21,24 +21,28 @@
 //! ```
 
 pub mod confidence;
+pub mod formats;
 pub mod report;
 pub mod verification;
 
 pub mod prelude {
     pub use super::Error;
     pub use crate::report::{
-        AttestationStatus, DidAttestation, IdentityClaim, ParentManifest, Report, WatermarkBrand,
-        WatermarkKind, WatermarkResult, WatermarkStatus,
+        AttestationStatus, CheckStatus, DidAttestation, FormatCheck, FormatId, IdentityClaim,
+        Media, ParentManifest, Report, WatermarkBrand, WatermarkKind, WatermarkResult,
+        WatermarkStatus,
     };
     pub use crate::verification::{VerifyOptions, verify, verify_with_options};
 }
 
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum Error {
     #[error("file not found or unreadable: {0}")]
     Io(#[from] std::io::Error),
+    // Opaque string, not c2pa::Error, keeps the pre-1.0 c2pa crate out of provcheck's public API.
     #[error("C2PA read failed: {0}")]
-    C2pa(#[from] c2pa::Error),
+    C2pa(String),
     #[error("invalid trust-store PEM: {0}")]
     InvalidTrustStore(String),
     #[error("DID resolution failed: {0}")]
@@ -47,6 +51,12 @@ pub enum Error {
     PdsAccess(String),
     #[error("attestation processing failed: {0}")]
     AttestationFailed(String),
+}
+
+impl From<c2pa::Error> for Error {
+    fn from(e: c2pa::Error) -> Self {
+        Error::C2pa(e.to_string())
+    }
 }
 
 fn sanity_check_pem(pem: &str) -> Result<(), Error> {
@@ -74,7 +84,6 @@ fn is_manifest_parse_error(err: &c2pa::Error) -> bool {
     use c2pa::Error::*;
     matches!(
         err,
-        // JUMBF / manifest structure broken
         JumbfParseError(_)
             | InvalidClaim(_)
             | InvalidAsset(_)
@@ -87,7 +96,6 @@ fn is_manifest_parse_error(err: &c2pa::Error) -> bool {
             | AssertionDecoding(_)
             | AssertionEncoding(_)
             | AssertionInvalidRedaction
-            // Cryptographic failure on signature verification
             | HashMismatch(_)
             | CoseSignatureAlgorithmNotSupported
             | CoseMissingKey
@@ -115,11 +123,13 @@ fn unsigned_report(reason: Option<String>) -> prelude::Report {
         ingredient_count: 0,
         format: None,
         validation_errors: 0,
+        provenance_tamper: None,
         did_attestation: None,
         identity: None,
         parents: Vec::new(),
         watermarks: Vec::new(),
         detections: Vec::new(),
+        checks: Vec::new(),
     }
 }
 
@@ -140,14 +150,14 @@ fn format_failure_reason(
         )
         && error_count == 0
     {
-        return match trusted {
-            Some(false) => "signing certificate is not on the configured trust list".into(),
-            None => "trust status could not be established for the signing certificate".into(),
-            Some(true) => unreachable!("trusted=true but failure_reason called"),
+        // The guard above restricts `trusted` to Some(false) | None.
+        return if matches!(trusted, Some(false)) {
+            "signing certificate is not on the configured trust list".into()
+        } else {
+            "trust status could not be established for the signing certificate".into()
         };
     }
 
-    // Crypto / manifest failures.
     match state {
         c2pa::ValidationState::Invalid => format!(
             "manifest failed structural or cryptographic validation ({} error{})",
@@ -179,13 +189,6 @@ mod tests {
         let err = verify(Path::new("does_not_exist_abcxyz.wav")).unwrap_err();
         assert!(matches!(err, Error::Io(_)));
     }
-
-    // ----- Error variant message tests ----------
-    //
-    // The audit identified DidResolution / PdsAccess /
-    // AttestationFailed as variants no in-crate test constructs.
-    // The CLI maps each to a user-facing diagnostic; pin the
-    // surface so accidental message edits regress visibly.
 
     #[test]
     fn error_io_message_includes_inner() {
@@ -240,17 +243,10 @@ mod tests {
             trust_store_pem: Some("not a pem at all".into()),
             require_trusted: false,
         };
-        // Use a fake path — sanity_check should reject the PEM
-        // before we even look at the file.
+        // Fake path is fine: sanity_check rejects the PEM before the file is touched.
         let err = verify_with_options(Path::new("any.wav"), &opts).unwrap_err();
         assert!(matches!(err, Error::InvalidTrustStore(_)));
     }
-
-    // ----- sanity_check_pem direct coverage ----------
-    //
-    // The PEM check is the gate that prevents a malformed
-    // trust-store input from confusing c2pa's loader. Pin every
-    // documented rejection path.
 
     #[test]
     fn sanity_check_pem_accepts_well_formed_certificate_block() {
@@ -284,8 +280,6 @@ mod tests {
 
     #[test]
     fn sanity_check_pem_accepts_chain_with_multiple_certs() {
-        // Multiple BEGIN/END blocks — chain bundles are common
-        // for full-chain trust stores. Pin that this passes.
         let pem = "-----BEGIN CERTIFICATE-----\naA==\n-----END CERTIFICATE-----\n\
                    -----BEGIN CERTIFICATE-----\nbB==\n-----END CERTIFICATE-----\n";
         assert!(sanity_check_pem(pem).is_ok());
@@ -293,8 +287,6 @@ mod tests {
 
     #[test]
     fn sanity_check_pem_rejects_private_key_only_input() {
-        // A PEM that's ONLY private keys (no CERTIFICATE block)
-        // is wrong for a trust store. Pin rejection.
         let pem = "-----BEGIN PRIVATE KEY-----\naA==\n-----END PRIVATE KEY-----\n";
         let r = sanity_check_pem(pem);
         assert!(matches!(r, Err(Error::InvalidTrustStore(_))));

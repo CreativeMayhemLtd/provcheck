@@ -339,10 +339,7 @@ mod tests {
         let unlocked = UnlockedIdentity::new(locked.clone(), SecretString::new("secret".into()));
         let relocked = unlocked.lock();
         assert_eq!(relocked, locked);
-        // We can't observe the SecretString zeroisation here without
-        // an allocator hook, but the type system guarantees the
-        // SecretString went out of scope (it was moved into the lock
-        // call and not returned).
+        // Can't observe zeroisation without an allocator hook; the type system guarantees the SecretString was moved into lock() and dropped.
     }
 
     #[test]
@@ -379,10 +376,7 @@ mod tests {
 
     #[test]
     fn key_provider_kind_legacy_bare_string_still_deserialises() {
-        // identity.json files written by v0.3.x / v0.4.x carry
-        // `"key_provider": "keychain"` (a bare string, not an
-        // object). The new Deserialize must accept that form so
-        // existing identities load on v0.5.x without migration.
+        // v0.3.x/v0.4.x wrote key_provider as a bare string; Deserialize must still accept it (no migration).
         let kc: KeyProviderKind = serde_json::from_str("\"keychain\"").expect("de");
         assert_eq!(kc, KeyProviderKind::Keychain);
         let ef: KeyProviderKind = serde_json::from_str("\"encrypted_file\"").expect("de");
@@ -441,8 +435,7 @@ mod tests {
 
     #[test]
     fn secret_string_borrow_works() {
-        // Demonstrate the borrow shape callers will use when
-        // unlocked.key_pem() lands in the signing path.
+        // Demonstrate the borrow shape callers use for key_pem().
         let unlocked = UnlockedIdentity::new(
             LockedIdentity {
                 chain_pem: "x".into(),

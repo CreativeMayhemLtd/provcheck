@@ -1,0 +1,647 @@
+{
+  "headerSubtitle": {
+    "message": "Semnează și verifică C2PA Content Credentials"
+  },
+  "tabVerify": {
+    "message": "Verificare"
+  },
+  "tabWatermark": {
+    "message": "Filigran"
+  },
+  "tabDetect": {
+    "message": "Detectare"
+  },
+  "tabKeys": {
+    "message": "Chei"
+  },
+  "tabSign": {
+    "message": "Semnare"
+  },
+  "tabKeyedMarks": {
+    "message": "Marcaje cu cheie"
+  },
+  "btnChooseFile": {
+    "message": "Alege fișier…"
+  },
+  "btnVerifyAnother": {
+    "message": "Verifică altul"
+  },
+  "btnCopyJson": {
+    "message": "Copiază ca JSON"
+  },
+  "btnCheckAnother": {
+    "message": "Verifică alt fișier"
+  },
+  "btnReadAnother": {
+    "message": "Citește altul"
+  },
+  "btnLogOut": {
+    "message": "Deconectare"
+  },
+  "btnConnect": {
+    "message": "Conectare"
+  },
+  "btnCopy": {
+    "message": "Copiază"
+  },
+  "btnRetry": {
+    "message": "Reîncearcă"
+  },
+  "btnSign": {
+    "message": "Semnează"
+  },
+  "btnOK": {
+    "message": "OK"
+  },
+  "btnCancel": {
+    "message": "Anulează"
+  },
+  "btnGotIt": {
+    "message": "Am înțeles"
+  },
+  "btnHowItWorks": {
+    "message": "Cum funcționează"
+  },
+  "btnInstallRepair": {
+    "message": "Instalare / Reparare"
+  },
+  "btnChooseSecret": {
+    "message": "Alege fișierul secret"
+  },
+  "btnClose": {
+    "message": "Închide"
+  },
+  "badgeExperimental": {
+    "message": "Experimental"
+  },
+  "loadingGeneric": {
+    "message": "Se încarcă…"
+  },
+  "statusChecking": {
+    "message": "Se verifică..."
+  },
+  "statusCheckingStatus": {
+    "message": "Se verifică starea…"
+  },
+  "labelFingerprint": {
+    "message": "Amprentă"
+  },
+  "labelAlgorithm": {
+    "message": "Algoritm"
+  },
+  "labelBackend": {
+    "message": "Sistem backend"
+  },
+  "labelCreated": {
+    "message": "Creat"
+  },
+  "labelDID": {
+    "message": "DID"
+  },
+  "labelHandle": {
+    "message": "Nume de utilizator"
+  },
+  "labelYubikey": {
+    "message": "Yubikey"
+  },
+  "labelPinTries": {
+    "message": "Încercări PIN"
+  },
+  "labelStatus": {
+    "message": "Stare"
+  },
+  "labelLabel": {
+    "message": "Etichetă"
+  },
+  "labelBy": {
+    "message": "De"
+  },
+  "labelTool": {
+    "message": "Instrument"
+  },
+  "labelFile": {
+    "message": "Fișier"
+  },
+  "labelYourIdentity": {
+    "message": "Identitatea ta"
+  },
+  "labelOutput": {
+    "message": "Rezultat"
+  },
+  "aboutLinks": {
+    "message": "Legături"
+  },
+  "identityBskyHandle": {
+    "message": "Nume de utilizator Bsky"
+  },
+  "identityRunWatermark": {
+    "message": "Rulează detectarea filigranului"
+  },
+  "identityRequireAttested": {
+    "message": "Necesită atestare"
+  },
+  "identityHandlePh": {
+    "message": "opțional · ex. creator.bsky.social sau did:plc:…"
+  },
+  "dropzoneTitle": {
+    "message": "Trage orice fișier aici pentru verificare"
+  },
+  "dropzoneSub": {
+    "message": "Audio · Imagine · Video: orice conține C2PA Content Credentials."
+  },
+  "verifyDropHint": {
+    "message": "Sau rulează fără niciun fișier și acest spațiu rămâne neschimbat. Privat: fișierele nu părăsesc niciodată dispozitivul tău."
+  },
+  "verifyLoading": {
+    "message": "Se verifică…"
+  },
+  "verifyLoadingHint": {
+    "message": "Detectarea filigranului solicită intens procesorul pentru audio și video și poate dura câteva minute. Debifează \"Rulează detectarea filigranului\" pentru o verificare instantanee, doar C2PA."
+  },
+  "showRawManifest": {
+    "message": "Afișează detaliile brute ale manifestului"
+  },
+  "claimsHeading": {
+    "message": "Afirmații"
+  },
+  "wmModelsNeeded": {
+    "message": "Detectarea filigranului necesită modele."
+  },
+  "wmInstallAll": {
+    "message": "Instalează toate modelele"
+  },
+  "wmScanFor": {
+    "message": "Scanează pentru:"
+  },
+  "wmDropTitle": {
+    "message": "Trage orice fișier aici pentru a rula detectarea filigranului"
+  },
+  "wmDropHint": {
+    "message": "Privat: fișierele nu părăsesc niciodată dispozitivul tău. Fiecare detector decide singur dacă se aplică tipului de fișier de intrare."
+  },
+  "wmLoading": {
+    "message": "Se rulează detectoarele de filigran…"
+  },
+  "wmLoadingHint": {
+    "message": "Inferența modelului solicită intens procesorul pentru audio și video; o scanare poate dura câteva minute. Procesul continuă cât timp aceasta se rotește."
+  },
+  "wmResultTitle": {
+    "message": "Detectare filigran"
+  },
+  "detectTitle": {
+    "message": "Detectarea conținutului generat de AI: adu propriul detector"
+  },
+  "detectRouteAHead": {
+    "message": "Ruta A: pachet DLC contra cost (v1.x, planificat)"
+  },
+  "detectRouteBHead": {
+    "message": "Ruta B: wrapper furnizat de operator (disponibil acum)"
+  },
+  "keysLocalIdentity": {
+    "message": "Identitate locală"
+  },
+  "keysNoIdentity": {
+    "message": "Nicio identitate pe acest dispozitiv."
+  },
+  "keysMismatchTitle": {
+    "message": "Neconcordanță a stării identității"
+  },
+  "keysRotateBtn": {
+    "message": "Generează cheie nouă + publică"
+  },
+  "keysRotateTitle": {
+    "message": "Generează o cheie de semnare nouă și publică-o ca noua înregistrare activă"
+  },
+  "keysSwitchYubikey": {
+    "message": "Comută la identitatea Yubikey…"
+  },
+  "keysSwitchYubikeyTitle": {
+    "message": "Înlocuiește identitatea curentă cu una bazată pe Yubikey"
+  },
+  "keysPublishedRecords": {
+    "message": "Înregistrări publicate (atproto)"
+  },
+  "keysRecordsEmptyHint": {
+    "message": "Autentifică-te în fila Semnare și publică-ți amprenta locală."
+  },
+  "keysNotLoggedIn": {
+    "message": "Nu ești autentificat la atproto."
+  },
+  "keysNoSessionHint": {
+    "message": "Autentifică-te în fila Semnare pentru a prelua înregistrările publicate."
+  },
+  "signIdentityLabel": {
+    "message": "Identitate:"
+  },
+  "signNotSetUp": {
+    "message": "nu este configurată"
+  },
+  "signSessionLabel": {
+    "message": "Sesiune:"
+  },
+  "signDisconnected": {
+    "message": "deconectat"
+  },
+  "signSetupTitle": {
+    "message": "Configurează-ți identitatea de semnare"
+  },
+  "signSetupBody": {
+    "message": "Aceasta generează o cheie criptografică pe acest dispozitiv și o stochează în portofelul de chei al sistemului de operare. Va trebui să faci asta o singură dată."
+  },
+  "signGenerateKey": {
+    "message": "Generează cheie de semnare"
+  },
+  "signSetupHint": {
+    "message": "Cheia nu părăsește niciodată dispozitivul tău. Sistemul tău de operare gestionează solicitările de acces."
+  },
+  "signConnectTitle": {
+    "message": "Conectează-ți identitatea bsky"
+  },
+  "signConnectBody": {
+    "message": "Atașează cheia ta de semnare la numele tău de utilizator atproto, astfel încât verificatorii să știe că îți aparține."
+  },
+  "signHandlePh": {
+    "message": "creator.bsky.social"
+  },
+  "signAppPassword": {
+    "message": "Parolă de aplicație"
+  },
+  "signRememberDevice": {
+    "message": "Ține-mă minte pe acest dispozitiv"
+  },
+  "signPublishTitle": {
+    "message": "Publică-ți cheia de semnare"
+  },
+  "signPublishBody": {
+    "message": "Un ultim pas: publicarea amprentei cheii tale pe atproto le permite verificatorilor să confirme încrucișat că tu ai semnat lucrarea. Fără acest lucru ei văd doar \"semnătură validă de la necunoscut.\""
+  },
+  "signLabelOptional": {
+    "message": "Etichetă (opțional)"
+  },
+  "signLabelPh": {
+    "message": "ex. studio mac"
+  },
+  "signPublishKey": {
+    "message": "Publică cheia"
+  },
+  "signStaleTitle": {
+    "message": "Cheia ta de semnare este învechită"
+  },
+  "signRecoverHeading": {
+    "message": "Recuperare din terminal:"
+  },
+  "signStaleHint": {
+    "message": "Aceasta generează o cheie nouă, o publică drept noua înregistrare activă și (atunci când este necesar) revocă înregistrarea orfană, astfel încât nimeni să nu poată semna în numele tău cu cheia pierdută."
+  },
+  "signDropTitle": {
+    "message": "Trage un fișier aici pentru semnare"
+  },
+  "signDropSub": {
+    "message": "Audio · Imagine · Video: orice este acceptat de c2pa-rs."
+  },
+  "signReadyToSign": {
+    "message": "Gata de semnare"
+  },
+  "signChainTitle": {
+    "message": "Acest fișier este deja semnat."
+  },
+  "signChainSub": {
+    "message": "Semnătura ta se va alătura lanțului ca o derivată; semnătura originală rămâne intactă."
+  },
+  "signRelationshipQ": {
+    "message": "Care este relația ta cu acest fișier?"
+  },
+  "signEmbedIdentity": {
+    "message": "Încorporează afirmația de identitate (recomandat; permite verificatorilor să omită pasul de introducere a numelui de utilizator)"
+  },
+  "signModelPh": {
+    "message": "ex. ACE-Step v1.0"
+  },
+  "signReplaceOriginal": {
+    "message": "Înlocuiește originalul (în loc să scrie un sidecar)"
+  },
+  "signPickDifferent": {
+    "message": "Alege alt fișier"
+  },
+  "signSigning": {
+    "message": "Se semnează…"
+  },
+  "signSigned": {
+    "message": "Semnat"
+  },
+  "signAnother": {
+    "message": "Semnează altul"
+  },
+  "signVerifyIt": {
+    "message": "Verifică-l"
+  },
+  "signErrorTitle": {
+    "message": "Starea de semnare nu a putut fi încărcată"
+  },
+  "bfBackfireTitle": {
+    "message": "Citește un marcaj Backfire cu cheie"
+  },
+  "bfBackfireSub": {
+    "message": "Verifică un filigran per imagine pe care instrumentele de eliminare a provenienței AI îl amplifică în loc să îl elimine."
+  },
+  "bfReaderLabel": {
+    "message": "Cititor Backfire"
+  },
+  "bfDropTitle": {
+    "message": "Trage o imagine aici, sau alege una, pentru a-i citi marcajul"
+  },
+  "bfChooseRead": {
+    "message": "Alege imaginea și citește"
+  },
+  "bfHint": {
+    "message": "Introdu mai întâi cheia ta mai sus, apoi trage sau alege o imagine. Se citește automat și rămâne pe dispozitivul tău."
+  },
+  "bfLoading": {
+    "message": "Se citește marcajul Backfire…"
+  },
+  "mlTitle": {
+    "message": "Citește un serial Mellin cu cheie"
+  },
+  "mlSub": {
+    "message": "Analiză criminalistică pe partea audio, cu cheie: recuperează serialul de 64 de biți per copie pe care l-ai încorporat cu instrumentul independent provcheck-mellin, licențiat BUSL (gratuit pentru uz necomercial, separat de provcheck). Necesită fișierul secret al vânzătorului și id-ul lucrării; totul rămâne pe dispozitivul tău."
+  },
+  "mlReaderLabel": {
+    "message": "Cititor Mellin"
+  },
+  "mlSecretNone": {
+    "message": "niciunul ales. Secretul nu este niciodată stocat, așa că alege-l din nou după fiecare pornire."
+  },
+  "mlWorkidPh": {
+    "message": "id-ul lucrării folosit la încorporare"
+  },
+  "mlDropTitle": {
+    "message": "Alege un fișier audio pentru a-i citi serialul"
+  },
+  "mlChooseRead": {
+    "message": "Alege audio și citește"
+  },
+  "mlHint": {
+    "message": "Alege mai întâi fișierul tău secret și introdu id-ul lucrării, apoi alege fișierul audio sau trage-l oriunde în această filă. Funcționează orice format (WAV, MP3, AAC, FLAC); fișierele audio se citesc aici, imaginile citesc marcajul Backfire de mai sus."
+  },
+  "mlLoading": {
+    "message": "Se citește serialul Mellin…"
+  },
+  "imTitle": {
+    "message": "Citește un marcaj de identitate idmark cu cheie"
+  },
+  "imSub": {
+    "message": "Identitate pe partea de imagine, cu cheie: citește marcajul per copie, tolerant la decupare, transcodare și rotație, încorporat cu instrumentul independent provcheck-idmark, licențiat BUSL (gratuit pentru uz necomercial, separat de provcheck). Fără secret, verifică marcajul încorporat implicit; adaugă fișierul tău secret și un loc pentru a atribui o copie. Totul rămâne pe dispozitivul tău."
+  },
+  "imReaderLabel": {
+    "message": "Cititor idmark"
+  },
+  "imSecretNone": {
+    "message": "niciunul ales. Lasă necompletat pentru a citi marcajul implicit; secretul nu este niciodată stocat."
+  },
+  "imDropTitle": {
+    "message": "Alege o imagine pentru a-i citi marcajul"
+  },
+  "imChooseRead": {
+    "message": "Alege imaginea și citește"
+  },
+  "imHint": {
+    "message": "Opțional, alege mai întâi fișierul tău secret și un loc, apoi alege imaginea. PNG sau JPEG. Aceasta citește marcajul de identitate idmark; marcajul Backfire și serialele Mellin se citesc în secțiunile de mai sus."
+  },
+  "imLoading": {
+    "message": "Se citește idmark…"
+  },
+  "bfModalTitle": {
+    "message": "Cum funcționează Backfire"
+  },
+  "vVerified": {
+    "message": "Verificat"
+  },
+  "vUnsigned": {
+    "message": "Nesemnat"
+  },
+  "vNotVerified": {
+    "message": "Neverificat"
+  },
+  "attAttestedBy": {
+    "message": "Atestat de $1"
+  },
+  "attMatchSub": {
+    "message": "Certificatul de semnare corespunde unei chei publicate sub această identitate."
+  },
+  "attMismatch": {
+    "message": "Neconcordanță de atestare pentru $1"
+  },
+  "attMismatchSub": {
+    "message": "Certificatul de semnare nu corespunde niciunei chei publicate sub această identitate."
+  },
+  "attNotPublished": {
+    "message": "Nicio cheie publicată sub $1"
+  },
+  "attNotPublishedSub": {
+    "message": "Această identitate există, dar nu a publicat nicio înregistrare signingKey."
+  },
+  "attResolveFailed": {
+    "message": "$1 nu a putut fi rezolvat"
+  },
+  "attResolveFailedSub": {
+    "message": "Rezolvarea identității a eșuat (numele de utilizator/DID inaccesibil)."
+  },
+  "attThisIdentity": {
+    "message": "această identitate"
+  },
+  "kvSigner": {
+    "message": "Semnatar"
+  },
+  "kvSignedAt": {
+    "message": "Semnat la"
+  },
+  "kvFormat": {
+    "message": "Format"
+  },
+  "kvManifest": {
+    "message": "Manifest"
+  },
+  "kvIngredients": {
+    "message": "Ingrediente"
+  },
+  "kvIngredientsVal": {
+    "message": "$1 (conținut derivat: acest fișier a fost realizat prin editarea unor fișiere semnate anterior)"
+  },
+  "kvValidationErrors": {
+    "message": "Erori de validare"
+  },
+  "wmEmpty": {
+    "message": "Nu au fost detectate filigrane de către familiile de detectoare care au rulat."
+  },
+  "wmKeyedNote": {
+    "message": "Marcajele cu cheie (Backfire, Mellin) nu fac parte din această scanare. Pot fi citite doar cu cheia ta, în fila Marcaje cu cheie."
+  },
+  "wmConfidence": {
+    "message": "$1% încredere"
+  },
+  "wmDegraded": {
+    "message": "$1% încredere; marcajul este degradat (probabil corupere parțială)"
+  },
+  "wmNa": {
+    "message": "$1: n/a"
+  },
+  "wmNoMark": {
+    "message": "$1: niciun marcaj detectat"
+  },
+  "wmTimelineAria": {
+    "message": "Prezența filigranului în timp: $1"
+  },
+  "wmUnrecognizedSource": {
+    "message": "sursă nerecunoscută"
+  },
+  "btnCopied": {
+    "message": "Copiat"
+  },
+  "scanError": {
+    "message": "Acest fișier nu a putut fi scanat: $1"
+  },
+  "autoFilled": {
+    "message": "completat automat din fișier"
+  },
+  "dragFileOnto": {
+    "message": "Trage fișierul peste fereastră"
+  },
+  "aiGenerated": {
+    "message": "Generat de AI"
+  },
+  "btnCopiedBang": {
+    "message": "Copiat!"
+  },
+  "bfCouldNotRun": {
+    "message": "Backfire nu a putut fi rulat"
+  },
+  "btnInstalling": {
+    "message": "Se instalează…"
+  },
+  "downloadingModels": {
+    "message": "Se descarcă modelele, poate dura un minut…"
+  },
+  "btnWorking": {
+    "message": "Se procesează…"
+  },
+  "bfInstalling": {
+    "message": "Se instalează / repară cititorul Backfire…"
+  },
+  "statusCheckFailed": {
+    "message": "Verificarea stării a eșuat: $1"
+  },
+  "readingFile": {
+    "message": "Se citește $1…"
+  },
+  "mlCouldNotRun": {
+    "message": "Mellin nu a putut fi rulat"
+  },
+  "imCouldNotRun": {
+    "message": "idmark nu a putut fi rulat"
+  },
+  "keysMismSuperseded": {
+    "message": "Cheia ta locală a fost înlocuită"
+  },
+  "keysMismRevoked": {
+    "message": "Cheia ta locală este revocată"
+  },
+  "keysMismActiveNoKey": {
+    "message": "Înregistrarea activă folosește o cheie pe care nu o ai"
+  },
+  "thisBox": {
+    "message": "(acest dispozitiv)"
+  },
+  "btnRevoke": {
+    "message": "Revocă"
+  },
+  "checkingPublishedKeys": {
+    "message": "Se verifică cheile publicate…"
+  },
+  "btnGenerating": {
+    "message": "Se generează…"
+  },
+  "btnConnecting": {
+    "message": "Se conectează…"
+  },
+  "btnPublishing": {
+    "message": "Se publică…"
+  },
+  "signReadyToPublish": {
+    "message": "Gata de publicare"
+  },
+  "bfMarkFound": {
+    "message": "Marcaj Backfire găsit"
+  },
+  "bfNoValidMark": {
+    "message": "Niciun marcaj Backfire valid"
+  },
+  "mlSerialRecovered": {
+    "message": "Serial Mellin recuperat"
+  },
+  "mlNoFullSerial": {
+    "message": "Niciun serial Mellin complet"
+  },
+  "imPresent": {
+    "message": "idmark prezent"
+  },
+  "imNoDetected": {
+    "message": "Niciun idmark detectat"
+  },
+  "fieldIdentifier": {
+    "message": "Identificator"
+  },
+  "fieldConfidenceMargin": {
+    "message": "Încredere (marjă minimă de biți)"
+  },
+  "fieldValid": {
+    "message": "Valid"
+  },
+  "fieldMatchesSerial": {
+    "message": "Corespunde serialului așteptat"
+  },
+  "fieldTamperTripwire": {
+    "message": "Detector de manipulare"
+  },
+  "fieldSerial": {
+    "message": "Serial"
+  },
+  "fieldBitsRecovered": {
+    "message": "Biți recuperați"
+  },
+  "fieldErasureRate": {
+    "message": "Rată de ștergere"
+  },
+  "fieldMinBitVotes": {
+    "message": "Voturi minime de biți"
+  },
+  "fieldMarkPresent": {
+    "message": "Marcaj prezent"
+  },
+  "fieldSeat": {
+    "message": "Loc"
+  },
+  "fieldMargin": {
+    "message": "Marjă"
+  },
+  "fieldReadVia": {
+    "message": "Citit prin"
+  },
+  "fieldEstRotation": {
+    "message": "Rotație estimată"
+  },
+  "fieldError": {
+    "message": "Eroare"
+  },
+  "valYes": {
+    "message": "da"
+  },
+  "valNo": {
+    "message": "nu"
+  },
+  "bfTamperDetected": {
+    "message": "manipulare crestătură detectată (statistică $1)"
+  },
+  "bfTamperClean": {
+    "message": "curat (statistică $1)"
+  }
+}

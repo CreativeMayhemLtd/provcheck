@@ -99,13 +99,7 @@ pub fn decode_to_mono_44k1(path: &Path) -> Result<Vec<f32>, AudioError> {
         .codec_params
         .sample_rate
         .ok_or_else(|| AudioError::Decode("track missing sample rate".into()))?;
-    // Encoder-inserted priming + padding samples (LAME tag on MP3,
-    // iTunSMPB on AAC-in-M4A, etc.). symphonia parses these but
-    // does not auto-trim — that's the caller's job. Without this,
-    // an MP3-decoded mono buffer starts 1105 samples earlier and
-    // ends ~1109 samples later than what librosa/ffmpeg yield,
-    // which shifts every downstream STFT frame and breaks the
-    // silentcipher per-position mode vote.
+    // Encoder priming/padding (LAME on MP3, iTunSMPB on AAC-in-M4A); symphonia parses but doesn't trim. Untrimmed, it shifts every STFT frame and breaks the mode vote.
     let enc_delay = effective_priming(track) as usize;
     let enc_padding = track.codec_params.padding.unwrap_or(0) as usize;
 
@@ -141,11 +135,7 @@ pub fn decode_to_mono_44k1(path: &Path) -> Result<Vec<f32>, AudioError> {
         return Err(AudioError::Decode("decoded zero samples".into()));
     }
 
-    // Trim encoder priming + end padding. delay/padding are in
-    // source-sample-rate frames, so this must happen before
-    // resample(). Guards against pathological tags that would
-    // empty or invert the buffer — saturate to a no-op rather
-    // than truncate to nothing.
+    // Trim priming/padding (in source-rate frames, so before resample()); saturate to a no-op on pathological tags rather than emptying the buffer.
     if enc_delay > 0 && enc_delay < mono.len() {
         mono.drain(..enc_delay);
     }
@@ -399,10 +389,7 @@ fn resample(src: &[f32], src_rate: u32, dst_rate: u32) -> Result<Vec<f32>, Strin
         window: WindowFunction::BlackmanHarris2,
     };
     let ratio = dst_rate as f64 / src_rate as f64;
-    // Chunk size — process in 4096-sample blocks. The "Fixed In"
-    // variant requires that the input always be exactly chunk
-    // size; we pad the tail with zeros so the resampler can
-    // flush its internal state without losing the last frames.
+    // "Fixed In" requires exactly chunk_size input; we zero-pad the tail to flush the last frames.
     let chunk_size = 4096usize;
     let mut resampler =
         SincFixedIn::<f32>::new(ratio, 2.0, params, chunk_size, 1).map_err(|e| e.to_string())?;
@@ -415,9 +402,7 @@ fn resample(src: &[f32], src_rate: u32, dst_rate: u32) -> Result<Vec<f32>, Strin
         out.extend_from_slice(&resampled[0]);
         pos += chunk_size;
     }
-    // Tail: zero-pad to chunk size so the resampler doesn't
-    // discard the partial frame. This adds a tiny zero-tail to
-    // the output, which is harmless for STFT/detection.
+    // Tail: zero-pad to chunk size so the partial frame isn't dropped (tiny zero-tail, harmless for STFT).
     if pos < src.len() {
         let mut tail = vec![0.0_f32; chunk_size];
         let remaining = src.len() - pos;
@@ -481,13 +466,7 @@ mod audio_error_tests {
         assert!(matches!(r, Err(AudioError::Io(_))));
     }
 
-    // ----- AAC priming constant pin ----------
-    //
-    // The AAC priming workaround was the v0.5.3 hotfix for
-    // public issue #24. Without the documented 1024-sample
-    // default, AAC-in-MP4/M4A detection returned conf 0.000.
-    // Pin the constant explicitly so a future maintainer can't
-    // silently "simplify" the workaround away.
+    // v0.5.3 issue #24: without the 1024-sample AAC priming default, AAC-in-MP4/M4A detection returned conf 0.000. Pin it.
 
     #[test]
     fn aac_default_priming_samples_is_1024() {
@@ -496,12 +475,7 @@ mod audio_error_tests {
 
     #[test]
     fn aac_default_priming_matches_canonical_aac_encoder_delay() {
-        // Canonical AAC encoder delay is 2048 samples per the
-        // standard, but the LC-AAC profile we encounter in MP4
-        // containers from Apple's encoder consistently uses
-        // 1024 (half-frame) priming. Pin the half-frame value.
-        // (The 2048 vs 1024 ambiguity is exactly the trap that
-        // caused issue #24.)
+        // Apple LC-AAC in MP4 uses 1024 (half-frame) priming, not the 2048 full-frame; the ambiguity caused issue #24.
         let half_frame = std::hint::black_box(AAC_DEFAULT_PRIMING_SAMPLES);
         let full_frame: u32 = 2048;
         assert!(
@@ -510,13 +484,9 @@ mod audio_error_tests {
         );
     }
 
-    // ----- resample helper ----------
-
     #[test]
     fn resample_identity_when_src_eq_dst_returns_same_length_ish() {
-        // Same in/out rate → ratio 1.0 → output length ≈ input.
-        // Tail-pad to chunk size adds at most chunk_size extra
-        // zero samples; pin "output close to input, never empty".
+        // ratio 1.0: output length ~= input (tail-pad adds at most chunk_size zeros, never empty).
         let src: Vec<f32> = (0..10000).map(|i| (i as f32 * 0.01).sin()).collect();
         let out = resample(&src, 44_100, 44_100).expect("ok");
         assert!(!out.is_empty());
@@ -530,7 +500,7 @@ mod audio_error_tests {
 
     #[test]
     fn resample_up_doubles_length_approximately() {
-        // 22050 → 44100 doubles. Pin the documented contract.
+        // 22050 -> 44100 doubles.
         let src: Vec<f32> = (0..10000).map(|i| (i as f32 * 0.01).sin()).collect();
         let out = resample(&src, 22_050, 44_100).expect("ok");
         let ratio = out.len() as f32 / src.len() as f32;
@@ -542,7 +512,7 @@ mod audio_error_tests {
 
     #[test]
     fn resample_down_halves_length_approximately() {
-        // 88200 → 44100 halves. Pin.
+        // 88200 -> 44100 halves.
         let src: Vec<f32> = (0..20000).map(|i| (i as f32 * 0.01).sin()).collect();
         let out = resample(&src, 88_200, 44_100).expect("ok");
         let ratio = out.len() as f32 / src.len() as f32;
@@ -554,9 +524,7 @@ mod audio_error_tests {
 
     #[test]
     fn resample_returns_finite_samples_for_finite_input() {
-        // The resampler must never produce NaN/inf on finite
-        // input. Catches a future SincFixedIn config that
-        // silently divides by zero on edge cases.
+        // Resampler must never produce NaN/inf on finite input.
         let src: Vec<f32> = (0..10000).map(|i| (i as f32 * 0.01).sin()).collect();
         let out = resample(&src, 48_000, 44_100).expect("ok");
         for (i, &s) in out.iter().enumerate() {
@@ -566,8 +534,7 @@ mod audio_error_tests {
 
     #[test]
     fn resample_short_input_below_chunk_size_works() {
-        // Input shorter than chunk_size (4096) takes only the
-        // tail-pad path. Pin that this still produces output.
+        // Sub-chunk_size (4096) input takes only the tail-pad path; must still produce output.
         let src: Vec<f32> = (0..100).map(|i| (i as f32 * 0.01).sin()).collect();
         let out = resample(&src, 44_100, 44_100).expect("ok");
         assert!(!out.is_empty());
@@ -575,9 +542,7 @@ mod audio_error_tests {
 
     #[test]
     fn stereo_decoded_struct_field_layout_pin() {
-        // StereoDecoded is a public type; pin its field
-        // layout so a future refactor doesn't accidentally
-        // rename or reorder fields without a test failure.
+        // Pin the public StereoDecoded field layout against silent rename/reorder.
         let s = StereoDecoded {
             left: vec![1.0],
             right: vec![2.0],

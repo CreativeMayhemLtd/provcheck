@@ -1,0 +1,647 @@
+{
+  "headerSubtitle": {
+    "message": "Подписывайте и проверяйте C2PA Content Credentials"
+  },
+  "tabVerify": {
+    "message": "Проверить"
+  },
+  "tabWatermark": {
+    "message": "Водяной знак"
+  },
+  "tabDetect": {
+    "message": "Обнаружить"
+  },
+  "tabKeys": {
+    "message": "Ключи"
+  },
+  "tabSign": {
+    "message": "Подписать"
+  },
+  "tabKeyedMarks": {
+    "message": "Метки с ключом"
+  },
+  "btnChooseFile": {
+    "message": "Выбрать файл…"
+  },
+  "btnVerifyAnother": {
+    "message": "Проверить другой"
+  },
+  "btnCopyJson": {
+    "message": "Копировать как JSON"
+  },
+  "btnCheckAnother": {
+    "message": "Проверить другой файл"
+  },
+  "btnReadAnother": {
+    "message": "Прочитать другой"
+  },
+  "btnLogOut": {
+    "message": "Выйти"
+  },
+  "btnConnect": {
+    "message": "Подключить"
+  },
+  "btnCopy": {
+    "message": "Копировать"
+  },
+  "btnRetry": {
+    "message": "Повторить"
+  },
+  "btnSign": {
+    "message": "Подписать"
+  },
+  "btnOK": {
+    "message": "OK"
+  },
+  "btnCancel": {
+    "message": "Отмена"
+  },
+  "btnGotIt": {
+    "message": "Понятно"
+  },
+  "btnHowItWorks": {
+    "message": "Как это работает"
+  },
+  "btnInstallRepair": {
+    "message": "Установить / восстановить"
+  },
+  "btnChooseSecret": {
+    "message": "Выбрать файл секрета"
+  },
+  "btnClose": {
+    "message": "Закрыть"
+  },
+  "badgeExperimental": {
+    "message": "Экспериментально"
+  },
+  "loadingGeneric": {
+    "message": "Загрузка…"
+  },
+  "statusChecking": {
+    "message": "Проверка..."
+  },
+  "statusCheckingStatus": {
+    "message": "Проверка статуса…"
+  },
+  "labelFingerprint": {
+    "message": "Отпечаток"
+  },
+  "labelAlgorithm": {
+    "message": "Алгоритм"
+  },
+  "labelBackend": {
+    "message": "Бэкенд"
+  },
+  "labelCreated": {
+    "message": "Создано"
+  },
+  "labelDID": {
+    "message": "DID"
+  },
+  "labelHandle": {
+    "message": "Имя пользователя"
+  },
+  "labelYubikey": {
+    "message": "Yubikey"
+  },
+  "labelPinTries": {
+    "message": "Попытки PIN"
+  },
+  "labelStatus": {
+    "message": "Статус"
+  },
+  "labelLabel": {
+    "message": "Метка"
+  },
+  "labelBy": {
+    "message": "Автор"
+  },
+  "labelTool": {
+    "message": "Инструмент"
+  },
+  "labelFile": {
+    "message": "Файл"
+  },
+  "labelYourIdentity": {
+    "message": "Ваша личность"
+  },
+  "labelOutput": {
+    "message": "Выход"
+  },
+  "aboutLinks": {
+    "message": "Ссылки"
+  },
+  "identityBskyHandle": {
+    "message": "Имя пользователя Bsky"
+  },
+  "identityRunWatermark": {
+    "message": "Запустить обнаружение водяного знака"
+  },
+  "identityRequireAttested": {
+    "message": "Требовать подтверждения"
+  },
+  "identityHandlePh": {
+    "message": "необязательно · напр. creator.bsky.social или did:plc:…"
+  },
+  "dropzoneTitle": {
+    "message": "Перетащите сюда любой файл для проверки"
+  },
+  "dropzoneSub": {
+    "message": "Аудио · Изображение · Видео: всё, что содержит C2PA Content Credentials."
+  },
+  "verifyDropHint": {
+    "message": "Или запустите без ничего, и это останется на месте. Конфиденциальность: файлы никогда не покидают ваш компьютер."
+  },
+  "verifyLoading": {
+    "message": "Проверка…"
+  },
+  "verifyLoadingHint": {
+    "message": "Обнаружение водяного знака сильно нагружает процессор для аудио и видео и может занять несколько минут. Снимите флажок «Запустить обнаружение водяного знака» для мгновенной проверки только C2PA."
+  },
+  "showRawManifest": {
+    "message": "Показать необработанные детали манифеста"
+  },
+  "claimsHeading": {
+    "message": "Утверждения"
+  },
+  "wmModelsNeeded": {
+    "message": "Для обнаружения водяного знака нужны модели."
+  },
+  "wmInstallAll": {
+    "message": "Установить все модели"
+  },
+  "wmScanFor": {
+    "message": "Искать:"
+  },
+  "wmDropTitle": {
+    "message": "Перетащите сюда любой файл, чтобы запустить обнаружение водяного знака"
+  },
+  "wmDropHint": {
+    "message": "Конфиденциальность: файлы никогда не покидают ваш компьютер. Каждый детектор сам определяет, применим ли он к данному типу файла."
+  },
+  "wmLoading": {
+    "message": "Запуск детекторов водяного знака…"
+  },
+  "wmLoadingHint": {
+    "message": "Инференс модели сильно нагружает процессор для аудио и видео; сканирование может занять несколько минут. Работа продолжается, пока крутится индикатор."
+  },
+  "wmResultTitle": {
+    "message": "Обнаружение водяного знака"
+  },
+  "detectTitle": {
+    "message": "Обнаружение контента ИИ: подключите собственный детектор"
+  },
+  "detectRouteAHead": {
+    "message": "Путь A: платный пакет DLC (v1.x, запланировано)"
+  },
+  "detectRouteBHead": {
+    "message": "Путь B: обёртка, предоставленная оператором (доступно сейчас)"
+  },
+  "keysLocalIdentity": {
+    "message": "Локальная личность"
+  },
+  "keysNoIdentity": {
+    "message": "На этом компьютере нет личности."
+  },
+  "keysMismatchTitle": {
+    "message": "Несоответствие состояния личности"
+  },
+  "keysRotateBtn": {
+    "message": "Создать новый и опубликовать"
+  },
+  "keysRotateTitle": {
+    "message": "Создайте новый ключ подписи и опубликуйте его как новую активную запись"
+  },
+  "keysSwitchYubikey": {
+    "message": "Переключиться на личность Yubikey…"
+  },
+  "keysSwitchYubikeyTitle": {
+    "message": "Замените текущую личность на личность на основе Yubikey"
+  },
+  "keysPublishedRecords": {
+    "message": "Опубликованные записи (atproto)"
+  },
+  "keysRecordsEmptyHint": {
+    "message": "Войдите на вкладке Подписать и опубликуйте свой локальный отпечаток."
+  },
+  "keysNotLoggedIn": {
+    "message": "Вы не вошли в atproto."
+  },
+  "keysNoSessionHint": {
+    "message": "Войдите на вкладке Подписать, чтобы получить свои опубликованные записи."
+  },
+  "signIdentityLabel": {
+    "message": "Личность:"
+  },
+  "signNotSetUp": {
+    "message": "не настроено"
+  },
+  "signSessionLabel": {
+    "message": "Сессия:"
+  },
+  "signDisconnected": {
+    "message": "отключено"
+  },
+  "signSetupTitle": {
+    "message": "Настройте свою личность для подписи"
+  },
+  "signSetupBody": {
+    "message": "Это создаёт криптографический ключ на этом компьютере и сохраняет его в связке ключей OS. Вам нужно будет сделать это только один раз."
+  },
+  "signGenerateKey": {
+    "message": "Создать ключ подписи"
+  },
+  "signSetupHint": {
+    "message": "Ключ никогда не покидает ваш компьютер. Запросы на доступ обрабатывает ваша OS."
+  },
+  "signConnectTitle": {
+    "message": "Подключите свою личность bsky"
+  },
+  "signConnectBody": {
+    "message": "Привяжите свой ключ подписи к своему имени пользователя atproto, чтобы проверяющие знали, что он ваш."
+  },
+  "signHandlePh": {
+    "message": "creator.bsky.social"
+  },
+  "signAppPassword": {
+    "message": "Пароль приложения"
+  },
+  "signRememberDevice": {
+    "message": "Запомнить меня на этом устройстве"
+  },
+  "signPublishTitle": {
+    "message": "Опубликуйте свой ключ подписи"
+  },
+  "signPublishBody": {
+    "message": "Последний шаг: публикация отпечатка вашего ключа в atproto позволяет проверяющим убедиться, что вы подписали свою работу. Без этого они видят только «действительная подпись неизвестного автора»."
+  },
+  "signLabelOptional": {
+    "message": "Метка (необязательно)"
+  },
+  "signLabelPh": {
+    "message": "напр. студийный mac"
+  },
+  "signPublishKey": {
+    "message": "Опубликовать ключ"
+  },
+  "signStaleTitle": {
+    "message": "Ваш ключ подписи устарел"
+  },
+  "signRecoverHeading": {
+    "message": "Восстановить из терминала:"
+  },
+  "signStaleHint": {
+    "message": "Это создаёт новый ключ, публикует его как новую активную запись и (при необходимости) отзывает осиротевшую запись, чтобы никто не мог подписывать от вашего имени утраченным ключом."
+  },
+  "signDropTitle": {
+    "message": "Перетащите сюда файл для подписи"
+  },
+  "signDropSub": {
+    "message": "Аудио · Изображение · Видео: всё, что поддерживает c2pa-rs."
+  },
+  "signReadyToSign": {
+    "message": "Готово к подписи"
+  },
+  "signChainTitle": {
+    "message": "Этот файл уже подписан."
+  },
+  "signChainSub": {
+    "message": "Ваша подпись присоединится к цепочке как производная; исходная подпись остаётся нетронутой."
+  },
+  "signRelationshipQ": {
+    "message": "Какое у вас отношение к этому файлу?"
+  },
+  "signEmbedIdentity": {
+    "message": "Встроить утверждение о личности (рекомендуется; позволяет проверяющим пропустить шаг ввода имени пользователя)"
+  },
+  "signModelPh": {
+    "message": "напр. ACE-Step v1.0"
+  },
+  "signReplaceOriginal": {
+    "message": "Заменить оригинал (вместо создания сопроводительного файла)"
+  },
+  "signPickDifferent": {
+    "message": "Выбрать другой файл"
+  },
+  "signSigning": {
+    "message": "Подписание…"
+  },
+  "signSigned": {
+    "message": "Подписано"
+  },
+  "signAnother": {
+    "message": "Подписать другой"
+  },
+  "signVerifyIt": {
+    "message": "Проверить это"
+  },
+  "signErrorTitle": {
+    "message": "Не удалось загрузить статус подписи"
+  },
+  "bfBackfireTitle": {
+    "message": "Прочитать метку Backfire с ключом"
+  },
+  "bfBackfireSub": {
+    "message": "Проверьте водяной знак отдельного изображения, который средства удаления происхождения ИИ усиливают вместо удаления."
+  },
+  "bfReaderLabel": {
+    "message": "Считыватель Backfire"
+  },
+  "bfDropTitle": {
+    "message": "Перетащите сюда изображение или выберите его, чтобы прочитать его метку"
+  },
+  "bfChooseRead": {
+    "message": "Выбрать изображение и прочитать"
+  },
+  "bfHint": {
+    "message": "Сначала введите свой ключ выше, затем перетащите или выберите изображение. Чтение происходит автоматически и остаётся на вашем компьютере."
+  },
+  "bfLoading": {
+    "message": "Чтение метки Backfire…"
+  },
+  "mlTitle": {
+    "message": "Прочитать серийный номер Mellin с ключом"
+  },
+  "mlSub": {
+    "message": "Аудио криминалистика с ключом: восстановите 64-битный серийный номер для конкретной копии, встроенный отдельным инструментом provcheck-mellin по лицензии BUSL (бесплатно для некоммерческого использования, отдельно от provcheck). Требуется файл секрета продавца и идентификатор работы; всё остаётся на вашем компьютере."
+  },
+  "mlReaderLabel": {
+    "message": "Считыватель Mellin"
+  },
+  "mlSecretNone": {
+    "message": "не выбрано. Секрет никогда не сохраняется, поэтому выбирайте его заново после каждого запуска."
+  },
+  "mlWorkidPh": {
+    "message": "идентификатор работы, использованный при встраивании"
+  },
+  "mlDropTitle": {
+    "message": "Выберите аудиофайл, чтобы прочитать его серийный номер"
+  },
+  "mlChooseRead": {
+    "message": "Выбрать аудио и прочитать"
+  },
+  "mlHint": {
+    "message": "Сначала выберите файл секрета и введите идентификатор работы, затем выберите аудио или перетащите его в любое место этой вкладки. Работает любой формат (WAV, MP3, AAC, FLAC); аудиофайлы читаются здесь, изображения читает метка Backfire выше."
+  },
+  "mlLoading": {
+    "message": "Чтение серийного номера Mellin…"
+  },
+  "imTitle": {
+    "message": "Прочитать метку идентичности idmark с ключом"
+  },
+  "imSub": {
+    "message": "Идентичность изображения с ключом: прочитайте устойчивую к обрезке, перекодированию и повороту метку для конкретной копии, встроенную отдельным инструментом provcheck-idmark по лицензии BUSL (бесплатно для некоммерческого использования, отдельно от provcheck). Без секрета проверяется встроенная метка; добавьте файл секрета и место, чтобы атрибутировать копию. Всё остаётся на вашем компьютере."
+  },
+  "imReaderLabel": {
+    "message": "Считыватель idmark"
+  },
+  "imSecretNone": {
+    "message": "не выбрано. Оставьте пустым, чтобы прочитать встроенную метку; секрет никогда не сохраняется."
+  },
+  "imDropTitle": {
+    "message": "Выберите изображение, чтобы прочитать его метку"
+  },
+  "imChooseRead": {
+    "message": "Выбрать изображение и прочитать"
+  },
+  "imHint": {
+    "message": "При желании сначала выберите файл секрета и место, затем выберите изображение. PNG или JPEG. Это читает метку идентичности idmark; метка Backfire и серийные номера Mellin читаются в разделах выше."
+  },
+  "imLoading": {
+    "message": "Чтение idmark…"
+  },
+  "bfModalTitle": {
+    "message": "Как работает Backfire"
+  },
+  "vVerified": {
+    "message": "Проверено"
+  },
+  "vUnsigned": {
+    "message": "Не подписано"
+  },
+  "vNotVerified": {
+    "message": "Не проверено"
+  },
+  "attAttestedBy": {
+    "message": "Подтверждено $1"
+  },
+  "attMatchSub": {
+    "message": "Сертификат подписи соответствует ключу, опубликованному под этой личностью."
+  },
+  "attMismatch": {
+    "message": "Несоответствие подтверждения для $1"
+  },
+  "attMismatchSub": {
+    "message": "Сертификат подписи не соответствует ни одному ключу, опубликованному под этой личностью."
+  },
+  "attNotPublished": {
+    "message": "Нет ключей, опубликованных под $1"
+  },
+  "attNotPublishedSub": {
+    "message": "Эта личность существует, но не опубликовала ни одной записи signingKey."
+  },
+  "attResolveFailed": {
+    "message": "Не удалось определить $1"
+  },
+  "attResolveFailedSub": {
+    "message": "Определение личности не удалось (имя пользователя/DID недоступны)."
+  },
+  "attThisIdentity": {
+    "message": "этой личности"
+  },
+  "kvSigner": {
+    "message": "Подписант"
+  },
+  "kvSignedAt": {
+    "message": "Подписано в"
+  },
+  "kvFormat": {
+    "message": "Формат"
+  },
+  "kvManifest": {
+    "message": "Манифест"
+  },
+  "kvIngredients": {
+    "message": "Составляющие"
+  },
+  "kvIngredientsVal": {
+    "message": "$1 (производный контент: этот файл создан путём редактирования ранее подписанных файлов)"
+  },
+  "kvValidationErrors": {
+    "message": "Ошибки проверки"
+  },
+  "wmEmpty": {
+    "message": "Запущенные семейства детекторов не обнаружили водяных знаков."
+  },
+  "wmKeyedNote": {
+    "message": "Метки с ключом (Backfire, Mellin) не входят в это сканирование. Их можно прочитать только с помощью вашего ключа на вкладке Метки с ключом."
+  },
+  "wmConfidence": {
+    "message": "уверенность $1%"
+  },
+  "wmDegraded": {
+    "message": "уверенность $1%; метка деградировала (вероятно частичное повреждение)"
+  },
+  "wmNa": {
+    "message": "$1: н/д"
+  },
+  "wmNoMark": {
+    "message": "$1: метка не обнаружена"
+  },
+  "wmTimelineAria": {
+    "message": "Наличие водяного знака во времени: $1"
+  },
+  "wmUnrecognizedSource": {
+    "message": "нераспознанный источник"
+  },
+  "btnCopied": {
+    "message": "Скопировано"
+  },
+  "scanError": {
+    "message": "Не удалось просканировать этот файл: $1"
+  },
+  "autoFilled": {
+    "message": "автоматически заполнено из файла"
+  },
+  "dragFileOnto": {
+    "message": "Перетащите файл в окно"
+  },
+  "aiGenerated": {
+    "message": "Сгенерировано ИИ"
+  },
+  "btnCopiedBang": {
+    "message": "Скопировано!"
+  },
+  "bfCouldNotRun": {
+    "message": "Не удалось запустить Backfire"
+  },
+  "btnInstalling": {
+    "message": "Установка…"
+  },
+  "downloadingModels": {
+    "message": "Загрузка моделей, это может занять минуту…"
+  },
+  "btnWorking": {
+    "message": "Выполняется…"
+  },
+  "bfInstalling": {
+    "message": "Установка / восстановление считывателя Backfire…"
+  },
+  "statusCheckFailed": {
+    "message": "Проверка статуса не удалась: $1"
+  },
+  "readingFile": {
+    "message": "Чтение $1…"
+  },
+  "mlCouldNotRun": {
+    "message": "Не удалось запустить Mellin"
+  },
+  "imCouldNotRun": {
+    "message": "Не удалось запустить idmark"
+  },
+  "keysMismSuperseded": {
+    "message": "Ваш локальный ключ заменён"
+  },
+  "keysMismRevoked": {
+    "message": "Ваш локальный ключ отозван"
+  },
+  "keysMismActiveNoKey": {
+    "message": "Активная запись использует ключ, которого у вас нет"
+  },
+  "thisBox": {
+    "message": "(этот компьютер)"
+  },
+  "btnRevoke": {
+    "message": "Отозвать"
+  },
+  "checkingPublishedKeys": {
+    "message": "Проверка опубликованных ключей…"
+  },
+  "btnGenerating": {
+    "message": "Генерация…"
+  },
+  "btnConnecting": {
+    "message": "Подключение…"
+  },
+  "btnPublishing": {
+    "message": "Публикация…"
+  },
+  "signReadyToPublish": {
+    "message": "Готово к публикации"
+  },
+  "bfMarkFound": {
+    "message": "Найдена метка Backfire"
+  },
+  "bfNoValidMark": {
+    "message": "Нет действительной метки Backfire"
+  },
+  "mlSerialRecovered": {
+    "message": "Серийный номер Mellin восстановлен"
+  },
+  "mlNoFullSerial": {
+    "message": "Нет полного серийного номера Mellin"
+  },
+  "imPresent": {
+    "message": "idmark присутствует"
+  },
+  "imNoDetected": {
+    "message": "idmark не обнаружен"
+  },
+  "fieldIdentifier": {
+    "message": "Идентификатор"
+  },
+  "fieldConfidenceMargin": {
+    "message": "Уверенность (мин-бит запас)"
+  },
+  "fieldValid": {
+    "message": "Действителен"
+  },
+  "fieldMatchesSerial": {
+    "message": "Соответствует ожидаемому серийному номеру"
+  },
+  "fieldTamperTripwire": {
+    "message": "Триггер вмешательства"
+  },
+  "fieldSerial": {
+    "message": "Серийный номер"
+  },
+  "fieldBitsRecovered": {
+    "message": "Восстановленные биты"
+  },
+  "fieldErasureRate": {
+    "message": "Коэффициент потерь"
+  },
+  "fieldMinBitVotes": {
+    "message": "Мин. голосов на бит"
+  },
+  "fieldMarkPresent": {
+    "message": "Метка присутствует"
+  },
+  "fieldSeat": {
+    "message": "Место"
+  },
+  "fieldMargin": {
+    "message": "Запас"
+  },
+  "fieldReadVia": {
+    "message": "Прочитано через"
+  },
+  "fieldEstRotation": {
+    "message": "Прибл. поворот"
+  },
+  "fieldError": {
+    "message": "Ошибка"
+  },
+  "valYes": {
+    "message": "да"
+  },
+  "valNo": {
+    "message": "нет"
+  },
+  "bfTamperDetected": {
+    "message": "обнаружено вмешательство в вырез (статистика $1)"
+  },
+  "bfTamperClean": {
+    "message": "чисто (статистика $1)"
+  }
+}

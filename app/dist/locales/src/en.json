@@ -1,0 +1,653 @@
+{
+  "headerSubtitle": {
+    "message": "Sign & verify C2PA Content Credentials"
+  },
+  "tabVerify": {
+    "message": "Verify"
+  },
+  "tabWatermark": {
+    "message": "Watermark"
+  },
+  "tabDetect": {
+    "message": "Detect"
+  },
+  "tabKeys": {
+    "message": "Keys"
+  },
+  "tabSign": {
+    "message": "Sign"
+  },
+  "tabKeyedMarks": {
+    "message": "Keyed marks"
+  },
+  "btnChooseFile": {
+    "message": "Choose file…"
+  },
+  "btnVerifyAnother": {
+    "message": "Verify another"
+  },
+  "btnCopyJson": {
+    "message": "Copy as JSON"
+  },
+  "btnCheckAnother": {
+    "message": "Check another file"
+  },
+  "btnReadAnother": {
+    "message": "Read another"
+  },
+  "btnLogOut": {
+    "message": "Log out"
+  },
+  "btnConnect": {
+    "message": "Connect"
+  },
+  "btnCopy": {
+    "message": "Copy"
+  },
+  "btnRetry": {
+    "message": "Retry"
+  },
+  "btnSign": {
+    "message": "Sign"
+  },
+  "btnOK": {
+    "message": "OK"
+  },
+  "btnCancel": {
+    "message": "Cancel"
+  },
+  "btnGotIt": {
+    "message": "Got it"
+  },
+  "btnHowItWorks": {
+    "message": "How it works"
+  },
+  "btnInstallRepair": {
+    "message": "Install / Repair"
+  },
+  "btnChooseSecret": {
+    "message": "Choose secret file"
+  },
+  "btnClose": {
+    "message": "Close"
+  },
+  "badgeExperimental": {
+    "message": "Experimental"
+  },
+  "loadingGeneric": {
+    "message": "Loading…"
+  },
+  "statusChecking": {
+    "message": "Checking..."
+  },
+  "statusCheckingStatus": {
+    "message": "Checking status…"
+  },
+  "labelFingerprint": {
+    "message": "Fingerprint"
+  },
+  "labelAlgorithm": {
+    "message": "Algorithm"
+  },
+  "labelBackend": {
+    "message": "Backend"
+  },
+  "labelCreated": {
+    "message": "Created"
+  },
+  "labelDID": {
+    "message": "DID"
+  },
+  "labelHandle": {
+    "message": "Handle"
+  },
+  "labelYubikey": {
+    "message": "Yubikey"
+  },
+  "labelPinTries": {
+    "message": "PIN tries"
+  },
+  "labelStatus": {
+    "message": "Status"
+  },
+  "labelLabel": {
+    "message": "Label"
+  },
+  "labelBy": {
+    "message": "By"
+  },
+  "labelTool": {
+    "message": "Tool"
+  },
+  "labelFile": {
+    "message": "File"
+  },
+  "labelYourIdentity": {
+    "message": "Your identity"
+  },
+  "labelOutput": {
+    "message": "Output"
+  },
+  "aboutLinks": {
+    "message": "Links"
+  },
+  "identityBskyHandle": {
+    "message": "Bsky handle"
+  },
+  "identityRunWatermark": {
+    "message": "Run watermark detection"
+  },
+  "identityRequireAttested": {
+    "message": "Require attested"
+  },
+  "identityHandlePh": {
+    "message": "optional · e.g. creator.bsky.social or did:plc:…"
+  },
+  "dropzoneTitle": {
+    "message": "Drop any file here to verify"
+  },
+  "dropzoneSub": {
+    "message": "Audio · Image · Video: anything that carries C2PA Content Credentials."
+  },
+  "verifyDropHint": {
+    "message": "Or run with nothing and this stays put. Private: files never leave your machine."
+  },
+  "verifyLoading": {
+    "message": "Verifying…"
+  },
+  "verifyLoadingHint": {
+    "message": "Watermark detection is CPU-heavy on audio and video and can take a few minutes. Uncheck \"Run watermark detection\" for an instant C2PA-only verify."
+  },
+  "showRawManifest": {
+    "message": "Show raw manifest details"
+  },
+  "claimsHeading": {
+    "message": "Claims"
+  },
+  "wmModelsNeeded": {
+    "message": "Watermark detection needs models."
+  },
+  "wmInstallAll": {
+    "message": "Install all models"
+  },
+  "wmScanFor": {
+    "message": "Scan for:"
+  },
+  "wmDropTitle": {
+    "message": "Drop any file here to run watermark detection"
+  },
+  "wmDropHint": {
+    "message": "Private: files never leave your machine. Each detector is authoritative about whether it applies to the input file type."
+  },
+  "wmLoading": {
+    "message": "Running watermark detectors…"
+  },
+  "wmLoadingHint": {
+    "message": "Model inference is CPU-heavy on audio and video; a scan can take a few minutes. Still working while this spins."
+  },
+  "wmResultTitle": {
+    "message": "Watermark detection"
+  },
+  "detectTitle": {
+    "message": "AI-content detection: bring your own detector"
+  },
+  "detectRouteAHead": {
+    "message": "Route A: paid DLC pack (v1.x, planned)"
+  },
+  "detectRouteBHead": {
+    "message": "Route B: operator-supplied wrapper (available now)"
+  },
+  "keysLocalIdentity": {
+    "message": "Local identity"
+  },
+  "keysNoIdentity": {
+    "message": "No identity on this machine."
+  },
+  "keysMismatchTitle": {
+    "message": "Identity state mismatch"
+  },
+  "keysRotateBtn": {
+    "message": "Mint fresh + publish"
+  },
+  "keysRotateTitle": {
+    "message": "Mint a fresh signing key and publish it as the new active record"
+  },
+  "keysSwitchYubikey": {
+    "message": "Switch to Yubikey identity…"
+  },
+  "keysSwitchYubikeyTitle": {
+    "message": "Replace the current identity with a Yubikey-backed one"
+  },
+  "keysPublishedRecords": {
+    "message": "Published records (atproto)"
+  },
+  "keysRecordsEmptyHint": {
+    "message": "Log in on the Sign tab + publish your local fingerprint."
+  },
+  "keysNotLoggedIn": {
+    "message": "Not logged in to atproto."
+  },
+  "keysNoSessionHint": {
+    "message": "Log in on the Sign tab to fetch your published records."
+  },
+  "signIdentityLabel": {
+    "message": "Identity:"
+  },
+  "signNotSetUp": {
+    "message": "not set up"
+  },
+  "signSessionLabel": {
+    "message": "Session:"
+  },
+  "signDisconnected": {
+    "message": "disconnected"
+  },
+  "signSetupTitle": {
+    "message": "Set up your signing identity"
+  },
+  "signSetupBody": {
+    "message": "This generates a cryptographic key on this machine and stores it in your OS keychain. You'll only need to do this once."
+  },
+  "signGenerateKey": {
+    "message": "Generate signing key"
+  },
+  "signSetupHint": {
+    "message": "The key never leaves your machine. Your OS handles access prompts."
+  },
+  "signConnectTitle": {
+    "message": "Connect your bsky identity"
+  },
+  "signConnectBody": {
+    "message": "Attach your signing key to your atproto handle so verifiers know it's yours."
+  },
+  "signHandlePh": {
+    "message": "creator.bsky.social"
+  },
+  "signAppPassword": {
+    "message": "App password"
+  },
+  "signRememberDevice": {
+    "message": "Remember me on this device"
+  },
+  "signPublishTitle": {
+    "message": "Publish your signing key"
+  },
+  "signPublishBody": {
+    "message": "One last step: publishing your key's fingerprint to atproto lets verifiers cross-check that you signed your work. Without this they only see \"valid signature by unknown.\""
+  },
+  "signLabelOptional": {
+    "message": "Label (optional)"
+  },
+  "signLabelPh": {
+    "message": "e.g. studio mac"
+  },
+  "signPublishKey": {
+    "message": "Publish key"
+  },
+  "signStaleTitle": {
+    "message": "Your signing key is out of date"
+  },
+  "signRecoverHeading": {
+    "message": "Recover from a terminal:"
+  },
+  "signStaleHint": {
+    "message": "This mints a fresh key, publishes it as the new active record, and (when needed) revokes the orphan record so no one can sign in your name with the lost key."
+  },
+  "signDropTitle": {
+    "message": "Drop a file here to sign"
+  },
+  "signDropSub": {
+    "message": "Audio · Image · Video: anything c2pa-rs supports."
+  },
+  "signReadyToSign": {
+    "message": "Ready to sign"
+  },
+  "signChainTitle": {
+    "message": "This file is already signed."
+  },
+  "signChainSub": {
+    "message": "Your signature will join the chain as a derivative; the original signature stays intact."
+  },
+  "signRelationshipQ": {
+    "message": "What's your relationship to this file?"
+  },
+  "signEmbedIdentity": {
+    "message": "Embed identity assertion (recommended; lets verifiers skip the handle entry step)"
+  },
+  "signModelPh": {
+    "message": "e.g. ACE-Step v1.0"
+  },
+  "signReplaceOriginal": {
+    "message": "Replace the original (instead of writing a sidecar)"
+  },
+  "signPickDifferent": {
+    "message": "Pick a different file"
+  },
+  "signSigning": {
+    "message": "Signing…"
+  },
+  "signSigned": {
+    "message": "Signed"
+  },
+  "signAnother": {
+    "message": "Sign another"
+  },
+  "signVerifyIt": {
+    "message": "Verify it"
+  },
+  "signErrorTitle": {
+    "message": "Could not load your signing status"
+  },
+  "bfBackfireTitle": {
+    "message": "Read a keyed Backfire mark"
+  },
+  "bfBackfireSub": {
+    "message": "Verify a per-image watermark that AI provenance strippers amplify instead of remove."
+  },
+  "bfReaderLabel": {
+    "message": "Backfire reader"
+  },
+  "bfReadFreeEmbedDlc": {
+    "message": "Reading keyed marks here is free. Creating them (embedding a keyed Backfire, Mellin, or idmark mark with our codecs) is a paid, commercial capability in the DLC, not part of this free app. Commercial licensing: licensing@creativemayhem.com."
+  },
+  "bfDropTitle": {
+    "message": "Drop an image here, or choose one, to read its mark"
+  },
+  "bfChooseRead": {
+    "message": "Choose image & read"
+  },
+  "bfHint": {
+    "message": "Enter your key above first, then drop or choose an image. It reads automatically, and stays on your machine."
+  },
+  "bfLoading": {
+    "message": "Reading Backfire mark…"
+  },
+  "mlTitle": {
+    "message": "Read a keyed Mellin serial"
+  },
+  "mlSub": {
+    "message": "Audio-side keyed forensics: recover the 64-bit per-copy serial you embedded with the standalone, BUSL-licensed provcheck-mellin tool (free for non-commercial use, separate from provcheck). Needs your seller secret file and work id; everything stays on your machine."
+  },
+  "mlReaderLabel": {
+    "message": "Mellin reader"
+  },
+  "mlSecretNone": {
+    "message": "none chosen. The secret is never stored, so pick it again after every launch."
+  },
+  "mlWorkidPh": {
+    "message": "the work id used at embed"
+  },
+  "mlDropTitle": {
+    "message": "Choose an audio file to read its serial"
+  },
+  "mlChooseRead": {
+    "message": "Choose audio & read"
+  },
+  "mlHint": {
+    "message": "Pick your secret file and enter the work id first, then choose the audio or drop it anywhere on this tab. Any format works (WAV, MP3, AAC, FLAC); audio files read here, images read the Backfire mark above."
+  },
+  "mlLoading": {
+    "message": "Reading Mellin serial…"
+  },
+  "imTitle": {
+    "message": "Read a keyed idmark identity mark"
+  },
+  "imSub": {
+    "message": "Image-side keyed identity: read the crop, transcode, and rotation-tolerant per-copy mark embedded with the standalone, BUSL-licensed provcheck-idmark tool (free for non-commercial use, separate from provcheck). With no secret it checks the built-in mark; add your secret file and a seat to attribute a copy. Everything stays on your machine."
+  },
+  "imReaderLabel": {
+    "message": "idmark reader"
+  },
+  "imSecretNone": {
+    "message": "none chosen. Leave empty to read the built-in mark; the secret is never stored."
+  },
+  "imDropTitle": {
+    "message": "Choose an image to read its mark"
+  },
+  "imChooseRead": {
+    "message": "Choose image & read"
+  },
+  "imHint": {
+    "message": "Optionally pick your secret file and a seat first, then choose the image. PNG or JPEG. This reads the idmark identity mark; the Backfire mark and Mellin serials are read in the sections above."
+  },
+  "imLoading": {
+    "message": "Reading idmark…"
+  },
+  "bfModalTitle": {
+    "message": "How Backfire works"
+  },
+  "vVerified": {
+    "message": "Verified"
+  },
+  "vUnsigned": {
+    "message": "Unsigned"
+  },
+  "vNotVerified": {
+    "message": "Not verified"
+  },
+  "attAttestedBy": {
+    "message": "Attested by $1"
+  },
+  "attMatchSub": {
+    "message": "Signing certificate matches a key published under this identity."
+  },
+  "attMismatch": {
+    "message": "Attestation mismatch for $1"
+  },
+  "attMismatchSub": {
+    "message": "Signing certificate does not match any key published under this identity."
+  },
+  "attNotPublished": {
+    "message": "No keys published under $1"
+  },
+  "attNotPublishedSub": {
+    "message": "This identity exists but has not published any signingKey records."
+  },
+  "attResolveFailed": {
+    "message": "Could not resolve $1"
+  },
+  "attResolveFailedSub": {
+    "message": "Identity resolution failed (handle/DID unreachable)."
+  },
+  "attThisIdentity": {
+    "message": "this identity"
+  },
+  "kvSigner": {
+    "message": "Signer"
+  },
+  "kvSignedAt": {
+    "message": "Signed at"
+  },
+  "kvFormat": {
+    "message": "Format"
+  },
+  "kvManifest": {
+    "message": "Manifest"
+  },
+  "kvIngredients": {
+    "message": "Ingredients"
+  },
+  "kvIngredientsVal": {
+    "message": "$1 (derived content — this file was made by editing earlier signed files)"
+  },
+  "kvValidationErrors": {
+    "message": "Validation errors"
+  },
+  "wmEmpty": {
+    "message": "No watermarks detected by the detector families that ran."
+  },
+  "wmKeyedNote": {
+    "message": "Keyed marks (Backfire, Mellin) are not part of this scan. They can only be read with your key, on the Keyed marks tab."
+  },
+  "wmConfidence": {
+    "message": "$1% confidence"
+  },
+  "wmDegraded": {
+    "message": "$1% confidence; mark is degraded (partial corruption likely)"
+  },
+  "wmNa": {
+    "message": "$1: n/a"
+  },
+  "wmNoMark": {
+    "message": "$1: no mark detected"
+  },
+  "wmTimelineAria": {
+    "message": "Watermark presence over time: $1"
+  },
+  "wmUnrecognizedSource": {
+    "message": "unrecognized source"
+  },
+  "btnCopied": {
+    "message": "Copied"
+  },
+  "scanError": {
+    "message": "Could not scan this file: $1"
+  },
+  "autoFilled": {
+    "message": "auto-filled from file"
+  },
+  "dragFileOnto": {
+    "message": "Drag the file onto the window"
+  },
+  "aiGenerated": {
+    "message": "AI-generated"
+  },
+  "btnCopiedBang": {
+    "message": "Copied!"
+  },
+  "bfCouldNotRun": {
+    "message": "Backfire could not run"
+  },
+  "btnInstalling": {
+    "message": "Installing…"
+  },
+  "downloadingModels": {
+    "message": "Downloading models, this can take a minute…"
+  },
+  "btnWorking": {
+    "message": "Working…"
+  },
+  "bfInstalling": {
+    "message": "Installing / repairing the Backfire reader…"
+  },
+  "statusCheckFailed": {
+    "message": "Status check failed: $1"
+  },
+  "readingFile": {
+    "message": "Reading $1…"
+  },
+  "mlCouldNotRun": {
+    "message": "Mellin could not run"
+  },
+  "imCouldNotRun": {
+    "message": "idmark could not run"
+  },
+  "keysMismSuperseded": {
+    "message": "Your local key is superseded"
+  },
+  "keysMismRevoked": {
+    "message": "Your local key is revoked"
+  },
+  "keysMismActiveNoKey": {
+    "message": "Active record uses a key you don't have"
+  },
+  "thisBox": {
+    "message": "(this box)"
+  },
+  "btnRevoke": {
+    "message": "Revoke"
+  },
+  "checkingPublishedKeys": {
+    "message": "Checking published keys…"
+  },
+  "btnGenerating": {
+    "message": "Generating…"
+  },
+  "btnConnecting": {
+    "message": "Connecting…"
+  },
+  "btnPublishing": {
+    "message": "Publishing…"
+  },
+  "signReadyToPublish": {
+    "message": "Ready to publish"
+  },
+  "bfMarkFound": {
+    "message": "Backfire mark found"
+  },
+  "bfNoValidMark": {
+    "message": "No valid Backfire mark"
+  },
+  "mlSerialRecovered": {
+    "message": "Mellin serial recovered"
+  },
+  "mlNoFullSerial": {
+    "message": "No full Mellin serial"
+  },
+  "imPresent": {
+    "message": "idmark present"
+  },
+  "imNoDetected": {
+    "message": "No idmark detected"
+  },
+  "fieldIdentifier": {
+    "message": "Identifier"
+  },
+  "fieldConfidenceMargin": {
+    "message": "Confidence (min-bit margin)"
+  },
+  "fieldValid": {
+    "message": "Valid"
+  },
+  "fieldMatchesSerial": {
+    "message": "Matches expected serial"
+  },
+  "fieldTamperTripwire": {
+    "message": "Tamper tripwire"
+  },
+  "fieldSerial": {
+    "message": "Serial"
+  },
+  "fieldBitsRecovered": {
+    "message": "Bits recovered"
+  },
+  "fieldErasureRate": {
+    "message": "Erasure rate"
+  },
+  "fieldMinBitVotes": {
+    "message": "Min bit votes"
+  },
+  "fieldMarkPresent": {
+    "message": "Mark present"
+  },
+  "fieldSeat": {
+    "message": "Seat"
+  },
+  "fieldMargin": {
+    "message": "Margin"
+  },
+  "fieldReadVia": {
+    "message": "Read via"
+  },
+  "fieldEstRotation": {
+    "message": "Est. rotation"
+  },
+  "fieldError": {
+    "message": "Error"
+  },
+  "valYes": {
+    "message": "yes"
+  },
+  "valNo": {
+    "message": "no"
+  },
+  "bfTamperDetected": {
+    "message": "notch tamper detected (stat $1)"
+  },
+  "bfTamperClean": {
+    "message": "clean (stat $1)"
+  },
+  "tamperTitle": {
+    "message": "Tamper evidence"
+  }
+}

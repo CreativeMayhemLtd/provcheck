@@ -29,7 +29,7 @@ you run `publish` or `verify`.
 
 ## Status
 
-**v1.4.0 shipped 2026-08-31.** This is the current release. provcheck is a
+**v1.5.0 shipped 2026-10-12.** This is the current release. provcheck is a
 feature-complete, Apache-2.0 provenance verifier and creator kit, with two
 opt-in keyed forensic watermark add-ons under a separate source-available
 license.
@@ -152,9 +152,9 @@ Install pinned to a release tag, straight from this repo:
 
 ```bash
 cargo install --locked --git https://github.com/CreativeMayhemLtd/provcheck \
-    --tag v1.4.0 provcheck-cli              # verifier
+    --tag v1.5.0 provcheck-cli              # verifier
 cargo install --locked --git https://github.com/CreativeMayhemLtd/provcheck \
-    --tag v1.4.0 provcheck-kit              # signing kit
+    --tag v1.5.0 provcheck-kit              # signing kit
 ```
 
 `--locked` enforces the upstream `Cargo.lock` for reproducible builds.
@@ -585,7 +585,7 @@ provcheck fills those gaps. It:
 
 | Version | Date | Highlights |
 |---|---|---|
-| **v1.4.1** | 2026-09-07 | Adds the free, Apache-2.0 **Provcheck AI Blur** browser extension (Chrome, Edge, Brave, and Firefox): blur or hide images and videos on any page by C2PA provenance, an AI-provenance marker, YouTube's own AI self-disclosure, or a keyword, with an "AI Generated Content Detected" banner on what it blurs and a right-click "Inspect C2PA provenance" panel. Byte-scan presence detection, local only, no telemetry. Source-only addition under `browser-extension/`; no verifier, kit, GUI, or wire-format changes, and the binaries remain the v1.4.0 build. |
+| **v1.5.0** | 2026-10-12 | Capability release across the Apache-2.0 verifier and the opt-in keyed marks. The verifier gains a unified multi-format reader with one consistent verdict shape, a C2PA tamper-evidence flag (`provenance_tamper`) with a dedicated GUI badge, a Chrome and Firefox browser extension that surfaces Content Credentials and AI presence on hover with a right-click inspect panel, thirty-language localization across the GUI, CLI, backend, and ComfyUI, and a Detect, Sign-and-Provenance, free-watermark, and Backfire ComfyUI node set. Keyed marks (BUSL-1.1, never bundled into the Apache binary): Backfire adds an opt-in **visible strip-proof seal** (`--level maximum`) built for the one frontier the invisible mark does not reach, controllable regeneration from clean noise. Validated through the shipped reader at its default threshold with 95% Clopper-Pearson intervals: the seal reads back on 98.4% of 1,600 images after CtrlRegen (95% CI [97.6, 98.9]) and 99.9% after a neural-codec strip, at zero false positives over 2,000 unmarked, at a measured and stated visibility cost (SSIM 0.79, LPIPS 0.20) and a disclosed scope limit against a heavy manual diffusion repaint (80.0% at Stable Diffusion strength 0.20, 50.7% at 0.30). The default invisible mark's everyday battery extends to a 1,919-image run at 100% survival across JPEG (quality 90 to 20), WebP, half-size resize, blur, sensor noise, grayscale, a crop with register, and a neural-codec strip, with zero false positives over 2,000 unmarked; the diffusion-amplification and four-model neural-codec proofs stay the 200-image corpus, which that run did not reproduce at scale. The default Backfire embed is now the license-clean neural-codec fixed point, loading no third-party diffusion weights. Also lands: Tardos collusion tracing, idmark input-scale search, and a dual-backend content-bound credential path. |
 | **v1.4.0** | 2026-08-31 | Backfire image mark validated at scale on a 200-image corpus: the keyed serial survives diffusion regeneration 99.5%, neural-codec re-encode 94 to 97.5% (the hardest iterated case holds 86.5%), and benign JPEG 99.0% (q90) and 98.5% (q50), resize 98.0%, and blur 97.0%, with zero false positives over the 200 marked images and a separate 1,000 unmarked. Honest limit unchanged: no survival against controllable regeneration from clean noise. A free, Apache-2.0 **ComfyUI node** also lands: one node to watermark and C2PA-sign a generated image, audio, or video inside the graph, or verify a mark; and the Backfire image embed gains content-adaptive perceptual masking for lower-visibility marks. Docs trimmed to shipped reality; no verifier, kit, or wire-format changes. |
 | **v1.3.0** | 2026-08-28 | Backfire 3.0: the keyed image mark (in `backfire/`, BUSL-1.1, never bundled into the Apache binary) becomes a fixed point of two AI regeneration attacks at once, a diffusion purifier and a learned neural codec, so both removers leave the keyed identifier readable. Validated against the public tool behind the "invisible watermarks are removable" result. The honest limit in `backfire/LIMITS.md`: no survival against controllable regeneration from clean noise. |
 | **v1.2.0** | 2026-08-19 | Launch of Backfire, an imperceptible keyed image watermark that AI diffusion-stripping amplifies instead of removes. Wired as an experimental option (`provcheck --backfire-read` plus a desktop Backfire tab); the `provcheck-mellin` audio channel adopts the same BUSL-1.1 model. The desktop app gains a per-family Watermark scan selector plus a UX-audit polish batch. MSRV rises to 1.88. |

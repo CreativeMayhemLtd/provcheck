@@ -84,12 +84,8 @@ pub fn detect(waveform: &[f32]) -> Result<DetectResult, ModelError> {
         });
     }
 
-    // Build chunk slices. Last chunk gets zero-padding to exactly
-    // CHUNK_SAMPLES; we record `valid_samples` so the aggregation
-    // can ignore the padded region.
     let chunks = chunk_waveform(waveform);
 
-    // Run all chunks in parallel.
     type ChunkOutputs = (Vec<f32>, Vec<f32>, usize);
     let per_chunk: Result<Vec<ChunkOutputs>, ModelError> = chunks
         .par_iter()
@@ -100,18 +96,14 @@ pub fn detect(waveform: &[f32]) -> Result<DetectResult, ModelError> {
         .collect();
     let per_chunk = per_chunk?;
 
-    // Concatenate per-sample present-probabilities across chunks,
-    // truncating the padded tail of the final chunk.
     let total_valid: usize = per_chunk.iter().map(|(_, _, v)| *v).sum();
     let mut present_per_sample: Vec<f32> = Vec::with_capacity(total_valid);
     for (presence_flat, _, valid) in &per_chunk {
-        // presence shape: [1, 2, CHUNK_SAMPLES] flattened as
-        // dim * CHUNK_SAMPLES + t. Channel 1 is "present".
-        let present_start = CHUNK_SAMPLES; // dim=1 offset
+        // presence is [1, 2, CHUNK_SAMPLES] flattened as dim*CHUNK_SAMPLES + t; channel 1 is "present".
+        let present_start = CHUNK_SAMPLES;
         present_per_sample.extend(presence_flat[present_start..present_start + *valid].iter());
     }
 
-    // Aggregate.
     let detection_probability = if total_valid > 0 {
         let above: usize = present_per_sample
             .iter()
@@ -122,8 +114,7 @@ pub fn detect(waveform: &[f32]) -> Result<DetectResult, ModelError> {
         0.0
     };
 
-    // Per-bit average across chunks (weighted equally; each chunk
-    // already averages its own samples internally before sigmoid).
+    // Per-bit average across chunks, each weighted equally.
     let mut bit_probabilities = [0.0_f32; NBITS];
     if !per_chunk.is_empty() {
         for (_, message_flat, _) in &per_chunk {
@@ -137,7 +128,6 @@ pub fn detect(waveform: &[f32]) -> Result<DetectResult, ModelError> {
     }
     let message = pack_bits(&bit_probabilities);
 
-    // Build marked regions.
     let marked_regions = regions_above_threshold(&present_per_sample, crate::audio::SAMPLE_RATE);
 
     Ok(DetectResult {
@@ -162,9 +152,7 @@ fn chunk_waveform(waveform: &[f32]) -> Vec<(Vec<f32>, usize)> {
         t_start += valid;
     }
     if chunks.is_empty() {
-        // empty input — produce one zero-padded chunk so the caller
-        // still gets a defined inference path. The aggregation
-        // handles total_valid == 0.
+        // Empty input: one zero-padded chunk keeps a defined inference path (aggregation handles total_valid == 0).
         chunks.push((vec![0.0_f32; CHUNK_SAMPLES], 0));
     }
     chunks
@@ -218,13 +206,9 @@ fn regions_above_threshold(presence: &[f32], sample_rate: u32) -> Vec<(f32, f32)
 mod tests {
     use super::*;
 
-    // ----- Threshold + constant pins ----------
-
     #[test]
     fn presence_threshold_is_half() {
-        // 0.5 is the documented decision boundary for the
-        // per-sample presence probability. Pin so a future
-        // tuning pass leaves an explicit test update behind.
+        // 0.5 is the documented per-sample presence decision boundary.
         assert_eq!(PRESENCE_THRESHOLD, 0.5);
     }
 
@@ -234,17 +218,9 @@ mod tests {
         assert_eq!(MIN_REGION_SAMPLES, 16_000);
     }
 
-    // ----- pack_bits exhaustive bit-position coverage ----------
-    //
-    // pack_bits is the wire-format projection from per-bit
-    // probabilities to the 16-bit AudioSeal payload. Every bit
-    // position must land at the documented byte+bit slot.
-
     #[test]
     fn pack_each_bit_position_independently() {
-        // For each i in 0..16, setting only bp[i] above 0.5 must
-        // produce exactly one set bit at the documented position
-        // (byte = i/8, bit = 7 - i%8).
+        // Setting only bp[i] above 0.5 sets exactly one bit at byte i/8, bit 7 - i%8.
         for i in 0..NBITS {
             let mut bp = [0.0_f32; NBITS];
             bp[i] = 1.0;
@@ -256,7 +232,6 @@ mod tests {
                 packed[byte_idx], expected,
                 "bit {i} should land at byte {byte_idx}, bit {bit_idx}"
             );
-            // Other byte should be untouched.
             let other = 1 - byte_idx;
             assert_eq!(
                 packed[other], 0,
@@ -267,8 +242,7 @@ mod tests {
 
     #[test]
     fn pack_threshold_is_strictly_greater_than_half() {
-        // `p > 0.5` is strict — exactly 0.5 must NOT set the
-        // bit. Pin the strictness explicitly.
+        // `p > 0.5` is strict: exactly 0.5 must not set the bit.
         let mut bp = [0.0_f32; NBITS];
         bp[0] = 0.5;
         assert_eq!(pack_bits(&bp), [0x00, 0x00]);
@@ -281,8 +255,6 @@ mod tests {
         assert_eq!(pack_bits(&bp), [0x80, 0x00]);
     }
 
-    // ----- regions_above_threshold edge cases ----------
-
     #[test]
     fn regions_empty_presence_returns_empty() {
         let regions = regions_above_threshold(&[], 16_000);
@@ -291,7 +263,6 @@ mod tests {
 
     #[test]
     fn regions_all_below_threshold_returns_empty() {
-        // 4 seconds of zero presence.
         let presence = vec![0.0_f32; 64_000];
         let regions = regions_above_threshold(&presence, 16_000);
         assert!(regions.is_empty());
@@ -299,9 +270,7 @@ mod tests {
 
     #[test]
     fn regions_unterminated_run_at_end_still_reported() {
-        // A run that reaches the end of the buffer (no trailing
-        // below-threshold sample to close it) must still appear
-        // if its length is >= MIN_REGION_SAMPLES.
+        // A run reaching the buffer end (no closing below-threshold sample) still reports if >= MIN_REGION_SAMPLES.
         let mut presence = vec![0.0_f32; 64_000];
         // Last 2 seconds (32_000 samples) all above threshold.
         for v in presence.iter_mut().skip(32_000) {
@@ -316,7 +285,6 @@ mod tests {
 
     #[test]
     fn regions_multiple_runs_each_reported() {
-        // Two long runs separated by a gap.
         let mut presence = vec![0.0_f32; 96_000]; // 6 s @ 16 kHz
         // Region 1: 0-1.5s
         for v in presence.iter_mut().take(24_000) {
@@ -361,7 +329,6 @@ mod tests {
 
     #[test]
     fn regions_skip_short_spikes() {
-        // Single sample above threshold should NOT be reported.
         let mut presence = vec![0.0_f32; 100_000];
         presence[50_000] = 0.9;
         let regions = regions_above_threshold(&presence, 16_000);

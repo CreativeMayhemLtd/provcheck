@@ -1,0 +1,647 @@
+{
+  "headerSubtitle": {
+    "message": "C2PA Content Credentials signieren und prüfen"
+  },
+  "tabVerify": {
+    "message": "Prüfen"
+  },
+  "tabWatermark": {
+    "message": "Wasserzeichen"
+  },
+  "tabDetect": {
+    "message": "Erkennen"
+  },
+  "tabKeys": {
+    "message": "Schlüssel"
+  },
+  "tabSign": {
+    "message": "Signieren"
+  },
+  "tabKeyedMarks": {
+    "message": "Schlüsselmarken"
+  },
+  "btnChooseFile": {
+    "message": "Datei auswählen…"
+  },
+  "btnVerifyAnother": {
+    "message": "Weitere prüfen"
+  },
+  "btnCopyJson": {
+    "message": "Als JSON kopieren"
+  },
+  "btnCheckAnother": {
+    "message": "Weitere Datei prüfen"
+  },
+  "btnReadAnother": {
+    "message": "Weitere lesen"
+  },
+  "btnLogOut": {
+    "message": "Abmelden"
+  },
+  "btnConnect": {
+    "message": "Verbinden"
+  },
+  "btnCopy": {
+    "message": "Kopieren"
+  },
+  "btnRetry": {
+    "message": "Erneut versuchen"
+  },
+  "btnSign": {
+    "message": "Signieren"
+  },
+  "btnOK": {
+    "message": "OK"
+  },
+  "btnCancel": {
+    "message": "Abbrechen"
+  },
+  "btnGotIt": {
+    "message": "Verstanden"
+  },
+  "btnHowItWorks": {
+    "message": "Funktionsweise"
+  },
+  "btnInstallRepair": {
+    "message": "Installieren / Reparieren"
+  },
+  "btnChooseSecret": {
+    "message": "Geheimnisdatei auswählen"
+  },
+  "btnClose": {
+    "message": "Schließen"
+  },
+  "badgeExperimental": {
+    "message": "Experimentell"
+  },
+  "loadingGeneric": {
+    "message": "Wird geladen…"
+  },
+  "statusChecking": {
+    "message": "Wird geprüft..."
+  },
+  "statusCheckingStatus": {
+    "message": "Status wird geprüft…"
+  },
+  "labelFingerprint": {
+    "message": "Fingerabdruck"
+  },
+  "labelAlgorithm": {
+    "message": "Algorithmus"
+  },
+  "labelBackend": {
+    "message": "Backend"
+  },
+  "labelCreated": {
+    "message": "Erstellt"
+  },
+  "labelDID": {
+    "message": "DID"
+  },
+  "labelHandle": {
+    "message": "Handle"
+  },
+  "labelYubikey": {
+    "message": "Yubikey"
+  },
+  "labelPinTries": {
+    "message": "PIN-Versuche"
+  },
+  "labelStatus": {
+    "message": "Status"
+  },
+  "labelLabel": {
+    "message": "Bezeichnung"
+  },
+  "labelBy": {
+    "message": "Von"
+  },
+  "labelTool": {
+    "message": "Werkzeug"
+  },
+  "labelFile": {
+    "message": "Datei"
+  },
+  "labelYourIdentity": {
+    "message": "Ihre Identität"
+  },
+  "labelOutput": {
+    "message": "Ausgabe"
+  },
+  "aboutLinks": {
+    "message": "Links"
+  },
+  "identityBskyHandle": {
+    "message": "Bsky-Handle"
+  },
+  "identityRunWatermark": {
+    "message": "Wasserzeichenerkennung ausführen"
+  },
+  "identityRequireAttested": {
+    "message": "Attestierung erforderlich"
+  },
+  "identityHandlePh": {
+    "message": "optional · z. B. creator.bsky.social oder did:plc:…"
+  },
+  "dropzoneTitle": {
+    "message": "Datei zum Prüfen hier ablegen"
+  },
+  "dropzoneSub": {
+    "message": "Audio · Bild · Video: alles mit C2PA Content Credentials."
+  },
+  "verifyDropHint": {
+    "message": "Oder ohne Datei starten, dann bleibt alles hier. Privat: Dateien verlassen Ihren Rechner nie."
+  },
+  "verifyLoading": {
+    "message": "Wird geprüft…"
+  },
+  "verifyLoadingHint": {
+    "message": "Wasserzeichenerkennung ist bei Audio und Video CPU-intensiv und kann einige Minuten dauern. Deaktivieren Sie „Wasserzeichenerkennung ausführen“ für eine sofortige reine C2PA-Prüfung."
+  },
+  "showRawManifest": {
+    "message": "Rohe Manifestdetails anzeigen"
+  },
+  "claimsHeading": {
+    "message": "Angaben"
+  },
+  "wmModelsNeeded": {
+    "message": "Wasserzeichenerkennung benötigt Modelle."
+  },
+  "wmInstallAll": {
+    "message": "Alle Modelle installieren"
+  },
+  "wmScanFor": {
+    "message": "Suchen nach:"
+  },
+  "wmDropTitle": {
+    "message": "Datei hier ablegen, um Wasserzeichen zu erkennen"
+  },
+  "wmDropHint": {
+    "message": "Privat: Dateien verlassen Ihren Rechner nie. Jeder Detektor entscheidet selbst, ob er auf den Dateityp zutrifft."
+  },
+  "wmLoading": {
+    "message": "Wasserzeichendetektoren laufen…"
+  },
+  "wmLoadingHint": {
+    "message": "Die Modellauswertung ist bei Audio und Video CPU-intensiv; ein Scan kann einige Minuten dauern. Es wird noch gearbeitet, während sich dies dreht."
+  },
+  "wmResultTitle": {
+    "message": "Wasserzeichenerkennung"
+  },
+  "detectTitle": {
+    "message": "KI-Inhaltserkennung: eigenen Detektor mitbringen"
+  },
+  "detectRouteAHead": {
+    "message": "Weg A: kostenpflichtiges DLC-Paket (v1.x, geplant)"
+  },
+  "detectRouteBHead": {
+    "message": "Weg B: vom Betreiber bereitgestellter Wrapper (jetzt verfügbar)"
+  },
+  "keysLocalIdentity": {
+    "message": "Lokale Identität"
+  },
+  "keysNoIdentity": {
+    "message": "Keine Identität auf diesem Rechner."
+  },
+  "keysMismatchTitle": {
+    "message": "Identitätsstatus stimmt nicht überein"
+  },
+  "keysRotateBtn": {
+    "message": "Neu erzeugen + veröffentlichen"
+  },
+  "keysRotateTitle": {
+    "message": "Einen frischen Signierschlüssel erzeugen und als neuen aktiven Datensatz veröffentlichen"
+  },
+  "keysSwitchYubikey": {
+    "message": "Zu Yubikey-Identität wechseln…"
+  },
+  "keysSwitchYubikeyTitle": {
+    "message": "Die aktuelle Identität durch eine Yubikey-gestützte ersetzen"
+  },
+  "keysPublishedRecords": {
+    "message": "Veröffentlichte Datensätze (atproto)"
+  },
+  "keysRecordsEmptyHint": {
+    "message": "Melden Sie sich im Signieren-Tab an und veröffentlichen Sie Ihren lokalen Fingerabdruck."
+  },
+  "keysNotLoggedIn": {
+    "message": "Nicht bei atproto angemeldet."
+  },
+  "keysNoSessionHint": {
+    "message": "Melden Sie sich im Signieren-Tab an, um Ihre veröffentlichten Datensätze abzurufen."
+  },
+  "signIdentityLabel": {
+    "message": "Identität:"
+  },
+  "signNotSetUp": {
+    "message": "nicht eingerichtet"
+  },
+  "signSessionLabel": {
+    "message": "Sitzung:"
+  },
+  "signDisconnected": {
+    "message": "getrennt"
+  },
+  "signSetupTitle": {
+    "message": "Signieridentität einrichten"
+  },
+  "signSetupBody": {
+    "message": "Dies erzeugt einen kryptografischen Schlüssel auf diesem Rechner und speichert ihn in Ihrem Betriebssystem-Schlüsselbund. Das ist nur einmal nötig."
+  },
+  "signGenerateKey": {
+    "message": "Signierschlüssel erzeugen"
+  },
+  "signSetupHint": {
+    "message": "Der Schlüssel verlässt Ihren Rechner nie. Ihr Betriebssystem verwaltet die Zugriffsabfragen."
+  },
+  "signConnectTitle": {
+    "message": "Ihre Bsky-Identität verbinden"
+  },
+  "signConnectBody": {
+    "message": "Verknüpfen Sie Ihren Signierschlüssel mit Ihrem atproto-Handle, damit Prüfer wissen, dass er Ihnen gehört."
+  },
+  "signHandlePh": {
+    "message": "creator.bsky.social"
+  },
+  "signAppPassword": {
+    "message": "App-Passwort"
+  },
+  "signRememberDevice": {
+    "message": "Auf diesem Gerät merken"
+  },
+  "signPublishTitle": {
+    "message": "Ihren Signierschlüssel veröffentlichen"
+  },
+  "signPublishBody": {
+    "message": "Ein letzter Schritt: Wenn Sie den Fingerabdruck Ihres Schlüssels bei atproto veröffentlichen, können Prüfer gegenprüfen, dass Sie Ihre Arbeit signiert haben. Ohne dies sehen sie nur „gültige Signatur von unbekannt“."
+  },
+  "signLabelOptional": {
+    "message": "Bezeichnung (optional)"
+  },
+  "signLabelPh": {
+    "message": "z. B. Studio-Mac"
+  },
+  "signPublishKey": {
+    "message": "Schlüssel veröffentlichen"
+  },
+  "signStaleTitle": {
+    "message": "Ihr Signierschlüssel ist veraltet"
+  },
+  "signRecoverHeading": {
+    "message": "Aus einem Terminal wiederherstellen:"
+  },
+  "signStaleHint": {
+    "message": "Dies erzeugt einen frischen Schlüssel, veröffentlicht ihn als neuen aktiven Datensatz und widerruft bei Bedarf den verwaisten Datensatz, damit niemand mit dem verlorenen Schlüssel in Ihrem Namen signieren kann."
+  },
+  "signDropTitle": {
+    "message": "Datei zum Signieren hier ablegen"
+  },
+  "signDropSub": {
+    "message": "Audio · Bild · Video: alles, was c2pa-rs unterstützt."
+  },
+  "signReadyToSign": {
+    "message": "Bereit zum Signieren"
+  },
+  "signChainTitle": {
+    "message": "Diese Datei ist bereits signiert."
+  },
+  "signChainSub": {
+    "message": "Ihre Signatur wird der Kette als Ableitung hinzugefügt; die ursprüngliche Signatur bleibt erhalten."
+  },
+  "signRelationshipQ": {
+    "message": "Wie ist Ihr Verhältnis zu dieser Datei?"
+  },
+  "signEmbedIdentity": {
+    "message": "Identitätsangabe einbetten (empfohlen; erspart Prüfern den Schritt der Handle-Eingabe)"
+  },
+  "signModelPh": {
+    "message": "z. B. ACE-Step v1.0"
+  },
+  "signReplaceOriginal": {
+    "message": "Das Original ersetzen (statt eine Sidecar-Datei zu schreiben)"
+  },
+  "signPickDifferent": {
+    "message": "Andere Datei wählen"
+  },
+  "signSigning": {
+    "message": "Wird signiert…"
+  },
+  "signSigned": {
+    "message": "Signiert"
+  },
+  "signAnother": {
+    "message": "Weitere signieren"
+  },
+  "signVerifyIt": {
+    "message": "Prüfen"
+  },
+  "signErrorTitle": {
+    "message": "Ihr Signierstatus konnte nicht geladen werden"
+  },
+  "bfBackfireTitle": {
+    "message": "Eine geschlüsselte Backfire-Markierung lesen"
+  },
+  "bfBackfireSub": {
+    "message": "Prüfen Sie ein Wasserzeichen pro Bild, das KI-Provenienz-Entferner verstärken, statt es zu entfernen."
+  },
+  "bfReaderLabel": {
+    "message": "Backfire-Reader"
+  },
+  "bfDropTitle": {
+    "message": "Ein Bild hier ablegen oder auswählen, um seine Markierung zu lesen"
+  },
+  "bfChooseRead": {
+    "message": "Bild auswählen & lesen"
+  },
+  "bfHint": {
+    "message": "Geben Sie zuerst oben Ihren Schlüssel ein, dann legen Sie ein Bild ab oder wählen es aus. Es wird automatisch gelesen und bleibt auf Ihrem Rechner."
+  },
+  "bfLoading": {
+    "message": "Backfire-Markierung wird gelesen…"
+  },
+  "mlTitle": {
+    "message": "Eine geschlüsselte Mellin-Seriennummer lesen"
+  },
+  "mlSub": {
+    "message": "Audioseitige geschlüsselte Forensik: stellen Sie die 64-Bit-Seriennummer pro Kopie wieder her, die Sie mit dem eigenständigen, BUSL-lizenzierten Werkzeug provcheck-mellin eingebettet haben (kostenlos für nicht-kommerzielle Nutzung, getrennt von provcheck). Benötigt Ihre Verkäufer-Geheimnisdatei und die Werk-ID; alles bleibt auf Ihrem Rechner."
+  },
+  "mlReaderLabel": {
+    "message": "Mellin-Reader"
+  },
+  "mlSecretNone": {
+    "message": "keine gewählt. Das Geheimnis wird nie gespeichert, wählen Sie es also nach jedem Start erneut."
+  },
+  "mlWorkidPh": {
+    "message": "die beim Einbetten verwendete Werk-ID"
+  },
+  "mlDropTitle": {
+    "message": "Eine Audiodatei auswählen, um ihre Seriennummer zu lesen"
+  },
+  "mlChooseRead": {
+    "message": "Audio auswählen & lesen"
+  },
+  "mlHint": {
+    "message": "Wählen Sie zuerst Ihre Geheimnisdatei und geben Sie die Werk-ID ein, dann wählen Sie die Audiodatei oder legen sie irgendwo auf diesem Tab ab. Jedes Format funktioniert (WAV, MP3, AAC, FLAC); Audiodateien werden hier gelesen, Bilder lesen die Backfire-Markierung oben."
+  },
+  "mlLoading": {
+    "message": "Mellin-Seriennummer wird gelesen…"
+  },
+  "imTitle": {
+    "message": "Eine geschlüsselte idmark-Identitätsmarkierung lesen"
+  },
+  "imSub": {
+    "message": "Bildseitige geschlüsselte Identität: lesen Sie die zuschnitt-, transcodier- und rotationstolerante Markierung pro Kopie, die mit dem eigenständigen, BUSL-lizenzierten Werkzeug provcheck-idmark eingebettet wurde (kostenlos für nicht-kommerzielle Nutzung, getrennt von provcheck). Ohne Geheimnis prüft es die eingebaute Markierung; fügen Sie Ihre Geheimnisdatei und einen Sitzplatz hinzu, um eine Kopie zuzuordnen. Alles bleibt auf Ihrem Rechner."
+  },
+  "imReaderLabel": {
+    "message": "idmark-Reader"
+  },
+  "imSecretNone": {
+    "message": "keine gewählt. Leer lassen, um die eingebaute Markierung zu lesen; das Geheimnis wird nie gespeichert."
+  },
+  "imDropTitle": {
+    "message": "Ein Bild auswählen, um seine Markierung zu lesen"
+  },
+  "imChooseRead": {
+    "message": "Bild auswählen & lesen"
+  },
+  "imHint": {
+    "message": "Wählen Sie optional zuerst Ihre Geheimnisdatei und einen Sitzplatz, dann wählen Sie das Bild. PNG oder JPEG. Dies liest die idmark-Identitätsmarkierung; die Backfire-Markierung und Mellin-Seriennummern werden in den Abschnitten oben gelesen."
+  },
+  "imLoading": {
+    "message": "idmark wird gelesen…"
+  },
+  "bfModalTitle": {
+    "message": "So funktioniert Backfire"
+  },
+  "vVerified": {
+    "message": "Verifiziert"
+  },
+  "vUnsigned": {
+    "message": "Nicht signiert"
+  },
+  "vNotVerified": {
+    "message": "Nicht verifiziert"
+  },
+  "attAttestedBy": {
+    "message": "Attestiert von $1"
+  },
+  "attMatchSub": {
+    "message": "Das Signaturzertifikat entspricht einem unter dieser Identität veröffentlichten Schlüssel."
+  },
+  "attMismatch": {
+    "message": "Attestierung stimmt nicht überein für $1"
+  },
+  "attMismatchSub": {
+    "message": "Das Signaturzertifikat entspricht keinem unter dieser Identität veröffentlichten Schlüssel."
+  },
+  "attNotPublished": {
+    "message": "Keine Schlüssel veröffentlicht unter $1"
+  },
+  "attNotPublishedSub": {
+    "message": "Diese Identität existiert, hat aber keine signingKey-Datensätze veröffentlicht."
+  },
+  "attResolveFailed": {
+    "message": "$1 konnte nicht aufgelöst werden"
+  },
+  "attResolveFailedSub": {
+    "message": "Identitätsauflösung fehlgeschlagen (Handle/DID nicht erreichbar)."
+  },
+  "attThisIdentity": {
+    "message": "diese Identität"
+  },
+  "kvSigner": {
+    "message": "Unterzeichner"
+  },
+  "kvSignedAt": {
+    "message": "Signiert am"
+  },
+  "kvFormat": {
+    "message": "Format"
+  },
+  "kvManifest": {
+    "message": "Manifest"
+  },
+  "kvIngredients": {
+    "message": "Bestandteile"
+  },
+  "kvIngredientsVal": {
+    "message": "$1 (abgeleiteter Inhalt: diese Datei entstand durch Bearbeiten früherer signierter Dateien)"
+  },
+  "kvValidationErrors": {
+    "message": "Validierungsfehler"
+  },
+  "wmEmpty": {
+    "message": "Keine Wasserzeichen von den ausgeführten Detektorfamilien erkannt."
+  },
+  "wmKeyedNote": {
+    "message": "Geschlüsselte Markierungen (Backfire, Mellin) sind nicht Teil dieses Scans. Sie können nur mit Ihrem Schlüssel im Tab „Schlüsselmarken“ gelesen werden."
+  },
+  "wmConfidence": {
+    "message": "$1 % Konfidenz"
+  },
+  "wmDegraded": {
+    "message": "$1 % Konfidenz; Markierung ist beeinträchtigt (teilweise Beschädigung wahrscheinlich)"
+  },
+  "wmNa": {
+    "message": "$1: nicht zutreffend"
+  },
+  "wmNoMark": {
+    "message": "$1: keine Markierung erkannt"
+  },
+  "wmTimelineAria": {
+    "message": "Wasserzeichen-Präsenz über die Zeit: $1"
+  },
+  "wmUnrecognizedSource": {
+    "message": "unbekannte Quelle"
+  },
+  "btnCopied": {
+    "message": "Kopiert"
+  },
+  "scanError": {
+    "message": "Diese Datei konnte nicht gescannt werden: $1"
+  },
+  "autoFilled": {
+    "message": "aus Datei automatisch ausgefüllt"
+  },
+  "dragFileOnto": {
+    "message": "Die Datei auf das Fenster ziehen"
+  },
+  "aiGenerated": {
+    "message": "KI-generiert"
+  },
+  "btnCopiedBang": {
+    "message": "Kopiert!"
+  },
+  "bfCouldNotRun": {
+    "message": "Backfire konnte nicht ausgeführt werden"
+  },
+  "btnInstalling": {
+    "message": "Wird installiert…"
+  },
+  "downloadingModels": {
+    "message": "Modelle werden heruntergeladen, das kann eine Minute dauern…"
+  },
+  "btnWorking": {
+    "message": "Wird bearbeitet…"
+  },
+  "bfInstalling": {
+    "message": "Backfire-Reader wird installiert / repariert…"
+  },
+  "statusCheckFailed": {
+    "message": "Statusprüfung fehlgeschlagen: $1"
+  },
+  "readingFile": {
+    "message": "$1 wird gelesen…"
+  },
+  "mlCouldNotRun": {
+    "message": "Mellin konnte nicht ausgeführt werden"
+  },
+  "imCouldNotRun": {
+    "message": "idmark konnte nicht ausgeführt werden"
+  },
+  "keysMismSuperseded": {
+    "message": "Ihr lokaler Schlüssel wurde ersetzt"
+  },
+  "keysMismRevoked": {
+    "message": "Ihr lokaler Schlüssel wurde widerrufen"
+  },
+  "keysMismActiveNoKey": {
+    "message": "Der aktive Datensatz verwendet einen Schlüssel, den Sie nicht haben"
+  },
+  "thisBox": {
+    "message": "(dieser Rechner)"
+  },
+  "btnRevoke": {
+    "message": "Widerrufen"
+  },
+  "checkingPublishedKeys": {
+    "message": "Veröffentlichte Schlüssel werden geprüft…"
+  },
+  "btnGenerating": {
+    "message": "Wird erzeugt…"
+  },
+  "btnConnecting": {
+    "message": "Wird verbunden…"
+  },
+  "btnPublishing": {
+    "message": "Wird veröffentlicht…"
+  },
+  "signReadyToPublish": {
+    "message": "Bereit zum Veröffentlichen"
+  },
+  "bfMarkFound": {
+    "message": "Backfire-Markierung gefunden"
+  },
+  "bfNoValidMark": {
+    "message": "Keine gültige Backfire-Markierung"
+  },
+  "mlSerialRecovered": {
+    "message": "Mellin-Seriennummer wiederhergestellt"
+  },
+  "mlNoFullSerial": {
+    "message": "Keine vollständige Mellin-Seriennummer"
+  },
+  "imPresent": {
+    "message": "idmark vorhanden"
+  },
+  "imNoDetected": {
+    "message": "Kein idmark erkannt"
+  },
+  "fieldIdentifier": {
+    "message": "Kennung"
+  },
+  "fieldConfidenceMargin": {
+    "message": "Konfidenz (Min-Bit-Marge)"
+  },
+  "fieldValid": {
+    "message": "Gültig"
+  },
+  "fieldMatchesSerial": {
+    "message": "Entspricht erwarteter Seriennummer"
+  },
+  "fieldTamperTripwire": {
+    "message": "Manipulations-Stolperdraht"
+  },
+  "fieldSerial": {
+    "message": "Seriennummer"
+  },
+  "fieldBitsRecovered": {
+    "message": "Wiederhergestellte Bits"
+  },
+  "fieldErasureRate": {
+    "message": "Löschungsrate"
+  },
+  "fieldMinBitVotes": {
+    "message": "Minimale Bit-Stimmen"
+  },
+  "fieldMarkPresent": {
+    "message": "Markierung vorhanden"
+  },
+  "fieldSeat": {
+    "message": "Sitzplatz"
+  },
+  "fieldMargin": {
+    "message": "Marge"
+  },
+  "fieldReadVia": {
+    "message": "Gelesen über"
+  },
+  "fieldEstRotation": {
+    "message": "Geschätzte Drehung"
+  },
+  "fieldError": {
+    "message": "Fehler"
+  },
+  "valYes": {
+    "message": "ja"
+  },
+  "valNo": {
+    "message": "nein"
+  },
+  "bfTamperDetected": {
+    "message": "Notch-Manipulation erkannt (Statistik $1)"
+  },
+  "bfTamperClean": {
+    "message": "sauber (Statistik $1)"
+  }
+}

@@ -71,10 +71,7 @@ impl KeyProvider for KeychainProvider {
         key_pem: &SecretString,
         _new_passphrase: &mut dyn FnMut(NewPassphrasePrompt) -> PassphraseResult,
     ) -> Result<(), ProviderError> {
-        // The keychain doesn't need a passphrase from us — the OS
-        // manages access control. We ignore the prompt callback;
-        // the CLI binary passes one anyway because the trait
-        // signature is backend-agnostic.
+        // OS manages access control, so we ignore the prompt callback (the trait signature is backend-agnostic).
         let entry = Entry::new(KEYCHAIN_SERVICE, fingerprint).map_err(keychain_err)?;
         entry
             .set_password(key_pem.expose_secret())
@@ -91,12 +88,7 @@ impl KeyProvider for KeychainProvider {
         let entry = Entry::new(KEYCHAIN_SERVICE, fingerprint).map_err(keychain_err)?;
         match entry.get_password() {
             Ok(s) => Ok(SecretString::from(s)),
-            // A missing credential maps to the IO not-found shape
-            // so callers (especially `kit status`) see consistent
-            // semantics across the two backends: "the key isn't
-            // where you expected it" looks the same whether the
-            // file is gone or the keychain entry was deleted out
-            // of band.
+            // Map missing credential to IO NotFound so both backends report absence identically.
             Err(keyring::Error::NoEntry) => Err(ProviderError::Io(std::io::Error::new(
                 std::io::ErrorKind::NotFound,
                 format!("no keychain credential for fingerprint {fingerprint}"),
@@ -170,10 +162,7 @@ mod tests {
         let n = TEST_COUNTER.fetch_add(1, Ordering::Relaxed);
         let pid = std::process::id();
         let body = format!("{test_name}-{pid}-{n}");
-        // Pad / truncate to 64 lowercase-hex-ish chars. Real
-        // fingerprints are SHA-256 hex; the keychain backend only
-        // cares that the account string is stable per-credential,
-        // not that it parses as hex.
+        // Pad/truncate to 64 chars; the backend only needs a stable account string, not valid hex.
         let mut s = String::with_capacity(64);
         for b in body.bytes() {
             if s.len() == 64 {
@@ -335,11 +324,7 @@ mod tests {
     #[test]
     #[ignore = "uses real OS keychain — run with `--ignored keychain`"]
     fn different_fingerprints_address_distinct_credentials() {
-        // Confirms the per-fingerprint addressing — storing under
-        // fingerprint A and B should yield two independent
-        // credentials, neither shadowing the other. Load-bearing
-        // property for letting one keychain hold multiple kit
-        // identities during a rotate.
+        // Per-fingerprint addressing: A and B are independent credentials — lets one keychain hold multiple identities during a rotate.
         let dir = TempDir::new().expect("tempdir");
         let provider = KeychainProvider::new();
         let fp_a = unique_fingerprint("distinct_a");

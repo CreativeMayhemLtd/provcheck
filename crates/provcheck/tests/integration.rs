@@ -143,6 +143,13 @@ fn signed_wav_verifies() {
     assert!(report.verified, "expected verified=true, got {:?}", report);
     assert!(!report.unsigned);
     assert_eq!(report.exit_code(), 0);
+    // Default verify (no trust store) reports crypto validity WITHOUT a trust
+    // verdict: verified=true but trusted=None. verified is not "trusted source".
+    assert!(
+        report.trusted.is_none(),
+        "default verify must not assert a trust verdict; got {:?}",
+        report.trusted
+    );
     assert!(
         report.active_manifest.is_some(),
         "manifest label should be present"
@@ -201,6 +208,93 @@ fn tampered_wav_fails_verification() {
         !report.verified,
         "tampered file should NOT verify; got {:?}",
         report
+    );
+    assert_eq!(report.exit_code(), 1);
+}
+
+// End-to-end coverage for the F2.1 provenance_tamper (malformed-box) arm. Distinct from
+// tampered_wav_fails_verification (byte-flip inside a present manifest -> validation_errors path):
+// here the C2PA box is PRESENT but structurally UNPARSEABLE, which must surface as
+// provenance_tamper=Some AND unsigned=false (present-but-broken, NOT "no box"). That is the whole
+// point of the tamper flag: a stripped/corrupted provenance box is not the same as never-signed.
+#[test]
+fn malformed_box_reports_provenance_tamper() {
+    let tmp = tempfile::tempdir().expect("tmp");
+    let src = tmp.path().join("silent.wav");
+    let dest = tmp.path().join("silent-signed.wav");
+    write_silent_wav(&src);
+    let _ca_pem = sign_file(&src, &dest);
+
+    let mut bytes = fs::read(&dest).expect("read signed");
+    let jumb_offset = find_subslice(&bytes, b"jumb").expect("signed WAV must contain a 'jumb' box");
+
+    // Structurally corrupt the JUMBF box: overwrite a run of bytes starting right after the
+    // 'jumb' magic (the box structure + CBOR manifest header), so the reader finds a box but
+    // cannot parse the manifest inside it -> is_manifest_parse_error -> provenance_tamper.
+    // (A single content-byte flip would only fail hashing; this breaks parsing.)
+    let start = jumb_offset + 4;
+    let end = (start + 160).min(bytes.len());
+    for b in &mut bytes[start..end] {
+        *b = 0xFF;
+    }
+    fs::write(&dest, &bytes).expect("write malformed");
+
+    let report = verify(&dest).expect("verify returns Ok on a malformed box");
+    assert!(
+        !report.verified,
+        "malformed box must not verify: {report:?}"
+    );
+    assert!(
+        !report.unsigned,
+        "a present-but-broken box is NOT unsigned (that is the whole distinction): {report:?}"
+    );
+    assert!(
+        report.provenance_tamper.is_some(),
+        "a present-but-unparseable C2PA box must set provenance_tamper: {report:?}"
+    );
+    assert_eq!(report.exit_code(), 1);
+}
+
+// The present-but-hash-fails state, distinct from both unsigned (no box),
+// malformed-box (provenance_tamper), and verified. Tampering the signed CONTENT
+// outside the manifest leaves the box parseable but fails the hard-binding hash:
+// verified=false, provenance_tamper=None, validation_errors>0.
+#[test]
+fn content_tamper_fails_hash_not_box() {
+    let tmp = tempfile::tempdir().expect("tmp");
+    let src = tmp.path().join("silent.wav");
+    let dest = tmp.path().join("silent-signed.wav");
+    write_silent_wav(&src);
+    let _ca_pem = sign_file(&src, &dest);
+
+    let mut bytes = fs::read(&dest).expect("read signed");
+    let jumb_offset = find_subslice(&bytes, b"jumb").expect("signed WAV must contain a 'jumb' box");
+    // Flip an audio-content byte after the WAV header and before the manifest
+    // box, so the box stays intact but the content hard-binding fails.
+    let content_idx = 44;
+    assert!(
+        content_idx < jumb_offset,
+        "content byte must precede the manifest box"
+    );
+    bytes[content_idx] ^= 0xFF;
+    fs::write(&dest, &bytes).expect("write content-tampered");
+
+    let report = verify(&dest).expect("verify returns Ok on content-tampered");
+    assert!(
+        !report.verified,
+        "content-tampered file must not verify: {report:?}"
+    );
+    assert!(
+        !report.unsigned,
+        "the manifest box is intact, so not unsigned: {report:?}"
+    );
+    assert!(
+        report.provenance_tamper.is_none(),
+        "box parses, so this is not the malformed-box state: {report:?}"
+    );
+    assert!(
+        report.validation_errors > 0,
+        "a content hash mismatch must record a validation error: {report:?}"
     );
     assert_eq!(report.exit_code(), 1);
 }

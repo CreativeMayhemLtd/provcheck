@@ -1,0 +1,67 @@
+{
+  "ProvcheckC2PA": {
+    "display_name": "Provcheck (Ilmainen C2PA-vesileima) • Creative Mayhem",
+    "description": "Ilmainen, avoin (Apache-2.0) provcheck ComfyUI:lle: yksi solmu kuvalle, äänelle ja videolle. KIRJOITA: upota ilmainen vesileima (TrustMark kuviin, silentcipher audio/video-tiedostojen äänirataan) ja/tai allekirjoita C2PA:lla paikallisella avaimellasi ja atproto/Bluesky-identiteetilläsi, valinnaisesti tallentaen generointigraafin; allekirjoitettu tiedosto kirjoitetaan tulostushakemistoosi. LUE: tunnista/varmista provcheck-merkki jokaisesta liitetystä syötteestä. Kytke kuva, ääni, video tai mikä tahansa yhdistelmä. Jokainen asetus on widget, jonka voi myös kytkeä toisesta solmusta, mukaan lukien tulostustiedoston nimi. Creative Mayhem valmistaa myös Backfiren, avainkoodatun merkin, jota tekoälyn poistoyritykset vahvistavat sen sijaan että poistaisivat (kaupallinen lisäosa, ei mukana tässä ilmaispaketissa): https://provcheck.ai/backfire . Lisää: https://provcheck.ai",
+    "inputs": {
+      "mode": {
+        "name": "mode",
+        "tooltip": "kirjoita = vesileimaa ja/tai allekirjoita C2PA:lla jokainen liitetty syöte (yleisin). lue = tunnista/varmista olemassa oleva provcheck-merkki.",
+        "options": {
+          "write": "kirjoita",
+          "read": "lue"
+        }
+      },
+      "image": {
+        "name": "Kuva",
+        "tooltip": "Valinnainen kuvaerä, johon kirjoitetaan / josta luetaan."
+      },
+      "audio": {
+        "name": "Ääni",
+        "tooltip": "Valinnainen ääni, johon kirjoitetaan / josta luetaan."
+      },
+      "video": {
+        "name": "Video",
+        "tooltip": "Valinnainen video. Vesileima sijoittuu äänirataan (kuvat säilyvät); kontaineri allekirjoitetaan C2PA:lla."
+      },
+      "watermark": {
+        "name": "watermark",
+        "tooltip": "[Kirjoita] Upota ilmainen FOSS-vesileima (TrustMark kuviin / silentcipher ääneen)."
+      },
+      "c2pa_sign": {
+        "name": "c2pa_sign",
+        "tooltip": "[Kirjoita] Allekirjoita C2PA:lla paikallisella allekirjoitusavaimellasi. Allekirjoitettu tiedosto kirjoitetaan ComfyUI-tulostushakemistoosi."
+      },
+      "embed_identity": {
+        "name": "embed_identity",
+        "tooltip": "[Kirjoita] Upota atproto/Bluesky-identiteettisi (DID + handle) manifestiin, jotta varmentaja näkee kuka sen allekirjoitti. Vaatii kit-kirjautumisen."
+      },
+      "record_provenance": {
+        "name": "record_provenance",
+        "tooltip": "[Kirjoita] Tallenna kuratoitu yhteenveto generointigraafista (malli, seed, sampler, kehotteet) allekirjoitettuun manifestiin."
+      },
+      "include_full_workflow": {
+        "name": "include_full_workflow",
+        "tooltip": "[Kirjoita] Yhdessä record_provenancen kanssa: upota TÄYDELLINEN (peitelty) työnkulku, ei pelkkä yhteenveto. Oletuksena pois päältä, jotta kehotteet/polut eivät vuoda."
+      },
+      "brand_id": {
+        "name": "brand_id",
+        "tooltip": "[Kirjoita] 5-bittinen brändi-ID:si atproto-brändirekisteristä (0-31). Oletus 2 on julkinen rAIdio.bot-ID; käytä omaasi."
+      },
+      "filename_prefix": {
+        "name": "filename_prefix",
+        "tooltip": "[Kirjoita, kun tiedosto kirjoitetaan] Tulostustiedostonimen etuliite allekirjoitetuille/vesileimatuille tiedostoille. Muokattavissa, ja voidaan kytkeä toisesta solmusta (oikea klikkaus -> Muunna syötteeksi)."
+      },
+      "timeout_secs": {
+        "name": "timeout_secs",
+        "tooltip": "Aliprosessin aikakatkaisu kohdetta kohden sekunteina."
+      }
+    },
+    "outputs": {
+      "0": { "name": "Kuva" },
+      "1": { "name": "Ääni" },
+      "2": { "name": "Video" },
+      "3": { "name": "Raportti" },
+      "4": { "name": "Tunnistettu" }
+    }
+  }
+}

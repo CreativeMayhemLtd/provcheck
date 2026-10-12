@@ -189,8 +189,6 @@ mod tests {
     use super::*;
     use std::io::Write;
 
-    // ----- classify ----------
-
     #[test]
     fn classify_at_detected_threshold_is_detected() {
         assert!(matches!(
@@ -223,11 +221,7 @@ mod tests {
         ));
     }
 
-    // ----- looks_like_audio ----------
-    //
-    // Must match audioseal's allowlist verbatim — both detectors
-    // are audio-modality siblings and an asymmetric allowlist
-    // would silently mis-route some files.
+    // This allowlist must match audioseal's verbatim; asymmetry would mis-route audio-modality files.
 
     #[test]
     fn looks_like_audio_accepts_all_documented_extensions() {
@@ -263,24 +257,15 @@ mod tests {
 
     #[test]
     fn looks_like_audio_extension_list_matches_audioseal() {
-        // Cross-crate invariant: wavmark and audioseal allowlists
-        // must be identical so the audio-modality routing layer
-        // can use either as the gate without surprising drift.
+        // Cross-crate invariant: wavmark and audioseal allowlists must stay identical so either can gate routing.
         for ext in [
             "mp3", "mp4", "wav", "flac", "aac", "m4a", "m4b", "mov", "ogg", "oga", "opus", "wma",
             "aiff", "aif",
         ] {
             let p = std::path::PathBuf::from(format!("/test/file.{ext}"));
-            // Indirectly test parity: audioseal::detect on a
-            // non-audio extension returns NotDetected with
-            // message "not audio". We have already pinned that
-            // wavmark does the same here. Co-evolution invariant
-            // documented in the test name.
             assert!(looks_like_audio(&p));
         }
     }
-
-    // ----- not_detected helper ----------
 
     #[test]
     fn not_detected_helper_sets_wavmark_kind_and_zero_confidence() {

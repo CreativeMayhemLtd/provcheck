@@ -1,0 +1,647 @@
+{
+  "headerSubtitle": {
+    "message": "Allekirjoita ja tarkista C2PA Content Credentials"
+  },
+  "tabVerify": {
+    "message": "Vahvista"
+  },
+  "tabWatermark": {
+    "message": "Vesileima"
+  },
+  "tabDetect": {
+    "message": "Tunnista"
+  },
+  "tabKeys": {
+    "message": "Avaimet"
+  },
+  "tabSign": {
+    "message": "Allekirjoita"
+  },
+  "tabKeyedMarks": {
+    "message": "Avainmerkit"
+  },
+  "btnChooseFile": {
+    "message": "Valitse tiedosto…"
+  },
+  "btnVerifyAnother": {
+    "message": "Vahvista toinen"
+  },
+  "btnCopyJson": {
+    "message": "Kopioi JSON-muodossa"
+  },
+  "btnCheckAnother": {
+    "message": "Tarkista toinen tiedosto"
+  },
+  "btnReadAnother": {
+    "message": "Lue toinen"
+  },
+  "btnLogOut": {
+    "message": "Kirjaudu ulos"
+  },
+  "btnConnect": {
+    "message": "Yhdistä"
+  },
+  "btnCopy": {
+    "message": "Kopioi"
+  },
+  "btnRetry": {
+    "message": "Yritä uudelleen"
+  },
+  "btnSign": {
+    "message": "Allekirjoita"
+  },
+  "btnOK": {
+    "message": "OK"
+  },
+  "btnCancel": {
+    "message": "Peruuta"
+  },
+  "btnGotIt": {
+    "message": "Selvä"
+  },
+  "btnHowItWorks": {
+    "message": "Miten se toimii"
+  },
+  "btnInstallRepair": {
+    "message": "Asenna / Korjaa"
+  },
+  "btnChooseSecret": {
+    "message": "Valitse salaisuustiedosto"
+  },
+  "btnClose": {
+    "message": "Sulje"
+  },
+  "badgeExperimental": {
+    "message": "Kokeellinen"
+  },
+  "loadingGeneric": {
+    "message": "Ladataan…"
+  },
+  "statusChecking": {
+    "message": "Tarkistetaan..."
+  },
+  "statusCheckingStatus": {
+    "message": "Tarkistetaan tilaa…"
+  },
+  "labelFingerprint": {
+    "message": "Sormenjälki"
+  },
+  "labelAlgorithm": {
+    "message": "Algoritmi"
+  },
+  "labelBackend": {
+    "message": "Taustajärjestelmä"
+  },
+  "labelCreated": {
+    "message": "Luotu"
+  },
+  "labelDID": {
+    "message": "DID"
+  },
+  "labelHandle": {
+    "message": "Käyttäjätunnus"
+  },
+  "labelYubikey": {
+    "message": "Yubikey"
+  },
+  "labelPinTries": {
+    "message": "PIN-yritykset"
+  },
+  "labelStatus": {
+    "message": "Tila"
+  },
+  "labelLabel": {
+    "message": "Nimike"
+  },
+  "labelBy": {
+    "message": "Tekijä"
+  },
+  "labelTool": {
+    "message": "Työkalu"
+  },
+  "labelFile": {
+    "message": "Tiedosto"
+  },
+  "labelYourIdentity": {
+    "message": "Oma identiteettisi"
+  },
+  "labelOutput": {
+    "message": "Tuloste"
+  },
+  "aboutLinks": {
+    "message": "Linkit"
+  },
+  "identityBskyHandle": {
+    "message": "Bsky-käyttäjätunnus"
+  },
+  "identityRunWatermark": {
+    "message": "Suorita vesileiman tunnistus"
+  },
+  "identityRequireAttested": {
+    "message": "Vaadi todennettu"
+  },
+  "identityHandlePh": {
+    "message": "valinnainen · esim. creator.bsky.social tai did:plc:…"
+  },
+  "dropzoneTitle": {
+    "message": "Pudota mikä tahansa tiedosto tähän vahvistaaksesi"
+  },
+  "dropzoneSub": {
+    "message": "Ääni · Kuva · Video: mikä tahansa, jossa on C2PA Content Credentials -tiedot."
+  },
+  "verifyDropHint": {
+    "message": "Tai käytä ilman tiedostoa, niin tämä pysyy paikallaan. Yksityistä: tiedostot eivät koskaan poistu koneeltasi."
+  },
+  "verifyLoading": {
+    "message": "Vahvistetaan…"
+  },
+  "verifyLoadingHint": {
+    "message": "Vesileiman tunnistus kuormittaa suoritinta äänen ja videon kohdalla ja voi kestää muutaman minuutin. Poista valinta \"Suorita vesileiman tunnistus\" saadaksesi välittömän, pelkän C2PA-vahvistuksen."
+  },
+  "showRawManifest": {
+    "message": "Näytä raa'an manifestin tiedot"
+  },
+  "claimsHeading": {
+    "message": "Väitteet"
+  },
+  "wmModelsNeeded": {
+    "message": "Vesileiman tunnistus tarvitsee malleja."
+  },
+  "wmInstallAll": {
+    "message": "Asenna kaikki mallit"
+  },
+  "wmScanFor": {
+    "message": "Etsi:"
+  },
+  "wmDropTitle": {
+    "message": "Pudota mikä tahansa tiedosto tähän suorittaaksesi vesileiman tunnistuksen"
+  },
+  "wmDropHint": {
+    "message": "Yksityistä: tiedostot eivät koskaan poistu koneeltasi. Jokainen tunnistin päättää itse, soveltuuko se syötetiedoston tyyppiin."
+  },
+  "wmLoading": {
+    "message": "Suoritetaan vesileimatunnistimia…"
+  },
+  "wmLoadingHint": {
+    "message": "Mallin päättely kuormittaa suoritinta äänen ja videon kohdalla; tarkistus voi kestää muutaman minuutin. Työ jatkuu, vaikka tämä pyörii."
+  },
+  "wmResultTitle": {
+    "message": "Vesileiman tunnistus"
+  },
+  "detectTitle": {
+    "message": "Tekoälysisällön tunnistus: tuo oma tunnistimesi"
+  },
+  "detectRouteAHead": {
+    "message": "Reitti A: maksullinen DLC-paketti (v1.x, suunnitteilla)"
+  },
+  "detectRouteBHead": {
+    "message": "Reitti B: operaattorin toimittama kääre (saatavilla nyt)"
+  },
+  "keysLocalIdentity": {
+    "message": "Paikallinen identiteetti"
+  },
+  "keysNoIdentity": {
+    "message": "Tällä koneella ei ole identiteettiä."
+  },
+  "keysMismatchTitle": {
+    "message": "Identiteetin tila ei täsmää"
+  },
+  "keysRotateBtn": {
+    "message": "Luo uusi + julkaise"
+  },
+  "keysRotateTitle": {
+    "message": "Luo uusi allekirjoitusavain ja julkaise se uutena aktiivisena tietueena"
+  },
+  "keysSwitchYubikey": {
+    "message": "Vaihda Yubikey-identiteettiin…"
+  },
+  "keysSwitchYubikeyTitle": {
+    "message": "Korvaa nykyinen identiteetti Yubikey-pohjaisella"
+  },
+  "keysPublishedRecords": {
+    "message": "Julkaistut tietueet (atproto)"
+  },
+  "keysRecordsEmptyHint": {
+    "message": "Kirjaudu sisään Allekirjoita-välilehdellä ja julkaise paikallinen sormenjälkesi."
+  },
+  "keysNotLoggedIn": {
+    "message": "Ei kirjautunut sisään atproto-palveluun."
+  },
+  "keysNoSessionHint": {
+    "message": "Kirjaudu sisään Allekirjoita-välilehdellä hakeaksesi julkaistut tietueesi."
+  },
+  "signIdentityLabel": {
+    "message": "Identiteetti:"
+  },
+  "signNotSetUp": {
+    "message": "ei asetettu"
+  },
+  "signSessionLabel": {
+    "message": "Istunto:"
+  },
+  "signDisconnected": {
+    "message": "yhteys katkaistu"
+  },
+  "signSetupTitle": {
+    "message": "Määritä allekirjoitusidentiteettisi"
+  },
+  "signSetupBody": {
+    "message": "Tämä luo salausavaimen tälle koneelle ja tallentaa sen käyttöjärjestelmäsi avainnippuun. Tämä tarvitsee tehdä vain kerran."
+  },
+  "signGenerateKey": {
+    "message": "Luo allekirjoitusavain"
+  },
+  "signSetupHint": {
+    "message": "Avain ei koskaan poistu koneeltasi. Käyttöjärjestelmäsi hoitaa käyttöoikeuskyselyt."
+  },
+  "signConnectTitle": {
+    "message": "Yhdistä bsky-identiteettisi"
+  },
+  "signConnectBody": {
+    "message": "Liitä allekirjoitusavaimesi atproto-käyttäjätunnukseesi, jotta vahvistajat tietävät sen olevan sinun."
+  },
+  "signHandlePh": {
+    "message": "creator.bsky.social"
+  },
+  "signAppPassword": {
+    "message": "Sovellussalasana"
+  },
+  "signRememberDevice": {
+    "message": "Muista minut tällä laitteella"
+  },
+  "signPublishTitle": {
+    "message": "Julkaise allekirjoitusavaimesi"
+  },
+  "signPublishBody": {
+    "message": "Viimeinen vaihe: avaimesi sormenjäljen julkaiseminen atproto-palveluun antaa vahvistajille mahdollisuuden ristiintarkistaa, että allekirjoitit työsi. Ilman tätä he näkevät vain \"kelvollinen allekirjoitus tuntemattomalta.\""
+  },
+  "signLabelOptional": {
+    "message": "Nimike (valinnainen)"
+  },
+  "signLabelPh": {
+    "message": "esim. studio mac"
+  },
+  "signPublishKey": {
+    "message": "Julkaise avain"
+  },
+  "signStaleTitle": {
+    "message": "Allekirjoitusavaimesi on vanhentunut"
+  },
+  "signRecoverHeading": {
+    "message": "Palauta päätteestä:"
+  },
+  "signStaleHint": {
+    "message": "Tämä luo uuden avaimen, julkaisee sen uutena aktiivisena tietueena ja (tarvittaessa) mitätöi orpotietueen, jotta kukaan ei voi allekirjoittaa nimissäsi kadonneella avaimella."
+  },
+  "signDropTitle": {
+    "message": "Pudota tiedosto tähän allekirjoittaaksesi"
+  },
+  "signDropSub": {
+    "message": "Ääni · Kuva · Video: mitä tahansa, mitä c2pa-rs tukee."
+  },
+  "signReadyToSign": {
+    "message": "Valmis allekirjoitettavaksi"
+  },
+  "signChainTitle": {
+    "message": "Tämä tiedosto on jo allekirjoitettu."
+  },
+  "signChainSub": {
+    "message": "Allekirjoituksesi liittyy ketjuun johdannaisena; alkuperäinen allekirjoitus säilyy koskemattomana."
+  },
+  "signRelationshipQ": {
+    "message": "Mikä on suhteesi tähän tiedostoon?"
+  },
+  "signEmbedIdentity": {
+    "message": "Upota identiteettiväite (suositeltu; antaa vahvistajien ohittaa käyttäjätunnuksen syöttövaiheen)"
+  },
+  "signModelPh": {
+    "message": "esim. ACE-Step v1.0"
+  },
+  "signReplaceOriginal": {
+    "message": "Korvaa alkuperäinen (sivutiedoston kirjoittamisen sijaan)"
+  },
+  "signPickDifferent": {
+    "message": "Valitse toinen tiedosto"
+  },
+  "signSigning": {
+    "message": "Allekirjoitetaan…"
+  },
+  "signSigned": {
+    "message": "Allekirjoitettu"
+  },
+  "signAnother": {
+    "message": "Allekirjoita toinen"
+  },
+  "signVerifyIt": {
+    "message": "Vahvista se"
+  },
+  "signErrorTitle": {
+    "message": "Allekirjoitustilaasi ei voitu ladata"
+  },
+  "bfBackfireTitle": {
+    "message": "Lue avainkohtainen Backfire-merkki"
+  },
+  "bfBackfireSub": {
+    "message": "Vahvista kuvakohtainen vesileima, jonka tekoälyn alkuperänpoistajat vahvistavat poistamisen sijaan."
+  },
+  "bfReaderLabel": {
+    "message": "Backfire-lukija"
+  },
+  "bfDropTitle": {
+    "message": "Pudota kuva tähän tai valitse se lukeaksesi sen merkin"
+  },
+  "bfChooseRead": {
+    "message": "Valitse kuva ja lue"
+  },
+  "bfHint": {
+    "message": "Syötä avaimesi ensin yllä, sitten pudota tai valitse kuva. Se luetaan automaattisesti ja pysyy koneellasi."
+  },
+  "bfLoading": {
+    "message": "Luetaan Backfire-merkkiä…"
+  },
+  "mlTitle": {
+    "message": "Lue avainkohtainen Mellin-sarjanumero"
+  },
+  "mlSub": {
+    "message": "Äänipuolen avainkohtainen forensiikka: palauta 64-bittinen kopiokohtainen sarjanumero, jonka upotit itsenäisellä, BUSL-lisensoidulla provcheck-mellin-työkalulla (maksuton ei-kaupalliseen käyttöön, erillinen provcheckista). Vaatii myyjän salaisuustiedostosi ja teoksen tunnisteen; kaikki pysyy koneellasi."
+  },
+  "mlReaderLabel": {
+    "message": "Mellin-lukija"
+  },
+  "mlSecretNone": {
+    "message": "ei valittu. Salaisuutta ei koskaan tallenneta, joten valitse se uudelleen joka käynnistyksen jälkeen."
+  },
+  "mlWorkidPh": {
+    "message": "upotuksessa käytetty teoksen tunniste"
+  },
+  "mlDropTitle": {
+    "message": "Valitse äänitiedosto lukeaksesi sen sarjanumeron"
+  },
+  "mlChooseRead": {
+    "message": "Valitse ääni ja lue"
+  },
+  "mlHint": {
+    "message": "Valitse salaisuustiedostosi ja syötä teoksen tunniste ensin, sitten valitse ääni tai pudota se mihin tahansa tällä välilehdellä. Mikä tahansa muoto käy (WAV, MP3, AAC, FLAC); äänitiedostot luetaan täällä, kuvat lukevat yllä olevan Backfire-merkin."
+  },
+  "mlLoading": {
+    "message": "Luetaan Mellin-sarjanumeroa…"
+  },
+  "imTitle": {
+    "message": "Lue avainkohtainen idmark-identiteettimerkki"
+  },
+  "imSub": {
+    "message": "Kuvapuolen avainkohtainen identiteetti: lue rajaukselle, transkoodaukselle ja kierrolle sietokykyinen kopiokohtainen merkki, joka on upotettu itsenäisellä, BUSL-lisensoidulla provcheck-idmark-työkalulla (maksuton ei-kaupalliseen käyttöön, erillinen provcheckista). Ilman salaisuutta se tarkistaa sisäänrakennetun merkin; lisää salaisuustiedostosi ja paikka kopion kohdentamiseksi. Kaikki pysyy koneellasi."
+  },
+  "imReaderLabel": {
+    "message": "idmark-lukija"
+  },
+  "imSecretNone": {
+    "message": "ei valittu. Jätä tyhjäksi lukeaksesi sisäänrakennetun merkin; salaisuutta ei koskaan tallenneta."
+  },
+  "imDropTitle": {
+    "message": "Valitse kuva lukeaksesi sen merkin"
+  },
+  "imChooseRead": {
+    "message": "Valitse kuva ja lue"
+  },
+  "imHint": {
+    "message": "Valitse valinnaisesti salaisuustiedostosi ja paikka ensin, sitten valitse kuva. PNG tai JPEG. Tämä lukee idmark-identiteettimerkin; Backfire-merkki ja Mellin-sarjanumerot luetaan yllä olevissa osioissa."
+  },
+  "imLoading": {
+    "message": "Luetaan idmarkia…"
+  },
+  "bfModalTitle": {
+    "message": "Miten Backfire toimii"
+  },
+  "vVerified": {
+    "message": "Vahvistettu"
+  },
+  "vUnsigned": {
+    "message": "Allekirjoittamaton"
+  },
+  "vNotVerified": {
+    "message": "Ei vahvistettu"
+  },
+  "attAttestedBy": {
+    "message": "Todentanut $1"
+  },
+  "attMatchSub": {
+    "message": "Allekirjoitussertifikaatti vastaa tämän identiteetin alla julkaistua avainta."
+  },
+  "attMismatch": {
+    "message": "Todennus ei täsmää kohteelle $1"
+  },
+  "attMismatchSub": {
+    "message": "Allekirjoitussertifikaatti ei vastaa mitään tämän identiteetin alla julkaistua avainta."
+  },
+  "attNotPublished": {
+    "message": "Ei julkaistuja avaimia kohteessa $1"
+  },
+  "attNotPublishedSub": {
+    "message": "Tämä identiteetti on olemassa, mutta ei ole julkaissut signingKey-tietueita."
+  },
+  "attResolveFailed": {
+    "message": "Kohdetta $1 ei voitu selvittää"
+  },
+  "attResolveFailedSub": {
+    "message": "Identiteetin selvitys epäonnistui (käyttäjätunnus/DID ei tavoitettavissa)."
+  },
+  "attThisIdentity": {
+    "message": "tämä identiteetti"
+  },
+  "kvSigner": {
+    "message": "Allekirjoittaja"
+  },
+  "kvSignedAt": {
+    "message": "Allekirjoitettu"
+  },
+  "kvFormat": {
+    "message": "Muoto"
+  },
+  "kvManifest": {
+    "message": "Manifesti"
+  },
+  "kvIngredients": {
+    "message": "Ainesosat"
+  },
+  "kvIngredientsVal": {
+    "message": "$1 (johdettu sisältö: tämä tiedosto luotiin muokkaamalla aiemmin allekirjoitettuja tiedostoja)"
+  },
+  "kvValidationErrors": {
+    "message": "Validointivirheet"
+  },
+  "wmEmpty": {
+    "message": "Suoritetut tunnistinperheet eivät havainneet vesileimoja."
+  },
+  "wmKeyedNote": {
+    "message": "Avainkohtaiset merkit (Backfire, Mellin) eivät kuulu tähän tarkistukseen. Ne voidaan lukea vain avaimellasi, Avainmerkit-välilehdellä."
+  },
+  "wmConfidence": {
+    "message": "$1 % luottamus"
+  },
+  "wmDegraded": {
+    "message": "$1 % luottamus; merkki on heikentynyt (osittainen vioittuminen todennäköinen)"
+  },
+  "wmNa": {
+    "message": "$1: ei saatavilla"
+  },
+  "wmNoMark": {
+    "message": "$1: merkkiä ei havaittu"
+  },
+  "wmTimelineAria": {
+    "message": "Vesileiman esiintyminen ajan kuluessa: $1"
+  },
+  "wmUnrecognizedSource": {
+    "message": "tunnistamaton lähde"
+  },
+  "btnCopied": {
+    "message": "Kopioitu"
+  },
+  "scanError": {
+    "message": "Tätä tiedostoa ei voitu tarkistaa: $1"
+  },
+  "autoFilled": {
+    "message": "täytetty automaattisesti tiedostosta"
+  },
+  "dragFileOnto": {
+    "message": "Vedä tiedosto ikkunan päälle"
+  },
+  "aiGenerated": {
+    "message": "Tekoälyn luoma"
+  },
+  "btnCopiedBang": {
+    "message": "Kopioitu!"
+  },
+  "bfCouldNotRun": {
+    "message": "Backfirea ei voitu suorittaa"
+  },
+  "btnInstalling": {
+    "message": "Asennetaan…"
+  },
+  "downloadingModels": {
+    "message": "Ladataan malleja, tämä voi kestää minuutin…"
+  },
+  "btnWorking": {
+    "message": "Käsitellään…"
+  },
+  "bfInstalling": {
+    "message": "Asennetaan / korjataan Backfire-lukijaa…"
+  },
+  "statusCheckFailed": {
+    "message": "Tilan tarkistus epäonnistui: $1"
+  },
+  "readingFile": {
+    "message": "Luetaan $1…"
+  },
+  "mlCouldNotRun": {
+    "message": "Melliniä ei voitu suorittaa"
+  },
+  "imCouldNotRun": {
+    "message": "idmarkia ei voitu suorittaa"
+  },
+  "keysMismSuperseded": {
+    "message": "Paikallinen avaimesi on korvattu"
+  },
+  "keysMismRevoked": {
+    "message": "Paikallinen avaimesi on mitätöity"
+  },
+  "keysMismActiveNoKey": {
+    "message": "Aktiivinen tietue käyttää avainta, jota sinulla ei ole"
+  },
+  "thisBox": {
+    "message": "(tämä laite)"
+  },
+  "btnRevoke": {
+    "message": "Mitätöi"
+  },
+  "checkingPublishedKeys": {
+    "message": "Tarkistetaan julkaistuja avaimia…"
+  },
+  "btnGenerating": {
+    "message": "Luodaan…"
+  },
+  "btnConnecting": {
+    "message": "Yhdistetään…"
+  },
+  "btnPublishing": {
+    "message": "Julkaistaan…"
+  },
+  "signReadyToPublish": {
+    "message": "Valmis julkaistavaksi"
+  },
+  "bfMarkFound": {
+    "message": "Backfire-merkki löydetty"
+  },
+  "bfNoValidMark": {
+    "message": "Ei kelvollista Backfire-merkkiä"
+  },
+  "mlSerialRecovered": {
+    "message": "Mellin-sarjanumero palautettu"
+  },
+  "mlNoFullSerial": {
+    "message": "Ei täydellistä Mellin-sarjanumeroa"
+  },
+  "imPresent": {
+    "message": "idmark läsnä"
+  },
+  "imNoDetected": {
+    "message": "idmarkia ei havaittu"
+  },
+  "fieldIdentifier": {
+    "message": "Tunniste"
+  },
+  "fieldConfidenceMargin": {
+    "message": "Luottamus (minimibitin marginaali)"
+  },
+  "fieldValid": {
+    "message": "Kelvollinen"
+  },
+  "fieldMatchesSerial": {
+    "message": "Vastaa odotettua sarjanumeroa"
+  },
+  "fieldTamperTripwire": {
+    "message": "Peukaloinnin laukaisin"
+  },
+  "fieldSerial": {
+    "message": "Sarjanumero"
+  },
+  "fieldBitsRecovered": {
+    "message": "Palautetut bitit"
+  },
+  "fieldErasureRate": {
+    "message": "Poistoaste"
+  },
+  "fieldMinBitVotes": {
+    "message": "Minimibitin äänet"
+  },
+  "fieldMarkPresent": {
+    "message": "Merkki läsnä"
+  },
+  "fieldSeat": {
+    "message": "Paikka"
+  },
+  "fieldMargin": {
+    "message": "Marginaali"
+  },
+  "fieldReadVia": {
+    "message": "Luettu kautta"
+  },
+  "fieldEstRotation": {
+    "message": "Arvioitu kierto"
+  },
+  "fieldError": {
+    "message": "Virhe"
+  },
+  "valYes": {
+    "message": "kyllä"
+  },
+  "valNo": {
+    "message": "ei"
+  },
+  "bfTamperDetected": {
+    "message": "lovipeukalointi havaittu (tunnusluku $1)"
+  },
+  "bfTamperClean": {
+    "message": "puhdas (tunnusluku $1)"
+  }
+}

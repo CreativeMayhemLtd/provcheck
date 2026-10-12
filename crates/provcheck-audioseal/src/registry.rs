@@ -114,8 +114,7 @@ mod tests {
 
     #[test]
     fn decode_handles_pessimal_two_bit_flip_in_one_copy() {
-        // Two bit flips in the SAME copy still leave the other two
-        // copies clean → majority vote recovers correctly.
+        // Two flips in the same copy leave the other two clean, so majority vote still recovers.
         let original = encode_payload(BRAND_DOOMSCROLL);
         // Flip two bits in copy 1 (positions 0 and 4)
         let flipped = original ^ 0b10001;

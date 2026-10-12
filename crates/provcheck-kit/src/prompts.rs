@@ -7,7 +7,7 @@
 //! aware of terminal IO.
 //!
 //! Two flavours:
-#![allow(dead_code)] // prompt helpers ship in sub-pass 1; consumed by the implementation passes
+#![allow(dead_code)]
 //!
 //! - [`new_passphrase`] — for the create-key path. Prompts twice
 //!   and confirms the two entries match, enforces a minimum

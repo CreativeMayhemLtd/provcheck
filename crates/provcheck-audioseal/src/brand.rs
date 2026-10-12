@@ -23,8 +23,7 @@ pub fn parse_brand(payload: [u8; 2]) -> Option<WatermarkBrand> {
         BRAND_DOOMSCROLL => WatermarkBrand::Doomscroll,
         BRAND_RAIDIO => WatermarkBrand::Raidio,
         BRAND_VAIDEO => WatermarkBrand::Vaideo,
-        // Unrecognised 5-bit ID. Surface the recovered ID (not the
-        // raw payload) so the renderer shows the post-ECC value.
+        // Surface the recovered (post-ECC) ID, not the raw payload.
         other => WatermarkBrand::UnknownNumeric { id: other as u16 },
     })
 }
@@ -53,8 +52,7 @@ mod tests {
 
     #[test]
     fn one_bit_flip_in_doomscroll_payload_still_decodes() {
-        // Take the canonical Doomscroll payload and flip one bit.
-        // The 3-copy majority vote should recover correctly.
+        // The 3-copy majority vote recovers the value after any single bit flip.
         let original = 0x0421_u16;
         for flip in 0..16 {
             let bytes = (original ^ (1 << flip)).to_be_bytes();
@@ -68,9 +66,7 @@ mod tests {
 
     #[test]
     fn unknown_id_surfaces_id() {
-        // 0x1F = the maximal 5-bit value, repeated three times.
-        // That's 11111 11111 11111 = 0x7FFF, which we'd expect to
-        // recover as id 0x1F = 31 → UnknownNumeric.
+        // 0x7FFF = three copies of the maximal 5-bit value (0x1F = 31), recovered as UnknownNumeric.
         let payload = 0x7FFF_u16.to_be_bytes();
         assert_eq!(
             parse_brand(payload),

@@ -1,0 +1,17 @@
+# Download-on-demand sample media.
+#
+# The larger watermark-detection and keyed-mark sample files are served on
+# demand (bundled with the app installer or downloaded on first use), not stored
+# in this repository. See README.md. The small C2PA fixtures the integration
+# suite reads (rAIdio.bot-sample, doomscroll.fm-sample, unsigned-sample) are
+# committed and deliberately not matched below.
+
+# Blind-detector samples at the examples/ root.
+silentcipher-*.wav
+trustmark-*.png
+trustmark-*.mp4
+
+# Keyed-mark samples and rendered demo panels (keyed-samples/ keeps its README).
+keyed-samples/*.png
+keyed-samples/*.wav
+keyed-samples/*.mp4

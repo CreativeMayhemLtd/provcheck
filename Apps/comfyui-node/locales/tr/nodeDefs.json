@@ -1,0 +1,67 @@
+{
+  "ProvcheckC2PA": {
+    "display_name": "Provcheck (Ücretsiz C2PA Filigranı) • Creative Mayhem",
+    "description": "ComfyUI için ücretsiz, açık (Apache-2.0) provcheck — görüntü, ses ve video için tek bir node. YAZMA: ücretsiz filigranı göm (görüntülerde TrustMark, ses/video'nun ses parçasında silentcipher) ve/veya yerel anahtarınız + atproto/Bluesky kimliğinizle C2PA imzalayın, isteğe bağlı olarak üretim grafiğini kaydederek; imzalanmış dosya çıktı dizininize yazılır. OKUMA: her bağlı girdide bir provcheck işaretini algıla/doğrula. Bir görüntü, ses, video veya herhangi bir karışımı bağlayın. Çıktı dosya adı dahil her seçenek, başka bir node'dan da bağlanabilen bir widget'tır. Creative Mayhem ayrıca Backfire'ı da üretir, AI kaldırma girişimlerini kaldırmak yerine güçlendiren anahtarlı bir işaret (ticari eklenti, bu ücretsiz pakette yok): https://provcheck.ai/backfire . Daha fazlası: https://provcheck.ai",
+    "inputs": {
+      "mode": {
+        "name": "mode",
+        "tooltip": "yazma = her bağlı girdiyi filigranla ve/veya C2PA ile imzala (en yaygın). okuma = mevcut bir provcheck işaretini algıla/doğrula.",
+        "options": {
+          "write": "yazma",
+          "read": "okuma"
+        }
+      },
+      "image": {
+        "name": "Görüntü",
+        "tooltip": "Yazılacak/okunacak isteğe bağlı görüntü grubu."
+      },
+      "audio": {
+        "name": "Ses",
+        "tooltip": "Yazılacak/okunacak isteğe bağlı ses."
+      },
+      "video": {
+        "name": "Video",
+        "tooltip": "İsteğe bağlı video. Filigran ses parçasında taşınır (kareler korunur); konteyner C2PA ile imzalanır."
+      },
+      "watermark": {
+        "name": "watermark",
+        "tooltip": "[yazma] Ücretsiz FOSS filigranını göm (görüntülerde TrustMark / seste silentcipher)."
+      },
+      "c2pa_sign": {
+        "name": "c2pa_sign",
+        "tooltip": "[yazma] Yerel imzalama anahtarınızla C2PA imzalayın. İmzalanmış dosya ComfyUI çıktı dizininize yazılır."
+      },
+      "embed_identity": {
+        "name": "embed_identity",
+        "tooltip": "[yazma] atproto/Bluesky kimliğinizi (DID + handle) manifestoya gömün, böylece bir doğrulayıcı kimin imzaladığını görür. kit girişi gerektirir."
+      },
+      "record_provenance": {
+        "name": "record_provenance",
+        "tooltip": "[yazma] Üretim grafiğinin (model, seed, sampler, promptlar) derlenmiş bir özetini imzalanmış manifestoya kaydedin."
+      },
+      "include_full_workflow": {
+        "name": "include_full_workflow",
+        "tooltip": "[yazma] record_provenance ile birlikte: yalnızca özeti değil, TAM (sansürlenmiş) iş akışını gömün. Prompt/yol sızıntısını önlemek için varsayılan olarak kapalıdır."
+      },
+      "brand_id": {
+        "name": "brand_id",
+        "tooltip": "[yazma] atproto marka kayıt defterinden 5 bitlik marka kimliğiniz (0-31). Varsayılan 2, herkese açık rAIdio.bot kimliğidir; kendi kimliğinizi kullanın."
+      },
+      "filename_prefix": {
+        "name": "filename_prefix",
+        "tooltip": "[yazma, bir dosya yazıldığında] İmzalanmış/filigranlanmış dosyalar için çıktı dosya adı öneki. Düzenlenebilir ve başka bir node'dan bağlanabilir (sağ tık -> Girişe dönüştür)."
+      },
+      "timeout_secs": {
+        "name": "timeout_secs",
+        "tooltip": "Öğe başına alt işlem zaman aşımı, saniye cinsinden."
+      }
+    },
+    "outputs": {
+      "0": { "name": "Görüntü" },
+      "1": { "name": "Ses" },
+      "2": { "name": "Video" },
+      "3": { "name": "Rapor" },
+      "4": { "name": "Algılandı" }
+    }
+  }
+}

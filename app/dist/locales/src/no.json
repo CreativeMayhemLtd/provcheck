@@ -1,0 +1,647 @@
+{
+  "headerSubtitle": {
+    "message": "Signer og verifiser C2PA Content Credentials"
+  },
+  "tabVerify": {
+    "message": "Verifiser"
+  },
+  "tabWatermark": {
+    "message": "Vannmerke"
+  },
+  "tabDetect": {
+    "message": "Oppdag"
+  },
+  "tabKeys": {
+    "message": "Nøkler"
+  },
+  "tabSign": {
+    "message": "Signer"
+  },
+  "tabKeyedMarks": {
+    "message": "Nøkkelbaserte merker"
+  },
+  "btnChooseFile": {
+    "message": "Velg fil…"
+  },
+  "btnVerifyAnother": {
+    "message": "Verifiser en til"
+  },
+  "btnCopyJson": {
+    "message": "Kopier som JSON"
+  },
+  "btnCheckAnother": {
+    "message": "Sjekk en annen fil"
+  },
+  "btnReadAnother": {
+    "message": "Les en til"
+  },
+  "btnLogOut": {
+    "message": "Logg ut"
+  },
+  "btnConnect": {
+    "message": "Koble til"
+  },
+  "btnCopy": {
+    "message": "Kopier"
+  },
+  "btnRetry": {
+    "message": "Prøv igjen"
+  },
+  "btnSign": {
+    "message": "Signer"
+  },
+  "btnOK": {
+    "message": "OK"
+  },
+  "btnCancel": {
+    "message": "Avbryt"
+  },
+  "btnGotIt": {
+    "message": "Forstått"
+  },
+  "btnHowItWorks": {
+    "message": "Hvordan det fungerer"
+  },
+  "btnInstallRepair": {
+    "message": "Installer/reparer"
+  },
+  "btnChooseSecret": {
+    "message": "Velg hemmelig fil"
+  },
+  "btnClose": {
+    "message": "Lukk"
+  },
+  "badgeExperimental": {
+    "message": "Eksperimentell"
+  },
+  "loadingGeneric": {
+    "message": "Laster…"
+  },
+  "statusChecking": {
+    "message": "Sjekker..."
+  },
+  "statusCheckingStatus": {
+    "message": "Sjekker status…"
+  },
+  "labelFingerprint": {
+    "message": "Fingeravtrykk"
+  },
+  "labelAlgorithm": {
+    "message": "Algoritme"
+  },
+  "labelBackend": {
+    "message": "Backend"
+  },
+  "labelCreated": {
+    "message": "Opprettet"
+  },
+  "labelDID": {
+    "message": "DID"
+  },
+  "labelHandle": {
+    "message": "Handle"
+  },
+  "labelYubikey": {
+    "message": "Yubikey"
+  },
+  "labelPinTries": {
+    "message": "PIN-forsøk"
+  },
+  "labelStatus": {
+    "message": "Status"
+  },
+  "labelLabel": {
+    "message": "Etikett"
+  },
+  "labelBy": {
+    "message": "Av"
+  },
+  "labelTool": {
+    "message": "Verktøy"
+  },
+  "labelFile": {
+    "message": "Fil"
+  },
+  "labelYourIdentity": {
+    "message": "Din identitet"
+  },
+  "labelOutput": {
+    "message": "Utdata"
+  },
+  "aboutLinks": {
+    "message": "Lenker"
+  },
+  "identityBskyHandle": {
+    "message": "Bsky-handle"
+  },
+  "identityRunWatermark": {
+    "message": "Kjør vannmerkedeteksjon"
+  },
+  "identityRequireAttested": {
+    "message": "Krev attestert"
+  },
+  "identityHandlePh": {
+    "message": "valgfritt · f.eks. creator.bsky.social eller did:plc:…"
+  },
+  "dropzoneTitle": {
+    "message": "Slipp en hvilken som helst fil her for å verifisere"
+  },
+  "dropzoneSub": {
+    "message": "Lyd · Bilde · Video: alt som bærer C2PA Content Credentials."
+  },
+  "verifyDropHint": {
+    "message": "Eller kjør uten noe, og dette blir stående. Privat: filer forlater aldri maskinen din."
+  },
+  "verifyLoading": {
+    "message": "Verifiserer…"
+  },
+  "verifyLoadingHint": {
+    "message": "Vannmerkedeteksjon er CPU-tungt for lyd og video og kan ta noen minutter. Fjern haken ved \"Kjør vannmerkedeteksjon\" for en umiddelbar verifisering som kun sjekker C2PA."
+  },
+  "showRawManifest": {
+    "message": "Vis rå manifestdetaljer"
+  },
+  "claimsHeading": {
+    "message": "Claims"
+  },
+  "wmModelsNeeded": {
+    "message": "Vannmerkedeteksjon trenger modeller."
+  },
+  "wmInstallAll": {
+    "message": "Installer alle modeller"
+  },
+  "wmScanFor": {
+    "message": "Skann etter:"
+  },
+  "wmDropTitle": {
+    "message": "Slipp en hvilken som helst fil her for å kjøre vannmerkedeteksjon"
+  },
+  "wmDropHint": {
+    "message": "Privat: filer forlater aldri maskinen din. Hver detektor avgjør selv om den gjelder for den aktuelle filtypen."
+  },
+  "wmLoading": {
+    "message": "Kjører vannmerkedetektorer…"
+  },
+  "wmLoadingHint": {
+    "message": "Modellinferens er CPU-tungt for lyd og video; en skanning kan ta noen minutter. Det jobbes fortsatt mens dette spinner."
+  },
+  "wmResultTitle": {
+    "message": "Vannmerkedeteksjon"
+  },
+  "detectTitle": {
+    "message": "AI-innholdsdeteksjon: ta med din egen detektor"
+  },
+  "detectRouteAHead": {
+    "message": "Vei A: betalt DLC-pakke (v1.x, planlagt)"
+  },
+  "detectRouteBHead": {
+    "message": "Vei B: operatørlevert wrapper (tilgjengelig nå)"
+  },
+  "keysLocalIdentity": {
+    "message": "Lokal identitet"
+  },
+  "keysNoIdentity": {
+    "message": "Ingen identitet på denne maskinen."
+  },
+  "keysMismatchTitle": {
+    "message": "Identitetstilstand stemmer ikke overens"
+  },
+  "keysRotateBtn": {
+    "message": "Opprett ny + publiser"
+  },
+  "keysRotateTitle": {
+    "message": "Opprett en ny signeringsnøkkel og publiser den som den nye aktive posten"
+  },
+  "keysSwitchYubikey": {
+    "message": "Bytt til Yubikey-identitet…"
+  },
+  "keysSwitchYubikeyTitle": {
+    "message": "Erstatt den nåværende identiteten med en Yubikey-basert identitet"
+  },
+  "keysPublishedRecords": {
+    "message": "Publiserte poster (atproto)"
+  },
+  "keysRecordsEmptyHint": {
+    "message": "Logg inn på fanen Signer, og publiser ditt lokale fingeravtrykk."
+  },
+  "keysNotLoggedIn": {
+    "message": "Ikke logget inn på atproto."
+  },
+  "keysNoSessionHint": {
+    "message": "Logg inn på fanen Signer for å hente dine publiserte poster."
+  },
+  "signIdentityLabel": {
+    "message": "Identitet:"
+  },
+  "signNotSetUp": {
+    "message": "ikke konfigurert"
+  },
+  "signSessionLabel": {
+    "message": "Sesjon:"
+  },
+  "signDisconnected": {
+    "message": "frakoblet"
+  },
+  "signSetupTitle": {
+    "message": "Konfigurer din signeringsidentitet"
+  },
+  "signSetupBody": {
+    "message": "Dette genererer en kryptografisk nøkkel på denne maskinen og lagrer den i operativsystemets nøkkelring. Du trenger bare å gjøre dette én gang."
+  },
+  "signGenerateKey": {
+    "message": "Generer signeringsnøkkel"
+  },
+  "signSetupHint": {
+    "message": "Nøkkelen forlater aldri maskinen din. Operativsystemet håndterer tilgangsforespørsler."
+  },
+  "signConnectTitle": {
+    "message": "Koble til din bsky-identitet"
+  },
+  "signConnectBody": {
+    "message": "Koble signeringsnøkkelen din til atproto-handlen din, slik at verifiserere vet at den er din."
+  },
+  "signHandlePh": {
+    "message": "creator.bsky.social"
+  },
+  "signAppPassword": {
+    "message": "App-passord"
+  },
+  "signRememberDevice": {
+    "message": "Husk meg på denne enheten"
+  },
+  "signPublishTitle": {
+    "message": "Publiser signeringsnøkkelen din"
+  },
+  "signPublishBody": {
+    "message": "Ett siste steg: å publisere fingeravtrykket til nøkkelen din til atproto lar verifiserere krysssjekke at du har signert verket ditt. Uten dette ser de bare \"gyldig signatur av ukjent.\""
+  },
+  "signLabelOptional": {
+    "message": "Etikett (valgfritt)"
+  },
+  "signLabelPh": {
+    "message": "f.eks. studio mac"
+  },
+  "signPublishKey": {
+    "message": "Publiser nøkkel"
+  },
+  "signStaleTitle": {
+    "message": "Signeringsnøkkelen din er utdatert"
+  },
+  "signRecoverHeading": {
+    "message": "Gjenopprett fra en terminal:"
+  },
+  "signStaleHint": {
+    "message": "Dette oppretter en ny nøkkel, publiserer den som den nye aktive posten og (om nødvendig) tilbakekaller den foreldreløse posten, slik at ingen kan signere i ditt navn med den tapte nøkkelen."
+  },
+  "signDropTitle": {
+    "message": "Slipp en fil her for å signere"
+  },
+  "signDropSub": {
+    "message": "Lyd · Bilde · Video: alt som c2pa-rs støtter."
+  },
+  "signReadyToSign": {
+    "message": "Klar til å signere"
+  },
+  "signChainTitle": {
+    "message": "Denne filen er allerede signert."
+  },
+  "signChainSub": {
+    "message": "Signaturen din blir lagt til i kjeden som et derivat; den opprinnelige signaturen forblir intakt."
+  },
+  "signRelationshipQ": {
+    "message": "Hva er ditt forhold til denne filen?"
+  },
+  "signEmbedIdentity": {
+    "message": "Bygg inn identitetspåstand (anbefales; lar verifiserere hoppe over trinnet med å angi handle)"
+  },
+  "signModelPh": {
+    "message": "f.eks. ACE-Step v1.0"
+  },
+  "signReplaceOriginal": {
+    "message": "Erstatt originalen (i stedet for å skrive en sidecar)"
+  },
+  "signPickDifferent": {
+    "message": "Velg en annen fil"
+  },
+  "signSigning": {
+    "message": "Signerer…"
+  },
+  "signSigned": {
+    "message": "Signert"
+  },
+  "signAnother": {
+    "message": "Signer en til"
+  },
+  "signVerifyIt": {
+    "message": "Verifiser det"
+  },
+  "signErrorTitle": {
+    "message": "Kunne ikke laste inn signeringsstatusen din"
+  },
+  "bfBackfireTitle": {
+    "message": "Les et nøkkelbasert Backfire-merke"
+  },
+  "bfBackfireSub": {
+    "message": "Verifiser et vannmerke per bilde som AI-opphavsstrippere forsterker i stedet for å fjerne."
+  },
+  "bfReaderLabel": {
+    "message": "Backfire-leser"
+  },
+  "bfDropTitle": {
+    "message": "Slipp et bilde her, eller velg ett, for å lese merket"
+  },
+  "bfChooseRead": {
+    "message": "Velg bilde og les"
+  },
+  "bfHint": {
+    "message": "Angi nøkkelen din ovenfor først, og slipp eller velg deretter et bilde. Det leses automatisk og blir på maskinen din."
+  },
+  "bfLoading": {
+    "message": "Leser Backfire-merke…"
+  },
+  "mlTitle": {
+    "message": "Les et nøkkelbasert Mellin-serienummer"
+  },
+  "mlSub": {
+    "message": "Lydsidens nøkkelbaserte forensikk: gjenopprett det 64-bits serienummeret per eksemplar du bygde inn med det frittstående, BUSL-lisensierte verktøyet provcheck-mellin (gratis for ikke-kommersiell bruk, adskilt fra provcheck). Krever selgerens hemmelige fil og verk-id; alt blir på maskinen din."
+  },
+  "mlReaderLabel": {
+    "message": "Mellin-leser"
+  },
+  "mlSecretNone": {
+    "message": "ingen valgt. Hemmeligheten lagres aldri, så velg den på nytt etter hver oppstart."
+  },
+  "mlWorkidPh": {
+    "message": "verk-ID-en som ble brukt ved innbygging"
+  },
+  "mlDropTitle": {
+    "message": "Velg en lydfil for å lese serienummeret"
+  },
+  "mlChooseRead": {
+    "message": "Velg lyd og les"
+  },
+  "mlHint": {
+    "message": "Velg den hemmelige filen din og angi verk-ID-en først, velg deretter lyden eller slipp den hvor som helst på denne fanen. Alle formater fungerer (WAV, MP3, AAC, FLAC); lydfiler leses her, bilder leser Backfire-merket ovenfor."
+  },
+  "mlLoading": {
+    "message": "Leser Mellin-serienummer…"
+  },
+  "imTitle": {
+    "message": "Les et nøkkelbasert idmark-identitetsmerke"
+  },
+  "imSub": {
+    "message": "Bildesidens nøkkelbaserte identitet: les det beskjærings-, omkodings- og rotasjonstolerante merket per eksemplar som ble bygget inn med det frittstående, BUSL-lisensierte verktøyet provcheck-idmark (gratis for ikke-kommersiell bruk, adskilt fra provcheck). Uten hemmelighet sjekkes det innebygde merket; legg til den hemmelige filen din og en seat for å tilskrive et eksemplar. Alt blir på maskinen din."
+  },
+  "imReaderLabel": {
+    "message": "idmark-leser"
+  },
+  "imSecretNone": {
+    "message": "ingen valgt. La stå tomt for å lese det innebygde merket; hemmeligheten lagres aldri."
+  },
+  "imDropTitle": {
+    "message": "Velg et bilde for å lese merket"
+  },
+  "imChooseRead": {
+    "message": "Velg bilde og les"
+  },
+  "imHint": {
+    "message": "Velg eventuelt den hemmelige filen din og en seat først, velg deretter bildet. PNG eller JPEG. Dette leser idmark-identitetsmerket; Backfire-merket og Mellin-serienumre leses i seksjonene ovenfor."
+  },
+  "imLoading": {
+    "message": "Leser idmark…"
+  },
+  "bfModalTitle": {
+    "message": "Hvordan Backfire fungerer"
+  },
+  "vVerified": {
+    "message": "Verifisert"
+  },
+  "vUnsigned": {
+    "message": "Usignert"
+  },
+  "vNotVerified": {
+    "message": "Ikke verifisert"
+  },
+  "attAttestedBy": {
+    "message": "Attestert av $1"
+  },
+  "attMatchSub": {
+    "message": "Signeringssertifikatet samsvarer med en nøkkel publisert under denne identiteten."
+  },
+  "attMismatch": {
+    "message": "Attesteringsavvik for $1"
+  },
+  "attMismatchSub": {
+    "message": "Signeringssertifikatet samsvarer ikke med noen nøkkel publisert under denne identiteten."
+  },
+  "attNotPublished": {
+    "message": "Ingen nøkler publisert under $1"
+  },
+  "attNotPublishedSub": {
+    "message": "Denne identiteten finnes, men har ikke publisert noen signingKey-poster."
+  },
+  "attResolveFailed": {
+    "message": "Kunne ikke slå opp $1"
+  },
+  "attResolveFailedSub": {
+    "message": "Identitetsoppslag mislyktes (handle/DID utilgjengelig)."
+  },
+  "attThisIdentity": {
+    "message": "denne identiteten"
+  },
+  "kvSigner": {
+    "message": "Undertegner"
+  },
+  "kvSignedAt": {
+    "message": "Signert den"
+  },
+  "kvFormat": {
+    "message": "Format"
+  },
+  "kvManifest": {
+    "message": "Manifest"
+  },
+  "kvIngredients": {
+    "message": "Ingredienser"
+  },
+  "kvIngredientsVal": {
+    "message": "$1 (avledet innhold: denne filen ble laget ved å redigere tidligere signerte filer)"
+  },
+  "kvValidationErrors": {
+    "message": "Valideringsfeil"
+  },
+  "wmEmpty": {
+    "message": "Ingen vannmerker oppdaget av detektorfamiliene som kjørte."
+  },
+  "wmKeyedNote": {
+    "message": "Nøkkelbaserte merker (Backfire, Mellin) er ikke en del av denne skanningen. De kan bare leses med nøkkelen din, på fanen Nøkkelbaserte merker."
+  },
+  "wmConfidence": {
+    "message": "$1% sikkerhet"
+  },
+  "wmDegraded": {
+    "message": "$1% sikkerhet; merket er forringet (delvis skade sannsynlig)"
+  },
+  "wmNa": {
+    "message": "$1: n/a"
+  },
+  "wmNoMark": {
+    "message": "$1: intet merke oppdaget"
+  },
+  "wmTimelineAria": {
+    "message": "Vannmerkets tilstedeværelse over tid: $1"
+  },
+  "wmUnrecognizedSource": {
+    "message": "ikke-gjenkjent kilde"
+  },
+  "btnCopied": {
+    "message": "Kopiert"
+  },
+  "scanError": {
+    "message": "Kunne ikke skanne denne filen: $1"
+  },
+  "autoFilled": {
+    "message": "automatisk utfylt fra fil"
+  },
+  "dragFileOnto": {
+    "message": "Dra filen inn i vinduet"
+  },
+  "aiGenerated": {
+    "message": "AI-generert"
+  },
+  "btnCopiedBang": {
+    "message": "Kopiert!"
+  },
+  "bfCouldNotRun": {
+    "message": "Backfire kunne ikke kjøre"
+  },
+  "btnInstalling": {
+    "message": "Installerer…"
+  },
+  "downloadingModels": {
+    "message": "Laster ned modeller, dette kan ta et minutt…"
+  },
+  "btnWorking": {
+    "message": "Arbeider…"
+  },
+  "bfInstalling": {
+    "message": "Installerer/reparerer Backfire-leseren…"
+  },
+  "statusCheckFailed": {
+    "message": "Statussjekk mislyktes: $1"
+  },
+  "readingFile": {
+    "message": "Leser $1…"
+  },
+  "mlCouldNotRun": {
+    "message": "Mellin kunne ikke kjøre"
+  },
+  "imCouldNotRun": {
+    "message": "idmark kunne ikke kjøre"
+  },
+  "keysMismSuperseded": {
+    "message": "Den lokale nøkkelen din er erstattet"
+  },
+  "keysMismRevoked": {
+    "message": "Den lokale nøkkelen din er tilbakekalt"
+  },
+  "keysMismActiveNoKey": {
+    "message": "Aktiv post bruker en nøkkel du ikke har"
+  },
+  "thisBox": {
+    "message": "(denne maskinen)"
+  },
+  "btnRevoke": {
+    "message": "Tilbakekall"
+  },
+  "checkingPublishedKeys": {
+    "message": "Sjekker publiserte nøkler…"
+  },
+  "btnGenerating": {
+    "message": "Genererer…"
+  },
+  "btnConnecting": {
+    "message": "Kobler til…"
+  },
+  "btnPublishing": {
+    "message": "Publiserer…"
+  },
+  "signReadyToPublish": {
+    "message": "Klar til å publisere"
+  },
+  "bfMarkFound": {
+    "message": "Backfire-merke funnet"
+  },
+  "bfNoValidMark": {
+    "message": "Intet gyldig Backfire-merke"
+  },
+  "mlSerialRecovered": {
+    "message": "Mellin-serienummer gjenopprettet"
+  },
+  "mlNoFullSerial": {
+    "message": "Ikke noe fullstendig Mellin-serienummer"
+  },
+  "imPresent": {
+    "message": "idmark til stede"
+  },
+  "imNoDetected": {
+    "message": "Ingen idmark oppdaget"
+  },
+  "fieldIdentifier": {
+    "message": "Identifikator"
+  },
+  "fieldConfidenceMargin": {
+    "message": "Sikkerhet (min-bit-margin)"
+  },
+  "fieldValid": {
+    "message": "Gyldig"
+  },
+  "fieldMatchesSerial": {
+    "message": "Samsvarer med forventet serienummer"
+  },
+  "fieldTamperTripwire": {
+    "message": "Manipulasjonsalarm"
+  },
+  "fieldSerial": {
+    "message": "Serienummer"
+  },
+  "fieldBitsRecovered": {
+    "message": "Biter gjenopprettet"
+  },
+  "fieldErasureRate": {
+    "message": "Frafallsrate"
+  },
+  "fieldMinBitVotes": {
+    "message": "Min. bit-stemmer"
+  },
+  "fieldMarkPresent": {
+    "message": "Merke til stede"
+  },
+  "fieldSeat": {
+    "message": "Seat"
+  },
+  "fieldMargin": {
+    "message": "Margin"
+  },
+  "fieldReadVia": {
+    "message": "Lest via"
+  },
+  "fieldEstRotation": {
+    "message": "Anslått rotasjon"
+  },
+  "fieldError": {
+    "message": "Feil"
+  },
+  "valYes": {
+    "message": "ja"
+  },
+  "valNo": {
+    "message": "nei"
+  },
+  "bfTamperDetected": {
+    "message": "notch-manipulasjon oppdaget (stat $1)"
+  },
+  "bfTamperClean": {
+    "message": "ren (stat $1)"
+  }
+}

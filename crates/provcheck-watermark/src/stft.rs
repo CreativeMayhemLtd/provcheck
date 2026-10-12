@@ -44,17 +44,10 @@ pub fn waveform_to_carrier(waveform: &[f32]) -> Result<(Vec<f32>, usize), StftEr
         return Err(StftError::Empty);
     }
 
-    // 1. VCTK energy rescale (in place into a fresh buffer).
+    // 1. VCTK energy rescale.
     let mut y = vctk_rescale(waveform);
 
-    // 2. Tail zero-pad. silentcipher's reference always pads —
-    //    even when `y.len() % WIN == 0`, it appends a full WIN
-    //    zeros (see `pad = win_len - x.shape[1] % win_len` in
-    //    silentcipher/stft.py; remainder 0 → pad = win_len). Our
-    //    v0.3.2 skipped the pad in that exact case, which only
-    //    matters for inputs that are an exact multiple of WIN
-    //    samples but counts as a real precision divergence vs
-    //    the reference.
+    // 2. Tail zero-pad. silentcipher ALWAYS pads (pad = WIN - len%WIN, = WIN when remainder 0); do not skip the exact-multiple case.
     let tail = WIN - (y.len() % WIN);
     y.extend(std::iter::repeat_n(0.0_f32, tail));
 
@@ -80,15 +73,11 @@ pub fn waveform_to_carrier(waveform: &[f32]) -> Result<(Vec<f32>, usize), StftEr
 
     for t in 0..n_frames {
         let start = t * HOP;
-        // Window the frame into in_buf.
         for (i, w) in window.iter().enumerate().take(WIN) {
-            // Safe by construction: reflect_pad + n_frames math
-            // guarantees `start + i < y_padded.len()`.
+            // Safe by construction: reflect_pad + n_frames guarantee start + i < y_padded.len().
             in_buf[i] = y_padded[start + i] * w;
         }
-        // Zero any trailing samples in in_buf — only relevant
-        // when WIN < N_FFT, which isn't our case (WIN == N_FFT),
-        // but keeps the function correct if someone retunes.
+        // Zero trailing in_buf slots (only matters if WIN < N_FFT; here WIN == N_FFT).
         for slot in in_buf.iter_mut().take(N_FFT).skip(WIN) {
             *slot = 0.0;
         }
@@ -96,7 +85,6 @@ pub fn waveform_to_carrier(waveform: &[f32]) -> Result<(Vec<f32>, usize), StftEr
         r2c.process(&mut in_buf, &mut out_buf)
             .expect("realfft input/output sizes are fixed by the planner");
 
-        // Magnitude into the carrier at column t.
         for (bin, c) in out_buf.iter().enumerate() {
             let mag = (c.re * c.re + c.im * c.im).sqrt();
             carrier[bin * n_frames + t] = mag;
@@ -139,8 +127,6 @@ mod effective_sample_tests {
 
     #[test]
     fn middle_region_returns_raw_waveform_value() {
-        // Inside the pad-offset middle region, effective_sample
-        // returns the actual sample (the hot path).
         let waveform = vec![1.0_f32, 2.0, 3.0, 4.0, 5.0];
         let pad = 2;
         let n = waveform.len();
@@ -152,41 +138,28 @@ mod effective_sample_tests {
 
     #[test]
     fn head_region_mirrors_around_zero() {
-        // Head reflection should mirror around index 0 of the
-        // waveform without duplicating waveform[0]. For position
-        // i in [0, pad), the source index is pad-i clamped.
+        // Head reflection mirrors around index 0 without duplicating waveform[0]: src = (pad - i) clamped.
         let waveform = vec![10.0_f32, 20.0, 30.0, 40.0, 50.0];
         let pad = 3;
         let n = waveform.len();
-        // Pad position 0 → src = pad - 0 = 3 → waveform[3] = 40.
         assert_eq!(effective_sample(0, &waveform, n, pad), 40.0);
-        // Pad position 1 → src = 2 → waveform[2] = 30.
         assert_eq!(effective_sample(1, &waveform, n, pad), 30.0);
-        // Pad position 2 → src = 1 → waveform[1] = 20.
         assert_eq!(effective_sample(2, &waveform, n, pad), 20.0);
     }
 
     #[test]
     fn tail_region_mirrors_around_last_index() {
-        // Tail reflection: y[2n - 2 - (i - pad)] clamped.
+        // Tail reflection: src = y[2n - 2 - (i - pad)] clamped.
         let waveform = vec![1.0_f32, 2.0, 3.0, 4.0, 5.0];
         let pad = 2;
         let n = waveform.len();
-        // First tail position: i = pad + n = 7. off = 5.
-        //   src = 2*5 - 2 - 5 = 3 → waveform[3] = 4.0
         assert_eq!(effective_sample(pad + n, &waveform, n, pad), 4.0);
-        // Next tail: i = pad + n + 1 = 8. off = 6.
-        //   src = 10 - 2 - 6 = 2 → waveform[2] = 3.0
         assert_eq!(effective_sample(pad + n + 1, &waveform, n, pad), 3.0);
     }
 
     #[test]
     fn out_of_band_indices_do_not_panic() {
-        // The function uses saturating_sub for index math, so
-        // a huge index doesn't underflow. Pin the no-panic
-        // contract — the actual returned value is implementation-
-        // defined (clamps to a waveform[0]-like value), but the
-        // load-bearing invariant is "no panic, no UB".
+        // saturating_sub index math: a huge index must not underflow/panic/UB.
         let waveform = vec![1.0_f32, 2.0, 3.0];
         let pad = 2;
         let n = waveform.len();
@@ -196,8 +169,6 @@ mod effective_sample_tests {
 
     #[test]
     fn returns_finite_for_all_indices_in_legal_range() {
-        // For any reasonable index in the padded region, the
-        // result must be finite (not NaN, not inf).
         let waveform: Vec<f32> = (0..100).map(|i| i as f32).collect();
         let n = waveform.len();
         let pad = 50;
@@ -220,8 +191,6 @@ mod waveform_to_carrier_tests {
 
     #[test]
     fn carrier_layout_is_freq_bins_times_n_frames() {
-        // Output is laid out as [bin][t] → flat length must
-        // equal FREQ_BINS * n_frames. Pin the contract.
         let waveform: Vec<f32> = (0..44100).map(|i| (i as f32 * 0.01).sin()).collect();
         let (carrier, n_frames) = waveform_to_carrier(&waveform).expect("ok");
         assert_eq!(carrier.len(), FREQ_BINS * n_frames);
@@ -229,8 +198,6 @@ mod waveform_to_carrier_tests {
 
     #[test]
     fn carrier_values_are_finite() {
-        // The magnitude computation `(re² + im²).sqrt()` must
-        // never produce NaN or inf on a well-formed input.
         let waveform: Vec<f32> = (0..10_000).map(|i| (i as f32 * 0.01).sin()).collect();
         let (carrier, _) = waveform_to_carrier(&waveform).expect("ok");
         for (i, &v) in carrier.iter().enumerate() {
@@ -240,9 +207,7 @@ mod waveform_to_carrier_tests {
 
     #[test]
     fn carrier_values_are_non_negative() {
-        // STFT magnitude is `sqrt(re² + im²)` ≥ 0. A negative
-        // value would indicate an unintentional sign-flip in
-        // the magnitude path.
+        // Magnitude sqrt(re²+im²) >= 0; negative would mean a sign-flip bug.
         let waveform: Vec<f32> = (0..10_000).map(|i| (i as f32 * 0.01).sin()).collect();
         let (carrier, _) = waveform_to_carrier(&waveform).expect("ok");
         for (i, &v) in carrier.iter().enumerate() {
@@ -252,9 +217,7 @@ mod waveform_to_carrier_tests {
 
     #[test]
     fn carrier_has_at_least_one_nonzero_for_nontrivial_input() {
-        // A pure tone must produce at least one nonzero
-        // magnitude bin somewhere. Catches a future bug that
-        // would zero the carrier silently.
+        // A pure tone must produce at least one nonzero bin; guards against silently zeroing the carrier.
         let waveform: Vec<f32> = (0..44100).map(|i| (i as f32 * 0.1).sin()).collect();
         let (carrier, _) = waveform_to_carrier(&waveform).expect("ok");
         let max = carrier.iter().copied().fold(0.0_f32, f32::max);
@@ -263,9 +226,7 @@ mod waveform_to_carrier_tests {
 
     #[test]
     fn waveform_length_affects_n_frames() {
-        // Longer input must produce at least as many frames as
-        // a shorter input — the always-pad invariant means
-        // even short inputs land at least one frame.
+        // Longer input yields at least as many frames (always-pad lands >= 1 frame even for short input).
         let short: Vec<f32> = (0..WIN).map(|i| (i as f32 * 0.01).sin()).collect();
         let long: Vec<f32> = (0..WIN * 4).map(|i| (i as f32 * 0.01).sin()).collect();
         let (_, n_short) = waveform_to_carrier(&short).expect("ok");
@@ -768,16 +729,9 @@ fn hann_window(n: usize) -> Vec<f32> {
 mod public_helper_tests {
     use super::*;
 
-    // ----- compute_n_frames ----------
-    //
-    // The streaming primitives' frame budget gates the embed
-    // pipeline; pinning the documented formula here means a
-    // future hparams bump (N_FFT, HOP) flags up any caller that
-    // depended on a specific frame count.
-
     #[test]
     fn compute_n_frames_returns_zero_for_too_short_input() {
-        // < N_FFT samples → no full window can land → 0 frames.
+        // < N_FFT samples: no full window lands -> 0 frames.
         assert_eq!(compute_n_frames(0), 0);
         assert_eq!(compute_n_frames(N_FFT - 1), 0);
     }
@@ -789,8 +743,7 @@ mod public_helper_tests {
 
     #[test]
     fn compute_n_frames_returns_one_until_first_hop() {
-        // Up to but not including N_FFT + HOP samples, only
-        // one window fits.
+        // Only one window fits until N_FFT + HOP.
         for len in N_FFT..(N_FFT + HOP) {
             assert_eq!(compute_n_frames(len), 1, "len={len} should produce 1 frame");
         }
@@ -798,20 +751,16 @@ mod public_helper_tests {
 
     #[test]
     fn compute_n_frames_returns_two_at_n_fft_plus_hop() {
-        // First sample where a second hop fits.
         assert_eq!(compute_n_frames(N_FFT + HOP), 2);
     }
 
     #[test]
     fn compute_n_frames_grows_linearly_with_input_length() {
-        // For larger inputs the formula is 1 + (len - N_FFT) / HOP.
-        // Check on a 1-second waveform at 44.1 kHz.
+        // Formula: 1 + (len - N_FFT) / HOP.
         let len = 44_100_usize;
         let expected = 1 + (len - N_FFT) / HOP;
         assert_eq!(compute_n_frames(len), expected);
     }
-
-    // ----- streaming_utterance_norm ----------
 
     #[test]
     fn streaming_utterance_norm_rejects_empty_waveform() {
@@ -821,10 +770,7 @@ mod public_helper_tests {
 
     #[test]
     fn streaming_utterance_norm_handles_short_waveform_via_padding() {
-        // Inputs shorter than one window are NOT rejected — the
-        // function pads to a window boundary then runs STFT on
-        // the padded buffer. Confirm the documented contract:
-        // returns Ok with a finite value rather than TooShort.
+        // Sub-window input is padded, not rejected: returns Ok(finite), not TooShort.
         let waveform = vec![0.0_f32; N_FFT / 2];
         let r = streaming_utterance_norm(&waveform);
         assert!(
@@ -837,8 +783,7 @@ mod public_helper_tests {
 
     #[test]
     fn streaming_utterance_norm_returns_finite_value_for_silence() {
-        // A long silent buffer should produce 0.0 norm (or a
-        // very small positive value due to fp), not NaN.
+        // Silent buffer produces ~0.0 norm, never NaN.
         let waveform = vec![0.0_f32; N_FFT * 4];
         let norm = streaming_utterance_norm(&waveform).expect("ok");
         assert!(norm.is_finite(), "norm must be finite, got {norm}");
@@ -853,9 +798,7 @@ mod tests {
     #[test]
     fn hann_window_periodic_shape() {
         let w = hann_window(WIN);
-        // Periodic Hann: w[0] is exactly zero. w[n-1] is small but
-        // nonzero (the symmetric variant would force it to exactly
-        // zero). w[n/2] is exactly 1 because cos(π) = -1.
+        // Periodic Hann: w[0]==0, w[n-1] small-but-nonzero (symmetric would force 0), w[n/2]==1.
         assert!(w[0].abs() < 1e-6, "w[0] = {}", w[0]);
         assert!(
             w[WIN - 1] > 0.0 && w[WIN - 1] < 1e-4,
@@ -890,7 +833,6 @@ mod tests {
     fn vctk_rescale_handles_silence() {
         let y = vec![0.0_f32; 1000];
         let rescaled = vctk_rescale(&y);
-        // Silence stays silent; never NaN.
         assert!(rescaled.iter().all(|s| *s == 0.0));
     }
 
@@ -905,8 +847,6 @@ mod tests {
 
     #[test]
     fn vctk_rescale_handles_uniform_input_finite() {
-        // Constant non-zero input → rescale ratio is finite,
-        // output is non-NaN.
         let y = vec![0.1_f32; 1000];
         let r = vctk_rescale(&y);
         assert!(r.iter().all(|s| s.is_finite()));
@@ -914,9 +854,7 @@ mod tests {
 
     #[test]
     fn vctk_rescale_does_not_change_sign_of_samples() {
-        // The rescale is a positive-scalar multiplication; signs
-        // must be preserved. Pin the contract (a future "absolute
-        // value" optimisation would break the carrier phase).
+        // Positive-scalar multiply must preserve sign (an abs-value "optimisation" would break carrier phase).
         let y: Vec<f32> = (0..1000).map(|i| (i as f32 * 0.01).sin()).collect();
         let r = vctk_rescale(&y);
         for (orig, rescaled) in y.iter().zip(r.iter()) {
@@ -947,9 +885,6 @@ mod tests {
 
     #[test]
     fn reflect_pad_preserves_inner_samples_at_input_positions() {
-        // The original input bytes must land at positions
-        // [pad..pad+len] in the output — no transformation in
-        // the middle region.
         let y = vec![1.0_f32, 2.0, 3.0, 4.0, 5.0];
         let pad = 2;
         let padded = reflect_pad(&y, pad);
@@ -960,10 +895,7 @@ mod tests {
 
     #[test]
     fn frame_count_matches_torch_for_known_input() {
-        // For a waveform of WIN samples, after reflect-pad of
-        // N_FFT/2 on each side we have WIN + N_FFT samples total.
-        // With WIN == N_FFT == 4096 and HOP == 2048, that's
-        // 1 + (8192 - 4096) / 2048 = 1 + 2 = 3 frames.
+        // WIN samples + reflect-pad N_FFT/2 each side = WIN + N_FFT -> 1 + (8192-4096)/2048 = 3 frames.
         let pad = N_FFT / 2;
         let padded_len = WIN + 2 * pad;
         assert_eq!(compute_n_frames(padded_len), 3);
@@ -971,16 +903,7 @@ mod tests {
 
     #[test]
     fn exact_window_multiple_input_still_tail_pads() {
-        // silentcipher's stft.py computes
-        // `pad = win_len - x.shape[1] % win_len`, which evaluates to
-        // a full `win_len` of zeros when the remainder is 0. v0.3.2
-        // skipped the pad in that exact case and quietly shifted
-        // every downstream frame. This test fixes the invariant:
-        // input length WIN must yield 5 frames (with-pad), not 3
-        // (without-pad). The math:
-        //   WIN samples → tail-pad WIN → 2*WIN → reflect-pad
-        //   N_FFT/2 each side → 2*WIN + N_FFT samples →
-        //   1 + (2*WIN + N_FFT - N_FFT) / HOP = 1 + 2*WIN/HOP = 5.
+        // silentcipher always tail-pads (pad = WIN - len%WIN, = WIN when remainder 0); exact-WIN input must yield 5 frames, not 3.
         let waveform: Vec<f32> = (0..WIN).map(|i| 0.05 * (i as f32 * 0.01).sin()).collect();
         let (_carrier, n_frames) = waveform_to_carrier(&waveform).unwrap();
         assert_eq!(
@@ -992,8 +915,6 @@ mod tests {
         );
     }
 
-    // ----- waveform_to_spectrum / spectrum_to_waveform error paths ----------
-
     #[test]
     fn waveform_to_spectrum_empty_input_returns_empty_error() {
         let r = waveform_to_spectrum(&[]);
@@ -1002,8 +923,6 @@ mod tests {
 
     #[test]
     fn spectrum_to_waveform_zero_frames_returns_too_short() {
-        // A Spectrum with n_frames=0 must error rather than
-        // try to set up an IstftStreamer with no frames.
         let empty_spec = Spectrum {
             magnitude: Vec::new(),
             phase: Vec::new(),
@@ -1016,18 +935,13 @@ mod tests {
 
     #[test]
     fn istft_streamer_new_zero_frames_errors() {
-        // The IstftStreamer constructor also rejects n_frames=0.
         let r = IstftStreamer::new(0, 0);
         assert!(r.is_err());
     }
 
     #[test]
     fn waveform_to_spectrum_returns_correct_n_samples_input() {
-        // n_samples_input on the Spectrum struct is the
-        // tail-pad-rounded input length. The contract:
-        // raw_len + (WIN - raw_len % WIN) = next multiple of WIN.
-        // Pin so a future refactor of the tail-pad math doesn't
-        // silently shift the contract.
+        // n_samples_input = raw_len rounded up to a multiple of WIN.
         let waveform: Vec<f32> = (0..10_000).map(|i| (i as f32 * 0.01).sin()).collect();
         let spec = waveform_to_spectrum(&waveform).expect("ok");
         let tail = WIN - (waveform.len() % WIN);
@@ -1037,8 +951,6 @@ mod tests {
 
     #[test]
     fn waveform_to_spectrum_returns_consistent_n_frames() {
-        // n_frames on the Spectrum must match compute_n_frames
-        // on the padded length. Pin the math.
         let waveform: Vec<f32> = (0..50_000).map(|i| (i as f32 * 0.01).sin()).collect();
         let spec = waveform_to_spectrum(&waveform).expect("ok");
         let pad = N_FFT / 2;
@@ -1049,8 +961,6 @@ mod tests {
 
     #[test]
     fn waveform_to_spectrum_magnitude_and_phase_have_matching_layout() {
-        // Both buffers must be FREQ_BINS * n_frames f32s; the
-        // streaming iSTFT depends on the matching length.
         let waveform: Vec<f32> = (0..10_000).map(|i| (i as f32 * 0.01).sin()).collect();
         let spec = waveform_to_spectrum(&waveform).expect("ok");
         assert_eq!(spec.magnitude.len(), FREQ_BINS * spec.n_frames);
@@ -1059,8 +969,6 @@ mod tests {
 
     #[test]
     fn waveform_to_spectrum_magnitude_is_non_negative() {
-        // STFT magnitude is `sqrt(re² + im²)` ≥ 0. Pin the
-        // non-negativity invariant.
         let waveform: Vec<f32> = (0..10_000).map(|i| (i as f32 * 0.01).sin()).collect();
         let spec = waveform_to_spectrum(&waveform).expect("ok");
         for (i, &m) in spec.magnitude.iter().enumerate() {
@@ -1070,8 +978,7 @@ mod tests {
 
     #[test]
     fn waveform_to_spectrum_phase_is_finite() {
-        // Phase uses atan2 which is always finite for finite
-        // inputs (-π to π). Pin no-NaN/inf in the output.
+        // atan2 is finite for finite inputs; pin no NaN/inf.
         let waveform: Vec<f32> = (0..10_000).map(|i| (i as f32 * 0.01).sin()).collect();
         let spec = waveform_to_spectrum(&waveform).expect("ok");
         for (i, &p) in spec.phase.iter().enumerate() {
@@ -1081,12 +988,7 @@ mod tests {
 
     #[test]
     fn spectrum_round_trips_within_f32_tolerance() {
-        // Synthesise a few seconds of mixed sines; pass through
-        // forward STFT + inverse STFT and confirm the body of the
-        // signal reconstructs to within f32 round-off. Edge artefacts
-        // near the head/tail of the reconstructed buffer are
-        // expected for any windowed STFT — we only check the
-        // interior, which is what the watermark embedder cares about.
+        // Forward+inverse STFT reconstructs the interior to f32 round-off; head/tail window-edge artefacts are expected and skipped.
         let n = WIN * 8; // 8 windows worth — plenty for overlap-add to stabilise
         let waveform: Vec<f32> = (0..n)
             .map(|i| {
@@ -1099,12 +1001,9 @@ mod tests {
         let spec = waveform_to_spectrum(&waveform).expect("forward stft");
         let reconstructed = spectrum_to_waveform(&spec).expect("inverse stft");
 
-        // Reconstructed should at least cover the original input
-        // length; we ignore the silentcipher tail-pad samples.
         assert!(reconstructed.len() >= n, "reconstructed too short");
 
-        // Interior region — skip first/last WIN samples to dodge
-        // window-edge artefacts.
+        // Interior only: skip first/last WIN samples to dodge window-edge artefacts.
         let start = WIN;
         let end = n - WIN;
         let mut max_diff = 0.0_f32;
@@ -1138,8 +1037,7 @@ mod tests {
     /// reference implementation. Tracks the regression risk of
     /// the `effective_sample` reflection-on-the-fly math.
     fn waveform_to_spectrum_reference(waveform: &[f32]) -> Result<Spectrum, StftError> {
-        // Old, materialised-buffer path. Kept here as the test
-        // oracle. If `effective_sample` ever drifts, this catches it.
+        // Materialised-buffer oracle: catches drift in `effective_sample`.
         if waveform.is_empty() {
             return Err(StftError::Empty);
         }
@@ -1185,11 +1083,7 @@ mod tests {
 
     #[test]
     fn forward_stft_chunk_matches_full_spectrum_slice() {
-        // forward_stft_chunk computes the same (magnitude, phase)
-        // values for frames [t_start, t_start + chunk_t) as
-        // waveform_to_spectrum would over the full input. Bit-exact:
-        // the FFT planner is deterministic and effective_sample is
-        // pure.
+        // Chunked forward STFT is bit-exact vs the full-input path (deterministic planner, pure effective_sample).
         let n = WIN * 6 + 271;
         let waveform: Vec<f32> = (0..n)
             .map(|i| {
@@ -1228,10 +1122,7 @@ mod tests {
 
     #[test]
     fn streaming_utterance_norm_matches_full_spectrum() {
-        // streaming_utterance_norm should produce a value within
-        // numerical-precision tolerance of sqrt(mean(spec.magnitude²))
-        // computed from the full spectrum. f64 accumulation in both
-        // paths means the tolerance is very tight.
+        // Streaming norm matches sqrt(mean(magnitude²)) from the full spectrum to tight tolerance (f64 accumulation).
         let n = WIN * 5 + 99;
         let waveform: Vec<f32> = (0..n)
             .map(|i| {
@@ -1253,12 +1144,7 @@ mod tests {
 
     #[test]
     fn streaming_forward_stft_matches_materialised_reference() {
-        // Multi-second mixed-sine input crossing several STFT frame
-        // boundaries so the reflection math gets exercised at both
-        // ends. The reference path materialises y_padded; the
-        // production path uses effective_sample. They must produce
-        // bit-identical f32 output (the same FFT planner and same
-        // sample values feed the same realfft kernel).
+        // Production (effective_sample) must be bit-identical to the materialised (y_padded) reference across frame boundaries.
         let n = WIN * 5 + 137; // off-window-multiple length forces tail-pad
         let waveform: Vec<f32> = (0..n)
             .map(|i| {
@@ -1290,9 +1176,7 @@ mod tests {
 
     #[test]
     fn stft_produces_expected_carrier_shape() {
-        // 30 s at 44.1 kHz = 1_323_000 samples; way more than a
-        // window. The carrier should have FREQ_BINS rows and
-        // some plausibly large number of time frames.
+        // 30 s at 44.1 kHz: carrier has FREQ_BINS rows and many time frames.
         let n_samples = 44_100 * 30;
         let waveform: Vec<f32> = (0..n_samples)
             .map(|i| 0.05 * (i as f32 * 0.01).sin())
@@ -1300,13 +1184,11 @@ mod tests {
         let (carrier, t) = waveform_to_carrier(&waveform).unwrap();
         assert!(t > 600, "expected ~650 frames for 30s, got {t}");
         assert_eq!(carrier.len(), FREQ_BINS * t);
-        // Sanity: bin 0 (DC) should be near zero for a pure sine.
+        // DC mass should be far below mid-band mass for a sine well above DC.
         let dc_max = (0..t).map(|i| carrier[i].abs()).fold(0.0, f32::max);
         let mid_max = (0..t)
             .map(|i| carrier[(FREQ_BINS / 4) * t + i].abs())
             .fold(0.0, f32::max);
-        // DC mass should be much smaller than mid-band mass for
-        // a sine that lives well above DC.
         assert!(
             mid_max > dc_max * 5.0 || mid_max > 1e-3,
             "FFT looks degenerate: dc_max={dc_max}, mid_max={mid_max}"

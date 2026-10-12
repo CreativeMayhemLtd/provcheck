@@ -1,0 +1,67 @@
+{
+  "ProvcheckC2PA": {
+    "display_name": "Provcheck (Free C2PA Watermark) • Creative Mayhem",
+    "description": "Free, open (Apache-2.0) provcheck for ComfyUI — one node for image, audio, and video. WRITE: embed the free watermark (TrustMark on images, silentcipher on the audio track of audio/video) and/or C2PA-sign with your local key + atproto/Bluesky identity, optionally recording the generation graph; the signed file is written to your output directory. READ: detect/verify a provcheck mark on each connected input. Wire in an image, audio, video, or any mix. Every option is a widget you can also wire in from another node, including the output filename. Creative Mayhem also makes Backfire, a keyed mark that AI stripping amplifies instead of removes (commercial add-on, not in this free pack): https://provcheck.ai/backfire . More: https://provcheck.ai",
+    "inputs": {
+      "mode": {
+        "name": "mode",
+        "tooltip": "write = watermark and/or C2PA-sign each connected input (most common). read = detect/verify an existing provcheck mark.",
+        "options": {
+          "write": "write",
+          "read": "read"
+        }
+      },
+      "image": {
+        "name": "image",
+        "tooltip": "Optional image batch to write to / read from."
+      },
+      "audio": {
+        "name": "audio",
+        "tooltip": "Optional audio to write to / read from."
+      },
+      "video": {
+        "name": "video",
+        "tooltip": "Optional video. The watermark rides the audio track (frames are preserved); the container is C2PA-signed."
+      },
+      "watermark": {
+        "name": "watermark",
+        "tooltip": "[write] Embed the free FOSS watermark (TrustMark image / silentcipher audio)."
+      },
+      "c2pa_sign": {
+        "name": "c2pa_sign",
+        "tooltip": "[write] C2PA-sign with your local signing key. The signed file is written to your ComfyUI output directory."
+      },
+      "embed_identity": {
+        "name": "embed_identity",
+        "tooltip": "[write] Embed your atproto/Bluesky identity (DID + handle) in the manifest so a verifier sees who signed it. Needs kit login."
+      },
+      "record_provenance": {
+        "name": "record_provenance",
+        "tooltip": "[write] Record a curated summary of the generation graph (model, seed, sampler, prompts) into the signed manifest."
+      },
+      "include_full_workflow": {
+        "name": "include_full_workflow",
+        "tooltip": "[write] With record_provenance: embed the FULL (redacted) workflow, not just the summary. Off by default to avoid leaking prompts/paths."
+      },
+      "brand_id": {
+        "name": "brand_id",
+        "tooltip": "[write] Your 5-bit brand id from the atproto brand registry (0-31). Default 2 is the public rAIdio.bot id; use your own."
+      },
+      "filename_prefix": {
+        "name": "filename_prefix",
+        "tooltip": "[write, when a file is written] Output filename prefix for the signed/watermarked files. Editable, and can be wired in from another node (right-click -> Convert to input)."
+      },
+      "timeout_secs": {
+        "name": "timeout_secs",
+        "tooltip": "Per-item subprocess timeout in seconds."
+      }
+    },
+    "outputs": {
+      "0": { "name": "image" },
+      "1": { "name": "audio" },
+      "2": { "name": "video" },
+      "3": { "name": "report" },
+      "4": { "name": "detected" }
+    }
+  }
+}

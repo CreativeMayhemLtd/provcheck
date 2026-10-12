@@ -15,12 +15,6 @@ use tract_onnx::prelude::*;
 
 use crate::hparams::{FREQ_BINS, MESSAGE_DIM};
 
-// v0.7 phase 8a: silentcipher decoder ONNX migrated from
-// include_bytes!() to the provcheck-weights DLC pattern. First
-// detect() lazily pulls from the public mirror's weights-v1
-// release; subsequent calls hit the cache. Kit binary drops by
-// ~9.5 MB.
-
 /// Type alias for the runnable model we keep in the
 /// [`OnceLock`]. tract's `TypedRunnableModel<TypedModel>` is
 /// what `into_runnable()` returns on an optimised model.
@@ -149,11 +143,7 @@ fn run_chunk(model: &Runnable, carrier: &[f32], chunk_t: usize) -> Result<Vec<f3
         .next()
         .ok_or_else(|| ModelError::Inference("model returned no outputs".into()))?;
 
-    // Accept the documented `[1, 1, MESSAGE_DIM, T]` shape and
-    // a couple of defensive fallbacks that drop leading
-    // singletons — different exporters phrase the rank
-    // differently and the math is identical once the leading
-    // singletons are stripped.
+    // Accept `[1, 1, MESSAGE_DIM, T]` plus leading-singleton-dropped fallbacks (exporters phrase the rank differently).
     let shape: Vec<usize> = out.shape().to_vec();
     let leading_singletons_ok = matches!(
         &shape[..],
@@ -182,9 +172,7 @@ fn model() -> Result<&'static Runnable, ModelError> {
     }
 
     let m = build_model()?;
-    // OnceLock::set returns Err only if already set; if a
-    // racing thread set first, ours is dropped and we hand
-    // back the existing one.
+    // On a set race the loser's model is dropped and we return the existing one.
     let _ = MODEL.set(m);
     Ok(MODEL.get().expect("just set"))
 }
@@ -215,21 +203,14 @@ mod tests {
     #[test]
     fn extract_then_scatter_preserves_layout_under_chunking() {
         let t_frames = 100;
-        // Carrier with a unique value per (bin, t) so any misindex
-        // shows up as a wrong number, not a zero.
+        // Unique value per (bin, t) so any misindex shows up as a wrong number, not a zero.
         let carrier: Vec<f32> = (0..FREQ_BINS * t_frames).map(|i| i as f32).collect();
-        // Synthesise per-chunk "logits" by treating extract_chunk as
-        // if it were a model that emits MESSAGE_DIM logits per t,
-        // each equal to bin 0 of that t. Then scatter and check
-        // every value is in the right slot.
         for chunk_size in [16usize, 32, 64, 100, 128, 256] {
             let mut full_logits = vec![0.0_f32; MESSAGE_DIM * t_frames];
             let mut t_start = 0;
             while t_start < t_frames {
                 let chunk_t = (t_frames - t_start).min(chunk_size);
                 let chunk_carrier = extract_chunk(&carrier, t_frames, t_start, chunk_t);
-                // Round-trip: every value in the chunk must match
-                // the corresponding bin/t in the source.
                 for bin in 0..FREQ_BINS {
                     for t in 0..chunk_t {
                         let got = chunk_carrier[bin * chunk_t + t];
@@ -240,17 +221,13 @@ mod tests {
                         );
                     }
                 }
-                // Build synthetic per-chunk logits where logit[dim,t] = t_start + t
-                // so the scattered full_logits should equal the absolute frame
-                // index at every (dim, t) cell.
+                // Synthetic logits logit[dim,t] = t_start + t, so scattered cells equal the absolute frame index.
                 let chunk_logits: Vec<f32> = (0..MESSAGE_DIM)
                     .flat_map(|_dim| (0..chunk_t).map(|t| (t_start + t) as f32))
                     .collect();
                 scatter_chunk_logits(&chunk_logits, chunk_t, &mut full_logits, t_frames, t_start);
                 t_start += chunk_t;
             }
-            // After all chunks scattered, every cell in full_logits
-            // should hold its absolute t index.
             for dim in 0..MESSAGE_DIM {
                 for t in 0..t_frames {
                     assert_eq!(

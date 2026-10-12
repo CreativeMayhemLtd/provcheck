@@ -1,0 +1,67 @@
+{
+  "ProvcheckC2PA": {
+    "display_name": "Provcheck (मुफ़्त C2PA वॉटरमार्क) • Creative Mayhem",
+    "description": "ComfyUI के लिए मुफ़्त, ओपन (Apache-2.0) provcheck — इमेज, ऑडियो और वीडियो के लिए एक ही नोड। WRITE: मुफ़्त वॉटरमार्क एम्बेड करें (इमेज पर TrustMark, ऑडियो/वीडियो के ऑडियो ट्रैक पर silentcipher) और/या अपनी लोकल की + atproto/Bluesky पहचान से C2PA-साइन करें, वैकल्पिक रूप से जनरेशन ग्राफ़ को रिकॉर्ड करते हुए; साइन की गई फ़ाइल आपकी आउटपुट डायरेक्टरी में लिखी जाती है। READ: हर जुड़े इनपुट पर एक provcheck मार्क डिटेक्ट/वेरिफ़ाई करें। इमेज, ऑडियो, वीडियो, या किसी भी मिश्रण को वायर करें। हर विकल्प एक विजेट है जिसे आप किसी अन्य नोड से भी वायर कर सकते हैं, आउटपुट फ़ाइलनेम सहित। Creative Mayhem, Backfire भी बनाता है, एक की-युक्त मार्क जिसे AI स्ट्रिपिंग हटाने की बजाय बढ़ा देती है (कमर्शियल ऐड-ऑन, इस मुफ़्त पैक में शामिल नहीं): https://provcheck.ai/backfire । अधिक: https://provcheck.ai",
+    "inputs": {
+      "mode": {
+        "name": "mode",
+        "tooltip": "लिखें = हर जुड़े इनपुट पर वॉटरमार्क और/या C2PA-साइन करें (सबसे सामान्य)। पढ़ें = किसी मौजूदा provcheck मार्क को डिटेक्ट/वेरिफ़ाई करें।",
+        "options": {
+          "write": "लिखें",
+          "read": "पढ़ें"
+        }
+      },
+      "image": {
+        "name": "इमेज",
+        "tooltip": "लिखने/पढ़ने के लिए वैकल्पिक इमेज बैच।"
+      },
+      "audio": {
+        "name": "ऑडियो",
+        "tooltip": "लिखने/पढ़ने के लिए वैकल्पिक ऑडियो।"
+      },
+      "video": {
+        "name": "वीडियो",
+        "tooltip": "वैकल्पिक वीडियो। वॉटरमार्क ऑडियो ट्रैक पर होता है (फ़्रेम्स सुरक्षित रहते हैं); कंटेनर C2PA-साइन किया जाता है।"
+      },
+      "watermark": {
+        "name": "watermark",
+        "tooltip": "[write] मुफ़्त FOSS वॉटरमार्क एम्बेड करें (इमेज के लिए TrustMark / ऑडियो के लिए silentcipher)।"
+      },
+      "c2pa_sign": {
+        "name": "c2pa_sign",
+        "tooltip": "[write] अपनी लोकल साइनिंग की से C2PA-साइन करें। साइन की गई फ़ाइल आपकी ComfyUI आउटपुट डायरेक्टरी में लिखी जाती है।"
+      },
+      "embed_identity": {
+        "name": "embed_identity",
+        "tooltip": "[write] अपनी atproto/Bluesky पहचान (DID + handle) मैनिफ़ेस्ट में एम्बेड करें ताकि वेरिफ़ायर देख सके कि किसने साइन किया। kit login चाहिए।"
+      },
+      "record_provenance": {
+        "name": "record_provenance",
+        "tooltip": "[write] जनरेशन ग्राफ़ (model, seed, sampler, prompts) का क्यूरेटेड सारांश साइन किए गए मैनिफ़ेस्ट में रिकॉर्ड करें।"
+      },
+      "include_full_workflow": {
+        "name": "include_full_workflow",
+        "tooltip": "[write] record_provenance के साथ: सिर्फ़ सारांश नहीं, बल्कि पूरा (रिडैक्टेड) workflow एम्बेड करें। prompts/paths लीक होने से बचाने के लिए डिफ़ॉल्ट रूप से बंद।"
+      },
+      "brand_id": {
+        "name": "brand_id",
+        "tooltip": "[write] atproto brand registry से आपकी 5-बिट brand id (0-31)। डिफ़ॉल्ट 2 सार्वजनिक rAIdio.bot id है; अपनी खुद की इस्तेमाल करें।"
+      },
+      "filename_prefix": {
+        "name": "filename_prefix",
+        "tooltip": "[write, जब कोई फ़ाइल लिखी जाए] साइन/वॉटरमार्क की गई फ़ाइलों के लिए आउटपुट फ़ाइलनेम प्रीफ़िक्स। संपादन-योग्य, और किसी अन्य नोड से वायर किया जा सकता है (राइट-क्लिक -> Convert to input)।"
+      },
+      "timeout_secs": {
+        "name": "timeout_secs",
+        "tooltip": "प्रति-आइटम सबप्रोसेस टाइमआउट, सेकंड में।"
+      }
+    },
+    "outputs": {
+      "0": { "name": "इमेज" },
+      "1": { "name": "ऑडियो" },
+      "2": { "name": "वीडियो" },
+      "3": { "name": "रिपोर्ट" },
+      "4": { "name": "पहचाना गया" }
+    }
+  }
+}

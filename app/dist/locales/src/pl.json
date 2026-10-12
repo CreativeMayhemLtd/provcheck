@@ -1,0 +1,647 @@
+{
+  "headerSubtitle": {
+    "message": "Podpisuj i weryfikuj C2PA Content Credentials"
+  },
+  "tabVerify": {
+    "message": "Weryfikuj"
+  },
+  "tabWatermark": {
+    "message": "Znak wodny"
+  },
+  "tabDetect": {
+    "message": "Wykryj"
+  },
+  "tabKeys": {
+    "message": "Klucze"
+  },
+  "tabSign": {
+    "message": "Podpisz"
+  },
+  "tabKeyedMarks": {
+    "message": "Znaki z kluczem"
+  },
+  "btnChooseFile": {
+    "message": "Wybierz plik…"
+  },
+  "btnVerifyAnother": {
+    "message": "Weryfikuj kolejny"
+  },
+  "btnCopyJson": {
+    "message": "Kopiuj jako JSON"
+  },
+  "btnCheckAnother": {
+    "message": "Sprawdź kolejny plik"
+  },
+  "btnReadAnother": {
+    "message": "Odczytaj kolejny"
+  },
+  "btnLogOut": {
+    "message": "Wyloguj się"
+  },
+  "btnConnect": {
+    "message": "Połącz"
+  },
+  "btnCopy": {
+    "message": "Kopiuj"
+  },
+  "btnRetry": {
+    "message": "Ponów"
+  },
+  "btnSign": {
+    "message": "Podpisz"
+  },
+  "btnOK": {
+    "message": "OK"
+  },
+  "btnCancel": {
+    "message": "Anuluj"
+  },
+  "btnGotIt": {
+    "message": "Rozumiem"
+  },
+  "btnHowItWorks": {
+    "message": "Jak to działa"
+  },
+  "btnInstallRepair": {
+    "message": "Zainstaluj / napraw"
+  },
+  "btnChooseSecret": {
+    "message": "Wybierz plik z sekretem"
+  },
+  "btnClose": {
+    "message": "Zamknij"
+  },
+  "badgeExperimental": {
+    "message": "Eksperymentalne"
+  },
+  "loadingGeneric": {
+    "message": "Ładowanie…"
+  },
+  "statusChecking": {
+    "message": "Sprawdzanie..."
+  },
+  "statusCheckingStatus": {
+    "message": "Sprawdzanie stanu…"
+  },
+  "labelFingerprint": {
+    "message": "Odcisk"
+  },
+  "labelAlgorithm": {
+    "message": "Algorytm"
+  },
+  "labelBackend": {
+    "message": "Backend"
+  },
+  "labelCreated": {
+    "message": "Utworzono"
+  },
+  "labelDID": {
+    "message": "DID"
+  },
+  "labelHandle": {
+    "message": "Nazwa użytkownika"
+  },
+  "labelYubikey": {
+    "message": "Yubikey"
+  },
+  "labelPinTries": {
+    "message": "Próby PIN"
+  },
+  "labelStatus": {
+    "message": "Stan"
+  },
+  "labelLabel": {
+    "message": "Etykieta"
+  },
+  "labelBy": {
+    "message": "Autor"
+  },
+  "labelTool": {
+    "message": "Narzędzie"
+  },
+  "labelFile": {
+    "message": "Plik"
+  },
+  "labelYourIdentity": {
+    "message": "Twoja tożsamość"
+  },
+  "labelOutput": {
+    "message": "Wyjście"
+  },
+  "aboutLinks": {
+    "message": "Linki"
+  },
+  "identityBskyHandle": {
+    "message": "Nazwa użytkownika Bsky"
+  },
+  "identityRunWatermark": {
+    "message": "Uruchom wykrywanie znaku wodnego"
+  },
+  "identityRequireAttested": {
+    "message": "Wymagaj poświadczenia"
+  },
+  "identityHandlePh": {
+    "message": "opcjonalnie · np. creator.bsky.social lub did:plc:…"
+  },
+  "dropzoneTitle": {
+    "message": "Upuść dowolny plik tutaj, aby zweryfikować"
+  },
+  "dropzoneSub": {
+    "message": "Audio · Obraz · Wideo: wszystko, co niesie C2PA Content Credentials."
+  },
+  "verifyDropHint": {
+    "message": "Albo uruchom bez niczego, a to zostanie na miejscu. Prywatność: pliki nigdy nie opuszczają Twojego komputera."
+  },
+  "verifyLoading": {
+    "message": "Weryfikowanie…"
+  },
+  "verifyLoadingHint": {
+    "message": "Wykrywanie znaku wodnego mocno obciąża procesor przy audio i wideo i może zająć kilka minut. Odznacz „Uruchom wykrywanie znaku wodnego”, aby uzyskać natychmiastową weryfikację tylko C2PA."
+  },
+  "showRawManifest": {
+    "message": "Pokaż surowe szczegóły manifestu"
+  },
+  "claimsHeading": {
+    "message": "Deklaracje"
+  },
+  "wmModelsNeeded": {
+    "message": "Wykrywanie znaku wodnego wymaga modeli."
+  },
+  "wmInstallAll": {
+    "message": "Zainstaluj wszystkie modele"
+  },
+  "wmScanFor": {
+    "message": "Skanuj w poszukiwaniu:"
+  },
+  "wmDropTitle": {
+    "message": "Upuść dowolny plik tutaj, aby uruchomić wykrywanie znaku wodnego"
+  },
+  "wmDropHint": {
+    "message": "Prywatność: pliki nigdy nie opuszczają Twojego komputera. Każdy detektor sam decyduje, czy dotyczy danego typu pliku."
+  },
+  "wmLoading": {
+    "message": "Uruchamianie detektorów znaku wodnego…"
+  },
+  "wmLoadingHint": {
+    "message": "Wnioskowanie modelu mocno obciąża procesor przy audio i wideo; skanowanie może zająć kilka minut. Nadal trwa praca, dopóki się kręci."
+  },
+  "wmResultTitle": {
+    "message": "Wykrywanie znaku wodnego"
+  },
+  "detectTitle": {
+    "message": "Wykrywanie treści AI: podłącz własny detektor"
+  },
+  "detectRouteAHead": {
+    "message": "Ścieżka A: płatny pakiet DLC (v1.x, planowane)"
+  },
+  "detectRouteBHead": {
+    "message": "Ścieżka B: wrapper dostarczony przez operatora (dostępne teraz)"
+  },
+  "keysLocalIdentity": {
+    "message": "Tożsamość lokalna"
+  },
+  "keysNoIdentity": {
+    "message": "Brak tożsamości na tym komputerze."
+  },
+  "keysMismatchTitle": {
+    "message": "Niezgodność stanu tożsamości"
+  },
+  "keysRotateBtn": {
+    "message": "Wygeneruj nowy i opublikuj"
+  },
+  "keysRotateTitle": {
+    "message": "Wygeneruj nowy klucz podpisujący i opublikuj go jako nowy aktywny rekord"
+  },
+  "keysSwitchYubikey": {
+    "message": "Przełącz na tożsamość Yubikey…"
+  },
+  "keysSwitchYubikeyTitle": {
+    "message": "Zastąp bieżącą tożsamość tą opartą na Yubikey"
+  },
+  "keysPublishedRecords": {
+    "message": "Opublikowane rekordy (atproto)"
+  },
+  "keysRecordsEmptyHint": {
+    "message": "Zaloguj się na karcie Podpisz i opublikuj swój lokalny odcisk."
+  },
+  "keysNotLoggedIn": {
+    "message": "Nie zalogowano do atproto."
+  },
+  "keysNoSessionHint": {
+    "message": "Zaloguj się na karcie Podpisz, aby pobrać swoje opublikowane rekordy."
+  },
+  "signIdentityLabel": {
+    "message": "Tożsamość:"
+  },
+  "signNotSetUp": {
+    "message": "nie skonfigurowano"
+  },
+  "signSessionLabel": {
+    "message": "Sesja:"
+  },
+  "signDisconnected": {
+    "message": "rozłączono"
+  },
+  "signSetupTitle": {
+    "message": "Skonfiguruj swoją tożsamość podpisującą"
+  },
+  "signSetupBody": {
+    "message": "To generuje klucz kryptograficzny na tym komputerze i przechowuje go w pęku kluczy systemu OS. Będziesz musiał to zrobić tylko raz."
+  },
+  "signGenerateKey": {
+    "message": "Wygeneruj klucz podpisujący"
+  },
+  "signSetupHint": {
+    "message": "Klucz nigdy nie opuszcza Twojego komputera. System OS obsługuje monity o dostęp."
+  },
+  "signConnectTitle": {
+    "message": "Połącz swoją tożsamość bsky"
+  },
+  "signConnectBody": {
+    "message": "Powiąż swój klucz podpisujący ze swoją nazwą użytkownika atproto, aby osoby weryfikujące wiedziały, że jest Twój."
+  },
+  "signHandlePh": {
+    "message": "creator.bsky.social"
+  },
+  "signAppPassword": {
+    "message": "Hasło aplikacji"
+  },
+  "signRememberDevice": {
+    "message": "Zapamiętaj mnie na tym urządzeniu"
+  },
+  "signPublishTitle": {
+    "message": "Opublikuj swój klucz podpisujący"
+  },
+  "signPublishBody": {
+    "message": "Ostatni krok: opublikowanie odcisku Twojego klucza w atproto pozwala weryfikującym potwierdzić, że to Ty podpisałeś swoją pracę. Bez tego widzą tylko „prawidłowy podpis nieznanego autora”."
+  },
+  "signLabelOptional": {
+    "message": "Etykieta (opcjonalnie)"
+  },
+  "signLabelPh": {
+    "message": "np. mac ze studia"
+  },
+  "signPublishKey": {
+    "message": "Opublikuj klucz"
+  },
+  "signStaleTitle": {
+    "message": "Twój klucz podpisujący jest nieaktualny"
+  },
+  "signRecoverHeading": {
+    "message": "Odzyskaj z terminala:"
+  },
+  "signStaleHint": {
+    "message": "To generuje nowy klucz, publikuje go jako nowy aktywny rekord i (w razie potrzeby) unieważnia osierocony rekord, aby nikt nie mógł podpisywać w Twoim imieniu utraconym kluczem."
+  },
+  "signDropTitle": {
+    "message": "Upuść plik tutaj, aby podpisać"
+  },
+  "signDropSub": {
+    "message": "Audio · Obraz · Wideo: wszystko, co obsługuje c2pa-rs."
+  },
+  "signReadyToSign": {
+    "message": "Gotowe do podpisania"
+  },
+  "signChainTitle": {
+    "message": "Ten plik jest już podpisany."
+  },
+  "signChainSub": {
+    "message": "Twój podpis dołączy do łańcucha jako pochodny; oryginalny podpis pozostaje nienaruszony."
+  },
+  "signRelationshipQ": {
+    "message": "Jaki jest Twój związek z tym plikiem?"
+  },
+  "signEmbedIdentity": {
+    "message": "Osadź deklarację tożsamości (zalecane; pozwala weryfikującym pominąć krok wpisywania nazwy użytkownika)"
+  },
+  "signModelPh": {
+    "message": "np. ACE-Step v1.0"
+  },
+  "signReplaceOriginal": {
+    "message": "Zastąp oryginał (zamiast tworzyć plik towarzyszący)"
+  },
+  "signPickDifferent": {
+    "message": "Wybierz inny plik"
+  },
+  "signSigning": {
+    "message": "Podpisywanie…"
+  },
+  "signSigned": {
+    "message": "Podpisano"
+  },
+  "signAnother": {
+    "message": "Podpisz kolejny"
+  },
+  "signVerifyIt": {
+    "message": "Zweryfikuj to"
+  },
+  "signErrorTitle": {
+    "message": "Nie udało się załadować stanu podpisywania"
+  },
+  "bfBackfireTitle": {
+    "message": "Odczytaj znak Backfire z kluczem"
+  },
+  "bfBackfireSub": {
+    "message": "Zweryfikuj znak wodny osadzony w obrazie, który narzędzia usuwające pochodzenie AI wzmacniają zamiast usuwać."
+  },
+  "bfReaderLabel": {
+    "message": "Czytnik Backfire"
+  },
+  "bfDropTitle": {
+    "message": "Upuść tutaj obraz lub wybierz go, aby odczytać jego znak"
+  },
+  "bfChooseRead": {
+    "message": "Wybierz obraz i odczytaj"
+  },
+  "bfHint": {
+    "message": "Najpierw wpisz powyżej swój klucz, a następnie upuść lub wybierz obraz. Odczyt następuje automatycznie i pozostaje na Twoim komputerze."
+  },
+  "bfLoading": {
+    "message": "Odczytywanie znaku Backfire…"
+  },
+  "mlTitle": {
+    "message": "Odczytaj numer seryjny Mellin z kluczem"
+  },
+  "mlSub": {
+    "message": "Kryminalistyka audio z kluczem: odzyskaj 64-bitowy numer seryjny przypisany do kopii, osadzony za pomocą samodzielnego narzędzia provcheck-mellin na licencji BUSL (bezpłatne do użytku niekomercyjnego, oddzielne od provcheck). Wymaga pliku z sekretem sprzedawcy i identyfikatora dzieła; wszystko pozostaje na Twoim komputerze."
+  },
+  "mlReaderLabel": {
+    "message": "Czytnik Mellin"
+  },
+  "mlSecretNone": {
+    "message": "nie wybrano. Sekret nigdy nie jest zapisywany, więc wybieraj go ponownie po każdym uruchomieniu."
+  },
+  "mlWorkidPh": {
+    "message": "identyfikator dzieła użyty przy osadzaniu"
+  },
+  "mlDropTitle": {
+    "message": "Wybierz plik audio, aby odczytać jego numer seryjny"
+  },
+  "mlChooseRead": {
+    "message": "Wybierz audio i odczytaj"
+  },
+  "mlHint": {
+    "message": "Najpierw wybierz swój plik z sekretem i wpisz identyfikator dzieła, a następnie wybierz plik audio lub upuść go w dowolnym miejscu tej karty. Działa dowolny format (WAV, MP3, AAC, FLAC); pliki audio są odczytywane tutaj, obrazy odczytuje znak Backfire powyżej."
+  },
+  "mlLoading": {
+    "message": "Odczytywanie numeru seryjnego Mellin…"
+  },
+  "imTitle": {
+    "message": "Odczytaj znak tożsamości idmark z kluczem"
+  },
+  "imSub": {
+    "message": "Tożsamość obrazu z kluczem: odczytaj odporny na przycinanie, transkodowanie i obrót znak przypisany do kopii, osadzony za pomocą samodzielnego narzędzia provcheck-idmark na licencji BUSL (bezpłatne do użytku niekomercyjnego, oddzielne od provcheck). Bez sekretu sprawdza wbudowany znak; dodaj swój plik z sekretem i miejsce, aby przypisać kopię. Wszystko pozostaje na Twoim komputerze."
+  },
+  "imReaderLabel": {
+    "message": "Czytnik idmark"
+  },
+  "imSecretNone": {
+    "message": "nie wybrano. Pozostaw puste, aby odczytać wbudowany znak; sekret nigdy nie jest zapisywany."
+  },
+  "imDropTitle": {
+    "message": "Wybierz obraz, aby odczytać jego znak"
+  },
+  "imChooseRead": {
+    "message": "Wybierz obraz i odczytaj"
+  },
+  "imHint": {
+    "message": "Opcjonalnie najpierw wybierz swój plik z sekretem i miejsce, a następnie wybierz obraz. PNG lub JPEG. To odczytuje znak tożsamości idmark; znak Backfire i numery seryjne Mellin są odczytywane w sekcjach powyżej."
+  },
+  "imLoading": {
+    "message": "Odczytywanie idmark…"
+  },
+  "bfModalTitle": {
+    "message": "Jak działa Backfire"
+  },
+  "vVerified": {
+    "message": "Zweryfikowano"
+  },
+  "vUnsigned": {
+    "message": "Niepodpisane"
+  },
+  "vNotVerified": {
+    "message": "Niezweryfikowane"
+  },
+  "attAttestedBy": {
+    "message": "Poświadczone przez $1"
+  },
+  "attMatchSub": {
+    "message": "Certyfikat podpisujący pasuje do klucza opublikowanego pod tą tożsamością."
+  },
+  "attMismatch": {
+    "message": "Niezgodność poświadczenia dla $1"
+  },
+  "attMismatchSub": {
+    "message": "Certyfikat podpisujący nie pasuje do żadnego klucza opublikowanego pod tą tożsamością."
+  },
+  "attNotPublished": {
+    "message": "Brak kluczy opublikowanych pod $1"
+  },
+  "attNotPublishedSub": {
+    "message": "Ta tożsamość istnieje, ale nie opublikowała żadnych rekordów signingKey."
+  },
+  "attResolveFailed": {
+    "message": "Nie udało się rozpoznać $1"
+  },
+  "attResolveFailedSub": {
+    "message": "Rozpoznawanie tożsamości nie powiodło się (nazwa użytkownika/DID nieosiągalne)."
+  },
+  "attThisIdentity": {
+    "message": "tej tożsamości"
+  },
+  "kvSigner": {
+    "message": "Podpisujący"
+  },
+  "kvSignedAt": {
+    "message": "Podpisano o"
+  },
+  "kvFormat": {
+    "message": "Format"
+  },
+  "kvManifest": {
+    "message": "Manifest"
+  },
+  "kvIngredients": {
+    "message": "Składniki"
+  },
+  "kvIngredientsVal": {
+    "message": "$1 (treść pochodna: ten plik powstał przez edycję wcześniej podpisanych plików)"
+  },
+  "kvValidationErrors": {
+    "message": "Błędy walidacji"
+  },
+  "wmEmpty": {
+    "message": "Nie wykryto znaków wodnych przez uruchomione rodziny detektorów."
+  },
+  "wmKeyedNote": {
+    "message": "Znaki z kluczem (Backfire, Mellin) nie są częścią tego skanu. Można je odczytać wyłącznie za pomocą klucza, na karcie Znaki z kluczem."
+  },
+  "wmConfidence": {
+    "message": "pewność $1%"
+  },
+  "wmDegraded": {
+    "message": "pewność $1%; znak jest zdegradowany (prawdopodobne częściowe uszkodzenie)"
+  },
+  "wmNa": {
+    "message": "$1: nd."
+  },
+  "wmNoMark": {
+    "message": "$1: nie wykryto znaku"
+  },
+  "wmTimelineAria": {
+    "message": "Obecność znaku wodnego w czasie: $1"
+  },
+  "wmUnrecognizedSource": {
+    "message": "nierozpoznane źródło"
+  },
+  "btnCopied": {
+    "message": "Skopiowano"
+  },
+  "scanError": {
+    "message": "Nie udało się przeskanować tego pliku: $1"
+  },
+  "autoFilled": {
+    "message": "wypełnione automatycznie z pliku"
+  },
+  "dragFileOnto": {
+    "message": "Przeciągnij plik do okna"
+  },
+  "aiGenerated": {
+    "message": "Wygenerowane przez AI"
+  },
+  "btnCopiedBang": {
+    "message": "Skopiowano!"
+  },
+  "bfCouldNotRun": {
+    "message": "Nie udało się uruchomić Backfire"
+  },
+  "btnInstalling": {
+    "message": "Instalowanie…"
+  },
+  "downloadingModels": {
+    "message": "Pobieranie modeli, to może zająć minutę…"
+  },
+  "btnWorking": {
+    "message": "Pracuję…"
+  },
+  "bfInstalling": {
+    "message": "Instalowanie / naprawianie czytnika Backfire…"
+  },
+  "statusCheckFailed": {
+    "message": "Sprawdzenie stanu nie powiodło się: $1"
+  },
+  "readingFile": {
+    "message": "Odczytywanie $1…"
+  },
+  "mlCouldNotRun": {
+    "message": "Nie udało się uruchomić Mellin"
+  },
+  "imCouldNotRun": {
+    "message": "Nie udało się uruchomić idmark"
+  },
+  "keysMismSuperseded": {
+    "message": "Twój lokalny klucz został zastąpiony"
+  },
+  "keysMismRevoked": {
+    "message": "Twój lokalny klucz został unieważniony"
+  },
+  "keysMismActiveNoKey": {
+    "message": "Aktywny rekord używa klucza, którego nie posiadasz"
+  },
+  "thisBox": {
+    "message": "(ten komputer)"
+  },
+  "btnRevoke": {
+    "message": "Unieważnij"
+  },
+  "checkingPublishedKeys": {
+    "message": "Sprawdzanie opublikowanych kluczy…"
+  },
+  "btnGenerating": {
+    "message": "Generowanie…"
+  },
+  "btnConnecting": {
+    "message": "Łączenie…"
+  },
+  "btnPublishing": {
+    "message": "Publikowanie…"
+  },
+  "signReadyToPublish": {
+    "message": "Gotowe do publikacji"
+  },
+  "bfMarkFound": {
+    "message": "Znaleziono znak Backfire"
+  },
+  "bfNoValidMark": {
+    "message": "Brak prawidłowego znaku Backfire"
+  },
+  "mlSerialRecovered": {
+    "message": "Odzyskano numer seryjny Mellin"
+  },
+  "mlNoFullSerial": {
+    "message": "Brak pełnego numeru seryjnego Mellin"
+  },
+  "imPresent": {
+    "message": "idmark obecny"
+  },
+  "imNoDetected": {
+    "message": "Nie wykryto idmark"
+  },
+  "fieldIdentifier": {
+    "message": "Identyfikator"
+  },
+  "fieldConfidenceMargin": {
+    "message": "Pewność (margines min-bit)"
+  },
+  "fieldValid": {
+    "message": "Prawidłowy"
+  },
+  "fieldMatchesSerial": {
+    "message": "Zgadza się z oczekiwanym numerem seryjnym"
+  },
+  "fieldTamperTripwire": {
+    "message": "Wyzwalacz naruszenia"
+  },
+  "fieldSerial": {
+    "message": "Numer seryjny"
+  },
+  "fieldBitsRecovered": {
+    "message": "Odzyskane bity"
+  },
+  "fieldErasureRate": {
+    "message": "Współczynnik utraty"
+  },
+  "fieldMinBitVotes": {
+    "message": "Min. głosów na bit"
+  },
+  "fieldMarkPresent": {
+    "message": "Znak obecny"
+  },
+  "fieldSeat": {
+    "message": "Miejsce"
+  },
+  "fieldMargin": {
+    "message": "Margines"
+  },
+  "fieldReadVia": {
+    "message": "Odczytano przez"
+  },
+  "fieldEstRotation": {
+    "message": "Szac. obrót"
+  },
+  "fieldError": {
+    "message": "Błąd"
+  },
+  "valYes": {
+    "message": "tak"
+  },
+  "valNo": {
+    "message": "nie"
+  },
+  "bfTamperDetected": {
+    "message": "wykryto naruszenie wcięcia (statystyka $1)"
+  },
+  "bfTamperClean": {
+    "message": "czyste (statystyka $1)"
+  }
+}

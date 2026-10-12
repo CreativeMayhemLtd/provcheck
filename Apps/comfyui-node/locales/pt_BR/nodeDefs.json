@@ -1,0 +1,67 @@
+{
+  "ProvcheckC2PA": {
+    "display_name": "Provcheck (Marca d'Agua C2PA Gratuita) • Creative Mayhem",
+    "description": "Provcheck gratuito e aberto (Apache-2.0) para o ComfyUI, um unico node para imagem, audio e video. ESCREVER: incorpora a marca d'agua gratuita (TrustMark em imagens, silentcipher na faixa de audio de audio/video) e/ou assina com C2PA usando sua chave local + identidade atproto/Bluesky, opcionalmente registrando o grafo de geracao; o arquivo assinado e gravado no seu diretorio de saida. LER: detecta/verifica uma marca provcheck em cada entrada conectada. Conecte uma imagem, audio, video, ou qualquer combinacao. Cada opcao e um widget que tambem pode ser conectado a partir de outro node, incluindo o nome do arquivo de saida. A Creative Mayhem tambem cria o Backfire, uma marca com chave que a remocao por IA amplifica em vez de remover (complemento comercial, nao incluido neste pacote gratuito): https://provcheck.ai/backfire . Mais: https://provcheck.ai",
+    "inputs": {
+      "mode": {
+        "name": "mode",
+        "tooltip": "write = marca d'agua e/ou assinatura C2PA para cada entrada conectada (o mais comum). read = detecta/verifica uma marca provcheck existente.",
+        "options": {
+          "write": "escrever",
+          "read": "ler"
+        }
+      },
+      "image": {
+        "name": "imagem",
+        "tooltip": "Lote de imagens opcional para escrever ou ler."
+      },
+      "audio": {
+        "name": "audio",
+        "tooltip": "Audio opcional para escrever ou ler."
+      },
+      "video": {
+        "name": "video",
+        "tooltip": "Video opcional. A marca d'agua fica na faixa de audio (os quadros sao preservados); o container e assinado com C2PA."
+      },
+      "watermark": {
+        "name": "watermark",
+        "tooltip": "[write] Incorpora a marca d'agua FOSS gratuita (TrustMark para imagem / silentcipher para audio)."
+      },
+      "c2pa_sign": {
+        "name": "c2pa_sign",
+        "tooltip": "[write] Assina com C2PA usando sua chave de assinatura local. O arquivo assinado e gravado no seu diretorio de saida do ComfyUI."
+      },
+      "embed_identity": {
+        "name": "embed_identity",
+        "tooltip": "[write] Incorpora sua identidade atproto/Bluesky (DID + handle) no manifesto para que um verificador veja quem assinou. Requer login no kit."
+      },
+      "record_provenance": {
+        "name": "record_provenance",
+        "tooltip": "[write] Registra um resumo curado do grafo de geracao (modelo, seed, sampler, prompts) no manifesto assinado."
+      },
+      "include_full_workflow": {
+        "name": "include_full_workflow",
+        "tooltip": "[write] Com record_provenance: incorpora o workflow COMPLETO (redigido), nao apenas o resumo. Desativado por padrao para evitar vazar prompts/caminhos."
+      },
+      "brand_id": {
+        "name": "brand_id",
+        "tooltip": "[write] Seu id de marca de 5 bits do registro de marcas atproto (0-31). O padrao 2 e o id publico do rAIdio.bot; use o seu."
+      },
+      "filename_prefix": {
+        "name": "filename_prefix",
+        "tooltip": "[write, quando um arquivo e gravado] Prefixo do nome do arquivo de saida para os arquivos assinados/marcados com marca d'agua. Editavel, e pode ser conectado a partir de outro node (clique com o botao direito -> Converter para entrada)."
+      },
+      "timeout_secs": {
+        "name": "timeout_secs",
+        "tooltip": "Tempo limite do subprocesso por item, em segundos."
+      }
+    },
+    "outputs": {
+      "0": { "name": "imagem" },
+      "1": { "name": "audio" },
+      "2": { "name": "video" },
+      "3": { "name": "relatorio" },
+      "4": { "name": "detectado" }
+    }
+  }
+}

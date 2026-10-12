@@ -130,7 +130,6 @@ pub enum CertError {
 /// (`SubjectInfo::default()`) produce a generic local-install
 /// signer; branded callers override.
 pub fn generate(subject: &SubjectInfo) -> Result<GeneratedKeypair, CertError> {
-    // --- Step 1: Self-signed root CA ---
     let ca_key = KeyPair::generate().map_err(|e| CertError::CaKeypair(e.to_string()))?;
 
     let mut ca_params = CertificateParams::default();
@@ -145,7 +144,6 @@ pub fn generate(subject: &SubjectInfo) -> Result<GeneratedKeypair, CertError> {
         .self_signed(&ca_key)
         .map_err(|e| CertError::CaCert(e.to_string()))?;
 
-    // --- Step 2: End-entity cert signed by the CA ---
     let ee_key = KeyPair::generate().map_err(|e| CertError::EeKeypair(e.to_string()))?;
 
     let mut ee_params = CertificateParams::default();
@@ -165,11 +163,7 @@ pub fn generate(subject: &SubjectInfo) -> Result<GeneratedKeypair, CertError> {
         .signed_by(&ee_key, &ca_issuer)
         .map_err(|e| CertError::EeCert(e.to_string()))?;
 
-    // --- Step 3: Compose the return ---
-    // chain_pem: EE first, CA second. The spec crate's fingerprint
-    // helper takes the *first* CERTIFICATE block, which is the EE
-    // (leaf) — what the verifier hashes when computing the cert
-    // fingerprint to look up under app.provcheck.signingKey.
+    // chain_pem: EE first, CA second — the fingerprint helper hashes the first (EE/leaf) block.
     let chain_pem = format!("{}{}", ee_cert.pem(), ca_cert.pem());
     let key_pem = ee_key.serialize_pem();
     let fingerprint = fingerprint_leaf_der(ee_cert.der());
@@ -202,7 +196,6 @@ pub fn issue_ee_cert_with_external_pubkey(
     subject: &SubjectInfo,
     ee_pubkey_spki_der: &[u8],
 ) -> Result<ExternalKeypairChain, CertError> {
-    // --- Step 1: Self-signed root CA (same shape as `generate`) ---
     let ca_key = KeyPair::generate().map_err(|e| CertError::CaKeypair(e.to_string()))?;
 
     let mut ca_params = CertificateParams::default();
@@ -220,7 +213,6 @@ pub fn issue_ee_cert_with_external_pubkey(
     let ca_issuer = rcgen::Issuer::from_ca_cert_der(ca_cert.der(), &ca_key)
         .map_err(|e| CertError::CaIssuer(e.to_string()))?;
 
-    // --- Step 2: EE params + external public key ---
     let ee_pubkey = SubjectPublicKeyInfo::from_der(ee_pubkey_spki_der)
         .map_err(|e| CertError::ExternalPubkey(e.to_string()))?;
 
@@ -253,13 +245,7 @@ mod tests {
     use super::*;
     use provcheck_attestation_spec::fingerprint_pem_chain;
 
-    // ----- SubjectInfo defaults ----------
-    //
-    // Pin the user-facing default strings — these appear in
-    // c2pa-rs's reader output, in third-party tools that walk
-    // the cert chain, and in operator screenshots. A silent
-    // bump would change what every locally-minted cert
-    // identifies itself as.
+    // Pin the default subject strings: they appear in c2pa reader output and third-party cert tools, so a silent change alters what every minted cert identifies as.
 
     #[test]
     fn subject_info_default_common_name_is_local_content_signer() {
@@ -278,9 +264,7 @@ mod tests {
 
     #[test]
     fn subject_info_default_organisation_marks_user_generated() {
-        // The "(user-generated)" suffix signals to anyone reading
-        // the cert chain that this is not a vendor-issued cert —
-        // pin it explicitly.
+        // The "(user-generated)" suffix marks the cert as not vendor-issued; pin it.
         let s = SubjectInfo::default();
         assert!(
             s.organisation.contains("user-generated"),
@@ -304,8 +288,7 @@ mod tests {
 
     #[test]
     fn subject_info_supports_explicit_override() {
-        // Operator-supplied custom values must round-trip
-        // through SubjectInfo unchanged.
+        // Operator-supplied custom values must round-trip through SubjectInfo unchanged.
         let s = SubjectInfo {
             common_name: "Custom CN".to_string(),
             organisation: "Custom Org".to_string(),
@@ -319,7 +302,6 @@ mod tests {
     #[test]
     fn generates_chain_with_two_certificate_blocks() {
         let kp = generate(&SubjectInfo::default()).expect("generation succeeds");
-        // EE cert + CA cert => exactly two BEGIN CERTIFICATE markers.
         let begin_count = kp.chain_pem.matches("-----BEGIN CERTIFICATE-----").count();
         assert_eq!(begin_count, 2, "chain has EE + CA");
         let key_count = kp.chain_pem.matches("-----BEGIN PRIVATE KEY-----").count();
@@ -341,12 +323,7 @@ mod tests {
 
     #[test]
     fn fingerprint_matches_spec_crate_recomputation() {
-        // Round-trip: the fingerprint field GeneratedKeypair carries
-        // must equal what the spec crate's fingerprint_pem_chain
-        // computes over the same chain. This is the contract that
-        // ties cert generation to the on-the-wire format — the
-        // verifier (using fingerprint_pem_chain) and the publisher
-        // (using GeneratedKeypair.fingerprint) must agree.
+        // The carried fingerprint must equal fingerprint_pem_chain(chain) — the publisher-verifier contract.
         let kp = generate(&SubjectInfo::default()).expect("generation succeeds");
         let recomputed = fingerprint_pem_chain(&kp.chain_pem).expect("PEM parses");
         assert_eq!(
@@ -370,10 +347,7 @@ mod tests {
 
     #[test]
     fn algorithm_is_es256() {
-        // The lexicon's knownValues list accepts ES256/384/512,
-        // PS256/etc., Ed25519. Right now provcheck-sign only ever
-        // generates ES256 — but the field is on the struct so
-        // future variants don't break the type.
+        // Only ES256 is generated today; the field exists so future variants don't break the type.
         let kp = generate(&SubjectInfo::default()).expect("generation succeeds");
         assert_eq!(kp.algorithm, "ES256");
         assert!(provcheck_attestation_spec::ALLOWED_ALGORITHMS.contains(&kp.algorithm.as_str()));
@@ -381,9 +355,7 @@ mod tests {
 
     #[test]
     fn subject_info_threads_through_to_the_chain() {
-        // Test that overriding SubjectInfo actually affects the
-        // produced cert. We re-parse the EE cert via x509-parser and
-        // check the CN/O.
+        // Overriding SubjectInfo must affect the produced cert; re-parse the EE cert and check CN/O.
         let subject = SubjectInfo {
             common_name: "ProvCheckKit Test Signer".to_string(),
             organisation: "ProvCheckKit Test Org".to_string(),
@@ -391,7 +363,6 @@ mod tests {
         };
         let kp = generate(&subject).expect("generation succeeds");
 
-        // Pull the first (EE) cert out of the PEM chain.
         let parsed = pem::parse_many(&kp.chain_pem).expect("PEM parses");
         let ee = parsed
             .iter()
@@ -414,10 +385,7 @@ mod tests {
 
     #[test]
     fn two_runs_produce_distinct_fingerprints() {
-        // Generation must produce fresh randomness; two consecutive
-        // calls should never produce the same cert. (If they did,
-        // every install would publish the same fingerprint, which
-        // is a privacy + correlation disaster.)
+        // Fresh randomness per call: identical certs would make every install publish the same fingerprint (privacy/correlation disaster).
         let a = generate(&SubjectInfo::default()).expect("a");
         let b = generate(&SubjectInfo::default()).expect("b");
         assert_ne!(

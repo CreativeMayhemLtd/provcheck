@@ -1,0 +1,647 @@
+{
+  "headerSubtitle": {
+    "message": "Tanda tangani & verifikasi C2PA Content Credentials"
+  },
+  "tabVerify": {
+    "message": "Verifikasi"
+  },
+  "tabWatermark": {
+    "message": "Watermark"
+  },
+  "tabDetect": {
+    "message": "Deteksi"
+  },
+  "tabKeys": {
+    "message": "Kunci"
+  },
+  "tabSign": {
+    "message": "Tanda Tangan"
+  },
+  "tabKeyedMarks": {
+    "message": "Tanda berkunci"
+  },
+  "btnChooseFile": {
+    "message": "Pilih file…"
+  },
+  "btnVerifyAnother": {
+    "message": "Verifikasi file lain"
+  },
+  "btnCopyJson": {
+    "message": "Salin sebagai JSON"
+  },
+  "btnCheckAnother": {
+    "message": "Periksa file lain"
+  },
+  "btnReadAnother": {
+    "message": "Baca yang lain"
+  },
+  "btnLogOut": {
+    "message": "Keluar"
+  },
+  "btnConnect": {
+    "message": "Hubungkan"
+  },
+  "btnCopy": {
+    "message": "Salin"
+  },
+  "btnRetry": {
+    "message": "Coba lagi"
+  },
+  "btnSign": {
+    "message": "Tanda Tangan"
+  },
+  "btnOK": {
+    "message": "OK"
+  },
+  "btnCancel": {
+    "message": "Batal"
+  },
+  "btnGotIt": {
+    "message": "Mengerti"
+  },
+  "btnHowItWorks": {
+    "message": "Cara kerjanya"
+  },
+  "btnInstallRepair": {
+    "message": "Instal / Perbaiki"
+  },
+  "btnChooseSecret": {
+    "message": "Pilih file rahasia"
+  },
+  "btnClose": {
+    "message": "Tutup"
+  },
+  "badgeExperimental": {
+    "message": "Eksperimental"
+  },
+  "loadingGeneric": {
+    "message": "Memuat…"
+  },
+  "statusChecking": {
+    "message": "Memeriksa..."
+  },
+  "statusCheckingStatus": {
+    "message": "Memeriksa status…"
+  },
+  "labelFingerprint": {
+    "message": "Sidik jari"
+  },
+  "labelAlgorithm": {
+    "message": "Algoritma"
+  },
+  "labelBackend": {
+    "message": "Backend"
+  },
+  "labelCreated": {
+    "message": "Dibuat"
+  },
+  "labelDID": {
+    "message": "DID"
+  },
+  "labelHandle": {
+    "message": "Handle"
+  },
+  "labelYubikey": {
+    "message": "Yubikey"
+  },
+  "labelPinTries": {
+    "message": "Percobaan PIN"
+  },
+  "labelStatus": {
+    "message": "Status"
+  },
+  "labelLabel": {
+    "message": "Label"
+  },
+  "labelBy": {
+    "message": "Oleh"
+  },
+  "labelTool": {
+    "message": "Alat"
+  },
+  "labelFile": {
+    "message": "File"
+  },
+  "labelYourIdentity": {
+    "message": "Identitas Anda"
+  },
+  "labelOutput": {
+    "message": "Output"
+  },
+  "aboutLinks": {
+    "message": "Tautan"
+  },
+  "identityBskyHandle": {
+    "message": "Handle Bsky"
+  },
+  "identityRunWatermark": {
+    "message": "Jalankan deteksi watermark"
+  },
+  "identityRequireAttested": {
+    "message": "Wajib teratestasi"
+  },
+  "identityHandlePh": {
+    "message": "opsional · misalnya creator.bsky.social atau did:plc:…"
+  },
+  "dropzoneTitle": {
+    "message": "Jatuhkan file apa pun di sini untuk verifikasi"
+  },
+  "dropzoneSub": {
+    "message": "Audio · Gambar · Video: apa pun yang membawa C2PA Content Credentials."
+  },
+  "verifyDropHint": {
+    "message": "Atau jalankan tanpa apa pun dan bagian ini akan tetap seperti semula. Privat: file tidak pernah meninggalkan perangkat Anda."
+  },
+  "verifyLoading": {
+    "message": "Memverifikasi…"
+  },
+  "verifyLoadingHint": {
+    "message": "Deteksi watermark cukup berat bagi CPU pada audio dan video, dan bisa memakan waktu beberapa menit. Hapus centang \"Jalankan deteksi watermark\" untuk verifikasi khusus C2PA yang instan."
+  },
+  "showRawManifest": {
+    "message": "Tampilkan detail manifest mentah"
+  },
+  "claimsHeading": {
+    "message": "Klaim"
+  },
+  "wmModelsNeeded": {
+    "message": "Deteksi watermark memerlukan model."
+  },
+  "wmInstallAll": {
+    "message": "Instal semua model"
+  },
+  "wmScanFor": {
+    "message": "Pindai untuk:"
+  },
+  "wmDropTitle": {
+    "message": "Jatuhkan file apa pun di sini untuk menjalankan deteksi watermark"
+  },
+  "wmDropHint": {
+    "message": "Privat: file tidak pernah meninggalkan perangkat Anda. Setiap detektor berwenang menentukan apakah ia berlaku untuk jenis file input tersebut."
+  },
+  "wmLoading": {
+    "message": "Menjalankan detektor watermark…"
+  },
+  "wmLoadingHint": {
+    "message": "Inferensi model cukup berat bagi CPU pada audio dan video; pemindaian bisa memakan waktu beberapa menit. Masih bekerja selagi ini berputar."
+  },
+  "wmResultTitle": {
+    "message": "Deteksi watermark"
+  },
+  "detectTitle": {
+    "message": "Deteksi konten AI: bawa detektor Anda sendiri"
+  },
+  "detectRouteAHead": {
+    "message": "Rute A: paket DLC berbayar (v1.x, direncanakan)"
+  },
+  "detectRouteBHead": {
+    "message": "Rute B: wrapper yang disediakan operator (sudah tersedia)"
+  },
+  "keysLocalIdentity": {
+    "message": "Identitas lokal"
+  },
+  "keysNoIdentity": {
+    "message": "Tidak ada identitas di perangkat ini."
+  },
+  "keysMismatchTitle": {
+    "message": "Ketidakcocokan status identitas"
+  },
+  "keysRotateBtn": {
+    "message": "Buat baru + terbitkan"
+  },
+  "keysRotateTitle": {
+    "message": "Buat kunci penanda tangan baru dan terbitkan sebagai rekaman aktif yang baru"
+  },
+  "keysSwitchYubikey": {
+    "message": "Beralih ke identitas Yubikey…"
+  },
+  "keysSwitchYubikeyTitle": {
+    "message": "Ganti identitas saat ini dengan identitas berbasis Yubikey"
+  },
+  "keysPublishedRecords": {
+    "message": "Rekaman yang diterbitkan (atproto)"
+  },
+  "keysRecordsEmptyHint": {
+    "message": "Masuk di tab Sign dan terbitkan sidik jari lokal Anda."
+  },
+  "keysNotLoggedIn": {
+    "message": "Belum masuk ke atproto."
+  },
+  "keysNoSessionHint": {
+    "message": "Masuk di tab Sign untuk mengambil rekaman yang telah Anda terbitkan."
+  },
+  "signIdentityLabel": {
+    "message": "Identitas:"
+  },
+  "signNotSetUp": {
+    "message": "belum disiapkan"
+  },
+  "signSessionLabel": {
+    "message": "Sesi:"
+  },
+  "signDisconnected": {
+    "message": "terputus"
+  },
+  "signSetupTitle": {
+    "message": "Siapkan identitas penanda tangan Anda"
+  },
+  "signSetupBody": {
+    "message": "Ini menghasilkan kunci kriptografis di perangkat ini dan menyimpannya di keychain OS Anda. Anda hanya perlu melakukan ini sekali."
+  },
+  "signGenerateKey": {
+    "message": "Buat kunci penanda tangan"
+  },
+  "signSetupHint": {
+    "message": "Kunci tidak pernah meninggalkan perangkat Anda. OS Anda menangani permintaan akses."
+  },
+  "signConnectTitle": {
+    "message": "Hubungkan identitas bsky Anda"
+  },
+  "signConnectBody": {
+    "message": "Kaitkan kunci penanda tangan Anda dengan handle atproto Anda agar verifikator tahu itu milik Anda."
+  },
+  "signHandlePh": {
+    "message": "creator.bsky.social"
+  },
+  "signAppPassword": {
+    "message": "Kata sandi aplikasi"
+  },
+  "signRememberDevice": {
+    "message": "Ingat saya di perangkat ini"
+  },
+  "signPublishTitle": {
+    "message": "Terbitkan kunci penanda tangan Anda"
+  },
+  "signPublishBody": {
+    "message": "Satu langkah terakhir: menerbitkan sidik jari kunci Anda ke atproto memungkinkan verifikator memeriksa silang bahwa Andalah yang menandatangani karya Anda. Tanpa ini mereka hanya melihat \"tanda tangan valid oleh tidak dikenal.\""
+  },
+  "signLabelOptional": {
+    "message": "Label (opsional)"
+  },
+  "signLabelPh": {
+    "message": "misalnya studio mac"
+  },
+  "signPublishKey": {
+    "message": "Terbitkan kunci"
+  },
+  "signStaleTitle": {
+    "message": "Kunci penanda tangan Anda sudah usang"
+  },
+  "signRecoverHeading": {
+    "message": "Pulihkan dari terminal:"
+  },
+  "signStaleHint": {
+    "message": "Ini membuat kunci baru, menerbitkannya sebagai rekaman aktif yang baru, dan (jika diperlukan) mencabut rekaman yatim agar tidak ada yang bisa menandatangani atas nama Anda dengan kunci yang hilang."
+  },
+  "signDropTitle": {
+    "message": "Jatuhkan file di sini untuk ditandatangani"
+  },
+  "signDropSub": {
+    "message": "Audio · Gambar · Video: apa pun yang didukung c2pa-rs."
+  },
+  "signReadyToSign": {
+    "message": "Siap ditandatangani"
+  },
+  "signChainTitle": {
+    "message": "File ini sudah ditandatangani."
+  },
+  "signChainSub": {
+    "message": "Tanda tangan Anda akan bergabung ke rantai sebagai turunan; tanda tangan asli tetap utuh."
+  },
+  "signRelationshipQ": {
+    "message": "Apa hubungan Anda dengan file ini?"
+  },
+  "signEmbedIdentity": {
+    "message": "Sematkan pernyataan identitas (direkomendasikan; memungkinkan verifikator melewati langkah entri handle)"
+  },
+  "signModelPh": {
+    "message": "misalnya ACE-Step v1.0"
+  },
+  "signReplaceOriginal": {
+    "message": "Ganti yang asli (alih-alih menulis sidecar)"
+  },
+  "signPickDifferent": {
+    "message": "Pilih file lain"
+  },
+  "signSigning": {
+    "message": "Menandatangani…"
+  },
+  "signSigned": {
+    "message": "Ditandatangani"
+  },
+  "signAnother": {
+    "message": "Tandatangani yang lain"
+  },
+  "signVerifyIt": {
+    "message": "Verifikasi ini"
+  },
+  "signErrorTitle": {
+    "message": "Tidak dapat memuat status penanda tanganan Anda"
+  },
+  "bfBackfireTitle": {
+    "message": "Baca tanda Backfire berkunci"
+  },
+  "bfBackfireSub": {
+    "message": "Verifikasi watermark per gambar yang justru diperkuat, bukan dihilangkan, oleh alat penghapus asal-usul AI."
+  },
+  "bfReaderLabel": {
+    "message": "Pembaca Backfire"
+  },
+  "bfDropTitle": {
+    "message": "Jatuhkan gambar di sini, atau pilih satu, untuk membaca tandanya"
+  },
+  "bfChooseRead": {
+    "message": "Pilih gambar & baca"
+  },
+  "bfHint": {
+    "message": "Masukkan kunci Anda di atas terlebih dahulu, lalu jatuhkan atau pilih gambar. Ini membaca secara otomatis, dan tetap berada di perangkat Anda."
+  },
+  "bfLoading": {
+    "message": "Membaca tanda Backfire…"
+  },
+  "mlTitle": {
+    "message": "Baca nomor seri Mellin berkunci"
+  },
+  "mlSub": {
+    "message": "Forensik berkunci sisi audio: pulihkan nomor seri per salinan 64-bit yang Anda sematkan dengan alat provcheck-mellin mandiri berlisensi BUSL (gratis untuk penggunaan nonkomersial, terpisah dari provcheck). Membutuhkan file rahasia penjual dan ID karya Anda; semuanya tetap berada di perangkat Anda."
+  },
+  "mlReaderLabel": {
+    "message": "Pembaca Mellin"
+  },
+  "mlSecretNone": {
+    "message": "belum dipilih. Rahasia tidak pernah disimpan, jadi pilih lagi setiap kali setelah membuka aplikasi."
+  },
+  "mlWorkidPh": {
+    "message": "ID karya yang digunakan saat penyematan"
+  },
+  "mlDropTitle": {
+    "message": "Pilih file audio untuk membaca nomor serinya"
+  },
+  "mlChooseRead": {
+    "message": "Pilih audio & baca"
+  },
+  "mlHint": {
+    "message": "Pilih file rahasia Anda dan masukkan ID karya terlebih dahulu, lalu pilih audio atau jatuhkan di mana saja pada tab ini. Semua format berfungsi (WAV, MP3, AAC, FLAC); file audio dibaca di sini, gambar dibaca pada tanda Backfire di atas."
+  },
+  "mlLoading": {
+    "message": "Membaca nomor seri Mellin…"
+  },
+  "imTitle": {
+    "message": "Baca tanda identitas idmark berkunci"
+  },
+  "imSub": {
+    "message": "Identitas berkunci sisi gambar: baca tanda per salinan yang tahan pemotongan, transcoding, dan rotasi, yang disematkan dengan alat provcheck-idmark mandiri berlisensi BUSL (gratis untuk penggunaan nonkomersial, terpisah dari provcheck). Tanpa rahasia, ini memeriksa tanda bawaan; tambahkan file rahasia dan seat Anda untuk mengatribusikan sebuah salinan. Semuanya tetap berada di perangkat Anda."
+  },
+  "imReaderLabel": {
+    "message": "Pembaca idmark"
+  },
+  "imSecretNone": {
+    "message": "belum dipilih. Biarkan kosong untuk membaca tanda bawaan; rahasia tidak pernah disimpan."
+  },
+  "imDropTitle": {
+    "message": "Pilih gambar untuk membaca tandanya"
+  },
+  "imChooseRead": {
+    "message": "Pilih gambar & baca"
+  },
+  "imHint": {
+    "message": "Secara opsional pilih file rahasia dan seat Anda terlebih dahulu, lalu pilih gambar. PNG atau JPEG. Ini membaca tanda identitas idmark; tanda Backfire dan nomor seri Mellin dibaca pada bagian di atas."
+  },
+  "imLoading": {
+    "message": "Membaca idmark…"
+  },
+  "bfModalTitle": {
+    "message": "Cara kerja Backfire"
+  },
+  "vVerified": {
+    "message": "Terverifikasi"
+  },
+  "vUnsigned": {
+    "message": "Belum ditandatangani"
+  },
+  "vNotVerified": {
+    "message": "Belum terverifikasi"
+  },
+  "attAttestedBy": {
+    "message": "Diatestasi oleh $1"
+  },
+  "attMatchSub": {
+    "message": "Sertifikat penanda tangan cocok dengan kunci yang diterbitkan di bawah identitas ini."
+  },
+  "attMismatch": {
+    "message": "Ketidakcocokan atestasi untuk $1"
+  },
+  "attMismatchSub": {
+    "message": "Sertifikat penanda tangan tidak cocok dengan kunci mana pun yang diterbitkan di bawah identitas ini."
+  },
+  "attNotPublished": {
+    "message": "Tidak ada kunci yang diterbitkan di bawah $1"
+  },
+  "attNotPublishedSub": {
+    "message": "Identitas ini ada tetapi belum menerbitkan rekaman signingKey apa pun."
+  },
+  "attResolveFailed": {
+    "message": "Tidak dapat menyelesaikan $1"
+  },
+  "attResolveFailedSub": {
+    "message": "Penyelesaian identitas gagal (handle/DID tidak dapat dijangkau)."
+  },
+  "attThisIdentity": {
+    "message": "identitas ini"
+  },
+  "kvSigner": {
+    "message": "Penanda tangan"
+  },
+  "kvSignedAt": {
+    "message": "Ditandatangani pada"
+  },
+  "kvFormat": {
+    "message": "Format"
+  },
+  "kvManifest": {
+    "message": "Manifest"
+  },
+  "kvIngredients": {
+    "message": "Bahan"
+  },
+  "kvIngredientsVal": {
+    "message": "$1 (konten turunan, file ini dibuat dengan mengedit file yang sudah ditandatangani sebelumnya)"
+  },
+  "kvValidationErrors": {
+    "message": "Kesalahan validasi"
+  },
+  "wmEmpty": {
+    "message": "Tidak ada watermark yang terdeteksi oleh kelompok detektor yang dijalankan."
+  },
+  "wmKeyedNote": {
+    "message": "Tanda berkunci (Backfire, Mellin) bukan bagian dari pemindaian ini. Tanda-tanda ini hanya bisa dibaca dengan kunci Anda, di tab Keyed marks."
+  },
+  "wmConfidence": {
+    "message": "keyakinan $1%"
+  },
+  "wmDegraded": {
+    "message": "keyakinan $1%; tanda terdegradasi (kemungkinan kerusakan sebagian)"
+  },
+  "wmNa": {
+    "message": "$1: t/a"
+  },
+  "wmNoMark": {
+    "message": "$1: tidak ada tanda terdeteksi"
+  },
+  "wmTimelineAria": {
+    "message": "Keberadaan watermark dari waktu ke waktu: $1"
+  },
+  "wmUnrecognizedSource": {
+    "message": "sumber tidak dikenal"
+  },
+  "btnCopied": {
+    "message": "Tersalin"
+  },
+  "scanError": {
+    "message": "Tidak dapat memindai file ini: $1"
+  },
+  "autoFilled": {
+    "message": "terisi otomatis dari file"
+  },
+  "dragFileOnto": {
+    "message": "Seret file ke jendela"
+  },
+  "aiGenerated": {
+    "message": "Dihasilkan AI"
+  },
+  "btnCopiedBang": {
+    "message": "Tersalin!"
+  },
+  "bfCouldNotRun": {
+    "message": "Backfire tidak dapat berjalan"
+  },
+  "btnInstalling": {
+    "message": "Menginstal…"
+  },
+  "downloadingModels": {
+    "message": "Mengunduh model, ini bisa memakan waktu satu menit…"
+  },
+  "btnWorking": {
+    "message": "Memproses…"
+  },
+  "bfInstalling": {
+    "message": "Menginstal / memperbaiki pembaca Backfire…"
+  },
+  "statusCheckFailed": {
+    "message": "Pemeriksaan status gagal: $1"
+  },
+  "readingFile": {
+    "message": "Membaca $1…"
+  },
+  "mlCouldNotRun": {
+    "message": "Mellin tidak dapat berjalan"
+  },
+  "imCouldNotRun": {
+    "message": "idmark tidak dapat berjalan"
+  },
+  "keysMismSuperseded": {
+    "message": "Kunci lokal Anda telah digantikan"
+  },
+  "keysMismRevoked": {
+    "message": "Kunci lokal Anda telah dicabut"
+  },
+  "keysMismActiveNoKey": {
+    "message": "Rekaman aktif menggunakan kunci yang tidak Anda miliki"
+  },
+  "thisBox": {
+    "message": "(kotak ini)"
+  },
+  "btnRevoke": {
+    "message": "Cabut"
+  },
+  "checkingPublishedKeys": {
+    "message": "Memeriksa kunci yang diterbitkan…"
+  },
+  "btnGenerating": {
+    "message": "Membuat…"
+  },
+  "btnConnecting": {
+    "message": "Menghubungkan…"
+  },
+  "btnPublishing": {
+    "message": "Menerbitkan…"
+  },
+  "signReadyToPublish": {
+    "message": "Siap diterbitkan"
+  },
+  "bfMarkFound": {
+    "message": "Tanda Backfire ditemukan"
+  },
+  "bfNoValidMark": {
+    "message": "Tidak ada tanda Backfire yang valid"
+  },
+  "mlSerialRecovered": {
+    "message": "Nomor seri Mellin berhasil dipulihkan"
+  },
+  "mlNoFullSerial": {
+    "message": "Tidak ada nomor seri Mellin lengkap"
+  },
+  "imPresent": {
+    "message": "idmark ada"
+  },
+  "imNoDetected": {
+    "message": "Tidak ada idmark terdeteksi"
+  },
+  "fieldIdentifier": {
+    "message": "Pengidentifikasi"
+  },
+  "fieldConfidenceMargin": {
+    "message": "Keyakinan (margin bit minimum)"
+  },
+  "fieldValid": {
+    "message": "Valid"
+  },
+  "fieldMatchesSerial": {
+    "message": "Cocok dengan nomor seri yang diharapkan"
+  },
+  "fieldTamperTripwire": {
+    "message": "Tripwire pengrusakan"
+  },
+  "fieldSerial": {
+    "message": "Nomor seri"
+  },
+  "fieldBitsRecovered": {
+    "message": "Bit yang dipulihkan"
+  },
+  "fieldErasureRate": {
+    "message": "Tingkat penghapusan"
+  },
+  "fieldMinBitVotes": {
+    "message": "Suara bit minimum"
+  },
+  "fieldMarkPresent": {
+    "message": "Tanda ada"
+  },
+  "fieldSeat": {
+    "message": "Seat"
+  },
+  "fieldMargin": {
+    "message": "Margin"
+  },
+  "fieldReadVia": {
+    "message": "Dibaca melalui"
+  },
+  "fieldEstRotation": {
+    "message": "Estimasi rotasi"
+  },
+  "fieldError": {
+    "message": "Kesalahan"
+  },
+  "valYes": {
+    "message": "ya"
+  },
+  "valNo": {
+    "message": "tidak"
+  },
+  "bfTamperDetected": {
+    "message": "pengrusakan notch terdeteksi (stat $1)"
+  },
+  "bfTamperClean": {
+    "message": "bersih (stat $1)"
+  }
+}

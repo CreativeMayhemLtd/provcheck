@@ -1,0 +1,67 @@
+{
+  "ProvcheckC2PA": {
+    "display_name": "Provcheck (Hình mờ C2PA miễn phí) • Creative Mayhem",
+    "description": "provcheck miễn phí, mã nguồn mở (Apache-2.0) cho ComfyUI — một node duy nhất cho ảnh, âm thanh và video. WRITE: nhúng hình mờ miễn phí (TrustMark trên ảnh, silentcipher trên track âm thanh của audio/video) và/hoặc ký C2PA bằng khóa cục bộ của bạn + danh tính atproto/Bluesky, tùy chọn ghi lại đồ thị tạo sinh; tệp đã ký được ghi vào thư mục đầu ra của bạn. READ: phát hiện/xác minh một dấu provcheck trên mỗi đầu vào đã kết nối. Kết nối ảnh, âm thanh, video, hoặc bất kỳ kết hợp nào. Mỗi tùy chọn là một widget mà bạn cũng có thể kết nối từ node khác, kể cả tên tệp đầu ra. Creative Mayhem cũng tạo ra Backfire, một dấu có khóa mà việc gỡ bỏ bằng AI sẽ khuếch đại thay vì loại bỏ (tiện ích bổ sung thương mại, không có trong gói miễn phí này): https://provcheck.ai/backfire . Thêm: https://provcheck.ai",
+    "inputs": {
+      "mode": {
+        "name": "mode",
+        "tooltip": "write = đánh hình mờ và/hoặc ký C2PA cho mỗi đầu vào đã kết nối (phổ biến nhất). read = phát hiện/xác minh một dấu provcheck đã có.",
+        "options": {
+          "write": "ghi",
+          "read": "đọc"
+        }
+      },
+      "image": {
+        "name": "ảnh",
+        "tooltip": "Batch ảnh tùy chọn để ghi vào / đọc từ."
+      },
+      "audio": {
+        "name": "âm thanh",
+        "tooltip": "Âm thanh tùy chọn để ghi vào / đọc từ."
+      },
+      "video": {
+        "name": "video",
+        "tooltip": "Video tùy chọn. Hình mờ nằm trên track âm thanh (các khung hình được giữ nguyên); container được ký C2PA."
+      },
+      "watermark": {
+        "name": "watermark",
+        "tooltip": "[write] Nhúng hình mờ FOSS miễn phí (TrustMark cho ảnh / silentcipher cho âm thanh)."
+      },
+      "c2pa_sign": {
+        "name": "c2pa_sign",
+        "tooltip": "[write] Ký C2PA bằng khóa ký cục bộ của bạn. Tệp đã ký được ghi vào thư mục đầu ra ComfyUI của bạn."
+      },
+      "embed_identity": {
+        "name": "embed_identity",
+        "tooltip": "[write] Nhúng danh tính atproto/Bluesky của bạn (DID + handle) vào manifest để người xác minh thấy ai đã ký. Cần đăng nhập kit."
+      },
+      "record_provenance": {
+        "name": "record_provenance",
+        "tooltip": "[write] Ghi lại một bản tóm tắt được chọn lọc của đồ thị tạo sinh (model, seed, sampler, prompts) vào manifest đã ký."
+      },
+      "include_full_workflow": {
+        "name": "include_full_workflow",
+        "tooltip": "[write] Cùng với record_provenance: nhúng TOÀN BỘ workflow (đã được ẩn thông tin), không chỉ bản tóm tắt. Mặc định tắt để tránh rò rỉ prompts/paths."
+      },
+      "brand_id": {
+        "name": "brand_id",
+        "tooltip": "[write] brand id 5-bit của bạn từ atproto brand registry (0-31). Mặc định 2 là id công khai của rAIdio.bot; hãy dùng id của riêng bạn."
+      },
+      "filename_prefix": {
+        "name": "filename_prefix",
+        "tooltip": "[write, khi có tệp được ghi] Tiền tố tên tệp đầu ra cho các tệp đã ký/đánh hình mờ. Có thể chỉnh sửa, và có thể được kết nối từ node khác (chuột phải -> Convert to input)."
+      },
+      "timeout_secs": {
+        "name": "timeout_secs",
+        "tooltip": "Thời gian timeout của subprocess cho mỗi mục, tính bằng giây."
+      }
+    },
+    "outputs": {
+      "0": { "name": "ảnh" },
+      "1": { "name": "âm thanh" },
+      "2": { "name": "video" },
+      "3": { "name": "báo cáo" },
+      "4": { "name": "đã phát hiện" }
+    }
+  }
+}

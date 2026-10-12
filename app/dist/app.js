@@ -22,6 +22,64 @@ if (!TAURI || !TAURI.core || typeof TAURI.core.invoke !== "function") {
 }
 const { invoke } = TAURI.core;
 
+// ---- Version badge (bottom-right) ------------------------------------------
+// Ask the backend for the workspace-pinned version and show it in the corner.
+// Best-effort: a failure here must never affect the app.
+(function showVersion() {
+  try {
+    invoke("app_version").then(function (v) {
+      var el = document.getElementById("app-version");
+      if (el && v) el.textContent = "v" + v;
+    }).catch(function () {});
+  } catch (e) { /* never break the app over a version badge */ }
+})();
+
+// ---- Scan progress bar (verify:progress events) ----------------------------
+// The backend emits one "verify:progress" {current,total,label} before each
+// watermark detector runs. We drive a determinate bar from it. Honest-by-count:
+// families that don't apply finish instantly, so the bar jumps. Cosmetic only —
+// any failure here never affects the scan or its result.
+// [section, bar, fill, label] — the section id gates updates so a scan in one
+// tab does not drive the other tab's bar (the verify:progress event is global).
+var PROGRESS_BARS = [
+  ["loading", "verify-progress", "verify-progress-fill", "verify-progress-label"],
+  ["wm-loading", "wm-progress", "wm-progress-fill", "wm-progress-label"],
+];
+function setScanProgress(cur, total, label) {
+  var pct = total > 0 ? Math.round((cur / total) * 100) : 0;
+  var text = window.t
+    ? window.t("progressStep", "Step $1 of $2 · $3", [cur, total, label])
+    : "Step " + cur + " of " + total + " · " + label;
+  PROGRESS_BARS.forEach(function (ids) {
+    var section = document.getElementById(ids[0]);
+    if (!section || section.hidden) return; // only the active tab's bar
+    var box = document.getElementById(ids[1]);
+    var fill = document.getElementById(ids[2]);
+    var lbl = document.getElementById(ids[3]);
+    if (box) box.hidden = false;
+    if (fill) fill.style.width = pct + "%";
+    if (lbl) lbl.textContent = text;
+  });
+}
+function resetScanProgress() {
+  PROGRESS_BARS.forEach(function (ids) {
+    var box = document.getElementById(ids[1]);
+    var fill = document.getElementById(ids[2]);
+    var lbl = document.getElementById(ids[3]);
+    if (box) box.hidden = true;
+    if (fill) fill.style.width = "0%";
+    if (lbl) lbl.textContent = "";
+  });
+}
+try {
+  TAURI.event.listen("verify:progress", function (e) {
+    try {
+      var p = e && e.payload;
+      if (p) setScanProgress(p.current, p.total, p.label);
+    } catch (err) { /* progress bar is cosmetic */ }
+  });
+} catch (e) { /* no event channel → no bar; the app still works */ }
+
 // ---- Frontend diagnostics --------------------------------------------------
 // Every swallowed JS exception used to die invisibly, leaving spinners
 // spinning with an idle backend and an empty log. Route them (and key flow
@@ -65,6 +123,8 @@ const $verdictTitle  = document.getElementById("verdict-title");
 const $verdictFile   = document.getElementById("verdict-file");
 const $reason        = document.getElementById("reason");
 const $reasonText    = document.getElementById("reason-text");
+const $tamper        = document.getElementById("tamper");
+const $tamperDetail  = document.getElementById("tamper-detail");
 const $kvMain        = document.getElementById("kv-main");
 const $kvClaims      = document.getElementById("kv-claims");
 const $claimsHeading = document.getElementById("claims-heading");
@@ -124,6 +184,7 @@ function showLoading(displayName) {
   $dropzone.hidden = true;
   $loading.hidden = false;
   $result.hidden = true;
+  resetScanProgress();
   $loadingFile.textContent = displayName;
   // Warn about the slow path only when it applies: with watermark detection
   // on, audio/video inference legitimately takes minutes, and a bare spinner
@@ -155,15 +216,15 @@ function renderReport(report, path) {
   if (report.verified) {
     cls = "is-verified";
     icon = "\u2713";
-    title = "Verified";
+    title = t("vVerified", "Verified");
   } else if (report.unsigned) {
     cls = "is-unsigned";
     icon = "\u2014";
-    title = "Unsigned";
+    title = t("vUnsigned", "Unsigned");
   } else {
     cls = "is-invalid";
     icon = "\u2715";
-    title = "Not verified";
+    title = t("vNotVerified", "Not verified");
   }
   $verdict.className = "verdict " + cls;
   $verdictIcon.textContent = icon;
@@ -177,6 +238,13 @@ function renderReport(report, path) {
     $reason.hidden = true;
   }
 
+  if (report.provenance_tamper) {
+    $tamper.hidden = false;
+    $tamperDetail.textContent = report.provenance_tamper;
+  } else {
+    $tamper.hidden = true;
+  }
+
   renderAttestation(report.did_attestation);
   renderWatermarks(report.watermarks);
   renderAboutCard(report, $aboutCard);
@@ -184,21 +252,22 @@ function renderReport(report, path) {
 
   $kvMain.innerHTML = "";
   const rows = [
-    ["Signer", report.signer, false],
-    ["Signed at", report.signed_at, false],
-    ["Tool", report.claim_generator, false],
-    ["Format", report.format, false],
-    ["Manifest", report.active_manifest, true],
+    [t("kvSigner", "Signer"), report.signer, false],
+    [t("kvSignedAt", "Signed at"), report.signed_at, false],
+    [t("labelTool", "Tool"), report.claim_generator, false],
+    [t("kvFormat", "Format"), report.format, false],
+    [t("kvManifest", "Manifest"), report.active_manifest, true],
     [
-      "Ingredients",
+      t("kvIngredients", "Ingredients"),
       report.ingredient_count > 0
-        ? report.ingredient_count +
-          " (derived content \u2014 this file was made by editing earlier signed files)"
+        ? t("kvIngredientsVal",
+            "$1 (derived content \u2014 this file was made by editing earlier signed files)",
+            [report.ingredient_count])
         : null,
       false,
     ],
     [
-      "Validation errors",
+      t("kvValidationErrors", "Validation errors"),
       report.validation_errors > 0 ? String(report.validation_errors) : null,
       false,
     ],
@@ -248,25 +317,25 @@ function renderAttestation(att) {
   if (status === "match") {
     cls = "is-match";
     icon = "✓";
-    title = "Attested by " + label;
-    sub = att.message || "Signing certificate matches a key published under this identity.";
+    title = t("attAttestedBy", "Attested by $1", [label]);
+    sub = att.message || t("attMatchSub", "Signing certificate matches a key published under this identity.");
   } else if (status === "mismatch") {
     cls = "is-mismatch";
     icon = "✕";
-    title = "Attestation mismatch for " + label;
+    title = t("attMismatch", "Attestation mismatch for $1", [label]);
     sub = att.message ||
-      "Signing certificate does not match any key published under this identity.";
+      t("attMismatchSub", "Signing certificate does not match any key published under this identity.");
   } else if (status === "not_published") {
     cls = "is-not-published";
     icon = "—";
-    title = "No keys published under " + label;
+    title = t("attNotPublished", "No keys published under $1", [label]);
     sub = att.message ||
-      "This identity exists but has not published any signingKey records.";
+      t("attNotPublishedSub", "This identity exists but has not published any signingKey records.");
   } else {
     cls = "is-resolution-failed";
     icon = "?";
-    title = "Could not resolve " + label;
-    sub = att.message || "Identity resolution failed (handle/DID unreachable).";
+    title = t("attResolveFailed", "Could not resolve $1", [label]);
+    sub = att.message || t("attResolveFailedSub", "Identity resolution failed (handle/DID unreachable).");
   }
 
   $attestation.hidden = false;
@@ -291,7 +360,7 @@ function formatAttestationLabel(att) {
     return att.handle.startsWith("did:") ? att.handle : "@" + att.handle;
   }
   if (att.did) return att.did;
-  return "this identity";
+  return t("attThisIdentity", "this identity");
 }
 
 function renderWatermarks(list, target, opts) {
@@ -318,7 +387,7 @@ function renderWatermarks(list, target, opts) {
     const note = document.createElement("div");
     note.className = "watermarks-keyed-note";
     note.textContent =
-      "Keyed marks (Backfire, Mellin) are not part of this scan. They can only be read with your key, on the Keyed marks tab.";
+      t("wmKeyedNote", "Keyed marks (Backfire, Mellin) are not part of this scan. They can only be read with your key, on the Keyed marks tab.");
     target.appendChild(note);
   };
   if (!Array.isArray(list) || list.length === 0) {
@@ -326,7 +395,7 @@ function renderWatermarks(list, target, opts) {
       target.hidden = false;
       const emptyEl = document.createElement("div");
       emptyEl.className = "watermarks-empty";
-      emptyEl.textContent = "No watermarks detected by the detector families that ran.";
+      emptyEl.textContent = t("wmEmpty", "No watermarks detected by the detector families that ran.");
       target.appendChild(emptyEl);
       appendKeyedNote();
     } else {
@@ -370,21 +439,21 @@ function buildWatermarkBadge(wm, extent) {
     cls = "is-detected";
     icon = "✓";
     title = detector + " · " + brandLabel;
-    sub = pct + "% confidence";
+    sub = t("wmConfidence", "$1% confidence", [pct]);
   } else if (status === "degraded") {
     cls = "is-degraded";
     icon = "✓";
     title = detector + " · " + brandLabel;
-    sub = pct + "% confidence; mark is degraded (partial corruption likely)";
+    sub = t("wmDegraded", "$1% confidence; mark is degraded (partial corruption likely)", [pct]);
   } else if (msg.length > 0) {
     cls = "is-skipped";
     icon = "—";
-    title = detector + ": n/a";
+    title = t("wmNa", "$1: n/a", [detector]);
     sub = msg;
   } else {
     cls = "is-undetected";
     icon = "✕";
-    title = detector + ": no mark detected";
+    title = t("wmNoMark", "$1: no mark detected", [detector]);
     sub = "";
   }
 
@@ -423,8 +492,8 @@ function buildMarkedTimeline(regions, extent) {
   strip.className = "watermark-timeline";
   strip.setAttribute(
     "aria-label",
-    "Watermark presence over time: " +
-      regions.map((r) => formatTimecode(r[0]) + "–" + formatTimecode(r[1])).join(", ")
+    t("wmTimelineAria", "Watermark presence over time: $1",
+      [regions.map((r) => formatTimecode(r[0]) + "–" + formatTimecode(r[1])).join(", ")])
   );
   for (const r of regions) {
     const start = Math.max(0, Number(r[0]) || 0);
@@ -455,7 +524,7 @@ function formatBrand(brand) {
   // brand-agnostic — any silentcipher mark from a non-CM source
   // still lights this badge green, just with an "unrecognized"
   // attribution.
-  if (!brand || typeof brand !== "object") return "unrecognized source";
+  if (!brand || typeof brand !== "object") return t("wmUnrecognizedSource", "unrecognized source");
   switch (brand.code) {
     case "raidio":     return "rAIdio.bot";
     case "doomscroll": return "Doomscroll.FM";
@@ -531,6 +600,7 @@ function showWmLoading(displayName, families) {
   $wmDropzone.hidden = true;
   $wmLoading.hidden = false;
   $wmResult.hidden = true;
+  resetScanProgress();
   $wmLoadingFile.textContent = displayName;
   // Say exactly what is running, not a canned "all six" line.
   const hintEl = document.getElementById("wm-loading-hint");
@@ -570,7 +640,7 @@ function showWmError(msg, path) {
   $wmWatermarks.innerHTML = "";
   const el = document.createElement("div");
   el.className = "watermarks-empty";
-  el.textContent = "Could not scan this file: " + msg;
+  el.textContent = t("scanError", "Could not scan this file: $1", [msg]);
   $wmWatermarks.appendChild(el);
 }
 
@@ -706,7 +776,7 @@ function applyIdentityAutofill(claim) {
   }
   $idHandle.value = filled;
   idAutofilled = true;
-  $idAutofillHint.textContent = "auto-filled from file";
+  $idAutofillHint.textContent = t("autoFilled", "auto-filled from file");
   $idAutofillHint.hidden = false;
 }
 
@@ -843,7 +913,7 @@ function showReminderToDrag() {
   const inner = dz && dz.querySelector(".dropzone-inner h2");
   if (!inner) return;
   const original = inner.textContent;
-  inner.textContent = "Drag the file onto the window";
+  inner.textContent = t("dragFileOnto", "Drag the file onto the window");
   dz.classList.add("drag-over");
   setTimeout(() => {
     inner.textContent = original;
@@ -861,8 +931,8 @@ $copyJson.addEventListener("click", async () => {
   if (!lastReport) return;
   try {
     await navigator.clipboard.writeText(JSON.stringify(lastReport, null, 2));
-    $copyJson.textContent = "Copied";
-    setTimeout(() => ($copyJson.textContent = "Copy as JSON"), 1200);
+    $copyJson.textContent = t("btnCopied", "Copied");
+    setTimeout(() => ($copyJson.textContent = t("btnCopyJson", "Copy as JSON")), 1200);
   } catch {
     /* clipboard blocked — silent no-op */
   }
@@ -931,9 +1001,9 @@ function explainSample(productName, fileName) {
       failure_reason:
         "The " +
         productName +
-        " sample isn't bundled with the app. Download " +
+        " sample isn't installed alongside this build yet. Grab " +
         fileName +
-        " from provcheck.ai and drag it into the window to verify it.",
+        " from provcheck.ai (examples/ folder in the source tree) and drag it into the window.",
       active_manifest: null,
       signer: null,
       signed_at: null,
@@ -949,12 +1019,12 @@ function explainSample(productName, fileName) {
   );
 }
 $sampleRaidio.addEventListener("click", () => explainSample("rAIdio.bot", "rAIdio.bot-sample.mp3"));
-$sampleDoomscroll.addEventListener("click", () => explainSample("Doomscroll.FM", "doomscroll.fm-sample.mp4"));
+$sampleDoomscroll.addEventListener("click", () => explainSample("Doomscroll.fm", "doomscroll.fm-sample.mp4"));
 $sampleRaidio.addEventListener("keydown", (e) => {
   if (e.key === "Enter" || e.key === " ") explainSample("rAIdio.bot", "rAIdio.bot-sample.mp3");
 });
 $sampleDoomscroll.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" || e.key === " ") explainSample("Doomscroll.FM", "doomscroll.fm-sample.mp4");
+  if (e.key === "Enter" || e.key === " ") explainSample("Doomscroll.fm", "doomscroll.fm-sample.mp4");
 });
 
 // Identity inputs — hydrate from localStorage, persist on every change.
@@ -1171,7 +1241,7 @@ function renderAboutCard(report, cardEl) {
     if (row.ai) {
       const badge = document.createElement("span");
       badge.className = "badge-ai";
-      badge.textContent = "AI-generated";
+      badge.textContent = t("aiGenerated", "AI-generated");
       v.appendChild(badge);
     }
     gridEl.appendChild(k);
@@ -1268,6 +1338,16 @@ const $sErrorText = document.getElementById("sign-error-text");
 const $sRetryBtn = document.getElementById("sign-retry-btn");
 const $sStaleStatus = document.getElementById("sign-stale-status");
 const $sStaleRecoveryCmd = document.getElementById("sign-stale-recovery-cmd");
+const $sStaleCopyBtn = document.getElementById("sign-stale-copy-btn");
+$sStaleCopyBtn?.addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText($sStaleRecoveryCmd.textContent);
+    $sStaleCopyBtn.textContent = t("btnCopiedBang", "Copied!");
+    setTimeout(() => ($sStaleCopyBtn.textContent = t("btnCopy", "Copy")), 1200);
+  } catch (_) {
+    /* clipboard blocked — silent no-op */
+  }
+});
 const $sStaleSkipBtn = document.getElementById("sign-stale-skip-btn");
 const $sReady = document.getElementById("sign-state-ready");
 
@@ -1493,7 +1573,7 @@ function renderBackfire(bf, path) {
   const tamper = !!(bf && bf.notch_tamper && bf.notch_tamper.detected === true);
   $bfVerdict.classList.remove("is-verified", "is-unsigned", "is-invalid");
   $bfVerdict.classList.add(valid ? "is-verified" : "is-unsigned");
-  $bfResultTitle.textContent = valid ? "Backfire mark found" : "No valid Backfire mark";
+  $bfResultTitle.textContent = valid ? t("bfMarkFound", "Backfire mark found") : t("bfNoValidMark", "No valid Backfire mark");
 
   const idHex =
     bf && (bf.id_hex || (typeof bf.id === "number" ? "0x" + bf.id.toString(16).toUpperCase() : "—"));
@@ -1501,14 +1581,16 @@ function renderBackfire(bf, path) {
   const stat = bf && bf.notch_tamper && bf.notch_tamper.stat != null ? bf.notch_tamper.stat : "—";
 
   $bfFields.replaceChildren();
-  $bfFields.appendChild(bfRow("Identifier", valid ? idHex : "—"));
-  $bfFields.appendChild(bfRow("Confidence (min-bit margin)", margin));
-  $bfFields.appendChild(bfRow("Valid", valid ? "yes" : "no"));
+  $bfFields.appendChild(bfRow(t("fieldIdentifier", "Identifier"), valid ? idHex : "—"));
+  $bfFields.appendChild(bfRow(t("fieldConfidenceMargin", "Confidence (min-bit margin)"), margin));
+  $bfFields.appendChild(bfRow(t("fieldValid", "Valid"), valid ? t("valYes", "yes") : t("valNo", "no")));
   if (bf && bf.match != null) {
-    $bfFields.appendChild(bfRow("Matches expected serial", bf.match ? "yes" : "no"));
+    $bfFields.appendChild(bfRow(t("fieldMatchesSerial", "Matches expected serial"), bf.match ? t("valYes", "yes") : t("valNo", "no")));
   }
   $bfFields.appendChild(
-    bfRow("Tamper tripwire", tamper ? `notch tamper detected (stat ${stat})` : `clean (stat ${stat})`),
+    bfRow(t("fieldTamperTripwire", "Tamper tripwire"),
+      tamper ? t("bfTamperDetected", "notch tamper detected (stat $1)", [stat])
+             : t("bfTamperClean", "clean (stat $1)", [stat])),
   );
 }
 
@@ -1517,13 +1599,14 @@ function renderBackfireError(msg, path) {
   $bfResultFile.textContent = prettyPath(path);
   $bfVerdict.classList.remove("is-verified", "is-unsigned", "is-invalid");
   $bfVerdict.classList.add("is-invalid");
-  $bfResultTitle.textContent = "Backfire could not run";
-  $bfFields.replaceChildren(bfRow("Error", msg));
+  $bfResultTitle.textContent = t("bfCouldNotRun", "Backfire could not run");
+  $bfFields.replaceChildren(bfRow(t("fieldError", "Error"), msg));
 }
 
 // Restore the acknowledge-once experimental warning. The Backfire KEY is a
-// secret and is session-only: it is deliberately never persisted, and the
-// removeItem below scrubs any key an earlier build may have left behind.
+// secret and is deliberately NOT persisted (it used to sit in plaintext
+// localStorage, contradicting the Mellin section's session-only handling);
+// the removeItem below also scrubs any key an earlier build left behind.
 try {
   localStorage.removeItem(BF_KEY_STORAGE);
   if (localStorage.getItem(BF_ACK_STORAGE) === "1") $bfWarning.hidden = true;
@@ -1598,8 +1681,8 @@ async function installAllModels() {
   if (!$modelsInstallBtn) return;
   const orig = $modelsInstallBtn.textContent;
   $modelsInstallBtn.disabled = true;
-  $modelsInstallBtn.textContent = "Installing…";
-  $modelsStatusText.textContent = "Downloading models, this can take a minute…";
+  $modelsInstallBtn.textContent = t("btnInstalling", "Installing…");
+  $modelsStatusText.textContent = t("downloadingModels", "Downloading models, this can take a minute…");
   try {
     const res = await invoke("install_models");
     $modelsStatusText.textContent =
@@ -1643,8 +1726,8 @@ async function installBackfire() {
   if (!$bfInstallBtn) return;
   const orig = $bfInstallBtn.textContent;
   $bfInstallBtn.disabled = true;
-  $bfInstallBtn.textContent = "Working…";
-  $bfInstallStatus.textContent = "Installing / repairing the Backfire reader…";
+  $bfInstallBtn.textContent = t("btnWorking", "Working…");
+  $bfInstallStatus.textContent = t("bfInstalling", "Installing / repairing the Backfire reader…");
   try {
     const res = await invoke("install_backfire");
     $bfInstallStatus.textContent =
@@ -1696,7 +1779,7 @@ async function refreshMellinStatus() {
         ? "Ready. The tool ships inside the app; pick your secret file and work id to read."
         : "Not found. Reinstall provcheck, or set MELLIN_BIN to the provcheck-mellin binary.";
   } catch (e) {
-    $mlStatus.textContent = "Status check failed: " + String(e && e.message ? e.message : e);
+    $mlStatus.textContent = t("statusCheckFailed", "Status check failed: $1", [String(e && e.message ? e.message : e)]);
   }
 }
 
@@ -1761,7 +1844,7 @@ async function mellinPath(path) {
   $mlZone.hidden = true;
   $mlLoading.hidden = false;
   $mlResult.hidden = true;
-  $mlLoadingFile.textContent = `Reading ${prettyPath(path)}…`;
+  $mlLoadingFile.textContent = t("readingFile", "Reading $1…", [prettyPath(path)]);
   uiLog(`mellin read: start ${prettyPath(path)}`);
   const raced = await raceTimeout(
     invoke("mellin_read", {
@@ -1803,19 +1886,19 @@ function renderMellin(m, path) {
   const full = !!(m && m.fully_recovered === true);
   $mlVerdict.classList.remove("is-verified", "is-unsigned", "is-invalid");
   $mlVerdict.classList.add(full ? "is-verified" : "is-unsigned");
-  $mlResultTitle.textContent = full ? "Mellin serial recovered" : "No full Mellin serial";
+  $mlResultTitle.textContent = full ? t("mlSerialRecovered", "Mellin serial recovered") : t("mlNoFullSerial", "No full Mellin serial");
 
   const bits = m && m.bits_recovered != null ? m.bits_recovered : 0;
   const votes = m && m.min_bit_votes != null ? m.min_bit_votes : 0;
   const erasure = m && m.erasure_rate != null ? (m.erasure_rate * 100).toFixed(1) + "%" : "—";
 
   $mlFields.replaceChildren();
-  $mlFields.appendChild(bfRow("Serial", full ? m.serial : "—"));
-  $mlFields.appendChild(bfRow("Bits recovered", `${bits}/64`));
-  $mlFields.appendChild(bfRow("Erasure rate", erasure));
-  $mlFields.appendChild(bfRow("Min bit votes", String(votes)));
+  $mlFields.appendChild(bfRow(t("fieldSerial", "Serial"), full ? m.serial : "—"));
+  $mlFields.appendChild(bfRow(t("fieldBitsRecovered", "Bits recovered"), `${bits}/64`));
+  $mlFields.appendChild(bfRow(t("fieldErasureRate", "Erasure rate"), erasure));
+  $mlFields.appendChild(bfRow(t("fieldMinBitVotes", "Min bit votes"), String(votes)));
   if (m && m.match != null) {
-    $mlFields.appendChild(bfRow("Matches expected serial", m.match ? "yes" : "no"));
+    $mlFields.appendChild(bfRow(t("fieldMatchesSerial", "Matches expected serial"), m.match ? t("valYes", "yes") : t("valNo", "no")));
   }
 }
 
@@ -1826,8 +1909,8 @@ function renderMellinError(msg, path) {
   $mlResultFile.textContent = prettyPath(path);
   $mlVerdict.classList.remove("is-verified", "is-unsigned", "is-invalid");
   $mlVerdict.classList.add("is-invalid");
-  $mlResultTitle.textContent = "Mellin could not run";
-  $mlFields.replaceChildren(bfRow("Error", msg));
+  $mlResultTitle.textContent = t("mlCouldNotRun", "Mellin could not run");
+  $mlFields.replaceChildren(bfRow(t("fieldError", "Error"), msg));
 }
 
 if ($mlSecretBtn) {
@@ -2044,7 +2127,7 @@ function renderKeysMismatchBanner(identity, records) {
     return;
   }
   if (localRecord && localRecord.status === "superseded") {
-    $keysMismatchTitle.textContent = "Your local key is superseded";
+    $keysMismatchTitle.textContent = t("keysMismSuperseded", "Your local key is superseded");
     $keysMismatchText.textContent =
       "This box's local key is no longer the active record on atproto. " +
       "Signatures made with it won't attest. Use Mint fresh + publish to " +
@@ -2053,7 +2136,7 @@ function renderKeysMismatchBanner(identity, records) {
     return;
   }
   if (localRecord && localRecord.status === "revoked") {
-    $keysMismatchTitle.textContent = "Your local key is revoked";
+    $keysMismatchTitle.textContent = t("keysMismRevoked", "Your local key is revoked");
     $keysMismatchText.textContent =
       "This local key has been marked revoked on atproto. " +
       "Mint fresh + publish to recover.";
@@ -2061,7 +2144,7 @@ function renderKeysMismatchBanner(identity, records) {
     return;
   }
   if (orphanActive) {
-    $keysMismatchTitle.textContent = "Active record uses a key you don't have";
+    $keysMismatchTitle.textContent = t("keysMismActiveNoKey", "Active record uses a key you don't have");
     $keysMismatchText.textContent =
       "An active record exists under your DID but uses a different key " +
       "than the one on this box. If you don't have that private key on " +
@@ -2089,7 +2172,7 @@ function renderKeysRecordsTable(identity, records) {
       localTag.style.marginLeft = "8px";
       localTag.style.fontSize = "10.5px";
       localTag.style.color = "var(--text-muted)";
-      localTag.textContent = "(this box)";
+      localTag.textContent = t("thisBox", "(this box)");
       statusTd.appendChild(localTag);
     }
     tr.appendChild(statusTd);
@@ -2113,7 +2196,7 @@ function renderKeysRecordsTable(identity, records) {
       const revBtn = document.createElement("button");
       revBtn.type = "button";
       revBtn.className = "btn btn-ghost";
-      revBtn.textContent = "Revoke";
+      revBtn.textContent = t("btnRevoke", "Revoke");
       revBtn.addEventListener("click", () => handleRevoke(r));
       actionsTd.appendChild(revBtn);
     }
@@ -2265,7 +2348,7 @@ $keysSwitchYubikeyBtn.addEventListener("click", async () => {
 
 async function refreshSignTab() {
   showSignState("loading");
-  $sLoadingMsg.textContent = "Loading…";
+  $sLoadingMsg.textContent = t("loadingGeneric", "Loading…");
   const res = await invoke("kit_status", { dataDir: null });
   if (!res.ok) {
     signStatus = null;
@@ -2307,7 +2390,7 @@ async function refreshSignTab() {
     showSignState("ready");
     return;
   }
-  $sLoadingMsg.textContent = "Checking published keys…";
+  $sLoadingMsg.textContent = t("checkingPublishedKeys", "Checking published keys…");
   showSignState("loading");
   const listRes = await invoke("kit_list", { dataDir: null });
   if (!listRes.ok) {
@@ -2376,7 +2459,7 @@ function paintStrip(identity, session) {
     $signStripId.textContent = handle + " · " + shortFp;
     $signStripId.classList.remove("is-empty");
   } else {
-    $signStripId.textContent = "not set up";
+    $signStripId.textContent = t("signNotSetUp", "not set up");
     $signStripId.classList.add("is-empty");
   }
   if (session) {
@@ -2384,7 +2467,7 @@ function paintStrip(identity, session) {
     $signStripSession.classList.remove("is-empty");
     $signLogoutBtn.hidden = false;
   } else {
-    $signStripSession.textContent = "disconnected";
+    $signStripSession.textContent = t("signDisconnected", "disconnected");
     $signStripSession.classList.add("is-empty");
     $signLogoutBtn.hidden = true;
   }
@@ -2396,12 +2479,12 @@ if ($sRetryBtn) $sRetryBtn.addEventListener("click", refreshSignTab);
 
 $sInitBtn.addEventListener("click", async () => {
   $sInitBtn.disabled = true;
-  $sInitBtn.textContent = "Generating…";
+  $sInitBtn.textContent = t("btnGenerating", "Generating…");
   const res = await invoke("kit_init", { dataDir: null, force: false });
   $sInitBtn.disabled = false;
-  $sInitBtn.textContent = "Generate signing key";
+  $sInitBtn.textContent = t("signGenerateKey", "Generate signing key");
   if (!res.ok) {
-    await appAlert("Failed to generate identity:\n" + (res.error || "unknown error"));
+    alert("Failed to generate identity:\n" + (res.error || "unknown error"));
     return;
   }
   await refreshSignTab();
@@ -2418,7 +2501,7 @@ $sLoginForm.addEventListener("submit", async (e) => {
 
   const btn = document.getElementById("sign-login-btn");
   btn.disabled = true;
-  btn.textContent = "Connecting…";
+  btn.textContent = t("btnConnecting", "Connecting…");
 
   const res = await invoke("kit_login", {
     args: {
@@ -2430,7 +2513,7 @@ $sLoginForm.addEventListener("submit", async (e) => {
   });
 
   btn.disabled = false;
-  btn.textContent = "Connect";
+  btn.textContent = t("btnConnect", "Connect");
 
   if (!res.ok) {
     $sLoginError.textContent = res.error || "Login failed.";
@@ -2506,14 +2589,14 @@ $sPublishForm.addEventListener("submit", async (e) => {
   const label = $sPublishLabel.value.trim();
   const btn = document.getElementById("sign-publish-btn");
   btn.disabled = true;
-  btn.textContent = "Publishing…";
+  btn.textContent = t("btnPublishing", "Publishing…");
 
   const res = await invoke("kit_publish", {
     args: { label: label || null, dataDir: null },
   });
 
   btn.disabled = false;
-  btn.textContent = "Publish key";
+  btn.textContent = t("signPublishKey", "Publish key");
 
   if (!res.ok) {
     $sPublishError.textContent = res.error || "Publish failed.";
@@ -2569,7 +2652,7 @@ window.signOnDrop = async function (path) {
   // unsigned-source state; we'll flip them based on inspect_source
   // when the call completes (a few hundred ms typically).
   $sChainNotice.hidden = true;
-  $sPreviewHeading.textContent = "Ready to sign";
+  $sPreviewHeading.textContent = t("signReadyToSign", "Ready to sign");
   setActionRadio("created");
   signStaged.action = "created";
 
@@ -2597,7 +2680,7 @@ window.signOnDrop = async function (path) {
     $sChainTool.hidden = true;
   }
   $sChainNotice.hidden = false;
-  $sPreviewHeading.textContent = "Ready to publish";
+  $sPreviewHeading.textContent = t("signReadyToPublish", "Ready to publish");
   // Default to "published" — the publisher-attestation case.
   setActionRadio("published");
   signStaged.action = "published";
@@ -2725,4 +2808,5 @@ $sVerifyBtn.addEventListener("click", () => {
     verifyPath(out);
   }
 });
+
 

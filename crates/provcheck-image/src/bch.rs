@@ -119,9 +119,7 @@ fn alpha_pow(i: usize) -> u8 {
 fn generator_poly() -> &'static Vec<u8> {
     static G: OnceLock<Vec<u8>> = OnceLock::new();
     G.get_or_init(|| {
-        // For each odd j in 1..=2t-1, build M_j and multiply into g.
-        // We collect distinct minimal polynomials by tracking the
-        // conjugates we have seen.
+        // For each odd j in 1..=2t-1, build M_j and multiply into g (distinct minimal polys via seen conjugates).
         let mut seen_roots = [false; N];
         let mut g: Vec<u8> = vec![1]; // start with g(x) = 1
         for j in (1..=2 * T - 1).step_by(2) {
@@ -182,10 +180,7 @@ pub fn encode(data: &[u8]) -> Vec<u8> {
     let mut poly = vec![0u8; N];
     // d(x) · x^(m·t): coefficient at position PARITY_BITS + i.
     poly[PARITY_BITS..PARITY_BITS + K].copy_from_slice(data);
-    // Polynomial long division by g(x). g.len() = PARITY_BITS + 1.
-    // For each position i from highest down to PARITY_BITS, if poly[i]
-    // is set, XOR a shifted copy of g aligned so its leading term
-    // (g[PARITY_BITS] = 1) lines up at position i.
+    // Polynomial long division by g(x): for each set poly[i] high-to-low, XOR a copy of g aligned at i.
     for i in (PARITY_BITS..N).rev() {
         if poly[i] == 1 {
             for j in 0..=PARITY_BITS {
@@ -193,10 +188,7 @@ pub fn encode(data: &[u8]) -> Vec<u8> {
             }
         }
     }
-    // After division, poly[PARITY_BITS..N] is all zero (data
-    // consumed). The remainder lives in poly[0..PARITY_BITS]. Now
-    // overlay the systematic data back into the high positions to
-    // build the actual codeword: c(x) = parity + data * x^(m·t).
+    // Remainder (parity) is now in poly[0..PARITY_BITS]; overlay the systematic data high to form c(x) = parity + data*x^(m·t).
     poly[PARITY_BITS..PARITY_BITS + K].copy_from_slice(data);
     poly
 }
@@ -211,8 +203,7 @@ pub fn decode(received: &[u8]) -> Result<(Vec<u8>, usize), DecodeError> {
         });
     }
 
-    // Syndromes S_1..S_{2t}: S_i = R(α^i) over GF(2^m) where R(x)
-    // = sum of received bits times x^position.
+    // Syndromes S_i = R(α^i) over GF(2^m), R(x) = sum of received bits times x^position.
     let mut syndromes = [0u8; 2 * T];
     let mut any_nonzero = false;
     for i in 1..=2 * T {
@@ -228,13 +219,11 @@ pub fn decode(received: &[u8]) -> Result<(Vec<u8>, usize), DecodeError> {
         }
     }
     if !any_nonzero {
-        // No errors. Data lives at the HIGH positions of the
-        // codeword per the systematic layout in [`encode`].
+        // No errors; data lives at the high positions per the systematic layout.
         return Ok((received[PARITY_BITS..N].to_vec(), 0));
     }
 
-    // Berlekamp-Massey to find error locator polynomial Λ(x).
-    // Iterative form over GF(2^m).
+    // Berlekamp-Massey (iterative, over GF(2^m)) to find the error locator Λ(x).
     let mut lambda: Vec<u8> = vec![1]; // Λ(x), starts as 1
     let mut b: Vec<u8> = vec![1]; // previous-iteration Λ
     let mut x_offset: usize = 1; // running power of x to multiply b by
@@ -287,8 +276,7 @@ pub fn decode(received: &[u8]) -> Result<(Vec<u8>, usize), DecodeError> {
         return Err(DecodeError::TooManyErrors);
     }
 
-    // Chien search: find roots of Λ(x) in GF(2^m). Error position
-    // i has α^{-i} as a root of Λ, i.e. Λ(α^{-i}) = 0.
+    // Chien search: error position i is a root Λ(α^{-i}) = 0 in GF(2^m).
     let mut error_positions: Vec<usize> = Vec::new();
     for i in 0..N {
         // Evaluate Λ at α^{-i} = α^{N - i}.
@@ -342,13 +330,7 @@ mod tests {
 
     #[test]
     fn generator_polynomial_matches_pinned_reference() {
-        // v0.9.0 audit §4: pin the actual generator polynomial
-        // coefficients, not just the degree. Computed once from
-        // this implementation and verified by hand against
-        // textbook BCH(127, 92, 5) tables. If a future refactor
-        // changes the conjugacy class iteration order, the
-        // *length* test would still pass but the *coefficients*
-        // would not.
+        // Pin generator coefficients, not just degree: a changed conjugacy-class iteration order passes the length test but fails here (audit §4).
         let g = generator_poly();
         let mut nonzero = Vec::new();
         for (i, &c) in g.iter().enumerate() {
@@ -360,11 +342,7 @@ mod tests {
         // generator polynomial has g(0) = 1 and g[deg] = 1).
         assert_eq!(g[0], 1, "constant term");
         assert_eq!(g[PARITY_BITS], 1, "leading term");
-        // The generator polynomial over GF(2) for narrow-sense
-        // BCH(127, 92, 5) with primitive poly 137 has exactly 36
-        // coefficients in the binary representation; we cannot
-        // hand-pin all 36 without an external reference table,
-        // but we CAN check the polynomial annihilates α^1..α^9.
+        // Can't hand-pin all 36 coefficients without a reference table, but we can check g annihilates α^1..α^9.
         for j in 1..=2 * T - 1 {
             let alpha_j = alpha_pow(j);
             let mut sum: u8 = 0;
@@ -449,7 +427,6 @@ mod tests {
 
     #[test]
     fn roundtrip_no_errors() {
-        // Encode a random data vector and confirm decode recovers it.
         let mut data = vec![0u8; K];
         for (i, slot) in data.iter_mut().enumerate() {
             *slot = ((i * 7) & 1) as u8;
@@ -492,9 +469,7 @@ mod tests {
 
     #[test]
     fn encode_is_deterministic_for_same_input() {
-        // Encoding the same data twice must produce the exact
-        // same codeword. Catches any non-determinism a future
-        // optimisation might introduce.
+        // Encoding the same data twice must produce the same codeword.
         let mut data = vec![0u8; K];
         for (i, slot) in data.iter_mut().enumerate() {
             *slot = ((i * 31) & 1) as u8;
@@ -585,10 +560,7 @@ mod tests {
             codeword[p] ^= 1;
         }
         let r = decode(&codeword);
-        // Either explicit TooManyErrors OR a decoded result that
-        // does not match — both are acceptable "uncorrectable"
-        // signals. The important property is that we do not
-        // silently return wrong data as correct.
+        // Uncorrectable = TooManyErrors or a non-matching decode; must never return wrong data as correct.
         match r {
             Err(DecodeError::TooManyErrors) => {}
             Ok((decoded, _)) => {

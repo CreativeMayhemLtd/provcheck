@@ -107,19 +107,15 @@ pub enum Error {
 /// reported as a `WatermarkResult` with `status == NotDetected`
 /// and a descriptive `message`, never as an `Err`.
 pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
-    // Preflight: file must exist. Lets us surface I/O errors
-    // cleanly instead of muddling them with "not audio".
+    // Preflight: file must exist, so I/O errors don't masquerade as "not audio".
     let _ = std::fs::metadata(path)?;
 
-    // Fast-path filter: avoid spinning up symphonia for files
-    // with obviously non-audio extensions (PNG, MP4 video, MD,
-    // etc.). Symphonia would reject them anyway; doing so here
-    // saves the load-time cost.
+    // Fast-path: skip symphonia for obviously non-audio extensions.
     if !looks_like_audio(path) {
         return Ok(not_detected("not audio"));
     }
 
-    // 1. Decode container → mono 44.1 kHz waveform.
+    // 1. Decode container -> mono 44.1 kHz waveform.
     let waveform = match audio::decode_to_mono_44k1(path) {
         Ok(w) => w,
         Err(audio::AudioError::NotAudio) => {
@@ -134,11 +130,7 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
         Err(audio::AudioError::Io(e)) => return Err(Error::Io(e)),
     };
 
-    // 2-5. Run the post-decode pipeline on the in-memory waveform.
-    //      Same path as [`detect_from_mono_44k1`] consumes (the
-    //      v0.7 7-pre audit primitive for callers that already
-    //      hold decoded samples — like the kit's verify-after-embed
-    //      path that just emitted a freshly-marked Vec<f32>).
+    // 2-5. Run the post-decode pipeline via [`detect_from_mono_44k1`].
     detect_from_mono_44k1(&waveform)
 }
 
@@ -155,7 +147,7 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
 ///
 /// v0.7 phase 7-pre audit #5 foundation.
 pub fn detect_from_mono_44k1(waveform: &[f32]) -> Result<WatermarkResult, Error> {
-    // 2. STFT → carrier [1, 1, 2049, T].
+    // 2. STFT -> carrier [1, 1, 2049, T].
     let (carrier, t_frames) = match stft::waveform_to_carrier(waveform) {
         Ok(c) => c,
         Err(stft::StftError::Empty) => {
@@ -166,24 +158,11 @@ pub fn detect_from_mono_44k1(waveform: &[f32]) -> Result<WatermarkResult, Error>
         }
     };
 
-    // 3. Run the ONNX decoder → logits [1, 1, MESSAGE_DIM, T].
-    //    Parallel-chunked with confidence-based early exit:
-    //      a. process up to PARALLEL_BATCH chunks concurrently;
-    //      b. after each batch, decode the partial logits;
-    //      c. exit early if confidence >= EARLY_EXIT_THRESHOLD.
-    //    Worst case (unmarked file) is the full traversal of the
-    //    carrier — same wall-clock as v0.3.7's sequential chunk
-    //    loop, possibly faster from rayon. Best case (clearly-
-    //    marked file) terminates after 2-3 chunks (~10s of audio),
-    //    which on a 60-minute episode is a 100x+ speedup.
-    //
-    //    Windowed inference (truncating tile count) was tried in
-    //    v0.3.2-dev and reverted: silentcipher's per-position mode
-    //    vote across tiles is the load-bearing noise-rejection step
-    //    for marginal-SNR inputs (e.g. mixed-down voice tracks after
-    //    MP3 encoding). Early exit is structurally different — we
-    //    process MORE tiles only when needed, never fewer than the
-    //    decoder needs to be confident.
+    // 3. Parallel-chunked ONNX decode with confidence-based early exit: up to
+    //    PARALLEL_BATCH chunks concurrently, decode partial logits after each batch,
+    //    exit when confidence >= EARLY_EXIT_THRESHOLD (worst case traverses the whole
+    //    carrier). Do NOT truncate tile count — the per-position mode vote across tiles
+    //    is the load-bearing noise-rejection step at marginal SNR.
     let decoded = match detect_chunked(&carrier, t_frames) {
         Ok(d) => d,
         Err(e) => {
@@ -191,9 +170,7 @@ pub fn detect_from_mono_44k1(waveform: &[f32]) -> Result<WatermarkResult, Error>
         }
     };
 
-    // 5. Schema-aware brand dispatch + tiered status. detect_chunked
-    //    already ran the per-position mode vote so we just consume
-    //    its output here.
+    // 5. Schema-aware brand dispatch + tiered status from the decoder's mode-vote output.
     let status = brand::classify(decoded.valid, decoded.confidence);
     let detected = matches!(
         status,
@@ -310,10 +287,7 @@ fn detect_chunked(
 ) -> Result<decode::DecodeResult, model::ModelError> {
     use rayon::prelude::*;
 
-    // Fan-out for parallel chunks within a single batch. Each chunk
-    // peaks at ~1.5 GB of tract intermediates, so N chunks in
-    // parallel ≈ N × 1.5 GB peak — we conservatively cap at 4 so
-    // we stay under typical container memory ceilings.
+    // Cap parallel chunks at 4: each peaks ~1.5 GB of tract intermediates.
     let parallel_batch: usize = std::thread::available_parallelism()
         .map(|n| (n.get() / 2).clamp(1, 4))
         .unwrap_or(2);
@@ -322,7 +296,6 @@ fn detect_chunked(
     let mut t_consumed: usize = 0;
 
     while t_consumed < t_frames {
-        // Build this batch's chunk offsets + sizes.
         let mut batch: Vec<(usize, usize)> = Vec::with_capacity(parallel_batch);
         let mut t_cursor = t_consumed;
         for _ in 0..parallel_batch {
@@ -334,11 +307,7 @@ fn detect_chunked(
             t_cursor += chunk_t;
         }
 
-        // Run the batch concurrently. Each thread independently
-        // extracts its slice, runs tract, returns the chunk_logits.
-        // tract's runnable model is Send+Sync (it's behind &), so
-        // rayon can hand the same OnceLock-cached model to every
-        // worker.
+        // Run the batch concurrently; tract's model is Send+Sync behind `&`, so workers share the OnceLock cache.
         let results: Result<Vec<(usize, usize, Vec<f32>)>, model::ModelError> = batch
             .par_iter()
             .map(|&(t_start, chunk_t)| {
@@ -349,10 +318,7 @@ fn detect_chunked(
             .collect();
         let chunks = results?;
 
-        // Scatter every chunk in this batch into full_logits and
-        // advance the consumed counter to the highest t_start +
-        // chunk_t. (Chunks within a batch are guaranteed
-        // non-overlapping by construction.)
+        // Scatter each chunk into full_logits; chunks in a batch are non-overlapping by construction.
         for (t_start, chunk_t, chunk_logits) in chunks {
             model::scatter_chunk_logits(
                 &chunk_logits,
@@ -364,10 +330,7 @@ fn detect_chunked(
             t_consumed = t_consumed.max(t_start + chunk_t);
         }
 
-        // Early-exit check. Decode the partial logits — we need to
-        // re-pack into a `[MESSAGE_DIM, t_consumed]` layout because
-        // decode_logits's indexing depends on t_frames matching the
-        // logits-buffer time axis.
+        // Early-exit check: re-pack to `[MESSAGE_DIM, t_consumed]` since decode_logits indexes on the time axis.
         if t_consumed >= EARLY_EXIT_MIN_FRAMES && t_consumed < t_frames {
             let partial = pack_partial_logits(&full_logits, t_frames, t_consumed);
             let decoded = decode::decode_logits(&partial, t_consumed);
@@ -377,8 +340,7 @@ fn detect_chunked(
         }
     }
 
-    // Full traversal completed (or fast-path threshold never hit).
-    // Decode against the full accumulated logits and return.
+    // Full traversal (or early-exit never fired): decode the accumulated logits.
     Ok(decode::decode_logits(&full_logits, t_frames))
 }
 
@@ -448,14 +410,9 @@ mod tests {
     use super::*;
     use std::io::Write;
 
-    // ----- detect_from_mono_44k1 input validation ----------
-
     #[test]
     fn detect_from_mono_44k1_empty_waveform_returns_zero_samples_message() {
-        // Empty waveform short-circuits via StftError::Empty
-        // before any model load. The user-facing message is the
-        // operator's only debugging clue for the "I handed in
-        // silence" case.
+        // Empty waveform short-circuits via StftError::Empty before any model load.
         let r = detect_from_mono_44k1(&[]).expect("not Err");
         assert!(matches!(r.status, WatermarkStatus::NotDetected));
         let msg = r.message.expect("must have message");
@@ -464,8 +421,6 @@ mod tests {
             "expected 'zero samples' guidance, got: {msg}"
         );
     }
-
-    // ----- pack_partial_logits ----------
 
     #[test]
     fn pack_partial_logits_zero_consumed_returns_empty_vec() {
@@ -476,8 +431,6 @@ mod tests {
 
     #[test]
     fn pack_partial_logits_full_consumed_round_trips() {
-        // When t_consumed == t_frames the partial buffer must
-        // bit-identically equal the full buffer.
         let t_frames = 20;
         let mut full = vec![0.0_f32; hparams::MESSAGE_DIM * t_frames];
         for (i, slot) in full.iter_mut().enumerate() {
@@ -489,14 +442,10 @@ mod tests {
 
     #[test]
     fn pack_partial_logits_partial_consumed_preserves_per_dim_prefix() {
-        // For t_consumed < t_frames, the partial buffer must
-        // contain only the FIRST t_consumed columns of each dim.
-        // The pack must NOT carry over any of the zero-suffix
-        // tail.
+        // Partial pack keeps only the first t_consumed columns of each dim, no zero-suffix tail.
         let t_frames = 20;
         let t_consumed = 7;
         let mut full = vec![0.0_f32; hparams::MESSAGE_DIM * t_frames];
-        // Fill each dim with its dim index for its consumed range.
         for dim in 0..hparams::MESSAGE_DIM {
             for t in 0..t_consumed {
                 full[dim * t_frames + t] = dim as f32 + 100.0;
@@ -517,9 +466,7 @@ mod tests {
 
     #[test]
     fn pack_partial_logits_output_layout_matches_message_dim_times_consumed() {
-        // Pin the output length contract: MESSAGE_DIM * t_consumed.
-        // decode_logits asserts on this; if pack ever returns the
-        // wrong shape the decoder panics with a confusing message.
+        // Output length is MESSAGE_DIM * t_consumed (decode_logits asserts on it).
         let full = vec![0.0_f32; hparams::MESSAGE_DIM * 100];
         for t in [0, 1, 7, 50, 100] {
             let p = pack_partial_logits(&full, 100, t);
@@ -530,8 +477,6 @@ mod tests {
             );
         }
     }
-
-    // ----- not_detected helper (silentcipher) ----------
 
     #[test]
     fn not_detected_helper_sets_silentcipher_kind() {
@@ -546,8 +491,6 @@ mod tests {
         assert_eq!(r.message.as_deref(), Some("test reason"));
     }
 
-    // ----- regions_from_tile_quality coverage ----------
-
     #[test]
     fn regions_from_tile_quality_empty_input_returns_empty() {
         assert!(regions_from_tile_quality(&[]).is_empty());
@@ -561,11 +504,7 @@ mod tests {
 
     #[test]
     fn regions_from_tile_quality_short_run_below_min_seconds_filtered() {
-        // A run of N tiles spans
-        // `N * MESSAGE_LEN * HOP / SAMPLE_RATE` seconds. With
-        // MESSAGE_LEN=21, HOP=2048, SAMPLE_RATE=44100 → ~0.975s
-        // per tile. Min region is 2.0s so we need >=3 tiles.
-        // Build a 2-tile run; it must be filtered.
+        // ~0.975s per tile (MESSAGE_LEN*HOP/SAMPLE_RATE); min region 2.0s, so a 2-tile run is filtered.
         let mut tq = vec![0.1_f32; 20];
         tq[5] = 0.9;
         tq[6] = 0.9;
@@ -588,11 +527,8 @@ mod tests {
 
     #[test]
     fn regions_from_tile_quality_unterminated_run_at_end_handled() {
-        // A run that reaches the end of tile_quality (no
-        // trailing below-threshold tile to close it) must
-        // still be reported if its length passes the threshold.
+        // A run reaching the end (no closing below-threshold tile) is still reported if long enough.
         let mut tq = vec![0.1_f32; 20];
-        // Last 10 tiles above threshold.
         for tile in tq.iter_mut().skip(10) {
             *tile = 0.9;
         }
@@ -602,18 +538,14 @@ mod tests {
 
     #[test]
     fn regions_from_tile_quality_threshold_is_inclusive() {
-        // Hot is `q >= TILE_QUALITY_THRESHOLD`, not `>`. A value
-        // exactly at threshold is hot. Pin the comparison.
+        // Hot is `q >= TILE_QUALITY_THRESHOLD` (inclusive), not `>`.
         let mut tq = vec![0.0_f32; 20];
-        // 5 tiles exactly at threshold → should pass length gate.
         for tile in tq.iter_mut().take(10).skip(5) {
             *tile = TILE_QUALITY_THRESHOLD;
         }
         let regions = regions_from_tile_quality(&tq);
         assert_eq!(regions.len(), 1, "tiles AT threshold count as hot");
     }
-
-    // ----- Threshold constant pins ----------
 
     #[test]
     fn tile_quality_threshold_is_documented_value() {
@@ -627,18 +559,14 @@ mod tests {
 
     #[test]
     fn early_exit_threshold_is_above_detected() {
-        // Pin "early-exit threshold is high enough that we don't
-        // risk downgrading Detected to Degraded" — must be above
-        // the brand-classify Detected threshold of 0.70. Hide
-        // constants in black_box for clippy.
+        // Must be above the brand-classify Detected threshold (0.70) so early-exit can't downgrade Detected to Degraded.
         let early = std::hint::black_box(EARLY_EXIT_THRESHOLD);
         assert!(early > 0.70);
     }
 
     #[test]
     fn early_exit_min_frames_is_four_tiles() {
-        // 4 tiles of redundancy before per-position mode-vote
-        // is meaningful enough to trust an early-exit decision.
+        // 4 tiles of redundancy before the mode-vote is trustworthy for early exit.
         assert_eq!(EARLY_EXIT_MIN_FRAMES, hparams::MESSAGE_LEN * 4);
     }
 
@@ -683,10 +611,7 @@ mod tests {
 
     #[test]
     fn detect_returns_silentcipher_kind_for_non_audio() {
-        // The dispatch contract: every NotDetected result from
-        // this crate carries WatermarkKind::SilentCipher (not a
-        // generic Unknown). Pin so a future refactor that swaps
-        // the not_detected helper keeps emitting the correct kind.
+        // Every NotDetected result from this crate carries WatermarkKind::SilentCipher.
         let mut f = tempfile::Builder::new().suffix(".png").tempfile().unwrap();
         f.write_all(b"\x89PNG\r\n\x1a\n").unwrap();
         let r = detect(f.path()).unwrap();
@@ -695,8 +620,7 @@ mod tests {
 
     #[test]
     fn detect_no_extension_returns_not_audio() {
-        // A file with no extension can't pass the looks_like_audio
-        // gate. Pin: NotDetected, message="not audio".
+        // No extension can't pass looks_like_audio: NotDetected, message="not audio".
         let f = tempfile::NamedTempFile::new().expect("tempfile");
         let r = detect(f.path()).unwrap();
         assert!(!r.detected);
@@ -723,9 +647,7 @@ mod tests {
 
     #[test]
     fn detect_zero_confidence_on_not_audio() {
-        // Every not_detected path must produce confidence == 0.0,
-        // not the "no result" sentinel of 0.5 some Python ports
-        // use. Pin the contract.
+        // Every not_detected path produces confidence == 0.0 (not a 0.5 "no result" sentinel).
         let mut f = tempfile::Builder::new().suffix(".png").tempfile().unwrap();
         f.write_all(b"\x89PNG").unwrap();
         let r = detect(f.path()).unwrap();
@@ -734,19 +656,14 @@ mod tests {
 
     #[test]
     fn fake_wav_with_audio_extension_decodes_cleanly_to_not_detected() {
-        // A file with `.wav` extension but no real wave data
-        // makes it past the extension sniff but symphonia
-        // rejects it. The detector should report not-detected
-        // with a "not audio" / decoder-error message, never
-        // panic or surface an I/O error.
+        // A `.wav` with no real wave data passes the extension sniff but symphonia rejects it: not-detected, never a panic or I/O error.
         let mut f = tempfile::Builder::new().suffix(".wav").tempfile().unwrap();
         f.write_all(b"RIFF\0\0\0\0WAVEfmt notrealdataatall")
             .unwrap();
         let r = detect(f.path()).unwrap();
         assert!(!r.detected);
         assert!(matches!(r.status, WatermarkStatus::NotDetected));
-        // Message names a specific failure, not the silent
-        // stub-pending sentinel from earlier in development.
+        // Message names a specific failure, not a stub-pending sentinel.
         let msg = r.message.unwrap_or_default();
         assert!(
             !msg.contains("stub") && !msg.contains("pending"),

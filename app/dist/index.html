@@ -12,10 +12,12 @@
       <img src="cm-logo.png" alt="Creative Mayhem" class="cm-logo" />
       <div class="brand-text">
         <h1>provcheck</h1>
-        <p>Sign &amp; verify C2PA Content Credentials</p>
+        <p data-i18n="headerSubtitle">Sign &amp; verify C2PA Content Credentials</p>
       </div>
     </div>
     <div class="attribution">
+      <select id="lang-select" aria-label="Language" title="Language"
+              style="margin-right:10px;background:transparent;color:inherit;border:1px solid rgba(128,128,128,.4);border-radius:6px;padding:2px 6px;font-size:12px"></select>
       <a href="https://provcheck.ai" target="_blank" rel="noopener" id="source-link">
         <svg class="link-globe" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
           <circle cx="8" cy="8" r="6.5"/>
@@ -32,7 +34,7 @@
   </header>
 
   <!-- Tab bar — switches the main pane between Verify, Watermark,
-       Detect, Keyed marks, Keys, and Sign. Verify is the offline read-only flow
+       Detect, Keys, and Sign. Verify is the offline read-only flow
        that has always shipped; Watermark (v1.1.0) is the dedicated
        watermark-detection view exposing all six shipped detector
        families independent of C2PA verify; Detect (v1.1.0) is the
@@ -42,12 +44,12 @@
        paths; Keys (v0.5.0) is the key-management pane; Sign is the
        producer-side flow (v0.3.0). -->
   <nav class="tabs" id="tabs" role="tablist">
-    <button class="tab is-active" id="tab-verify-btn" role="tab" aria-selected="true" aria-controls="tab-verify">Verify</button>
-    <button class="tab" id="tab-watermark-btn" role="tab" aria-selected="false" aria-controls="tab-watermark">Watermark</button>
-    <button class="tab" id="tab-detect-btn" role="tab" aria-selected="false" aria-controls="tab-detect">Detect</button>
-    <button class="tab" id="tab-keys-btn" role="tab" aria-selected="false" aria-controls="tab-keys">Keys</button>
-    <button class="tab" id="tab-sign-btn" role="tab" aria-selected="false" aria-controls="tab-sign">Sign</button>
-    <button class="tab" id="tab-backfire-btn" role="tab" aria-selected="false" aria-controls="tab-backfire">Keyed marks</button>
+    <button class="tab is-active" id="tab-verify-btn" role="tab" aria-selected="true" aria-controls="tab-verify" data-i18n="tabVerify">Verify</button>
+    <button class="tab" id="tab-watermark-btn" role="tab" aria-selected="false" aria-controls="tab-watermark" data-i18n="tabWatermark">Watermark</button>
+    <button class="tab" id="tab-detect-btn" role="tab" aria-selected="false" aria-controls="tab-detect" data-i18n="tabDetect">Detect</button>
+    <button class="tab" id="tab-keys-btn" role="tab" aria-selected="false" aria-controls="tab-keys" data-i18n="tabKeys">Keys</button>
+    <button class="tab" id="tab-sign-btn" role="tab" aria-selected="false" aria-controls="tab-sign" data-i18n="tabSign">Sign</button>
+    <button class="tab" id="tab-backfire-btn" role="tab" aria-selected="false" aria-controls="tab-backfire" data-i18n="tabKeyedMarks">Keyed marks</button>
   </nav>
 
   <!-- =====================================================================
@@ -61,19 +63,20 @@
        signing. -->
   <section class="identity-bar" id="identity-bar">
     <label class="identity-field">
-      <span class="identity-label">Bsky handle</span>
+      <span class="identity-label" data-i18n="identityBskyHandle">Bsky handle</span>
       <input type="text" id="identity-handle"
              placeholder="optional · e.g. creator.bsky.social or did:plc:…"
+             data-i18n-ph="identityHandlePh"
              autocomplete="off" spellcheck="false" />
       <span id="identity-autofill-hint" class="identity-autofill-hint" hidden></span>
     </label>
     <label class="identity-toggle">
       <input type="checkbox" id="identity-run-watermark" checked />
-      <span>Run watermark detection</span>
+      <span data-i18n="identityRunWatermark">Run watermark detection</span>
     </label>
     <label class="identity-toggle">
       <input type="checkbox" id="identity-require-attested" />
-      <span>Require attested</span>
+      <span data-i18n="identityRequireAttested">Require attested</span>
     </label>
   </section>
 
@@ -86,20 +89,24 @@
           <path d="M32 20v18M24 30l8-10 8 10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
           <line x1="22" y1="46" x2="42" y2="46" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
         </svg>
-        <h2>Drop any file here to verify</h2>
-        <p>Audio · Image · Video: anything that carries C2PA Content Credentials.</p>
-        <button class="btn btn-primary" id="choose-btn">Choose file…</button>
-        <p class="hint">Or run with nothing and this stays put. Private: files never leave your machine.</p>
+        <h2 data-i18n="dropzoneTitle">Drop any file here to verify</h2>
+        <p data-i18n="dropzoneSub">Audio · Image · Video: anything that carries C2PA Content Credentials.</p>
+        <button class="btn btn-primary" id="choose-btn" data-i18n="btnChooseFile">Choose file…</button>
+        <p class="hint" data-i18n="verifyDropHint">Or run with nothing and this stays put. Private: files never leave your machine.</p>
       </div>
     </section>
 
     <!-- Loading state -->
     <section class="loading" id="loading" hidden>
       <div class="spinner"></div>
-      <p class="loading-file" id="loading-file">Verifying…</p>
-      <p class="hint" id="loading-hint" hidden>Watermark detection is CPU-heavy on audio and
+      <p class="loading-file" id="loading-file" data-i18n="verifyLoading">Verifying…</p>
+      <p class="hint" id="loading-hint" data-i18n="verifyLoadingHint" hidden>Watermark detection is CPU-heavy on audio and
         video and can take a few minutes. Uncheck "Run watermark detection" for an
         instant C2PA-only verify.</p>
+      <div class="progress" id="verify-progress" hidden>
+        <div class="progress-track"><div class="progress-fill" id="verify-progress-fill"></div></div>
+        <p class="progress-label" id="verify-progress-label"></p>
+      </div>
     </section>
 
     <!-- Result state -->
@@ -114,6 +121,14 @@
 
       <div class="reason" id="reason" hidden>
         <p id="reason-text"></p>
+      </div>
+
+      <div class="tamper-badge" id="tamper" hidden role="alert">
+        <div class="tamper-icon" aria-hidden="true">&#9888;</div>
+        <div class="tamper-text">
+          <p class="tamper-title" id="tamper-title" data-i18n="tamperTitle">Tamper evidence</p>
+          <p class="tamper-detail" id="tamper-detail"></p>
+        </div>
       </div>
 
       <div class="attestation-badge" id="attestation" hidden>
@@ -137,16 +152,16 @@
       <div class="about-card" id="about-card" hidden>
         <div class="about-grid" data-role="about-grid"></div>
         <div class="about-links" data-role="about-links" hidden>
-          <h4>Links</h4>
+          <h4 data-i18n="aboutLinks">Links</h4>
           <ul data-role="about-links-list"></ul>
         </div>
       </div>
 
       <div class="details" id="details">
         <details class="raw-details">
-          <summary>Show raw manifest details</summary>
+          <summary data-i18n="showRawManifest">Show raw manifest details</summary>
           <dl class="kv" id="kv-main"></dl>
-          <h3 id="claims-heading" hidden>Claims</h3>
+          <h3 id="claims-heading" data-i18n="claimsHeading" hidden>Claims</h3>
           <dl class="kv claims" id="kv-claims"></dl>
         </details>
       </div>
@@ -155,11 +170,11 @@
 
   <footer class="footer" id="verify-footer">
     <div class="footer-hint" id="footer-hint">
-      Drag any C2PA-signed file here to verify it. Need a sample? Signed outputs from <strong>rAIdio.bot</strong> and <strong>Doomscroll.FM</strong> are on provcheck.ai — see <code id="sample-raidio" role="button" tabindex="0">example: rAIdio.bot</code> or <code id="sample-doomscroll" role="button" tabindex="0">example: Doomscroll.FM</code>.
+      Signed outputs from <strong>rAIdio.bot</strong> and <strong>Doomscroll.fm</strong> verify here out of the box; try <code id="sample-raidio" role="button" tabindex="0">example: rAIdio.bot</code> or <code id="sample-doomscroll" role="button" tabindex="0">example: Doomscroll.fm</code>.
     </div>
     <div class="footer-actions" id="footer-actions" hidden>
-      <button class="btn btn-primary" id="verify-another">Verify another</button>
-      <button class="btn btn-ghost" id="copy-json">Copy as JSON</button>
+      <button class="btn btn-primary" id="verify-another" data-i18n="btnVerifyAnother">Verify another</button>
+      <button class="btn btn-ghost" id="copy-json" data-i18n="btnCopyJson">Copy as JSON</button>
     </div>
   </footer>
 
@@ -180,16 +195,16 @@
   <div class="tab-pane" id="tab-watermark" role="tabpanel" aria-labelledby="tab-watermark-btn" hidden>
     <div class="models-banner" id="models-banner" hidden>
       <div class="models-banner-text">
-        <strong>Watermark detection needs models.</strong>
-        <span id="models-status-text">Checking...</span>
+        <strong data-i18n="wmModelsNeeded">Watermark detection needs models.</strong>
+        <span id="models-status-text" data-i18n="statusChecking">Checking...</span>
       </div>
-      <button class="btn btn-primary" id="models-install-btn" type="button">Install all models</button>
+      <button class="btn btn-primary" id="models-install-btn" type="button" data-i18n="wmInstallAll">Install all models</button>
     </div>
     <!-- Detector-family selection: each family is real model inference, so
          scanning only what you care about turns a minutes-long six-family
          audio scan into a single fast pass. All on by default; persisted. -->
     <section class="wm-families" id="wm-families" aria-label="Detector families to scan">
-      <span class="wm-families-label">Scan for:</span>
+      <span class="wm-families-label" data-i18n="wmScanFor">Scan for:</span>
       <label><input type="checkbox" data-family="silentcipher" checked /> silentcipher <em>(audio)</em></label>
       <label><input type="checkbox" data-family="audioseal" checked /> AudioSeal <em>(audio)</em></label>
       <label><input type="checkbox" data-family="wavmark" checked /> WavMark <em>(audio)</em></label>
@@ -204,31 +219,35 @@
           <path d="M32 20v18M24 30l8-10 8 10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
           <line x1="22" y1="46" x2="42" y2="46" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
         </svg>
-        <h2>Drop any file here to run watermark detection</h2>
+        <h2 data-i18n="wmDropTitle">Drop any file here to run watermark detection</h2>
         <p>Scans the families selected above: <strong>silentcipher</strong> · <strong>AudioSeal</strong> · <strong>WavMark</strong> on audio, <strong>TrustMark-B</strong> on images, <strong>per-frame TrustMark + temporal vote</strong> on video, <strong>SynthID-text</strong> on text.</p>
-        <button class="btn btn-primary" id="wm-choose-btn">Choose file…</button>
-        <p class="hint">Private: files never leave your machine. Each detector is authoritative about whether it applies to the input file type.</p>
+        <button class="btn btn-primary" id="wm-choose-btn" data-i18n="btnChooseFile">Choose file…</button>
+        <p class="hint" data-i18n="wmDropHint">Private: files never leave your machine. Each detector is authoritative about whether it applies to the input file type.</p>
       </div>
     </section>
 
     <section class="loading" id="wm-loading" hidden>
       <div class="spinner"></div>
-      <p class="loading-file" id="wm-loading-file">Running watermark detectors…</p>
-      <p class="hint" id="wm-loading-hint">Model inference is CPU-heavy on audio and video;
+      <p class="loading-file" id="wm-loading-file" data-i18n="wmLoading">Running watermark detectors…</p>
+      <p class="hint" id="wm-loading-hint" data-i18n="wmLoadingHint">Model inference is CPU-heavy on audio and video;
         a scan can take a few minutes. Still working while this spins.</p>
+      <div class="progress" id="wm-progress" hidden>
+        <div class="progress-track"><div class="progress-fill" id="wm-progress-fill"></div></div>
+        <p class="progress-label" id="wm-progress-label"></p>
+      </div>
     </section>
 
     <section class="result" id="wm-result" hidden>
       <div class="verdict">
         <div class="verdict-icon"></div>
         <div class="verdict-text">
-          <h2 id="wm-result-title">Watermark detection</h2>
+          <h2 id="wm-result-title" data-i18n="wmResultTitle">Watermark detection</h2>
           <p id="wm-result-file" class="mono"></p>
         </div>
       </div>
       <div class="watermarks" id="wm-watermarks"></div>
       <footer class="footer-actions">
-        <button class="btn btn-primary" id="wm-another">Check another file</button>
+        <button class="btn btn-primary" id="wm-another" data-i18n="btnCheckAnother">Check another file</button>
       </footer>
     </section>
   </div> <!-- /tab-watermark -->
@@ -254,16 +273,16 @@
         <circle cx="38" cy="34" r="2" fill="currentColor"/>
         <path d="M24 42c2 2 4 3 8 3s6-1 8-3" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
       </svg>
-      <h2>AI-content detection: bring your own detector</h2>
+      <h2 data-i18n="detectTitle">AI-content detection: bring your own detector</h2>
       <p class="detect-empty-lead">The FOSS core ships the public <code>Detector</code> trait and dispatch registry, but no classifier weights. That is deliberate: provcheck does not bundle any commercial model, and no open-source AI-content detector currently meets our license policy (both code AND weights permissive).</p>
 
       <div class="detect-empty-routes">
         <div class="detect-empty-route">
-          <h3>Route A: paid DLC pack (v1.x, planned)</h3>
+          <h3 data-i18n="detectRouteAHead">Route A: paid DLC pack (v1.x, planned)</h3>
           <p>Creative Mayhem will offer a paid detector pack layered on top of the FOSS core. Install through <code>provcheck-kit dlc install ai-detect</code>; the pack registers a detector against the trait and this tab lights up.</p>
         </div>
         <div class="detect-empty-route">
-          <h3>Route B: operator-supplied wrapper (available now)</h3>
+          <h3 data-i18n="detectRouteBHead">Route B: operator-supplied wrapper (available now)</h3>
           <p>Any Apache-2.0 wrapper crate that implements <code>provcheck_detect::Detector</code> can register itself via <code>DetectorRegistry::register</code> in a fork of <code>app/src-tauri/src/main.rs</code>. Full trait contract lives in <code><a href="https://github.com/CreativeMayhemLtd/provcheck/blob/main/docs/public-api-stability.md" data-external>docs/public-api-stability.md</a></code>.</p>
         </div>
       </div>
@@ -285,29 +304,29 @@
 
     <!-- Local identity card -->
     <section class="keys-local-card" id="keys-local-card">
-      <h2>Local identity</h2>
+      <h2 data-i18n="keysLocalIdentity">Local identity</h2>
       <div class="keys-empty-state" id="keys-empty-state">
-        <p>No identity on this machine.</p>
+        <p data-i18n="keysNoIdentity">No identity on this machine.</p>
         <p class="hint">Run <code>provcheck-kit init</code> from a terminal,
           or use the Sign tab's first-run flow.</p>
       </div>
       <dl class="kv keys-local-kv" id="keys-local-kv" hidden>
-        <dt>Fingerprint</dt>
+        <dt data-i18n="labelFingerprint">Fingerprint</dt>
         <dd class="mono" id="keys-local-fingerprint">—</dd>
-        <dt>Algorithm</dt>
+        <dt data-i18n="labelAlgorithm">Algorithm</dt>
         <dd id="keys-local-algorithm">—</dd>
-        <dt>Backend</dt>
+        <dt data-i18n="labelBackend">Backend</dt>
         <dd id="keys-local-backend">—</dd>
-        <dt>Created</dt>
+        <dt data-i18n="labelCreated">Created</dt>
         <dd id="keys-local-created">—</dd>
-        <dt id="keys-local-did-label" hidden>DID</dt>
+        <dt id="keys-local-did-label" data-i18n="labelDID" hidden>DID</dt>
         <dd id="keys-local-did" class="mono" hidden>—</dd>
-        <dt id="keys-local-handle-label" hidden>Handle</dt>
+        <dt id="keys-local-handle-label" data-i18n="labelHandle" hidden>Handle</dt>
         <dd id="keys-local-handle" hidden>—</dd>
         <!-- Yubikey-only fields, shown when backend=="yubikey" -->
-        <dt id="keys-local-yk-device-label" hidden>Yubikey</dt>
+        <dt id="keys-local-yk-device-label" data-i18n="labelYubikey" hidden>Yubikey</dt>
         <dd id="keys-local-yk-device" hidden>—</dd>
-        <dt id="keys-local-yk-pin-label" hidden>PIN tries</dt>
+        <dt id="keys-local-yk-pin-label" data-i18n="labelPinTries" hidden>PIN tries</dt>
         <dd id="keys-local-yk-pin" hidden>—</dd>
       </dl>
     </section>
@@ -318,7 +337,7 @@
     <section class="keys-mismatch-banner" id="keys-mismatch-banner" hidden>
       <div class="keys-mismatch-icon" aria-hidden="true">⚠</div>
       <div class="keys-mismatch-body">
-        <p class="keys-mismatch-title" id="keys-mismatch-title">Identity state mismatch</p>
+        <p class="keys-mismatch-title" id="keys-mismatch-title" data-i18n="keysMismatchTitle">Identity state mismatch</p>
         <p class="keys-mismatch-text" id="keys-mismatch-text"></p>
       </div>
     </section>
@@ -326,10 +345,12 @@
     <!-- Top-of-tab actions -->
     <section class="keys-actions" id="keys-actions">
       <button class="btn btn-primary" id="keys-rotate-btn" type="button"
+              data-i18n="keysRotateBtn" data-i18n-title="keysRotateTitle"
               title="Mint a fresh signing key and publish it as the new active record">
         Mint fresh + publish
       </button>
       <button class="btn btn-secondary" id="keys-switch-yubikey-btn" type="button"
+              data-i18n="keysSwitchYubikey" data-i18n-title="keysSwitchYubikeyTitle"
               title="Replace the current identity with a Yubikey-backed one">
         Switch to Yubikey identity…
       </button>
@@ -339,22 +360,22 @@
 
     <!-- atproto records table -->
     <section class="keys-records" id="keys-records">
-      <h2>Published records (atproto)</h2>
+      <h2 data-i18n="keysPublishedRecords">Published records (atproto)</h2>
       <div class="keys-records-empty" id="keys-records-empty" hidden>
         <p>No <code>app.provcheck.signingKey</code> records under your DID.</p>
-        <p class="hint">Log in on the Sign tab + publish your local fingerprint.</p>
+        <p class="hint" data-i18n="keysRecordsEmptyHint">Log in on the Sign tab + publish your local fingerprint.</p>
       </div>
       <div class="keys-records-nosession" id="keys-records-nosession" hidden>
-        <p>Not logged in to atproto.</p>
-        <p class="hint">Log in on the Sign tab to fetch your published records.</p>
+        <p data-i18n="keysNotLoggedIn">Not logged in to atproto.</p>
+        <p class="hint" data-i18n="keysNoSessionHint">Log in on the Sign tab to fetch your published records.</p>
       </div>
       <table class="keys-records-table" id="keys-records-table" hidden>
         <thead>
           <tr>
-            <th>Status</th>
-            <th>Fingerprint</th>
-            <th>Created</th>
-            <th>Label</th>
+            <th data-i18n="labelStatus">Status</th>
+            <th data-i18n="labelFingerprint">Fingerprint</th>
+            <th data-i18n="labelCreated">Created</th>
+            <th data-i18n="labelLabel">Label</th>
             <th></th>
           </tr>
         </thead>
@@ -374,13 +395,13 @@
        otherwise. Click to manage. -->
   <section class="sign-strip" id="sign-strip">
     <div class="sign-strip-left">
-      <span class="sign-strip-label" id="sign-strip-id-label">Identity:</span>
-      <span class="sign-strip-id" id="sign-strip-id">not set up</span>
+      <span class="sign-strip-label" id="sign-strip-id-label" data-i18n="signIdentityLabel">Identity:</span>
+      <span class="sign-strip-id" id="sign-strip-id" data-i18n="signNotSetUp">not set up</span>
     </div>
     <div class="sign-strip-right">
-      <span class="sign-strip-label" id="sign-strip-session-label">Session:</span>
-      <span class="sign-strip-session" id="sign-strip-session">disconnected</span>
-      <button class="btn btn-ghost btn-small" id="sign-logout-btn" hidden>Log out</button>
+      <span class="sign-strip-label" id="sign-strip-session-label" data-i18n="signSessionLabel">Session:</span>
+      <span class="sign-strip-session" id="sign-strip-session" data-i18n="signDisconnected">disconnected</span>
+      <button class="btn btn-ghost btn-small" id="sign-logout-btn" data-i18n="btnLogOut" hidden>Log out</button>
     </div>
   </section>
 
@@ -388,26 +409,27 @@
     <!-- State 1: no identity → setup prompt -->
     <section class="sign-state" id="sign-state-setup" hidden>
       <div class="sign-state-inner">
-        <h2>Set up your signing identity</h2>
-        <p>This generates a cryptographic key on this machine and stores it in your OS keychain. You'll only need to do this once.</p>
-        <button class="btn btn-primary" id="sign-init-btn">Generate signing key</button>
-        <p class="hint">The key never leaves your machine. Your OS handles access prompts.</p>
+        <h2 data-i18n="signSetupTitle">Set up your signing identity</h2>
+        <p data-i18n="signSetupBody">This generates a cryptographic key on this machine and stores it in your OS keychain. You'll only need to do this once.</p>
+        <button class="btn btn-primary" id="sign-init-btn" data-i18n="signGenerateKey">Generate signing key</button>
+        <p class="hint" data-i18n="signSetupHint">The key never leaves your machine. Your OS handles access prompts.</p>
       </div>
     </section>
 
     <!-- State 2: identity, no session → bsky connect -->
     <section class="sign-state" id="sign-state-connect" hidden>
       <div class="sign-state-inner">
-        <h2>Connect your bsky identity</h2>
-        <p>Attach your signing key to your atproto handle so verifiers know it's yours.</p>
+        <h2 data-i18n="signConnectTitle">Connect your bsky identity</h2>
+        <p data-i18n="signConnectBody">Attach your signing key to your atproto handle so verifiers know it's yours.</p>
         <form class="sign-form" id="sign-login-form" autocomplete="off">
           <label class="sign-form-field">
-            <span>Bsky handle</span>
+            <span data-i18n="identityBskyHandle">Bsky handle</span>
             <input type="text" id="sign-login-handle" placeholder="creator.bsky.social"
+                   data-i18n-ph="signHandlePh"
                    autocomplete="username" spellcheck="false" required />
           </label>
           <label class="sign-form-field">
-            <span>App password</span>
+            <span data-i18n="signAppPassword">App password</span>
             <input type="password" id="sign-login-password" placeholder="••••-••••-••••-••••"
                    autocomplete="current-password" required />
           </label>
@@ -418,9 +440,9 @@
           </p>
           <label class="sign-form-remember">
             <input type="checkbox" id="sign-login-remember" />
-            <span>Remember me on this device</span>
+            <span data-i18n="signRememberDevice">Remember me on this device</span>
           </label>
-          <button type="submit" class="btn btn-primary" id="sign-login-btn">Connect</button>
+          <button type="submit" class="btn btn-primary" id="sign-login-btn" data-i18n="btnConnect">Connect</button>
           <p class="sign-form-error" id="sign-login-error" hidden></p>
         </form>
       </div>
@@ -429,14 +451,14 @@
     <!-- State 3: connected, no published record → publish prompt -->
     <section class="sign-state" id="sign-state-publish" hidden>
       <div class="sign-state-inner">
-        <h2>Publish your signing key</h2>
-        <p>One last step: publishing your key's fingerprint to atproto lets verifiers cross-check that you signed your work. Without this they only see "valid signature by unknown."</p>
+        <h2 data-i18n="signPublishTitle">Publish your signing key</h2>
+        <p data-i18n="signPublishBody">One last step: publishing your key's fingerprint to atproto lets verifiers cross-check that you signed your work. Without this they only see "valid signature by unknown."</p>
         <form class="sign-form" id="sign-publish-form" autocomplete="off">
           <label class="sign-form-field">
-            <span>Label (optional)</span>
-            <input type="text" id="sign-publish-label" placeholder="e.g. studio mac" maxlength="256" />
+            <span data-i18n="signLabelOptional">Label (optional)</span>
+            <input type="text" id="sign-publish-label" placeholder="e.g. studio mac" data-i18n-ph="signLabelPh" maxlength="256" />
           </label>
-          <button type="submit" class="btn btn-primary" id="sign-publish-btn">Publish key</button>
+          <button type="submit" class="btn btn-primary" id="sign-publish-btn" data-i18n="signPublishKey">Publish key</button>
           <p class="sign-form-error" id="sign-publish-error" hidden></p>
         </form>
         <p class="hint">Or <button type="button" class="link-btn" id="sign-skip-publish-btn">skip and sign locally</button>; this works, but without atproto attestation.</p>
@@ -449,7 +471,7 @@
          with the local key won't attest. -->
     <section class="sign-state" id="sign-state-stale" hidden>
       <div class="sign-state-inner">
-        <h2 id="sign-stale-title">Your signing key is out of date</h2>
+        <h2 id="sign-stale-title" data-i18n="signStaleTitle">Your signing key is out of date</h2>
         <p id="sign-stale-body">
           This box's local key is marked
           <strong id="sign-stale-status">retired</strong> on atproto.
@@ -457,9 +479,12 @@
         </p>
 
         <div class="sign-stale-recovery">
-          <p class="sign-stale-recovery-heading">Recover from a terminal:</p>
+          <div class="sign-stale-recovery-head">
+            <p class="sign-stale-recovery-heading" data-i18n="signRecoverHeading">Recover from a terminal:</p>
+            <button type="button" class="sign-stale-copy-btn" id="sign-stale-copy-btn" data-i18n="btnCopy">Copy</button>
+          </div>
           <pre class="sign-stale-recovery-cmd" id="sign-stale-recovery-cmd"></pre>
-          <p class="hint">
+          <p class="hint" data-i18n="signStaleHint">
             This mints a fresh key, publishes it as the new active record,
             and (when needed) revokes the orphan record so no one can sign
             in your name with the lost key.
@@ -484,8 +509,8 @@
               <path d="M32 44V26M24 34l8 10 8-10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
               <line x1="22" y1="20" x2="42" y2="20" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
             </svg>
-            <h2>Drop a file here to sign</h2>
-            <p>Audio · Image · Video: anything c2pa-rs supports.</p>
+            <h2 data-i18n="signDropTitle">Drop a file here to sign</h2>
+            <p data-i18n="signDropSub">Audio · Image · Video: anything c2pa-rs supports.</p>
             <p class="hint">Output goes next to the source as <code>&lt;name&gt;.signed.&lt;ext&gt;</code>.</p>
           </div>
         </div>
@@ -494,7 +519,7 @@
       <!-- Preview: file dropped, awaiting Sign click -->
       <div class="sign-preview" id="sign-preview" hidden>
         <div class="sign-preview-card">
-          <h2 id="sign-preview-heading">Ready to sign</h2>
+          <h2 id="sign-preview-heading" data-i18n="signReadyToSign">Ready to sign</h2>
 
           <!-- Chain notice: shown when the dropped file already has
                C2PA provenance. The user is then adding their
@@ -502,23 +527,23 @@
           <div class="sign-chain-notice" id="sign-chain-notice" hidden>
             <div class="sign-chain-icon" aria-hidden="true">⛓</div>
             <div class="sign-chain-body">
-              <p class="sign-chain-title">This file is already signed.</p>
+              <p class="sign-chain-title" data-i18n="signChainTitle">This file is already signed.</p>
               <dl class="sign-chain-meta">
-                <dt>By</dt>
+                <dt data-i18n="labelBy">By</dt>
                 <dd id="sign-chain-signer">—</dd>
-                <dt id="sign-chain-tool-label" hidden>Tool</dt>
+                <dt id="sign-chain-tool-label" data-i18n="labelTool" hidden>Tool</dt>
                 <dd id="sign-chain-tool" hidden>—</dd>
               </dl>
-              <p class="sign-chain-sub">Your signature will join the chain as a derivative; the original signature stays intact.</p>
+              <p class="sign-chain-sub" data-i18n="signChainSub">Your signature will join the chain as a derivative; the original signature stays intact.</p>
             </div>
           </div>
 
           <dl class="kv">
-            <dt>File</dt>
+            <dt data-i18n="labelFile">File</dt>
             <dd class="mono" id="sign-preview-path">—</dd>
-            <dt>Your identity</dt>
+            <dt data-i18n="labelYourIdentity">Your identity</dt>
             <dd class="mono" id="sign-preview-identity">—</dd>
-            <dt>Output</dt>
+            <dt data-i18n="labelOutput">Output</dt>
             <dd class="mono" id="sign-preview-output">—</dd>
           </dl>
 
@@ -527,7 +552,7 @@
                provenance: "Published" when the source is signed,
                "Created" when it isn't. -->
           <fieldset class="sign-action-picker">
-            <legend>What's your relationship to this file?</legend>
+            <legend data-i18n="signRelationshipQ">What's your relationship to this file?</legend>
             <label>
               <input type="radio" name="sign-action" value="created" id="sign-action-created" />
               <span><strong>Created</strong>: I made this from scratch.</span>
@@ -548,7 +573,7 @@
 
           <label class="sign-form-remember">
             <input type="checkbox" id="sign-embed-identity" checked />
-            <span>Embed identity assertion (recommended; lets verifiers skip the handle entry step)</span>
+            <span data-i18n="signEmbedIdentity">Embed identity assertion (recommended; lets verifiers skip the handle entry step)</span>
           </label>
           <label class="sign-form-remember">
             <input type="checkbox" id="sign-ai-artist" />
@@ -556,15 +581,15 @@
           </label>
           <label class="sign-form-field sign-ai-model-field" id="sign-ai-model-field" hidden>
             <span>Tool / model name <em>(optional)</em></span>
-            <input type="text" id="sign-ai-model" placeholder="e.g. ACE-Step v1.0" maxlength="256" />
+            <input type="text" id="sign-ai-model" placeholder="e.g. ACE-Step v1.0" data-i18n-ph="signModelPh" maxlength="256" />
           </label>
           <label class="sign-form-remember">
             <input type="checkbox" id="sign-replace-original" />
-            <span>Replace the original (instead of writing a sidecar)</span>
+            <span data-i18n="signReplaceOriginal">Replace the original (instead of writing a sidecar)</span>
           </label>
           <div class="sign-preview-actions">
-            <button class="btn btn-primary" id="sign-go-btn">Sign</button>
-            <button class="btn btn-ghost" id="sign-cancel-btn">Pick a different file</button>
+            <button class="btn btn-primary" id="sign-go-btn" data-i18n="btnSign">Sign</button>
+            <button class="btn btn-ghost" id="sign-cancel-btn" data-i18n="signPickDifferent">Pick a different file</button>
           </div>
           <p class="sign-form-error" id="sign-go-error" hidden></p>
         </div>
@@ -573,7 +598,7 @@
       <!-- Signing: spinner -->
       <div class="sign-signing" id="sign-signing" hidden>
         <div class="spinner"></div>
-        <p>Signing…</p>
+        <p data-i18n="signSigning">Signing…</p>
       </div>
 
       <!-- Done: report card -->
@@ -581,7 +606,7 @@
         <div class="verdict is-verified">
           <div class="verdict-icon">✓</div>
           <div class="verdict-text">
-            <h2>Signed</h2>
+            <h2 data-i18n="signSigned">Signed</h2>
             <p id="sign-done-path" class="mono">—</p>
           </div>
         </div>
@@ -591,13 +616,13 @@
         <div class="about-card" id="sign-about-card" hidden>
           <div class="about-grid" data-role="about-grid"></div>
           <div class="about-links" data-role="about-links" hidden>
-            <h4>Links</h4>
+            <h4 data-i18n="aboutLinks">Links</h4>
             <ul data-role="about-links-list"></ul>
           </div>
         </div>
         <div class="sign-done-actions">
-          <button class="btn btn-primary" id="sign-another-btn">Sign another</button>
-          <button class="btn btn-ghost" id="sign-verify-btn">Verify it</button>
+          <button class="btn btn-primary" id="sign-another-btn" data-i18n="signAnother">Sign another</button>
+          <button class="btn btn-ghost" id="sign-verify-btn" data-i18n="signVerifyIt">Verify it</button>
         </div>
       </div>
     </section>
@@ -608,16 +633,16 @@
          cannot follow from the GUI. -->
     <section class="sign-state" id="sign-state-error" hidden>
       <div class="sign-state-inner">
-        <h2>Could not load your signing status</h2>
+        <h2 data-i18n="signErrorTitle">Could not load your signing status</h2>
         <p class="hint" id="sign-error-text"></p>
-        <button class="btn btn-primary" id="sign-retry-btn" type="button">Retry</button>
+        <button class="btn btn-primary" id="sign-retry-btn" type="button" data-i18n="btnRetry">Retry</button>
       </div>
     </section>
 
     <!-- Loading state for kit_status / kit_login / kit_publish -->
     <section class="loading" id="sign-loading" hidden>
       <div class="spinner"></div>
-      <p class="loading-file" id="sign-loading-msg">Loading…</p>
+      <p class="loading-file" id="sign-loading-msg" data-i18n="loadingGeneric">Loading…</p>
     </section>
   </main>
 
@@ -632,10 +657,10 @@
   <div class="tab-pane" id="tab-backfire" role="tabpanel" aria-labelledby="tab-backfire-btn" hidden>
     <div class="bf-header">
       <div>
-        <h2 class="bf-title">Read a keyed Backfire mark <span class="bf-badge">Experimental</span></h2>
-        <p class="bf-subtitle">Verify a per-image watermark that AI provenance strippers amplify instead of remove.</p>
+        <h2 class="bf-title"><span data-i18n="bfBackfireTitle">Read a keyed Backfire mark</span> <span class="bf-badge" data-i18n="badgeExperimental">Experimental</span></h2>
+        <p class="bf-subtitle" data-i18n="bfBackfireSub">Verify a per-image watermark that AI provenance strippers amplify instead of remove.</p>
       </div>
-      <button class="btn btn-small" id="bf-help-btn" type="button">How it works</button>
+      <button class="btn btn-small" id="bf-help-btn" type="button" data-i18n="btnHowItWorks">How it works</button>
     </div>
     <div class="bf-warning" id="bf-warning">
       <p>
@@ -644,15 +669,20 @@
         <strong>BUSL-licensed</strong> (free for non-commercial use) Backfire tool, separate from
         provcheck, on your machine. You can only read a mark embedded with the same key.
       </p>
-      <button class="btn btn-small" id="bf-ack" type="button">Got it</button>
+      <p data-i18n="bfReadFreeEmbedDlc">
+        Reading keyed marks here is free. Creating them (embedding a keyed Backfire, Mellin,
+        or idmark mark with our codecs) is a paid, commercial capability in the DLC, not part
+        of this free app. Commercial licensing: licensing@creativemayhem.com.
+      </p>
+      <button class="btn btn-small" id="bf-ack" type="button" data-i18n="btnGotIt">Got it</button>
     </div>
 
     <div class="models-banner" id="bf-install-banner">
       <div class="models-banner-text">
-        <strong>Backfire reader</strong>
-        <span id="bf-install-status">Checking status…</span>
+        <strong data-i18n="bfReaderLabel">Backfire reader</strong>
+        <span id="bf-install-status" data-i18n="statusCheckingStatus">Checking status…</span>
       </div>
-      <button class="btn btn-primary" id="bf-install-btn" type="button">Install / Repair</button>
+      <button class="btn btn-primary" id="bf-install-btn" type="button" data-i18n="btnInstallRepair">Install / Repair</button>
     </div>
 
     <section class="bf-controls">
@@ -680,15 +710,15 @@
           <circle cx="24" cy="28" r="5" stroke="currentColor" stroke-width="3"/>
           <path d="M14 46l14-12 10 8 8-6 8 6" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
         </svg>
-        <h2>Drop an image here, or choose one, to read its mark</h2>
-        <button class="btn btn-primary" id="bf-choose-btn" type="button">Choose image &amp; read</button>
-        <p class="hint" id="bf-hint">Enter your key above first, then drop or choose an image. It reads automatically, and stays on your machine.</p>
+        <h2 data-i18n="bfDropTitle">Drop an image here, or choose one, to read its mark</h2>
+        <button class="btn btn-primary" id="bf-choose-btn" type="button" data-i18n="bfChooseRead">Choose image &amp; read</button>
+        <p class="hint" id="bf-hint" data-i18n="bfHint">Enter your key above first, then drop or choose an image. It reads automatically, and stays on your machine.</p>
       </div>
     </section>
 
     <section class="loading" id="bf-loading" hidden>
       <div class="spinner"></div>
-      <p class="loading-file" id="bf-loading-file">Reading Backfire mark…</p>
+      <p class="loading-file" id="bf-loading-file" data-i18n="bfLoading">Reading Backfire mark…</p>
     </section>
 
     <section class="result" id="bf-result" hidden>
@@ -701,7 +731,7 @@
       </div>
       <div class="bf-fields" id="bf-fields"></div>
       <footer class="footer-actions">
-        <button class="btn btn-primary" id="bf-another" type="button">Read another</button>
+        <button class="btn btn-primary" id="bf-another" type="button" data-i18n="btnReadAnother">Read another</button>
       </footer>
     </section>
 
@@ -713,8 +743,8 @@
     <hr style="border:none;border-top:1px solid rgba(128,128,128,0.25);margin:32px 0" />
     <div class="bf-header">
       <div>
-        <h2 class="bf-title">Read a keyed Mellin serial <span class="bf-badge">Experimental</span></h2>
-        <p class="bf-subtitle">Audio-side keyed forensics: recover the 64-bit per-copy serial you
+        <h2 class="bf-title"><span data-i18n="mlTitle">Read a keyed Mellin serial</span> <span class="bf-badge" data-i18n="badgeExperimental">Experimental</span></h2>
+        <p class="bf-subtitle" data-i18n="mlSub">Audio-side keyed forensics: recover the 64-bit per-copy serial you
           embedded with the standalone, BUSL-licensed provcheck-mellin tool (free for
           non-commercial use, separate from provcheck). Needs your seller secret file and work id;
           everything stays on your machine.</p>
@@ -723,20 +753,20 @@
 
     <div class="models-banner" id="ml-status-banner">
       <div class="models-banner-text">
-        <strong>Mellin reader</strong>
-        <span id="ml-status">Checking status…</span>
+        <strong data-i18n="mlReaderLabel">Mellin reader</strong>
+        <span id="ml-status" data-i18n="statusCheckingStatus">Checking status…</span>
       </div>
     </div>
 
     <section class="bf-controls">
       <div class="bf-field">
         <span>Secret file <em>(required)</em></span>
-        <button class="btn btn-small" id="ml-secret-btn" type="button">Choose secret file</button>
-        <span class="mono" id="ml-secret-path">none chosen. The secret is never stored, so pick it again after every launch.</span>
+        <button class="btn btn-small" id="ml-secret-btn" type="button" data-i18n="btnChooseSecret">Choose secret file</button>
+        <span class="mono" id="ml-secret-path" data-i18n="mlSecretNone">none chosen. The secret is never stored, so pick it again after every launch.</span>
       </div>
       <label class="bf-field">
         <span>Work id <em>(required)</em></span>
-        <input type="text" id="ml-workid" placeholder="the work id used at embed" autocomplete="off" spellcheck="false" />
+        <input type="text" id="ml-workid" placeholder="the work id used at embed" data-i18n-ph="mlWorkidPh" autocomplete="off" spellcheck="false" />
       </label>
       <label class="bf-field">
         <span>Expected serial <em>(optional)</em></span>
@@ -746,9 +776,9 @@
 
     <section class="dropzone" id="ml-zone">
       <div class="dropzone-inner">
-        <h2>Choose an audio file to read its serial</h2>
-        <button class="btn btn-primary" id="ml-choose-btn" type="button">Choose audio &amp; read</button>
-        <p class="hint" id="ml-hint">Pick your secret file and enter the work id first, then choose the audio
+        <h2 data-i18n="mlDropTitle">Choose an audio file to read its serial</h2>
+        <button class="btn btn-primary" id="ml-choose-btn" type="button" data-i18n="mlChooseRead">Choose audio &amp; read</button>
+        <p class="hint" id="ml-hint" data-i18n="mlHint">Pick your secret file and enter the work id first, then choose the audio
           or drop it anywhere on this tab. Any format works (WAV, MP3, AAC, FLAC); audio files read here,
           images read the Backfire mark above.</p>
       </div>
@@ -756,7 +786,7 @@
 
     <section class="loading" id="ml-loading" hidden>
       <div class="spinner"></div>
-      <p class="loading-file" id="ml-loading-file">Reading Mellin serial…</p>
+      <p class="loading-file" id="ml-loading-file" data-i18n="mlLoading">Reading Mellin serial…</p>
     </section>
 
     <section class="result" id="ml-result" hidden>
@@ -769,17 +799,18 @@
       </div>
       <div class="bf-fields" id="ml-fields"></div>
       <footer class="footer-actions">
-        <button class="btn btn-primary" id="ml-another" type="button">Read another</button>
+        <button class="btn btn-primary" id="ml-another" type="button" data-i18n="btnReadAnother">Read another</button>
       </footer>
     </section>
+
   </div> <!-- /tab-backfire -->
 
   <!-- Backfire help modal -->
   <div class="modal-overlay" id="bf-modal" hidden>
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="bf-modal-title">
       <div class="modal-head">
-        <h2 id="bf-modal-title">How Backfire works</h2>
-        <button class="modal-close" id="bf-modal-close" type="button" aria-label="Close">&times;</button>
+        <h2 id="bf-modal-title" data-i18n="bfModalTitle">How Backfire works</h2>
+        <button class="modal-close" id="bf-modal-close" type="button" aria-label="Close" data-i18n-aria="btnClose">&times;</button>
       </div>
       <div class="modal-body">
         <p>
@@ -845,12 +876,18 @@
         <input type="text" id="app-dialog-input" class="mono" hidden autocomplete="off" spellcheck="false" style="width:100%;margin-top:10px" />
       </div>
       <footer class="footer-actions" style="padding:0 20px 20px">
-        <button class="btn btn-primary" id="app-dialog-ok" type="button">OK</button>
-        <button class="btn" id="app-dialog-cancel" type="button">Cancel</button>
+        <button class="btn btn-primary" id="app-dialog-ok" type="button" data-i18n="btnOK">OK</button>
+        <button class="btn" id="app-dialog-cancel" type="button" data-i18n="btnCancel">Cancel</button>
       </footer>
     </div>
   </div>
 
+  <!-- App version badge, fixed bottom-right, filled by app.js from the app_version command. -->
+  <div id="app-version" class="app-version" aria-hidden="true"></div>
+
+  <script src="locales/catalogs.js"></script>
+  <script src="i18n.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
+

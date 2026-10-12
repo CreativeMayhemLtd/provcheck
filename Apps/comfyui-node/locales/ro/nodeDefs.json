@@ -1,0 +1,67 @@
+{
+  "ProvcheckC2PA": {
+    "display_name": "Provcheck (Filigran C2PA gratuit) • Creative Mayhem",
+    "description": "provcheck gratuit, deschis (Apache-2.0) pentru ComfyUI: un nod pentru imagine, audio și video. SCRIERE: încorporează filigranul gratuit (TrustMark pe imagini, silentcipher pe pista audio a fișierelor audio/video) și/sau semnează C2PA cu cheia ta locală și identitatea atproto/Bluesky, înregistrând opțional graful de generare; fișierul semnat este scris în directorul tău de ieșire. CITIRE: detectează/verifică un marcaj provcheck pe fiecare intrare conectată. Conectează imagine, audio, video, sau orice combinație. Fiecare opțiune este un widget care poate fi conectat și dintr-un alt nod, inclusiv numele fișierului de ieșire. Creative Mayhem produce și Backfire, un marcaj codat cu cheie pe care încercările de eliminare prin AI îl amplifică în loc să îl elimine (add-on comercial, nu inclus în acest pachet gratuit): https://provcheck.ai/backfire . Mai multe: https://provcheck.ai",
+    "inputs": {
+      "mode": {
+        "name": "mode",
+        "tooltip": "scriere = aplică filigran și/sau semnează C2PA fiecare intrare conectată (cel mai comun). citire = detectează/verifică un marcaj provcheck existent.",
+        "options": {
+          "write": "scriere",
+          "read": "citire"
+        }
+      },
+      "image": {
+        "name": "Imagine",
+        "tooltip": "Lot opțional de imagini de scris / citit."
+      },
+      "audio": {
+        "name": "Audio",
+        "tooltip": "Audio opțional de scris / citit."
+      },
+      "video": {
+        "name": "Video",
+        "tooltip": "Video opțional. Filigranul călătorește pe pista audio (cadrele sunt păstrate); containerul este semnat C2PA."
+      },
+      "watermark": {
+        "name": "watermark",
+        "tooltip": "[Scriere] Încorporează filigranul gratuit FOSS (TrustMark pentru imagini / silentcipher pentru audio)."
+      },
+      "c2pa_sign": {
+        "name": "c2pa_sign",
+        "tooltip": "[Scriere] Semnează C2PA cu cheia ta locală de semnare. Fișierul semnat este scris în directorul tău de ieșire ComfyUI."
+      },
+      "embed_identity": {
+        "name": "embed_identity",
+        "tooltip": "[Scriere] Încorporează identitatea ta atproto/Bluesky (DID + handle) în manifest, astfel încât un verificator să vadă cine a semnat. Necesită autentificare kit."
+      },
+      "record_provenance": {
+        "name": "record_provenance",
+        "tooltip": "[Scriere] Înregistrează un rezumat organizat al grafului de generare (model, seed, sampler, prompturi) în manifestul semnat."
+      },
+      "include_full_workflow": {
+        "name": "include_full_workflow",
+        "tooltip": "[Scriere] Împreună cu record_provenance: încorporează fluxul de lucru COMPLET (redactat), nu doar rezumatul. Dezactivat implicit pentru a evita scurgerea de prompturi/căi."
+      },
+      "brand_id": {
+        "name": "brand_id",
+        "tooltip": "[Scriere] ID-ul tău de brand pe 5 biți din registrul de branduri atproto (0-31). Valoarea implicită 2 este ID-ul public rAIdio.bot; folosește-l pe al tău."
+      },
+      "filename_prefix": {
+        "name": "filename_prefix",
+        "tooltip": "[Scriere, când se scrie un fișier] Prefixul numelui de fișier de ieșire pentru fișierele semnate/cu filigran. Editabil, și poate fi conectat dintr-un alt nod (clic dreapta -> Conversie la intrare)."
+      },
+      "timeout_secs": {
+        "name": "timeout_secs",
+        "tooltip": "Timeout-ul subprocesului per element, în secunde."
+      }
+    },
+    "outputs": {
+      "0": { "name": "Imagine" },
+      "1": { "name": "Audio" },
+      "2": { "name": "Video" },
+      "3": { "name": "Raport" },
+      "4": { "name": "Detectat" }
+    }
+  }
+}

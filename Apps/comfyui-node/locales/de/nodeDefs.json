@@ -1,0 +1,67 @@
+{
+  "ProvcheckC2PA": {
+    "display_name": "Provcheck (Kostenloses C2PA-Wasserzeichen) • Creative Mayhem",
+    "description": "Kostenlos und offen (Apache-2.0): provcheck für ComfyUI, ein Node für Bild, Audio und Video. SCHREIBEN: bettet das kostenlose Wasserzeichen ein (TrustMark bei Bildern, silentcipher auf der Audiospur bei Audio/Video) und/oder signiert mit C2PA über deinen lokalen Schlüssel und deine atproto/Bluesky-Identität, optional mit Aufzeichnung des Erzeugungsgraphen; die signierte Datei wird in dein Ausgabeverzeichnis geschrieben. LESEN: erkennt und prüft ein provcheck-Wasserzeichen an jedem verbundenen Eingang. Bild, Audio, Video oder eine beliebige Mischung anschließen. Jede Option ist ein Widget, das auch von einem anderen Node aus verdrahtet werden kann, einschließlich des Ausgabedateinamens. Creative Mayhem stellt außerdem Backfire her, ein geschlüsseltes Wasserzeichen, das KI-Entfernungsversuche verstärkt statt sie zu entfernen (kostenpflichtiges Zusatzmodul, nicht Teil dieses kostenlosen Pakets): https://provcheck.ai/backfire . Mehr: https://provcheck.ai",
+    "inputs": {
+      "mode": {
+        "name": "mode",
+        "tooltip": "schreiben = Wasserzeichen setzen und/oder mit C2PA signieren, für jeden verbundenen Eingang (am häufigsten). lesen = ein vorhandenes provcheck-Wasserzeichen erkennen/prüfen.",
+        "options": {
+          "write": "schreiben",
+          "read": "lesen"
+        }
+      },
+      "image": {
+        "name": "Bild",
+        "tooltip": "Optionaler Bild-Batch zum Schreiben oder Lesen."
+      },
+      "audio": {
+        "name": "Audio",
+        "tooltip": "Optionales Audio zum Schreiben oder Lesen."
+      },
+      "video": {
+        "name": "Video",
+        "tooltip": "Optionales Video. Das Wasserzeichen liegt auf der Audiospur (die Bilder bleiben erhalten); der Container wird mit C2PA signiert."
+      },
+      "watermark": {
+        "name": "watermark",
+        "tooltip": "[Schreiben] Bettet das kostenlose FOSS-Wasserzeichen ein (TrustMark bei Bildern, silentcipher bei Audio)."
+      },
+      "c2pa_sign": {
+        "name": "c2pa_sign",
+        "tooltip": "[Schreiben] Signiert mit C2PA über deinen lokalen Signierschlüssel. Die signierte Datei wird in dein ComfyUI-Ausgabeverzeichnis geschrieben."
+      },
+      "embed_identity": {
+        "name": "embed_identity",
+        "tooltip": "[Schreiben] Bettet deine atproto/Bluesky-Identität (DID und Handle) ins Manifest ein, damit ein Prüfer sieht, wer signiert hat. Erfordert Kit-Login."
+      },
+      "record_provenance": {
+        "name": "record_provenance",
+        "tooltip": "[Schreiben] Speichert eine kuratierte Zusammenfassung des Erzeugungsgraphen (Modell, Seed, Sampler, Prompts) im signierten Manifest."
+      },
+      "include_full_workflow": {
+        "name": "include_full_workflow",
+        "tooltip": "[Schreiben] Zusammen mit record_provenance: bettet den VOLLSTÄNDIGEN (geschwärzten) Workflow ein, nicht nur die Zusammenfassung. Standardmäßig aus, um das Preisgeben von Prompts oder Pfaden zu vermeiden."
+      },
+      "brand_id": {
+        "name": "brand_id",
+        "tooltip": "[Schreiben] Deine 5-Bit-Brand-ID aus dem atproto-Markenregister (0-31). Standard 2 ist die öffentliche rAIdio.bot-ID; nutze deine eigene."
+      },
+      "filename_prefix": {
+        "name": "filename_prefix",
+        "tooltip": "[Schreiben, wenn eine Datei geschrieben wird] Dateinamens-Präfix für die signierten/wasserzeichenversehenen Dateien. Editierbar und kann von einem anderen Node aus verdrahtet werden (Rechtsklick -> In Eingang umwandeln)."
+      },
+      "timeout_secs": {
+        "name": "timeout_secs",
+        "tooltip": "Timeout des Subprozesses pro Element, in Sekunden."
+      }
+    },
+    "outputs": {
+      "0": { "name": "Bild" },
+      "1": { "name": "Audio" },
+      "2": { "name": "Video" },
+      "3": { "name": "Bericht" },
+      "4": { "name": "Erkannt" }
+    }
+  }
+}

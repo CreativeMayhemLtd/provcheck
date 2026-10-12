@@ -54,18 +54,19 @@ control above is there precisely so you do not have to take that on faith.
 ## The diffusion weights
 
 Stability withdrew the original Stable Diffusion 2.1 weights from Hugging Face (the whole
-2.x line, not merely gated behind a license). There is no official checkpoint left to point
-at, so Backfire develops against a complete community **mirror** of those weights, pinned to
-an exact revision for reproducibility:
+2.x line, not merely gated behind a license), so there is no official checkpoint left to
+point at. Backfire's default embed path is **codec-only** (`--diff-eot 0`) and needs no
+diffusion weights at all. This amplification demo is the one place that does, so you supply
+your own SD-family weights (a Hugging Face repo id or a local directory you have rights to):
 
 ```
-memescreamer/stable-diffusion-2-1-base @ c9032bc99e813018fc11605cd92f11b8709f585a
+export BACKFIRE_SD_MODEL="<your-sd-2-1-repo-or-local-dir>"
+export BACKFIRE_SD_REVISION="<optional-git-revision>"   # optional
 ```
 
-Both the embed default and this demo use that pinned revision, so the demo is single-model
-(embed and attack run on identical weights). Point `--model` (and `--revision`), or the
-`BACKFIRE_SD_MODEL` / `BACKFIRE_SD_REVISION` environment variables, at any other SD-2.1
-checkpoint you trust or mirror yourself.
+The demo runs the embed and the attack on those same weights, so it stays single-model. You
+can also pass `--model` (and `--revision`) directly to `backfire.py` for the opt-in
+`--diff-eot > 0` path.
 
 ## The sample image
 

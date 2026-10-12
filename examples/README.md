@@ -1,9 +1,11 @@
-# Example signed media
+# Example media
 
-Four sample files here to kick the tires with — two cryptographically
-verified, two deliberately unsigned. All four are used by
-`provcheck-core`'s integration suite so accidental corruption fails
-CI before you see it.
+Sample files to kick the tires with. The C2PA set below is four files, two
+cryptographically verified and two deliberately unsigned; all four are used by
+`provcheck-core`'s integration suite so accidental corruption fails CI before you
+see it. A separate watermark-detection set (further down) exercises the blind
+detectors, and keyed-mark samples live under
+[`keyed-samples/`](./keyed-samples/).
 
 ## `rAIdio.bot-sample.mp3` (+ `rAIdio.bot-sample.c2pa` sidecar)
 
@@ -91,6 +93,41 @@ provcheck examples/unsigned-sample.mp4
 
 Both report `[UNSIGNED]` and exit 1. That's the shape every file
 without C2PA credentials takes, from any source.
+
+## Watermark detection samples
+
+Beyond C2PA signatures, `provcheck` runs blind watermark detectors on a file and reports
+them in the `watermarks` section of the verdict. The pairs below exercise those detectors:
+each marked file reports a detection, each unmarked control reports none. Run `provcheck <file>`.
+
+Video detection shells out to `ffmpeg`, so verifying the video sample needs `ffmpeg` on your
+PATH (`provcheck` prints a one-line install hint if it is missing).
+
+These sample media files, and the keyed-mark samples under [`keyed-samples/`](./keyed-samples/),
+are served on demand: they are bundled with the app installer or downloaded on first use rather
+than committed to this repository, which keeps the clone lean. The small C2PA fixtures above stay
+in-tree because the integration suite reads them. Re-mark any of them locally with provcheck's own
+tooling (TrustMark, SilentCipher, Backfire, Mellin) if you want to regenerate a pair by hand.
+
+### `trustmark-marked.png` (+ `trustmark-unmarked.png`)
+
+A TrustMark-B image watermark (Adobe / CAI, MIT). The marked image reports `trust_mark`
+detected (confidence ~7.9); the unmarked control reports not detected.
+
+### `silentcipher-marked.wav` (+ `silentcipher-unmarked.wav`)
+
+A SilentCipher neural audio watermark (MIT). The marked clip reports `silent_cipher`
+detected; the unmarked control reports not detected.
+
+### `trustmark-video-marked.mp4` (+ `trustmark-video-unmarked.mp4`)
+
+TrustMark-B written into every frame, read back per-frame with a temporal vote
+(`trust_mark_video`, confidence ~11.5). The unmarked control reports not detected. Needs
+`ffmpeg` on PATH.
+
+The source media for these samples is derived from public-domain and CC0 content; the marks
+are applied by provcheck's own tooling. Keyed marks (Backfire, Mellin) live under
+[`keyed-samples/`](./keyed-samples/) with their own README.
 
 ## Regenerating
 

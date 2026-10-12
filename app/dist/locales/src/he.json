@@ -1,0 +1,647 @@
+{
+  "headerSubtitle": {
+    "message": "חתימה ואימות של C2PA Content Credentials"
+  },
+  "tabVerify": {
+    "message": "אימות"
+  },
+  "tabWatermark": {
+    "message": "סימן מים"
+  },
+  "tabDetect": {
+    "message": "זיהוי"
+  },
+  "tabKeys": {
+    "message": "מפתחות"
+  },
+  "tabSign": {
+    "message": "חתימה"
+  },
+  "tabKeyedMarks": {
+    "message": "סימונים ממופתחים"
+  },
+  "btnChooseFile": {
+    "message": "בחר קובץ…"
+  },
+  "btnVerifyAnother": {
+    "message": "אמת קובץ נוסף"
+  },
+  "btnCopyJson": {
+    "message": "העתק כ-JSON"
+  },
+  "btnCheckAnother": {
+    "message": "בדוק קובץ נוסף"
+  },
+  "btnReadAnother": {
+    "message": "קרא קובץ נוסף"
+  },
+  "btnLogOut": {
+    "message": "התנתקות"
+  },
+  "btnConnect": {
+    "message": "התחבר"
+  },
+  "btnCopy": {
+    "message": "העתק"
+  },
+  "btnRetry": {
+    "message": "נסה שוב"
+  },
+  "btnSign": {
+    "message": "חתימה"
+  },
+  "btnOK": {
+    "message": "אישור"
+  },
+  "btnCancel": {
+    "message": "ביטול"
+  },
+  "btnGotIt": {
+    "message": "הבנתי"
+  },
+  "btnHowItWorks": {
+    "message": "איך זה עובד"
+  },
+  "btnInstallRepair": {
+    "message": "התקנה / תיקון"
+  },
+  "btnChooseSecret": {
+    "message": "בחר קובץ סוד"
+  },
+  "btnClose": {
+    "message": "סגור"
+  },
+  "badgeExperimental": {
+    "message": "ניסיוני"
+  },
+  "loadingGeneric": {
+    "message": "טוען…"
+  },
+  "statusChecking": {
+    "message": "בודק..."
+  },
+  "statusCheckingStatus": {
+    "message": "בודק סטטוס…"
+  },
+  "labelFingerprint": {
+    "message": "טביעת אצבע"
+  },
+  "labelAlgorithm": {
+    "message": "אלגוריתם"
+  },
+  "labelBackend": {
+    "message": "מנוע עורפי"
+  },
+  "labelCreated": {
+    "message": "נוצר"
+  },
+  "labelDID": {
+    "message": "DID"
+  },
+  "labelHandle": {
+    "message": "מזהה"
+  },
+  "labelYubikey": {
+    "message": "Yubikey"
+  },
+  "labelPinTries": {
+    "message": "ניסיונות PIN"
+  },
+  "labelStatus": {
+    "message": "סטטוס"
+  },
+  "labelLabel": {
+    "message": "תווית"
+  },
+  "labelBy": {
+    "message": "מאת"
+  },
+  "labelTool": {
+    "message": "כלי"
+  },
+  "labelFile": {
+    "message": "קובץ"
+  },
+  "labelYourIdentity": {
+    "message": "הזהות שלך"
+  },
+  "labelOutput": {
+    "message": "פלט"
+  },
+  "aboutLinks": {
+    "message": "קישורים"
+  },
+  "identityBskyHandle": {
+    "message": "מזהה Bsky"
+  },
+  "identityRunWatermark": {
+    "message": "הפעל זיהוי סימני מים"
+  },
+  "identityRequireAttested": {
+    "message": "דרוש אימות"
+  },
+  "identityHandlePh": {
+    "message": "אופציונלי · לדוגמה creator.bsky.social או did:plc:…"
+  },
+  "dropzoneTitle": {
+    "message": "גרור לכאן קובץ כלשהו כדי לאמת"
+  },
+  "dropzoneSub": {
+    "message": "אודיו · תמונה · וידאו: כל דבר שנושא C2PA Content Credentials."
+  },
+  "verifyDropHint": {
+    "message": "או הפעל בלי כלום והאזור הזה יישאר כך. פרטי: קבצים לעולם לא עוזבים את המחשב שלך."
+  },
+  "verifyLoading": {
+    "message": "מאמת…"
+  },
+  "verifyLoadingHint": {
+    "message": "זיהוי סימני מים כרוך בעומס כבד על המעבד עבור אודיו ווידאו ועשוי לקחת מספר דקות. הסר את הסימון מ-\"הפעל זיהוי סימני מים\" לאימות מיידי של C2PA בלבד."
+  },
+  "showRawManifest": {
+    "message": "הצג פרטי מניפסט גולמיים"
+  },
+  "claimsHeading": {
+    "message": "טענות"
+  },
+  "wmModelsNeeded": {
+    "message": "זיהוי סימני מים דורש מודלים."
+  },
+  "wmInstallAll": {
+    "message": "התקן את כל המודלים"
+  },
+  "wmScanFor": {
+    "message": "סרוק עבור:"
+  },
+  "wmDropTitle": {
+    "message": "גרור לכאן קובץ כלשהו כדי להריץ זיהוי סימני מים"
+  },
+  "wmDropHint": {
+    "message": "פרטי: קבצים לעולם לא עוזבים את המחשב שלך. כל מגלה הוא הסמכות הקובעת אם הוא חל על סוג קובץ הקלט."
+  },
+  "wmLoading": {
+    "message": "מריץ מגלי סימני מים…"
+  },
+  "wmLoadingHint": {
+    "message": "היסק המודל כרוך בעומס כבד על המעבד עבור אודיו ווידאו; הסריקה עשויה לקחת מספר דקות. העבודה נמשכת בזמן שזה מסתובב."
+  },
+  "wmResultTitle": {
+    "message": "זיהוי סימני מים"
+  },
+  "detectTitle": {
+    "message": "זיהוי תוכן בינה מלאכותית: הבא מגלה משלך"
+  },
+  "detectRouteAHead": {
+    "message": "מסלול A: חבילת DLC בתשלום (v1.x, מתוכנן)"
+  },
+  "detectRouteBHead": {
+    "message": "מסלול B: עטיפה שמסופקת על ידי המפעיל (זמינה כעת)"
+  },
+  "keysLocalIdentity": {
+    "message": "זהות מקומית"
+  },
+  "keysNoIdentity": {
+    "message": "אין זהות במכשיר זה."
+  },
+  "keysMismatchTitle": {
+    "message": "אי-התאמה במצב הזהות"
+  },
+  "keysRotateBtn": {
+    "message": "צור חדש + פרסם"
+  },
+  "keysRotateTitle": {
+    "message": "צור מפתח חתימה חדש ופרסם אותו כרשומה הפעילה החדשה"
+  },
+  "keysSwitchYubikey": {
+    "message": "עבור לזהות Yubikey…"
+  },
+  "keysSwitchYubikeyTitle": {
+    "message": "החלף את הזהות הנוכחית בזהות מגובה Yubikey"
+  },
+  "keysPublishedRecords": {
+    "message": "רשומות שפורסמו (atproto)"
+  },
+  "keysRecordsEmptyHint": {
+    "message": "התחבר בכרטיסייה חתימה ופרסם את טביעת האצבע המקומית שלך."
+  },
+  "keysNotLoggedIn": {
+    "message": "לא מחובר ל-atproto."
+  },
+  "keysNoSessionHint": {
+    "message": "התחבר בכרטיסייה חתימה כדי לאחזר את הרשומות שפרסמת."
+  },
+  "signIdentityLabel": {
+    "message": "זהות:"
+  },
+  "signNotSetUp": {
+    "message": "לא הוגדר"
+  },
+  "signSessionLabel": {
+    "message": "הפעלה:"
+  },
+  "signDisconnected": {
+    "message": "מנותק"
+  },
+  "signSetupTitle": {
+    "message": "הגדר את זהות החתימה שלך"
+  },
+  "signSetupBody": {
+    "message": "פעולה זו יוצרת מפתח קריפטוגרפי במחשב זה ושומרת אותו במחסן המפתחות של מערכת ההפעלה שלך. תצטרך לעשות זאת פעם אחת בלבד."
+  },
+  "signGenerateKey": {
+    "message": "צור מפתח חתימה"
+  },
+  "signSetupHint": {
+    "message": "המפתח לעולם לא עוזב את המחשב שלך. מערכת ההפעלה שלך מטפלת בבקשות הרשאה."
+  },
+  "signConnectTitle": {
+    "message": "חבר את זהות ה-bsky שלך"
+  },
+  "signConnectBody": {
+    "message": "צרף את מפתח החתימה שלך למזהה ה-atproto שלך כדי שהמאמתים ידעו שהוא שלך."
+  },
+  "signHandlePh": {
+    "message": "creator.bsky.social"
+  },
+  "signAppPassword": {
+    "message": "סיסמת אפליקציה"
+  },
+  "signRememberDevice": {
+    "message": "זכור אותי במכשיר זה"
+  },
+  "signPublishTitle": {
+    "message": "פרסם את מפתח החתימה שלך"
+  },
+  "signPublishBody": {
+    "message": "צעד אחרון: פרסום טביעת האצבע של המפתח שלך ל-atproto מאפשר למאמתים לוודא בהצלבה שאתה חתמת על העבודה שלך. בלי זה הם רואים רק \"חתימה תקפה מגורם לא ידוע\"."
+  },
+  "signLabelOptional": {
+    "message": "תווית (אופציונלי)"
+  },
+  "signLabelPh": {
+    "message": "לדוגמה: מק אולפן"
+  },
+  "signPublishKey": {
+    "message": "פרסם מפתח"
+  },
+  "signStaleTitle": {
+    "message": "מפתח החתימה שלך אינו עדכני"
+  },
+  "signRecoverHeading": {
+    "message": "שחזור מהמסוף:"
+  },
+  "signStaleHint": {
+    "message": "פעולה זו יוצרת מפתח חדש, מפרסמת אותו כרשומה הפעילה החדשה, ו(במידת הצורך) מבטלת את הרשומה היתומה כדי שאיש לא יוכל לחתום בשמך באמצעות המפתח שאבד."
+  },
+  "signDropTitle": {
+    "message": "גרור לכאן קובץ כדי לחתום"
+  },
+  "signDropSub": {
+    "message": "אודיו · תמונה · וידאו: כל מה ש-c2pa-rs תומך בו."
+  },
+  "signReadyToSign": {
+    "message": "מוכן לחתימה"
+  },
+  "signChainTitle": {
+    "message": "קובץ זה כבר חתום."
+  },
+  "signChainSub": {
+    "message": "החתימה שלך תצטרף לשרשרת כנגזרת; החתימה המקורית תישאר שלמה."
+  },
+  "signRelationshipQ": {
+    "message": "מה הקשר שלך לקובץ הזה?"
+  },
+  "signEmbedIdentity": {
+    "message": "הטמע אישור זהות (מומלץ; מאפשר למאמתים לדלג על שלב הזנת המזהה)"
+  },
+  "signModelPh": {
+    "message": "לדוגמה: ACE-Step v1.0"
+  },
+  "signReplaceOriginal": {
+    "message": "החלף את המקורי (במקום לכתוב קובץ נלווה)"
+  },
+  "signPickDifferent": {
+    "message": "בחר קובץ אחר"
+  },
+  "signSigning": {
+    "message": "חותם…"
+  },
+  "signSigned": {
+    "message": "נחתם"
+  },
+  "signAnother": {
+    "message": "חתום על קובץ נוסף"
+  },
+  "signVerifyIt": {
+    "message": "אמת אותו"
+  },
+  "signErrorTitle": {
+    "message": "לא ניתן היה לטעון את סטטוס החתימה שלך"
+  },
+  "bfBackfireTitle": {
+    "message": "קרא סימון Backfire ממופתח"
+  },
+  "bfBackfireSub": {
+    "message": "אמת סימן מים לכל תמונה שכלי הסרת מקור בינה מלאכותית מגבירים במקום להסיר."
+  },
+  "bfReaderLabel": {
+    "message": "קורא Backfire"
+  },
+  "bfDropTitle": {
+    "message": "גרור לכאן תמונה, או בחר אחת, כדי לקרוא את הסימון שלה"
+  },
+  "bfChooseRead": {
+    "message": "בחר תמונה וקרא"
+  },
+  "bfHint": {
+    "message": "הזן תחילה את המפתח שלך למעלה, ואז גרור או בחר תמונה. הקריאה מתבצעת אוטומטית, ונשארת במחשב שלך."
+  },
+  "bfLoading": {
+    "message": "קורא סימון Backfire…"
+  },
+  "mlTitle": {
+    "message": "קרא מספר סידורי Mellin ממופתח"
+  },
+  "mlSub": {
+    "message": "זיהוי פלילי ממופתח בצד האודיו: שחזר את המספר הסידורי בן 64 הביט לכל עותק שהטמעת עם הכלי העצמאי provcheck-mellin ברישיון BUSL (חינם לשימוש שאינו מסחרי, נפרד מ-provcheck). דורש את קובץ הסוד של המוכר שלך ומזהה עבודה; הכול נשאר במחשב שלך."
+  },
+  "mlReaderLabel": {
+    "message": "קורא Mellin"
+  },
+  "mlSecretNone": {
+    "message": "לא נבחר דבר. הסוד לעולם אינו נשמר, לכן בחר אותו שוב לאחר כל הפעלה."
+  },
+  "mlWorkidPh": {
+    "message": "מזהה העבודה שנעשה בו שימוש בהטמעה"
+  },
+  "mlDropTitle": {
+    "message": "בחר קובץ אודיו כדי לקרוא את המספר הסידורי שלו"
+  },
+  "mlChooseRead": {
+    "message": "בחר אודיו וקרא"
+  },
+  "mlHint": {
+    "message": "בחר תחילה את קובץ הסוד שלך והזן את מזהה העבודה, ואז בחר את האודיו או גרור אותו לכל מקום בכרטיסייה זו. כל פורמט עובד (WAV, MP3, AAC, FLAC); קובצי אודיו נקראים כאן, תמונות נקראות בסימון Backfire למעלה."
+  },
+  "mlLoading": {
+    "message": "קורא מספר סידורי Mellin…"
+  },
+  "imTitle": {
+    "message": "קרא סימון זהות idmark ממופתח"
+  },
+  "imSub": {
+    "message": "זהות ממופתחת בצד התמונה: קרא את הסימון העמיד לחיתוך, לקידוד מחדש ולסיבוב לכל עותק, שהוטמע עם הכלי העצמאי provcheck-idmark ברישיון BUSL (חינם לשימוש שאינו מסחרי, נפרד מ-provcheck). ללא סוד הוא בודק את הסימון המובנה; הוסף את קובץ הסוד שלך ומושב כדי לייחס עותק. הכול נשאר במחשב שלך."
+  },
+  "imReaderLabel": {
+    "message": "קורא idmark"
+  },
+  "imSecretNone": {
+    "message": "לא נבחר דבר. השאר ריק כדי לקרוא את הסימון המובנה; הסוד לעולם אינו נשמר."
+  },
+  "imDropTitle": {
+    "message": "בחר תמונה כדי לקרוא את הסימון שלה"
+  },
+  "imChooseRead": {
+    "message": "בחר תמונה וקרא"
+  },
+  "imHint": {
+    "message": "לבחירתך, בחר תחילה את קובץ הסוד שלך ומושב, ואז בחר את התמונה. PNG או JPEG. זה קורא את סימון הזהות idmark; סימון Backfire והמספרים הסידוריים של Mellin נקראים בסעיפים שלמעלה."
+  },
+  "imLoading": {
+    "message": "קורא idmark…"
+  },
+  "bfModalTitle": {
+    "message": "איך Backfire עובד"
+  },
+  "vVerified": {
+    "message": "מאומת"
+  },
+  "vUnsigned": {
+    "message": "לא חתום"
+  },
+  "vNotVerified": {
+    "message": "לא מאומת"
+  },
+  "attAttestedBy": {
+    "message": "מאושר על ידי $1"
+  },
+  "attMatchSub": {
+    "message": "תעודת החתימה תואמת למפתח שפורסם תחת זהות זו."
+  },
+  "attMismatch": {
+    "message": "אי-התאמת אישור עבור $1"
+  },
+  "attMismatchSub": {
+    "message": "תעודת החתימה אינה תואמת לאף מפתח שפורסם תחת זהות זו."
+  },
+  "attNotPublished": {
+    "message": "לא פורסמו מפתחות תחת $1"
+  },
+  "attNotPublishedSub": {
+    "message": "זהות זו קיימת אך לא פרסמה רשומות signingKey כלשהן."
+  },
+  "attResolveFailed": {
+    "message": "לא ניתן היה לפענח את $1"
+  },
+  "attResolveFailedSub": {
+    "message": "פענוח הזהות נכשל (המזהה/DID אינם נגישים)."
+  },
+  "attThisIdentity": {
+    "message": "זהות זו"
+  },
+  "kvSigner": {
+    "message": "חותם"
+  },
+  "kvSignedAt": {
+    "message": "נחתם ב"
+  },
+  "kvFormat": {
+    "message": "פורמט"
+  },
+  "kvManifest": {
+    "message": "מניפסט"
+  },
+  "kvIngredients": {
+    "message": "מרכיבים"
+  },
+  "kvIngredientsVal": {
+    "message": "$1 (תוכן נגזר: קובץ זה נוצר על ידי עריכת קבצים חתומים קודמים)"
+  },
+  "kvValidationErrors": {
+    "message": "שגיאות אימות"
+  },
+  "wmEmpty": {
+    "message": "לא זוהו סימני מים על ידי משפחות המגלים שהופעלו."
+  },
+  "wmKeyedNote": {
+    "message": "סימונים ממופתחים (Backfire, Mellin) אינם חלק מסריקה זו. ניתן לקרוא אותם רק עם המפתח שלך, בכרטיסייה סימונים ממופתחים."
+  },
+  "wmConfidence": {
+    "message": "ביטחון $1%"
+  },
+  "wmDegraded": {
+    "message": "ביטחון $1%; הסימון פגום (סביר שיש פגיעה חלקית)"
+  },
+  "wmNa": {
+    "message": "$1: לא זמין"
+  },
+  "wmNoMark": {
+    "message": "$1: לא זוהה סימון"
+  },
+  "wmTimelineAria": {
+    "message": "נוכחות סימן מים לאורך זמן: $1"
+  },
+  "wmUnrecognizedSource": {
+    "message": "מקור לא מזוהה"
+  },
+  "btnCopied": {
+    "message": "הועתק"
+  },
+  "scanError": {
+    "message": "לא ניתן היה לסרוק קובץ זה: $1"
+  },
+  "autoFilled": {
+    "message": "מולא אוטומטית מהקובץ"
+  },
+  "dragFileOnto": {
+    "message": "גרור את הקובץ אל החלון"
+  },
+  "aiGenerated": {
+    "message": "נוצר על ידי בינה מלאכותית"
+  },
+  "btnCopiedBang": {
+    "message": "הועתק!"
+  },
+  "bfCouldNotRun": {
+    "message": "לא ניתן היה להריץ את Backfire"
+  },
+  "btnInstalling": {
+    "message": "מתקין…"
+  },
+  "downloadingModels": {
+    "message": "מוריד מודלים, זה עשוי לקחת דקה…"
+  },
+  "btnWorking": {
+    "message": "עובד…"
+  },
+  "bfInstalling": {
+    "message": "מתקין / מתקן את קורא Backfire…"
+  },
+  "statusCheckFailed": {
+    "message": "בדיקת הסטטוס נכשלה: $1"
+  },
+  "readingFile": {
+    "message": "קורא $1…"
+  },
+  "mlCouldNotRun": {
+    "message": "לא ניתן היה להריץ את Mellin"
+  },
+  "imCouldNotRun": {
+    "message": "לא ניתן היה להריץ את idmark"
+  },
+  "keysMismSuperseded": {
+    "message": "המפתח המקומי שלך הוחלף"
+  },
+  "keysMismRevoked": {
+    "message": "המפתח המקומי שלך בוטל"
+  },
+  "keysMismActiveNoKey": {
+    "message": "הרשומה הפעילה משתמשת במפתח שאין ברשותך"
+  },
+  "thisBox": {
+    "message": "(תיבה זו)"
+  },
+  "btnRevoke": {
+    "message": "בטל"
+  },
+  "checkingPublishedKeys": {
+    "message": "בודק מפתחות שפורסמו…"
+  },
+  "btnGenerating": {
+    "message": "יוצר…"
+  },
+  "btnConnecting": {
+    "message": "מתחבר…"
+  },
+  "btnPublishing": {
+    "message": "מפרסם…"
+  },
+  "signReadyToPublish": {
+    "message": "מוכן לפרסום"
+  },
+  "bfMarkFound": {
+    "message": "נמצא סימון Backfire"
+  },
+  "bfNoValidMark": {
+    "message": "אין סימון Backfire תקף"
+  },
+  "mlSerialRecovered": {
+    "message": "מספר סידורי Mellin שוחזר"
+  },
+  "mlNoFullSerial": {
+    "message": "אין מספר סידורי Mellin מלא"
+  },
+  "imPresent": {
+    "message": "סימון idmark קיים"
+  },
+  "imNoDetected": {
+    "message": "לא זוהה idmark"
+  },
+  "fieldIdentifier": {
+    "message": "מזהה"
+  },
+  "fieldConfidenceMargin": {
+    "message": "ביטחון (מרווח ביט מינימלי)"
+  },
+  "fieldValid": {
+    "message": "תקף"
+  },
+  "fieldMatchesSerial": {
+    "message": "תואם למספר הסידורי הצפוי"
+  },
+  "fieldTamperTripwire": {
+    "message": "חיישן חבלה"
+  },
+  "fieldSerial": {
+    "message": "מספר סידורי"
+  },
+  "fieldBitsRecovered": {
+    "message": "ביטים ששוחזרו"
+  },
+  "fieldErasureRate": {
+    "message": "שיעור מחיקה"
+  },
+  "fieldMinBitVotes": {
+    "message": "קולות ביט מינימליים"
+  },
+  "fieldMarkPresent": {
+    "message": "הסימון קיים"
+  },
+  "fieldSeat": {
+    "message": "מושב"
+  },
+  "fieldMargin": {
+    "message": "מרווח"
+  },
+  "fieldReadVia": {
+    "message": "נקרא באמצעות"
+  },
+  "fieldEstRotation": {
+    "message": "סיבוב משוער"
+  },
+  "fieldError": {
+    "message": "שגיאה"
+  },
+  "valYes": {
+    "message": "כן"
+  },
+  "valNo": {
+    "message": "לא"
+  },
+  "bfTamperDetected": {
+    "message": "זוהתה חבלה בחריץ (סטטיסטיקה $1)"
+  },
+  "bfTamperClean": {
+    "message": "נקי (סטטיסטיקה $1)"
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "ProvcheckC2PA": {
+    "display_name": "Provcheck (Ingyenes C2PA vízjel) • Creative Mayhem",
+    "description": "Ingyenes, nyílt (Apache-2.0) provcheck a ComfyUI-hoz: egy node képhez, hanghoz és videóhoz. ÍRÁS: beágyazza az ingyenes vízjelet (TrustMark a képeken, silentcipher az audio/videó hangsávján) és/vagy C2PA-val aláír a helyi kulcsoddal és atproto/Bluesky identitásoddal, opcionálisan rögzítve a generálási gráfot; az aláírt fájl a kimeneti könyvtáradba kerül. OLVASÁS: minden csatlakoztatott bemeneten felismeri/ellenőrzi a provcheck jelölést. Köss be képet, hangot, videót vagy bármilyen kombinációt. Minden opció egy widget, amelyet egy másik node-ból is be lehet kötni, beleértve a kimeneti fájlnevet is. A Creative Mayhem készíti a Backfire-t is, egy kulcsolt jelölést, amelyet az AI-eltávolítási kísérletek felerősítenek ahelyett, hogy eltávolítanák (kereskedelmi kiegészítő, nincs benne ebben az ingyenes csomagban): https://provcheck.ai/backfire . Több: https://provcheck.ai",
+    "inputs": {
+      "mode": {
+        "name": "mode",
+        "tooltip": "írás = vízjelezd és/vagy írd alá C2PA-val minden csatlakoztatott bemenetet (leggyakoribb). olvasás = ismerd fel/ellenőrizd a meglévő provcheck jelölést.",
+        "options": {
+          "write": "írás",
+          "read": "olvasás"
+        }
+      },
+      "image": {
+        "name": "Kép",
+        "tooltip": "Opcionális képköteg, amelyre írni vagy amelyről olvasni lehet."
+      },
+      "audio": {
+        "name": "Hang",
+        "tooltip": "Opcionális hang, amelyre írni vagy amelyről olvasni lehet."
+      },
+      "video": {
+        "name": "Videó",
+        "tooltip": "Opcionális videó. A vízjel a hangsávon utazik (a képkockák megmaradnak); a konténer C2PA-val van aláírva."
+      },
+      "watermark": {
+        "name": "watermark",
+        "tooltip": "[Írás] Ágyazd be az ingyenes FOSS vízjelet (TrustMark képekhez / silentcipher hanghoz)."
+      },
+      "c2pa_sign": {
+        "name": "c2pa_sign",
+        "tooltip": "[Írás] Írd alá C2PA-val a helyi aláírókulcsoddal. Az aláírt fájl a ComfyUI kimeneti könyvtáradba kerül."
+      },
+      "embed_identity": {
+        "name": "embed_identity",
+        "tooltip": "[Írás] Ágyazd be az atproto/Bluesky identitásodat (DID + handle) a manifestbe, hogy az ellenőrző lássa, ki írta alá. Kit bejelentkezés szükséges."
+      },
+      "record_provenance": {
+        "name": "record_provenance",
+        "tooltip": "[Írás] Rögzítsd a generálási gráf szerkesztett összefoglalóját (modell, seed, sampler, promptok) az aláírt manifestbe."
+      },
+      "include_full_workflow": {
+        "name": "include_full_workflow",
+        "tooltip": "[Írás] A record_provenance-szal együtt: ágyazd be a TELJES (szerkesztett) munkafolyamatot, nem csak az összefoglalót. Alapértelmezésben kikapcsolva, hogy elkerüljük a promptok/útvonalak kiszivárgását."
+      },
+      "brand_id": {
+        "name": "brand_id",
+        "tooltip": "[Írás] Az 5-bites márka-azonosítód az atproto márkaregiszterből (0-31). Az alapértelmezett 2 a nyilvános rAIdio.bot azonosító; használd a sajátodat."
+      },
+      "filename_prefix": {
+        "name": "filename_prefix",
+        "tooltip": "[Írás, ha fájl kerül írásra] Kimeneti fájlnév-előtag az aláírt/vízjelezett fájlokhoz. Szerkeszthető, és beköthető egy másik node-ból (jobb klikk -> Átalakítás bemenetté)."
+      },
+      "timeout_secs": {
+        "name": "timeout_secs",
+        "tooltip": "Alfolyamat időtúllépése elemenként, másodpercben."
+      }
+    },
+    "outputs": {
+      "0": { "name": "Kép" },
+      "1": { "name": "Hang" },
+      "2": { "name": "Videó" },
+      "3": { "name": "Jelentés" },
+      "4": { "name": "Felismerve" }
+    }
+  }
+}

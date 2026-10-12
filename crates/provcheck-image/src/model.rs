@@ -55,10 +55,7 @@ mod model_error_tests {
 
     #[test]
     fn output_shape_message_includes_secret_len_and_actual_shape() {
-        // Detector pipeline gates on this message when the ONNX
-        // returns the wrong dimension. The message must surface
-        // both the expected SECRET_LEN and the actual shape so
-        // operators can diagnose model swaps without source diving.
+        // On a wrong ONNX dimension the message must surface both expected SECRET_LEN and actual shape, to diagnose model swaps.
         let err = ModelError::OutputShape { got: vec![1, 50] };
         let s = format!("{err}");
         assert!(
@@ -230,8 +227,7 @@ pub fn run_decoder(decoded: &DecodedImage) -> Result<DecoderOutput, ModelError> 
         .run(ort::inputs![input_tensor])
         .map_err(|e| ModelError::Inference(e.to_string()))?;
 
-    // Output 0 holds the SECRET_LEN bit logits. Shape is typically
-    // `[1, 100]` or `[100]`; we just check the total element count.
+    // Output 0 holds the SECRET_LEN bit logits ([1, 100] or [100]); we check only the total element count.
     let output = outputs
         .iter()
         .next()

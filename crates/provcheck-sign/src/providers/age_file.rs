@@ -62,11 +62,7 @@ impl KeyProvider for AgeFileProvider {
     ) -> Result<(), ProviderError> {
         let passphrase = new_passphrase(NewPassphrasePrompt { purpose: "at-rest" })?;
 
-        // age 0.11's with_user_passphrase wraps the passphrase as a
-        // single scrypt recipient internally. The work factor is
-        // age's default (log_n=18 at the time of writing), which
-        // matches the format's tunable mechanism: it lives in the
-        // stanza itself, so we don't pin it here.
+        // with_user_passphrase wraps one scrypt recipient at age's default work factor; the stanza carries it, so we don't pin it.
         let encryptor =
             age::Encryptor::with_user_passphrase(passphrase.expose_secret().to_string().into());
 
@@ -76,10 +72,7 @@ impl KeyProvider for AgeFileProvider {
         }
         let tmp_path = final_path.with_extension("age.tmp");
 
-        // Encrypt to the temp file, then rename — same atomic-
-        // rename pattern as save_public_artefacts so a crash mid-
-        // write leaves the previous (or no) file intact, not a
-        // half-written one.
+        // Temp-file + rename (atomic) so a crash mid-write never leaves a half-written key file.
         {
             let mut out = fs::File::create(&tmp_path)?;
             let mut writer = encryptor
@@ -95,7 +88,13 @@ impl KeyProvider for AgeFileProvider {
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            let _ = fs::set_permissions(&final_path, fs::Permissions::from_mode(0o600));
+            // Best-effort 0600; the file is already encrypted so a chmod failure isn't fatal, but surface it.
+            if let Err(e) = fs::set_permissions(&final_path, fs::Permissions::from_mode(0o600)) {
+                eprintln!(
+                    "warning: could not set 0600 permissions on {}: {e}",
+                    final_path.display()
+                );
+            }
         }
 
         Ok(())
@@ -124,11 +123,7 @@ impl KeyProvider for AgeFileProvider {
                 reader.read_to_string(&mut plaintext)?;
                 Ok(SecretString::from(plaintext))
             }
-            // age 0.11 distinguishes DecryptionFailed (payload MAC
-            // failed) from KeyDecryptionFailed (no recipient could
-            // unwrap the file key). For the at-rest passphrase
-            // backend, both map to the same user-facing meaning:
-            // the passphrase was wrong.
+            // Both DecryptionFailed and KeyDecryptionFailed mean the passphrase was wrong for the at-rest backend.
             Err(age::DecryptError::DecryptionFailed)
             | Err(age::DecryptError::KeyDecryptionFailed) => {
                 Err(ProviderError::AuthenticationFailed)
@@ -196,13 +191,11 @@ mod tests {
             )
             .expect("store succeeds");
 
-        // The file exists on disk and is non-trivially-sized.
         let path = age_key_path(dir.path());
         let bytes = fs::read(&path).expect("read back the file");
         assert!(bytes.len() > 32, "encrypted file has real size");
         assert_ne!(bytes, SAMPLE_KEY.as_bytes(), "not stored as plaintext");
 
-        // The fetch path returns exactly the original plaintext.
         let recovered = provider
             .fetch(
                 dir.path(),
@@ -247,13 +240,11 @@ mod tests {
             .store(dir.path(), FP, &v2, &mut fixed_new("pass2"))
             .expect("store v2 (overwrites)");
 
-        // v1's passphrase should no longer work.
         let err = provider
             .fetch(dir.path(), FP, &mut fixed_unlock("pass1"))
             .expect_err("v1 passphrase rejected after overwrite");
         assert!(matches!(err, ProviderError::AuthenticationFailed));
 
-        // v2's does.
         let recovered = provider
             .fetch(dir.path(), FP, &mut fixed_unlock("pass2"))
             .expect("v2 passphrase unlocks");
@@ -302,9 +293,7 @@ mod tests {
 
     #[test]
     fn store_creates_keys_dir_if_missing() {
-        // We hand a fresh empty tempdir directly; the provider must
-        // create the `keys/` subdirectory itself, mirroring what
-        // persist::save_public_artefacts does.
+        // Provider must create the keys/ subdir itself from a fresh tempdir.
         let dir = TempDir::new().expect("tempdir");
         let provider = AgeFileProvider::new();
         provider
@@ -321,8 +310,7 @@ mod tests {
 
     #[test]
     fn file_on_disk_is_a_real_age_file() {
-        // age files start with the ASCII header "age-encryption.org/v1".
-        // If we ever silently swap formats this catches it.
+        // age files start with "age-encryption.org/v1"; catches a silent format swap.
         let dir = TempDir::new().expect("tempdir");
         let provider = AgeFileProvider::new();
         provider
@@ -340,8 +328,7 @@ mod tests {
 
     #[test]
     fn user_cancelled_propagates_through_store() {
-        // If the prompt callback says UserCancelled, the provider
-        // doesn't try to write anything to disk.
+        // UserCancelled from the prompt means nothing gets written to disk.
         let dir = TempDir::new().expect("tempdir");
         let provider = AgeFileProvider::new();
         let mut canceller = |_: NewPassphrasePrompt| Err(ProviderError::UserCancelled);

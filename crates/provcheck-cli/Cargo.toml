@@ -16,6 +16,7 @@ path = "src/main.rs"
 
 [dev-dependencies]
 tempfile = "3"
+unic-langid = "0.9"
 
 [dependencies]
 provcheck = { path = "../provcheck" }
@@ -33,7 +34,19 @@ provcheck-synthid-text = { path = "../provcheck-synthid-text" }
 # The FOSS core ships the plumbing only; concrete detectors come
 # from a paid DLC pack or operator-supplied open-source wrapper.
 provcheck-detect = { path = "../provcheck-detect" }
+# The DLC framework (Apache-2.0): offline seat-license verify + signed-pack pull,
+# so the reader can find/install the paid Pro Watermarking pack (Backfire + Mellin
+# tools). Never links the BUSL watermark crates; it only gates + locates the packs
+# the reader shells out to. Permissive-clean per WATERMARK_LICENSE_POLICY.md.
+provcheck-dlc = { path = "../provcheck-dlc" }
 clap = { workspace = true }
+# i18n (brick C0): fluent-rs runtime-output localization. The fluent stack is already
+# resolved in the workspace lock; these enable it directly for the CLI. Localizes
+# human-readable output; --json stays stable and English clap --help is deferred.
+i18n-embed = { version = "0.15", features = ["fluent-system", "desktop-requester"] }
+i18n-embed-fl = "0.9"
+rust-embed = "8"
+once_cell = "1"
 # Experimental --backfire-read: parse the keyed Backfire tool's JSON output and
 # merge it into --json. The Backfire tool itself is a separate BUSL-licensed
 # process, never linked; this only parses its stdout.

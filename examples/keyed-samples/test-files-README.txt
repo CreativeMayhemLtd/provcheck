@@ -31,3 +31,16 @@ backfire-marked.png   (experimental keyed mark, image)
 
 backfire-unmarked.png
   The same photo without a mark (control). No valid mark under any key.
+
+backfire-amplify-demo.png   (Backfire amplification, image)
+  A three-panel before/after: original, Backfire-marked, and the marked image after a
+  stock diffusion regeneration attack. The keyed read goes from margin 10.8 to 16.3 after
+  the attack, stronger than before, with a wrong-key control near zero. Backfire marks are
+  visible by design; amplification uses the diffusion-EOT path with your own SD-family
+  weights. This is a rendered demo panel, not a readable mark file.
+
+backfire-video-marked.mp4   (Backfire keyed mark, video)
+  A short clip carrying the keyed serial on a keyed subset of frames (M2 selective N-frame
+  keying). A quorum read recovers id 0x7 through an H.264 re-encode; the unmarked source
+  reads nothing. Read it with the backfire video_keying quorum path (video_keying.py in the
+  backfire/ directory); a one-command video reader is on the roadmap.

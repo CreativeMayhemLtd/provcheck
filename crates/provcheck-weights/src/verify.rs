@@ -26,11 +26,7 @@ pub(crate) fn file_sha256_matches(path: &Path, expected: &[u8; 32]) -> Result<bo
         hasher.update(&buf[..n]);
     }
     let actual = hasher.finalize();
-    // GenericArray::as_slice was deprecated in generic-array 0.14;
-    // the sha2 0.10 output is `GenericArray<u8, U32>`. Treating it
-    // as `&[u8]` via Deref keeps the comparison constant-time
-    // semantics (it is not — but neither does the deprecated
-    // method) without pulling in subtle-time.
+    // Compare via `&[u8]` since GenericArray::as_slice is deprecated; this is not constant-time (nor was the old method).
     let actual_ref: &[u8] = actual.as_ref();
     Ok(actual_ref == expected.as_slice())
 }
@@ -68,7 +64,6 @@ mod tests {
 
     #[test]
     fn rejects_one_bit_tamper() {
-        // Same content but one byte flipped from the expected.
         let (_dir, path) = write_tmp(b"hello world!"); // extra '!'
         let ok = file_sha256_matches(&path, &HELLO_WORLD_SHA).expect("hash ok");
         assert!(!ok, "tampered file must NOT match the expected SHA256");
@@ -97,8 +92,6 @@ mod tests {
         // a payload larger than the 64 KB read buffer.
         let big: Vec<u8> = (0..(200 * 1024)).map(|i| (i & 0xFF) as u8).collect();
         let (_dir, path) = write_tmp(&big);
-        // Compute the expected hash via the same primitives so we
-        // don't pin a value here that's brittle to allocator quirks.
         let mut h = Sha256::new();
         h.update(&big);
         let expected: [u8; 32] = h.finalize().into();

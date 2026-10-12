@@ -1,0 +1,647 @@
+{
+  "headerSubtitle": {
+    "message": "ลงนามและตรวจสอบ C2PA Content Credentials"
+  },
+  "tabVerify": {
+    "message": "ตรวจสอบ"
+  },
+  "tabWatermark": {
+    "message": "ลายน้ำ"
+  },
+  "tabDetect": {
+    "message": "ตรวจจับ"
+  },
+  "tabKeys": {
+    "message": "คีย์"
+  },
+  "tabSign": {
+    "message": "ลงนาม"
+  },
+  "tabKeyedMarks": {
+    "message": "เครื่องหมายแบบคีย์"
+  },
+  "btnChooseFile": {
+    "message": "เลือกไฟล์…"
+  },
+  "btnVerifyAnother": {
+    "message": "ตรวจสอบไฟล์อื่น"
+  },
+  "btnCopyJson": {
+    "message": "คัดลอกเป็น JSON"
+  },
+  "btnCheckAnother": {
+    "message": "ตรวจสอบไฟล์อื่น"
+  },
+  "btnReadAnother": {
+    "message": "อ่านไฟล์อื่น"
+  },
+  "btnLogOut": {
+    "message": "ออกจากระบบ"
+  },
+  "btnConnect": {
+    "message": "เชื่อมต่อ"
+  },
+  "btnCopy": {
+    "message": "คัดลอก"
+  },
+  "btnRetry": {
+    "message": "ลองใหม่"
+  },
+  "btnSign": {
+    "message": "ลงนาม"
+  },
+  "btnOK": {
+    "message": "ตกลง"
+  },
+  "btnCancel": {
+    "message": "ยกเลิก"
+  },
+  "btnGotIt": {
+    "message": "เข้าใจแล้ว"
+  },
+  "btnHowItWorks": {
+    "message": "วิธีการทำงาน"
+  },
+  "btnInstallRepair": {
+    "message": "ติดตั้ง / ซ่อมแซม"
+  },
+  "btnChooseSecret": {
+    "message": "เลือกไฟล์ลับ"
+  },
+  "btnClose": {
+    "message": "ปิด"
+  },
+  "badgeExperimental": {
+    "message": "ทดลอง"
+  },
+  "loadingGeneric": {
+    "message": "กำลังโหลด…"
+  },
+  "statusChecking": {
+    "message": "กำลังตรวจสอบ..."
+  },
+  "statusCheckingStatus": {
+    "message": "กำลังตรวจสอบสถานะ…"
+  },
+  "labelFingerprint": {
+    "message": "ลายนิ้วมือ"
+  },
+  "labelAlgorithm": {
+    "message": "อัลกอริทึม"
+  },
+  "labelBackend": {
+    "message": "แบ็กเอนด์"
+  },
+  "labelCreated": {
+    "message": "สร้างเมื่อ"
+  },
+  "labelDID": {
+    "message": "DID"
+  },
+  "labelHandle": {
+    "message": "แฮนเดิล"
+  },
+  "labelYubikey": {
+    "message": "Yubikey"
+  },
+  "labelPinTries": {
+    "message": "จำนวนครั้งที่ลอง PIN"
+  },
+  "labelStatus": {
+    "message": "สถานะ"
+  },
+  "labelLabel": {
+    "message": "ป้ายกำกับ"
+  },
+  "labelBy": {
+    "message": "โดย"
+  },
+  "labelTool": {
+    "message": "เครื่องมือ"
+  },
+  "labelFile": {
+    "message": "ไฟล์"
+  },
+  "labelYourIdentity": {
+    "message": "ตัวตนของคุณ"
+  },
+  "labelOutput": {
+    "message": "ผลลัพธ์"
+  },
+  "aboutLinks": {
+    "message": "ลิงก์"
+  },
+  "identityBskyHandle": {
+    "message": "แฮนเดิล Bsky"
+  },
+  "identityRunWatermark": {
+    "message": "เรียกใช้การตรวจจับลายน้ำ"
+  },
+  "identityRequireAttested": {
+    "message": "ต้องได้รับการรับรอง"
+  },
+  "identityHandlePh": {
+    "message": "ไม่บังคับ · เช่น creator.bsky.social หรือ did:plc:…"
+  },
+  "dropzoneTitle": {
+    "message": "วางไฟล์ใดก็ได้ที่นี่เพื่อตรวจสอบ"
+  },
+  "dropzoneSub": {
+    "message": "เสียง · รูปภาพ · วิดีโอ: ไฟล์ใดก็ตามที่มี C2PA Content Credentials"
+  },
+  "verifyDropHint": {
+    "message": "หรือเรียกใช้โดยไม่มีไฟล์แล้วส่วนนี้จะยังอยู่ที่เดิม เป็นส่วนตัว: ไฟล์จะไม่ออกจากเครื่องของคุณ"
+  },
+  "verifyLoading": {
+    "message": "กำลังตรวจสอบ…"
+  },
+  "verifyLoadingHint": {
+    "message": "การตรวจจับลายน้ำใช้ CPU มากสำหรับเสียงและวิดีโอ และอาจใช้เวลาสองสามนาที ยกเลิกการเลือก \"เรียกใช้การตรวจจับลายน้ำ\" เพื่อตรวจสอบเฉพาะ C2PA แบบทันที"
+  },
+  "showRawManifest": {
+    "message": "แสดงรายละเอียดแมนิเฟสต์ดิบ"
+  },
+  "claimsHeading": {
+    "message": "การอ้างสิทธิ์"
+  },
+  "wmModelsNeeded": {
+    "message": "การตรวจจับลายน้ำต้องใช้โมเดล"
+  },
+  "wmInstallAll": {
+    "message": "ติดตั้งโมเดลทั้งหมด"
+  },
+  "wmScanFor": {
+    "message": "สแกนหา:"
+  },
+  "wmDropTitle": {
+    "message": "วางไฟล์ใดก็ได้ที่นี่เพื่อเรียกใช้การตรวจจับลายน้ำ"
+  },
+  "wmDropHint": {
+    "message": "เป็นส่วนตัว: ไฟล์จะไม่ออกจากเครื่องของคุณ ตัวตรวจจับแต่ละตัวมีอำนาจตัดสินใจเองว่าใช้ได้กับประเภทไฟล์นำเข้านั้นหรือไม่"
+  },
+  "wmLoading": {
+    "message": "กำลังเรียกใช้ตัวตรวจจับลายน้ำ…"
+  },
+  "wmLoadingHint": {
+    "message": "การอนุมานโมเดลใช้ CPU มากสำหรับเสียงและวิดีโอ การสแกนอาจใช้เวลาสองสามนาที ยังคงทำงานอยู่ขณะที่ไอคอนนี้หมุน"
+  },
+  "wmResultTitle": {
+    "message": "การตรวจจับลายน้ำ"
+  },
+  "detectTitle": {
+    "message": "การตรวจจับเนื้อหา AI: นำตัวตรวจจับของคุณเองมาใช้"
+  },
+  "detectRouteAHead": {
+    "message": "เส้นทาง A: ชุด DLC แบบเสียเงิน (v1.x วางแผนไว้)"
+  },
+  "detectRouteBHead": {
+    "message": "เส้นทาง B: ตัวห่อหุ้มที่จัดหาโดยผู้ดำเนินการ (พร้อมใช้งานแล้ว)"
+  },
+  "keysLocalIdentity": {
+    "message": "ตัวตนในเครื่อง"
+  },
+  "keysNoIdentity": {
+    "message": "ไม่มีตัวตนบนเครื่องนี้"
+  },
+  "keysMismatchTitle": {
+    "message": "สถานะตัวตนไม่ตรงกัน"
+  },
+  "keysRotateBtn": {
+    "message": "สร้างใหม่ + เผยแพร่"
+  },
+  "keysRotateTitle": {
+    "message": "สร้างคีย์ลงนามใหม่และเผยแพร่เป็นระเบียนที่ใช้งานอยู่ใหม่"
+  },
+  "keysSwitchYubikey": {
+    "message": "เปลี่ยนไปใช้ตัวตนแบบ Yubikey…"
+  },
+  "keysSwitchYubikeyTitle": {
+    "message": "แทนที่ตัวตนปัจจุบันด้วยตัวตนที่อิงกับ Yubikey"
+  },
+  "keysPublishedRecords": {
+    "message": "ระเบียนที่เผยแพร่ (atproto)"
+  },
+  "keysRecordsEmptyHint": {
+    "message": "เข้าสู่ระบบที่แท็บ Sign แล้วเผยแพร่ลายนิ้วมือในเครื่องของคุณ"
+  },
+  "keysNotLoggedIn": {
+    "message": "ยังไม่ได้เข้าสู่ระบบ atproto"
+  },
+  "keysNoSessionHint": {
+    "message": "เข้าสู่ระบบที่แท็บ Sign เพื่อดึงระเบียนที่เผยแพร่ของคุณ"
+  },
+  "signIdentityLabel": {
+    "message": "ตัวตน:"
+  },
+  "signNotSetUp": {
+    "message": "ยังไม่ได้ตั้งค่า"
+  },
+  "signSessionLabel": {
+    "message": "เซสชัน:"
+  },
+  "signDisconnected": {
+    "message": "ไม่ได้เชื่อมต่อ"
+  },
+  "signSetupTitle": {
+    "message": "ตั้งค่าตัวตนสำหรับลงนามของคุณ"
+  },
+  "signSetupBody": {
+    "message": "การดำเนินการนี้จะสร้างคีย์เข้ารหัสบนเครื่องนี้และจัดเก็บไว้ในคีย์เชนของระบบปฏิบัติการของคุณ คุณต้องทำเพียงครั้งเดียวเท่านั้น"
+  },
+  "signGenerateKey": {
+    "message": "สร้างคีย์ลงนาม"
+  },
+  "signSetupHint": {
+    "message": "คีย์จะไม่ออกจากเครื่องของคุณ ระบบปฏิบัติการของคุณจะจัดการข้อความแจ้งการเข้าถึง"
+  },
+  "signConnectTitle": {
+    "message": "เชื่อมต่อตัวตน bsky ของคุณ"
+  },
+  "signConnectBody": {
+    "message": "แนบคีย์ลงนามของคุณเข้ากับแฮนเดิล atproto ของคุณ เพื่อให้ผู้ตรวจสอบทราบว่าเป็นของคุณ"
+  },
+  "signHandlePh": {
+    "message": "creator.bsky.social"
+  },
+  "signAppPassword": {
+    "message": "รหัสผ่านแอป"
+  },
+  "signRememberDevice": {
+    "message": "จดจำฉันบนอุปกรณ์นี้"
+  },
+  "signPublishTitle": {
+    "message": "เผยแพร่คีย์ลงนามของคุณ"
+  },
+  "signPublishBody": {
+    "message": "ขั้นตอนสุดท้าย: การเผยแพร่ลายนิ้วมือของคีย์คุณไปยัง atproto ช่วยให้ผู้ตรวจสอบสามารถตรวจสอบไขว้ได้ว่าคุณเป็นผู้ลงนามในงานของคุณ หากไม่มีสิ่งนี้ พวกเขาจะเห็นเพียง \"ลายเซ็นที่ถูกต้องโดยผู้ไม่ทราบชื่อ\""
+  },
+  "signLabelOptional": {
+    "message": "ป้ายกำกับ (ไม่บังคับ)"
+  },
+  "signLabelPh": {
+    "message": "เช่น studio mac"
+  },
+  "signPublishKey": {
+    "message": "เผยแพร่คีย์"
+  },
+  "signStaleTitle": {
+    "message": "คีย์ลงนามของคุณล้าสมัยแล้ว"
+  },
+  "signRecoverHeading": {
+    "message": "กู้คืนจากเทอร์มินัล:"
+  },
+  "signStaleHint": {
+    "message": "การดำเนินการนี้จะสร้างคีย์ใหม่ เผยแพร่เป็นระเบียนที่ใช้งานอยู่ใหม่ และ (เมื่อจำเป็น) เพิกถอนระเบียนที่ไม่มีเจ้าของ เพื่อไม่ให้ใครใช้คีย์ที่สูญหายลงนามในชื่อของคุณได้"
+  },
+  "signDropTitle": {
+    "message": "วางไฟล์ที่นี่เพื่อลงนาม"
+  },
+  "signDropSub": {
+    "message": "เสียง · รูปภาพ · วิดีโอ: สิ่งใดก็ตามที่ c2pa-rs รองรับ"
+  },
+  "signReadyToSign": {
+    "message": "พร้อมลงนาม"
+  },
+  "signChainTitle": {
+    "message": "ไฟล์นี้ได้รับการลงนามแล้ว"
+  },
+  "signChainSub": {
+    "message": "ลายเซ็นของคุณจะเข้าร่วมห่วงโซ่ในฐานะงานอนุพันธ์ ลายเซ็นต้นฉบับยังคงสมบูรณ์"
+  },
+  "signRelationshipQ": {
+    "message": "ความสัมพันธ์ของคุณกับไฟล์นี้คืออะไร?"
+  },
+  "signEmbedIdentity": {
+    "message": "ฝังการยืนยันตัวตน (แนะนำ ช่วยให้ผู้ตรวจสอบข้ามขั้นตอนการกรอกแฮนเดิลได้)"
+  },
+  "signModelPh": {
+    "message": "เช่น ACE-Step v1.0"
+  },
+  "signReplaceOriginal": {
+    "message": "แทนที่ไฟล์ต้นฉบับ (แทนที่จะเขียนไฟล์ข้างเคียง)"
+  },
+  "signPickDifferent": {
+    "message": "เลือกไฟล์อื่น"
+  },
+  "signSigning": {
+    "message": "กำลังลงนาม…"
+  },
+  "signSigned": {
+    "message": "ลงนามแล้ว"
+  },
+  "signAnother": {
+    "message": "ลงนามไฟล์อื่น"
+  },
+  "signVerifyIt": {
+    "message": "ตรวจสอบไฟล์นี้"
+  },
+  "signErrorTitle": {
+    "message": "ไม่สามารถโหลดสถานะการลงนามของคุณได้"
+  },
+  "bfBackfireTitle": {
+    "message": "อ่านเครื่องหมาย Backfire แบบคีย์"
+  },
+  "bfBackfireSub": {
+    "message": "ตรวจสอบลายน้ำต่อรูปภาพที่ตัวลบร่องรอยที่มาของ AI จะขยายแทนที่จะลบออก"
+  },
+  "bfReaderLabel": {
+    "message": "ตัวอ่าน Backfire"
+  },
+  "bfDropTitle": {
+    "message": "วางรูปภาพที่นี่ หรือเลือกรูปภาพ เพื่ออ่านเครื่องหมาย"
+  },
+  "bfChooseRead": {
+    "message": "เลือกรูปภาพและอ่าน"
+  },
+  "bfHint": {
+    "message": "ป้อนคีย์ของคุณด้านบนก่อน จากนั้นวางหรือเลือกรูปภาพ ระบบจะอ่านโดยอัตโนมัติ และข้อมูลจะอยู่บนเครื่องของคุณเท่านั้น"
+  },
+  "bfLoading": {
+    "message": "กำลังอ่านเครื่องหมาย Backfire…"
+  },
+  "mlTitle": {
+    "message": "อ่านหมายเลขซีเรียล Mellin แบบคีย์"
+  },
+  "mlSub": {
+    "message": "นิติวิทยาศาสตร์แบบคีย์ฝั่งเสียง: กู้คืนหมายเลขซีเรียลต่อสำเนาแบบ 64 บิตที่คุณฝังไว้ด้วยเครื่องมือ provcheck-mellin แบบสแตนด์อโลนที่ใช้สัญญาอนุญาต BUSL (ฟรีสำหรับการใช้งานที่ไม่ใช่เชิงพาณิชย์ แยกจาก provcheck) ต้องใช้ไฟล์ลับของผู้ขายและรหัสงานของคุณ ทุกอย่างอยู่บนเครื่องของคุณเท่านั้น"
+  },
+  "mlReaderLabel": {
+    "message": "ตัวอ่าน Mellin"
+  },
+  "mlSecretNone": {
+    "message": "ยังไม่ได้เลือก ไฟล์ลับจะไม่ถูกจัดเก็บไว้ ดังนั้นให้เลือกใหม่ทุกครั้งหลังเปิดโปรแกรม"
+  },
+  "mlWorkidPh": {
+    "message": "รหัสงานที่ใช้ตอนฝัง"
+  },
+  "mlDropTitle": {
+    "message": "เลือกไฟล์เสียงเพื่ออ่านหมายเลขซีเรียล"
+  },
+  "mlChooseRead": {
+    "message": "เลือกไฟล์เสียงและอ่าน"
+  },
+  "mlHint": {
+    "message": "เลือกไฟล์ลับของคุณและป้อนรหัสงานก่อน จากนั้นเลือกไฟล์เสียงหรือวางไว้ที่ใดก็ได้บนแท็บนี้ ใช้ได้ทุกฟอร์แมต (WAV, MP3, AAC, FLAC) ไฟล์เสียงอ่านที่นี่ ส่วนรูปภาพอ่านเครื่องหมาย Backfire ด้านบน"
+  },
+  "mlLoading": {
+    "message": "กำลังอ่านหมายเลขซีเรียล Mellin…"
+  },
+  "imTitle": {
+    "message": "อ่านเครื่องหมายระบุตัวตน idmark แบบคีย์"
+  },
+  "imSub": {
+    "message": "ตัวตนแบบคีย์ฝั่งรูปภาพ: อ่านเครื่องหมายต่อสำเนาที่ทนต่อการครอบตัด การแปลงรหัส และการหมุน ซึ่งฝังไว้ด้วยเครื่องมือ provcheck-idmark แบบสแตนด์อโลนที่ใช้สัญญาอนุญาต BUSL (ฟรีสำหรับการใช้งานที่ไม่ใช่เชิงพาณิชย์ แยกจาก provcheck) หากไม่มีไฟล์ลับ ระบบจะตรวจสอบเครื่องหมายในตัว เพิ่มไฟล์ลับและที่นั่งของคุณเพื่อระบุความเป็นเจ้าของสำเนา ทุกอย่างอยู่บนเครื่องของคุณเท่านั้น"
+  },
+  "imReaderLabel": {
+    "message": "ตัวอ่าน idmark"
+  },
+  "imSecretNone": {
+    "message": "ยังไม่ได้เลือก เว้นว่างไว้เพื่ออ่านเครื่องหมายในตัว ไฟล์ลับจะไม่ถูกจัดเก็บไว้"
+  },
+  "imDropTitle": {
+    "message": "เลือกรูปภาพเพื่ออ่านเครื่องหมาย"
+  },
+  "imChooseRead": {
+    "message": "เลือกรูปภาพและอ่าน"
+  },
+  "imHint": {
+    "message": "หากต้องการ เลือกไฟล์ลับและที่นั่งของคุณก่อน จากนั้นเลือกรูปภาพ ใช้ได้กับ PNG หรือ JPEG การอ่านนี้อ่านเครื่องหมายระบุตัวตน idmark ส่วนเครื่องหมาย Backfire และหมายเลขซีเรียล Mellin จะอ่านในส่วนด้านบน"
+  },
+  "imLoading": {
+    "message": "กำลังอ่าน idmark…"
+  },
+  "bfModalTitle": {
+    "message": "Backfire ทำงานอย่างไร"
+  },
+  "vVerified": {
+    "message": "ตรวจสอบแล้ว"
+  },
+  "vUnsigned": {
+    "message": "ไม่ได้ลงนาม"
+  },
+  "vNotVerified": {
+    "message": "ยังไม่ได้ตรวจสอบ"
+  },
+  "attAttestedBy": {
+    "message": "รับรองโดย $1"
+  },
+  "attMatchSub": {
+    "message": "ใบรับรองการลงนามตรงกับคีย์ที่เผยแพร่ภายใต้ตัวตนนี้"
+  },
+  "attMismatch": {
+    "message": "การรับรองไม่ตรงกันสำหรับ $1"
+  },
+  "attMismatchSub": {
+    "message": "ใบรับรองการลงนามไม่ตรงกับคีย์ใดๆ ที่เผยแพร่ภายใต้ตัวตนนี้"
+  },
+  "attNotPublished": {
+    "message": "ไม่มีคีย์ที่เผยแพร่ภายใต้ $1"
+  },
+  "attNotPublishedSub": {
+    "message": "ตัวตนนี้มีอยู่จริง แต่ยังไม่ได้เผยแพร่ระเบียน signingKey ใดๆ"
+  },
+  "attResolveFailed": {
+    "message": "ไม่สามารถแปลงค่า $1 ได้"
+  },
+  "attResolveFailedSub": {
+    "message": "การแปลงค่าตัวตนล้มเหลว (ไม่สามารถเข้าถึงแฮนเดิล/DID ได้)"
+  },
+  "attThisIdentity": {
+    "message": "ตัวตนนี้"
+  },
+  "kvSigner": {
+    "message": "ผู้ลงนาม"
+  },
+  "kvSignedAt": {
+    "message": "ลงนามเมื่อ"
+  },
+  "kvFormat": {
+    "message": "รูปแบบ"
+  },
+  "kvManifest": {
+    "message": "แมนิเฟสต์"
+  },
+  "kvIngredients": {
+    "message": "ส่วนประกอบ"
+  },
+  "kvIngredientsVal": {
+    "message": "$1 (เนื้อหาที่ได้มา ไฟล์นี้สร้างขึ้นจากการแก้ไขไฟล์ที่ลงนามไว้ก่อนหน้า)"
+  },
+  "kvValidationErrors": {
+    "message": "ข้อผิดพลาดในการตรวจสอบความถูกต้อง"
+  },
+  "wmEmpty": {
+    "message": "ไม่พบลายน้ำจากกลุ่มตัวตรวจจับที่ทำงาน"
+  },
+  "wmKeyedNote": {
+    "message": "เครื่องหมายแบบคีย์ (Backfire, Mellin) ไม่ได้อยู่ในการสแกนนี้ อ่านได้เฉพาะด้วยคีย์ของคุณเท่านั้น ที่แท็บ Keyed marks"
+  },
+  "wmConfidence": {
+    "message": "ความมั่นใจ $1%"
+  },
+  "wmDegraded": {
+    "message": "ความมั่นใจ $1% เครื่องหมายเสื่อมสภาพ (มีแนวโน้มว่าจะเสียหายบางส่วน)"
+  },
+  "wmNa": {
+    "message": "$1: ไม่มีข้อมูล"
+  },
+  "wmNoMark": {
+    "message": "$1: ไม่พบเครื่องหมาย"
+  },
+  "wmTimelineAria": {
+    "message": "การปรากฏของลายน้ำตามช่วงเวลา: $1"
+  },
+  "wmUnrecognizedSource": {
+    "message": "แหล่งที่มาที่ไม่รู้จัก"
+  },
+  "btnCopied": {
+    "message": "คัดลอกแล้ว"
+  },
+  "scanError": {
+    "message": "ไม่สามารถสแกนไฟล์นี้ได้: $1"
+  },
+  "autoFilled": {
+    "message": "กรอกอัตโนมัติจากไฟล์"
+  },
+  "dragFileOnto": {
+    "message": "ลากไฟล์มาวางบนหน้าต่าง"
+  },
+  "aiGenerated": {
+    "message": "สร้างโดย AI"
+  },
+  "btnCopiedBang": {
+    "message": "คัดลอกแล้ว!"
+  },
+  "bfCouldNotRun": {
+    "message": "Backfire ไม่สามารถทำงานได้"
+  },
+  "btnInstalling": {
+    "message": "กำลังติดตั้ง…"
+  },
+  "downloadingModels": {
+    "message": "กำลังดาวน์โหลดโมเดล อาจใช้เวลาสักครู่…"
+  },
+  "btnWorking": {
+    "message": "กำลังทำงาน…"
+  },
+  "bfInstalling": {
+    "message": "กำลังติดตั้ง / ซ่อมแซมตัวอ่าน Backfire…"
+  },
+  "statusCheckFailed": {
+    "message": "การตรวจสอบสถานะล้มเหลว: $1"
+  },
+  "readingFile": {
+    "message": "กำลังอ่าน $1…"
+  },
+  "mlCouldNotRun": {
+    "message": "Mellin ไม่สามารถทำงานได้"
+  },
+  "imCouldNotRun": {
+    "message": "idmark ไม่สามารถทำงานได้"
+  },
+  "keysMismSuperseded": {
+    "message": "คีย์ในเครื่องของคุณถูกแทนที่แล้ว"
+  },
+  "keysMismRevoked": {
+    "message": "คีย์ในเครื่องของคุณถูกเพิกถอนแล้ว"
+  },
+  "keysMismActiveNoKey": {
+    "message": "ระเบียนที่ใช้งานอยู่ใช้คีย์ที่คุณไม่มี"
+  },
+  "thisBox": {
+    "message": "(กล่องนี้)"
+  },
+  "btnRevoke": {
+    "message": "เพิกถอน"
+  },
+  "checkingPublishedKeys": {
+    "message": "กำลังตรวจสอบคีย์ที่เผยแพร่…"
+  },
+  "btnGenerating": {
+    "message": "กำลังสร้าง…"
+  },
+  "btnConnecting": {
+    "message": "กำลังเชื่อมต่อ…"
+  },
+  "btnPublishing": {
+    "message": "กำลังเผยแพร่…"
+  },
+  "signReadyToPublish": {
+    "message": "พร้อมเผยแพร่"
+  },
+  "bfMarkFound": {
+    "message": "พบเครื่องหมาย Backfire"
+  },
+  "bfNoValidMark": {
+    "message": "ไม่มีเครื่องหมาย Backfire ที่ถูกต้อง"
+  },
+  "mlSerialRecovered": {
+    "message": "กู้คืนหมายเลขซีเรียล Mellin แล้ว"
+  },
+  "mlNoFullSerial": {
+    "message": "ไม่มีหมายเลขซีเรียล Mellin ที่สมบูรณ์"
+  },
+  "imPresent": {
+    "message": "มี idmark อยู่"
+  },
+  "imNoDetected": {
+    "message": "ไม่พบ idmark"
+  },
+  "fieldIdentifier": {
+    "message": "ตัวระบุ"
+  },
+  "fieldConfidenceMargin": {
+    "message": "ความมั่นใจ (ระยะขอบบิตต่ำสุด)"
+  },
+  "fieldValid": {
+    "message": "ถูกต้อง"
+  },
+  "fieldMatchesSerial": {
+    "message": "ตรงกับหมายเลขซีเรียลที่คาดไว้"
+  },
+  "fieldTamperTripwire": {
+    "message": "ตัวตรวจจับการปลอมแปลง"
+  },
+  "fieldSerial": {
+    "message": "หมายเลขซีเรียล"
+  },
+  "fieldBitsRecovered": {
+    "message": "บิตที่กู้คืนได้"
+  },
+  "fieldErasureRate": {
+    "message": "อัตราการลบข้อมูล"
+  },
+  "fieldMinBitVotes": {
+    "message": "คะแนนโหวตบิตขั้นต่ำ"
+  },
+  "fieldMarkPresent": {
+    "message": "มีเครื่องหมายอยู่"
+  },
+  "fieldSeat": {
+    "message": "ที่นั่ง"
+  },
+  "fieldMargin": {
+    "message": "ระยะขอบ"
+  },
+  "fieldReadVia": {
+    "message": "อ่านผ่าน"
+  },
+  "fieldEstRotation": {
+    "message": "การหมุนโดยประมาณ"
+  },
+  "fieldError": {
+    "message": "ข้อผิดพลาด"
+  },
+  "valYes": {
+    "message": "ใช่"
+  },
+  "valNo": {
+    "message": "ไม่"
+  },
+  "bfTamperDetected": {
+    "message": "ตรวจพบการปลอมแปลงรอยบาก (stat $1)"
+  },
+  "bfTamperClean": {
+    "message": "ปกติ (stat $1)"
+  }
+}

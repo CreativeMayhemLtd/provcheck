@@ -78,9 +78,7 @@ pub fn embed(
     }
     let alpha = alpha.unwrap_or(DEFAULT_ALPHA);
 
-    // Encode the brand ID into the 16-bit ECC-protected payload, then
-    // unpack into the per-bit integer tensor the generator ONNX expects
-    // (`msg` shape `[1, NBITS]`, dtype int64, big-endian MSB at index 0).
+    // Unpack the ECC payload into the generator's `[1, NBITS]` int64 tensor, big-endian MSB at index 0.
     let payload = registry::encode_payload(brand_id_5bit);
     let mut msg = [0i64; NBITS];
     for (i, slot) in msg.iter_mut().enumerate() {
@@ -89,19 +87,9 @@ pub fn embed(
 
     let n = waveform.len();
 
-    // Build the full watermark signal by walking chunks. We run the
-    // generator on a chunk that always covers
-    // `[t_start, t_start + CHUNK_SAMPLES)` of the input — when the
-    // remaining audio is shorter than CHUNK_SAMPLES the tail is zero-
-    // padded. After inference we trim each chunk back to its valid
-    // span and crossfade with the previous chunk's tail in the
-    // overlap window.
     let mut wm = vec![0.0_f32; n];
 
-    // For boundary crossfade we run successive chunks with a small
-    // overlap. The first chunk starts at 0; subsequent chunks start
-    // CHUNK_SAMPLES - OVERLAP_SAMPLES later than the previous, so
-    // the overlap region is processed by both inferences.
+    // Stride by CHUNK_SAMPLES - OVERLAP_SAMPLES so the overlap region is processed by both inferences for the crossfade.
     let stride = CHUNK_SAMPLES - OVERLAP_SAMPLES;
     let mut t_start: usize = 0;
     let mut chunk_idx: usize = 0;
@@ -112,20 +100,16 @@ pub fn embed(
         let valid_end = (t_start + CHUNK_SAMPLES).min(n);
         let valid_len = valid_end - t_start;
 
-        // Pad chunk to CHUNK_SAMPLES with zeros if we're at the tail.
         let mut chunk = vec![0.0_f32; CHUNK_SAMPLES];
         chunk[..valid_len].copy_from_slice(&waveform[t_start..valid_end]);
 
         let chunk_wm = model::run_generator_chunk(&chunk, &msg)?;
 
-        // Write into `wm`. The first chunk (chunk_idx == 0) writes
-        // directly; subsequent chunks crossfade their head into the
-        // existing tail of the previous chunk.
+        // The first chunk writes directly; later chunks crossfade their head into the previous chunk's tail.
         if chunk_idx == 0 {
             wm[t_start..valid_end].copy_from_slice(&chunk_wm[..valid_len]);
         } else {
             let overlap_end = (t_start + OVERLAP_SAMPLES).min(valid_end);
-            // Crossfade region: linear weighting.
             for i in t_start..overlap_end {
                 let local = i - t_start; // 0..OVERLAP_SAMPLES
                 let fade_in = (local as f32 + 1.0) / (OVERLAP_SAMPLES as f32 + 1.0);
@@ -134,7 +118,6 @@ pub fn embed(
                 let new = chunk_wm[i - t_start];
                 wm[i] = prev * fade_out + new * fade_in;
             }
-            // Post-overlap region: just copy from new chunk.
             if overlap_end < valid_end {
                 wm[overlap_end..valid_end]
                     .copy_from_slice(&chunk_wm[overlap_end - t_start..valid_len]);
@@ -148,7 +131,6 @@ pub fn embed(
         chunk_idx += 1;
     }
 
-    // Compose `marked = x + alpha * wm`.
     let marked: Vec<f32> = waveform
         .iter()
         .zip(wm.iter())
@@ -241,7 +223,5 @@ mod tests {
         assert!(matches!(r, Err(EncodeError::Empty)));
     }
 
-    // We don't have a unit test that actually runs the ONNX without
-    // an audio fixture; the gold-standard integration test lives at
-    // examples/audioseal_embed_roundtrip.rs.
+    // The ONNX round-trip needs an audio fixture; that lives in examples/audioseal_embed_roundtrip.rs.
 }

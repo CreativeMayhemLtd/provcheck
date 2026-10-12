@@ -1,0 +1,31 @@
+{
+  "ProvcheckC2PA": {
+    "display_name": "Provcheck(無料の C2PA 電子透かし)• Creative Mayhem",
+    "description": "ComfyUI 向けの無料でオープンな(Apache-2.0)provcheck。画像、オーディオ、ビデオを1つのノードで扱います。WRITE(書き込み): 無料の電子透かし(画像には TrustMark、オーディオ/ビデオのオーディオトラックには silentcipher)を埋め込み、および/またはローカルの鍵と atproto/Bluesky のアイデンティティで C2PA 署名を行います。生成グラフを記録することもできます。署名済みファイルは出力ディレクトリに書き込まれます。READ(読み取り): 接続された各入力について provcheck のマークを検出・検証します。画像、オーディオ、ビデオ、またはそれらの任意の組み合わせを接続できます。出力ファイル名を含め、すべてのオプションはウィジェットであり、他のノードから配線することもできます。Creative Mayhem は Backfire も提供しています。これは AI による除去処理がかえって増幅させてしまう鍵付きマークです(この無料パックには含まれない、商用アドオンです): https://provcheck.ai/backfire 。詳細: https://provcheck.ai",
+    "inputs": {
+      "mode": {
+        "name": "mode",
+        "tooltip": "write = 接続された各入力に電子透かしを付与し、および/または C2PA 署名を行います(最も一般的な使い方)。read = 既存の provcheck マークを検出・検証します。",
+        "options": { "write": "書き込み", "read": "読み取り" }
+      },
+      "image": { "name": "画像", "tooltip": "書き込み/読み取り対象の画像バッチ(任意)。" },
+      "audio": { "name": "オーディオ", "tooltip": "書き込み/読み取り対象のオーディオ(任意)。" },
+      "video": { "name": "ビデオ", "tooltip": "任意のビデオ。電子透かしはオーディオトラックに埋め込まれます(フレームはそのまま保持されます)。コンテナは C2PA 署名されます。" },
+      "watermark": { "name": "watermark", "tooltip": "[write] 無料の FOSS 電子透かし(画像は TrustMark、オーディオは silentcipher)を埋め込みます。" },
+      "c2pa_sign": { "name": "c2pa_sign", "tooltip": "[write] ローカルの署名鍵を使用して C2PA 署名を行います。署名済みファイルは ComfyUI の出力ディレクトリに書き込まれます。" },
+      "embed_identity": { "name": "embed_identity", "tooltip": "[write] atproto/Bluesky のアイデンティティ(DID とハンドル)をマニフェストに埋め込み、検証者が署名者を確認できるようにします。kit へのログインが必要です。" },
+      "record_provenance": { "name": "record_provenance", "tooltip": "[write] 生成グラフの要約(モデル、シード、サンプラー、プロンプト)を署名済みマニフェストに記録します。" },
+      "include_full_workflow": { "name": "include_full_workflow", "tooltip": "[write] record_provenance と併用すると、要約だけでなく完全な(一部を編集した)ワークフローを埋め込みます。プロンプトやパスの漏洩を避けるため、デフォルトではオフです。" },
+      "brand_id": { "name": "brand_id", "tooltip": "[write] atproto ブランドレジストリにおける5ビットのブランドID(0〜31)です。デフォルト値の 2 は公開の rAIdio.bot 用IDです。ご自身のIDを使用してください。" },
+      "filename_prefix": { "name": "filename_prefix", "tooltip": "[write、ファイルが書き込まれる場合] 署名済み/電子透かし付きファイルの出力ファイル名の接頭辞です。編集可能で、他のノードから配線することもできます(右クリック → Convert to input)。" },
+      "timeout_secs": { "name": "timeout_secs", "tooltip": "アイテムごとのサブプロセスのタイムアウト(秒)です。" }
+    },
+    "outputs": {
+      "0": { "name": "画像" },
+      "1": { "name": "オーディオ" },
+      "2": { "name": "ビデオ" },
+      "3": { "name": "レポート" },
+      "4": { "name": "検出結果" }
+    }
+  }
+}

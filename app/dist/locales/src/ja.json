@@ -1,0 +1,647 @@
+{
+  "headerSubtitle": {
+    "message": "C2PA Content Credentials に署名・検証"
+  },
+  "tabVerify": {
+    "message": "検証"
+  },
+  "tabWatermark": {
+    "message": "透かし"
+  },
+  "tabDetect": {
+    "message": "検出"
+  },
+  "tabKeys": {
+    "message": "鍵"
+  },
+  "tabSign": {
+    "message": "署名"
+  },
+  "tabKeyedMarks": {
+    "message": "キー付きマーク"
+  },
+  "btnChooseFile": {
+    "message": "ファイルを選択…"
+  },
+  "btnVerifyAnother": {
+    "message": "別のファイルを検証"
+  },
+  "btnCopyJson": {
+    "message": "JSONとしてコピー"
+  },
+  "btnCheckAnother": {
+    "message": "別のファイルをチェック"
+  },
+  "btnReadAnother": {
+    "message": "別のものを読み込む"
+  },
+  "btnLogOut": {
+    "message": "ログアウト"
+  },
+  "btnConnect": {
+    "message": "接続"
+  },
+  "btnCopy": {
+    "message": "コピー"
+  },
+  "btnRetry": {
+    "message": "再試行"
+  },
+  "btnSign": {
+    "message": "署名する"
+  },
+  "btnOK": {
+    "message": "OK"
+  },
+  "btnCancel": {
+    "message": "キャンセル"
+  },
+  "btnGotIt": {
+    "message": "了解"
+  },
+  "btnHowItWorks": {
+    "message": "仕組み"
+  },
+  "btnInstallRepair": {
+    "message": "インストール / 修復"
+  },
+  "btnChooseSecret": {
+    "message": "秘密ファイルを選択"
+  },
+  "btnClose": {
+    "message": "閉じる"
+  },
+  "badgeExperimental": {
+    "message": "実験的"
+  },
+  "loadingGeneric": {
+    "message": "読み込み中…"
+  },
+  "statusChecking": {
+    "message": "確認中..."
+  },
+  "statusCheckingStatus": {
+    "message": "状態を確認中…"
+  },
+  "labelFingerprint": {
+    "message": "フィンガープリント"
+  },
+  "labelAlgorithm": {
+    "message": "アルゴリズム"
+  },
+  "labelBackend": {
+    "message": "バックエンド"
+  },
+  "labelCreated": {
+    "message": "作成日時"
+  },
+  "labelDID": {
+    "message": "DID"
+  },
+  "labelHandle": {
+    "message": "ハンドル"
+  },
+  "labelYubikey": {
+    "message": "Yubikey"
+  },
+  "labelPinTries": {
+    "message": "PIN試行回数"
+  },
+  "labelStatus": {
+    "message": "ステータス"
+  },
+  "labelLabel": {
+    "message": "ラベル"
+  },
+  "labelBy": {
+    "message": "作成者"
+  },
+  "labelTool": {
+    "message": "ツール"
+  },
+  "labelFile": {
+    "message": "ファイル"
+  },
+  "labelYourIdentity": {
+    "message": "あなたのアイデンティティ"
+  },
+  "labelOutput": {
+    "message": "出力"
+  },
+  "aboutLinks": {
+    "message": "リンク"
+  },
+  "identityBskyHandle": {
+    "message": "Bskyハンドル"
+  },
+  "identityRunWatermark": {
+    "message": "透かし検出を実行"
+  },
+  "identityRequireAttested": {
+    "message": "証明済みを必須にする"
+  },
+  "identityHandlePh": {
+    "message": "任意 · 例: creator.bsky.social または did:plc:…"
+  },
+  "dropzoneTitle": {
+    "message": "検証するファイルをここにドロップ"
+  },
+  "dropzoneSub": {
+    "message": "音声 · 画像 · 動画: C2PA Content Credentials を含むあらゆるファイル。"
+  },
+  "verifyDropHint": {
+    "message": "何も指定せずに実行してもここに留まります。プライベート: ファイルはお使いのマシンから外に出ません。"
+  },
+  "verifyLoading": {
+    "message": "検証中…"
+  },
+  "verifyLoadingHint": {
+    "message": "透かし検出は音声・動画でCPU負荷が高く、数分かかる場合があります。「透かし検出を実行」のチェックを外すと、C2PAのみの検証を即座に行えます。"
+  },
+  "showRawManifest": {
+    "message": "生のマニフェスト詳細を表示"
+  },
+  "claimsHeading": {
+    "message": "クレーム"
+  },
+  "wmModelsNeeded": {
+    "message": "透かし検出にはモデルが必要です。"
+  },
+  "wmInstallAll": {
+    "message": "すべてのモデルをインストール"
+  },
+  "wmScanFor": {
+    "message": "スキャン対象:"
+  },
+  "wmDropTitle": {
+    "message": "透かし検出を実行するファイルをここにドロップ"
+  },
+  "wmDropHint": {
+    "message": "プライベート: ファイルはお使いのマシンから外に出ません。各検出器は、入力ファイル形式に適用可能かどうかを自ら判断します。"
+  },
+  "wmLoading": {
+    "message": "透かし検出器を実行中…"
+  },
+  "wmLoadingHint": {
+    "message": "モデル推論は音声・動画でCPU負荷が高く、スキャンに数分かかる場合があります。表示が回転している間も処理は継続しています。"
+  },
+  "wmResultTitle": {
+    "message": "透かし検出"
+  },
+  "detectTitle": {
+    "message": "AIコンテンツ検出: 検出器は各自でご用意ください"
+  },
+  "detectRouteAHead": {
+    "message": "ルートA: 有料DLCパック(v1.x、計画中)"
+  },
+  "detectRouteBHead": {
+    "message": "ルートB: 運用者提供のラッパー(現在利用可能)"
+  },
+  "keysLocalIdentity": {
+    "message": "ローカルアイデンティティ"
+  },
+  "keysNoIdentity": {
+    "message": "このマシンにはアイデンティティがありません。"
+  },
+  "keysMismatchTitle": {
+    "message": "アイデンティティ状態の不一致"
+  },
+  "keysRotateBtn": {
+    "message": "新規発行 + 公開"
+  },
+  "keysRotateTitle": {
+    "message": "新しい署名鍵を発行し、新しいアクティブレコードとして公開します"
+  },
+  "keysSwitchYubikey": {
+    "message": "Yubikeyアイデンティティに切り替え…"
+  },
+  "keysSwitchYubikeyTitle": {
+    "message": "現在のアイデンティティをYubikeyベースのものに置き換えます"
+  },
+  "keysPublishedRecords": {
+    "message": "公開済みレコード(atproto)"
+  },
+  "keysRecordsEmptyHint": {
+    "message": "[署名]タブでログインし、ローカルのフィンガープリントを公開してください。"
+  },
+  "keysNotLoggedIn": {
+    "message": "atprotoにログインしていません。"
+  },
+  "keysNoSessionHint": {
+    "message": "[署名]タブでログインすると、公開済みレコードを取得できます。"
+  },
+  "signIdentityLabel": {
+    "message": "アイデンティティ:"
+  },
+  "signNotSetUp": {
+    "message": "未設定"
+  },
+  "signSessionLabel": {
+    "message": "セッション:"
+  },
+  "signDisconnected": {
+    "message": "未接続"
+  },
+  "signSetupTitle": {
+    "message": "署名アイデンティティを設定"
+  },
+  "signSetupBody": {
+    "message": "このマシン上で暗号鍵を生成し、OSのキーチェーンに保存します。この操作は一度だけで済みます。"
+  },
+  "signGenerateKey": {
+    "message": "署名鍵を生成"
+  },
+  "signSetupHint": {
+    "message": "鍵はお使いのマシンから外に出ません。アクセス確認はOSが処理します。"
+  },
+  "signConnectTitle": {
+    "message": "bskyアイデンティティを接続"
+  },
+  "signConnectBody": {
+    "message": "署名鍵をatprotoハンドルに紐付けることで、検証者があなたのものだと確認できるようになります。"
+  },
+  "signHandlePh": {
+    "message": "creator.bsky.social"
+  },
+  "signAppPassword": {
+    "message": "アプリパスワード"
+  },
+  "signRememberDevice": {
+    "message": "このデバイスで記憶する"
+  },
+  "signPublishTitle": {
+    "message": "署名鍵を公開"
+  },
+  "signPublishBody": {
+    "message": "最後のステップです。鍵のフィンガープリントをatprotoに公開すると、検証者があなたが作品に署名したことを照合できるようになります。これを行わないと、検証者には「不明な発行者による有効な署名」としか表示されません。"
+  },
+  "signLabelOptional": {
+    "message": "ラベル(任意)"
+  },
+  "signLabelPh": {
+    "message": "例: studio mac"
+  },
+  "signPublishKey": {
+    "message": "鍵を公開"
+  },
+  "signStaleTitle": {
+    "message": "署名鍵が古くなっています"
+  },
+  "signRecoverHeading": {
+    "message": "ターミナルから復旧:"
+  },
+  "signStaleHint": {
+    "message": "これにより新しい鍵を発行して新しいアクティブレコードとして公開し、必要に応じて孤立したレコードを失効させることで、失われた鍵で誰もあなたの名前で署名できないようにします。"
+  },
+  "signDropTitle": {
+    "message": "署名するファイルをここにドロップ"
+  },
+  "signDropSub": {
+    "message": "音声 · 画像 · 動画: c2pa-rsがサポートするあらゆる形式。"
+  },
+  "signReadyToSign": {
+    "message": "署名の準備完了"
+  },
+  "signChainTitle": {
+    "message": "このファイルはすでに署名されています。"
+  },
+  "signChainSub": {
+    "message": "あなたの署名は派生物としてチェーンに加わります。元の署名はそのまま保持されます。"
+  },
+  "signRelationshipQ": {
+    "message": "このファイルとの関係は?"
+  },
+  "signEmbedIdentity": {
+    "message": "アイデンティティ表明を埋め込む(推奨。検証者がハンドル入力の手順を省略できます)"
+  },
+  "signModelPh": {
+    "message": "例: ACE-Step v1.0"
+  },
+  "signReplaceOriginal": {
+    "message": "元のファイルを置き換える(サイドカーを書き出す代わりに)"
+  },
+  "signPickDifferent": {
+    "message": "別のファイルを選択"
+  },
+  "signSigning": {
+    "message": "署名中…"
+  },
+  "signSigned": {
+    "message": "署名済み"
+  },
+  "signAnother": {
+    "message": "別のファイルに署名"
+  },
+  "signVerifyIt": {
+    "message": "検証する"
+  },
+  "signErrorTitle": {
+    "message": "署名ステータスを読み込めませんでした"
+  },
+  "bfBackfireTitle": {
+    "message": "キー付きBackfireマークを読み取る"
+  },
+  "bfBackfireSub": {
+    "message": "AIの来歴除去ツールが除去する代わりに増幅させてしまう、画像ごとの透かしを検証します。"
+  },
+  "bfReaderLabel": {
+    "message": "Backfireリーダー"
+  },
+  "bfDropTitle": {
+    "message": "画像をここにドロップするか選択して、マークを読み取ります"
+  },
+  "bfChooseRead": {
+    "message": "画像を選択して読み取る"
+  },
+  "bfHint": {
+    "message": "まず上に鍵を入力してから、画像をドロップまたは選択してください。自動的に読み取られ、処理はお使いのマシン内で完結します。"
+  },
+  "bfLoading": {
+    "message": "Backfireマークを読み取り中…"
+  },
+  "mlTitle": {
+    "message": "キー付きMellinシリアルを読み取る"
+  },
+  "mlSub": {
+    "message": "音声側のキー付きフォレンジック: 独立したBUSLライセンスのprovcheck-mellinツール(非商用利用は無料、provcheckとは別)で埋め込んだ、コピーごとの64ビットシリアルを復元します。販売者の秘密ファイルと作品IDが必要です。すべての処理はお使いのマシン内で完結します。"
+  },
+  "mlReaderLabel": {
+    "message": "Mellinリーダー"
+  },
+  "mlSecretNone": {
+    "message": "未選択。秘密は保存されないため、起動のたびに再度選択してください。"
+  },
+  "mlWorkidPh": {
+    "message": "埋め込み時に使用した作品ID"
+  },
+  "mlDropTitle": {
+    "message": "シリアルを読み取る音声ファイルを選択"
+  },
+  "mlChooseRead": {
+    "message": "音声を選択して読み取る"
+  },
+  "mlHint": {
+    "message": "まず秘密ファイルを選択して作品IDを入力し、次に音声を選択するか、このタブ内の任意の場所にドロップしてください。どの形式でも動作します(WAV、MP3、AAC、FLAC)。音声ファイルはここで読み取り、画像は上のBackfireマークで読み取ります。"
+  },
+  "mlLoading": {
+    "message": "Mellinシリアルを読み取り中…"
+  },
+  "imTitle": {
+    "message": "キー付きidmarkアイデンティティマークを読み取る"
+  },
+  "imSub": {
+    "message": "画像側のキー付きアイデンティティ: 独立したBUSLライセンスのprovcheck-idmarkツール(非商用利用は無料、provcheckとは別)で埋め込んだ、切り抜き・トランスコード・回転に耐性のあるコピーごとのマークを読み取ります。秘密なしでは組み込みマークをチェックします。秘密ファイルとシートを追加すると、コピーの帰属を特定できます。すべての処理はお使いのマシン内で完結します。"
+  },
+  "imReaderLabel": {
+    "message": "idmarkリーダー"
+  },
+  "imSecretNone": {
+    "message": "未選択。空欄のままにすると組み込みマークを読み取ります。秘密は保存されません。"
+  },
+  "imDropTitle": {
+    "message": "マークを読み取る画像を選択"
+  },
+  "imChooseRead": {
+    "message": "画像を選択して読み取る"
+  },
+  "imHint": {
+    "message": "必要に応じて秘密ファイルとシートを先に選択し、次に画像を選択してください。PNGまたはJPEG形式。ここではidmarkアイデンティティマークを読み取ります。Backfireマークおよび Mellinシリアルは上のセクションで読み取ります。"
+  },
+  "imLoading": {
+    "message": "idmarkを読み取り中…"
+  },
+  "bfModalTitle": {
+    "message": "Backfireの仕組み"
+  },
+  "vVerified": {
+    "message": "検証済み"
+  },
+  "vUnsigned": {
+    "message": "未署名"
+  },
+  "vNotVerified": {
+    "message": "未検証"
+  },
+  "attAttestedBy": {
+    "message": "$1 による証明"
+  },
+  "attMatchSub": {
+    "message": "署名証明書は、このアイデンティティの下で公開された鍵と一致します。"
+  },
+  "attMismatch": {
+    "message": "$1 の証明が一致しません"
+  },
+  "attMismatchSub": {
+    "message": "署名証明書は、このアイデンティティの下で公開されたどの鍵とも一致しません。"
+  },
+  "attNotPublished": {
+    "message": "$1 の下に公開された鍵はありません"
+  },
+  "attNotPublishedSub": {
+    "message": "このアイデンティティは存在しますが、signingKeyレコードは一つも公開されていません。"
+  },
+  "attResolveFailed": {
+    "message": "$1 を解決できませんでした"
+  },
+  "attResolveFailedSub": {
+    "message": "アイデンティティの解決に失敗しました(ハンドル/DIDに到達できません)。"
+  },
+  "attThisIdentity": {
+    "message": "このアイデンティティ"
+  },
+  "kvSigner": {
+    "message": "署名者"
+  },
+  "kvSignedAt": {
+    "message": "署名日時"
+  },
+  "kvFormat": {
+    "message": "形式"
+  },
+  "kvManifest": {
+    "message": "マニフェスト"
+  },
+  "kvIngredients": {
+    "message": "構成要素"
+  },
+  "kvIngredientsVal": {
+    "message": "$1(派生コンテンツ:このファイルは以前に署名されたファイルを編集して作成されました)"
+  },
+  "kvValidationErrors": {
+    "message": "検証エラー"
+  },
+  "wmEmpty": {
+    "message": "実行された検出器ファミリーでは透かしは検出されませんでした。"
+  },
+  "wmKeyedNote": {
+    "message": "キー付きマーク(Backfire、Mellin)は今回のスキャンには含まれません。これらは[キー付きマーク]タブで、お使いの鍵を使ってのみ読み取れます。"
+  },
+  "wmConfidence": {
+    "message": "確信度 $1%"
+  },
+  "wmDegraded": {
+    "message": "確信度 $1%。マークは劣化しています(部分的な破損の可能性)"
+  },
+  "wmNa": {
+    "message": "$1: 該当なし"
+  },
+  "wmNoMark": {
+    "message": "$1: マークは検出されませんでした"
+  },
+  "wmTimelineAria": {
+    "message": "時間経過による透かしの有無: $1"
+  },
+  "wmUnrecognizedSource": {
+    "message": "不明な提供元"
+  },
+  "btnCopied": {
+    "message": "コピーしました"
+  },
+  "scanError": {
+    "message": "このファイルをスキャンできませんでした: $1"
+  },
+  "autoFilled": {
+    "message": "ファイルから自動入力"
+  },
+  "dragFileOnto": {
+    "message": "ファイルをウィンドウにドラッグしてください"
+  },
+  "aiGenerated": {
+    "message": "AI生成"
+  },
+  "btnCopiedBang": {
+    "message": "コピーしました!"
+  },
+  "bfCouldNotRun": {
+    "message": "Backfireを実行できませんでした"
+  },
+  "btnInstalling": {
+    "message": "インストール中…"
+  },
+  "downloadingModels": {
+    "message": "モデルをダウンロード中です。数分かかる場合があります…"
+  },
+  "btnWorking": {
+    "message": "処理中…"
+  },
+  "bfInstalling": {
+    "message": "Backfireリーダーをインストール/修復中…"
+  },
+  "statusCheckFailed": {
+    "message": "ステータス確認に失敗しました: $1"
+  },
+  "readingFile": {
+    "message": "$1 を読み取り中…"
+  },
+  "mlCouldNotRun": {
+    "message": "Mellinを実行できませんでした"
+  },
+  "imCouldNotRun": {
+    "message": "idmarkを実行できませんでした"
+  },
+  "keysMismSuperseded": {
+    "message": "ローカル鍵は失効しています(新しい鍵に置き換え済み)"
+  },
+  "keysMismRevoked": {
+    "message": "ローカル鍵は失効(取り消し)されています"
+  },
+  "keysMismActiveNoKey": {
+    "message": "アクティブなレコードは、あなたが持っていない鍵を使用しています"
+  },
+  "thisBox": {
+    "message": "(この端末)"
+  },
+  "btnRevoke": {
+    "message": "失効させる"
+  },
+  "checkingPublishedKeys": {
+    "message": "公開済みの鍵を確認中…"
+  },
+  "btnGenerating": {
+    "message": "生成中…"
+  },
+  "btnConnecting": {
+    "message": "接続中…"
+  },
+  "btnPublishing": {
+    "message": "公開中…"
+  },
+  "signReadyToPublish": {
+    "message": "公開の準備完了"
+  },
+  "bfMarkFound": {
+    "message": "Backfireマークが見つかりました"
+  },
+  "bfNoValidMark": {
+    "message": "有効なBackfireマークがありません"
+  },
+  "mlSerialRecovered": {
+    "message": "Mellinシリアルを復元しました"
+  },
+  "mlNoFullSerial": {
+    "message": "完全なMellinシリアルはありません"
+  },
+  "imPresent": {
+    "message": "idmarkあり"
+  },
+  "imNoDetected": {
+    "message": "idmarkは検出されませんでした"
+  },
+  "fieldIdentifier": {
+    "message": "識別子"
+  },
+  "fieldConfidenceMargin": {
+    "message": "確信度(最小ビットマージン)"
+  },
+  "fieldValid": {
+    "message": "有効"
+  },
+  "fieldMatchesSerial": {
+    "message": "期待されるシリアルと一致"
+  },
+  "fieldTamperTripwire": {
+    "message": "改ざん検知トリップワイヤー"
+  },
+  "fieldSerial": {
+    "message": "シリアル"
+  },
+  "fieldBitsRecovered": {
+    "message": "復元されたビット数"
+  },
+  "fieldErasureRate": {
+    "message": "消失率"
+  },
+  "fieldMinBitVotes": {
+    "message": "最小ビット投票数"
+  },
+  "fieldMarkPresent": {
+    "message": "マークあり"
+  },
+  "fieldSeat": {
+    "message": "シート"
+  },
+  "fieldMargin": {
+    "message": "マージン"
+  },
+  "fieldReadVia": {
+    "message": "読み取り方法"
+  },
+  "fieldEstRotation": {
+    "message": "推定回転角"
+  },
+  "fieldError": {
+    "message": "エラー"
+  },
+  "valYes": {
+    "message": "はい"
+  },
+  "valNo": {
+    "message": "いいえ"
+  },
+  "bfTamperDetected": {
+    "message": "ノッチの改ざんを検出しました(統計値 $1)"
+  },
+  "bfTamperClean": {
+    "message": "異常なし(統計値 $1)"
+  }
+}

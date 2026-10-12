@@ -1,0 +1,647 @@
+{
+  "headerSubtitle": {
+    "message": "توقيع والتحقق من C2PA Content Credentials"
+  },
+  "tabVerify": {
+    "message": "تحقق"
+  },
+  "tabWatermark": {
+    "message": "العلامة المائية"
+  },
+  "tabDetect": {
+    "message": "كشف"
+  },
+  "tabKeys": {
+    "message": "المفاتيح"
+  },
+  "tabSign": {
+    "message": "توقيع"
+  },
+  "tabKeyedMarks": {
+    "message": "العلامات المفتاحية"
+  },
+  "btnChooseFile": {
+    "message": "اختر ملفًا…"
+  },
+  "btnVerifyAnother": {
+    "message": "تحقق من ملف آخر"
+  },
+  "btnCopyJson": {
+    "message": "نسخ كـ JSON"
+  },
+  "btnCheckAnother": {
+    "message": "فحص ملف آخر"
+  },
+  "btnReadAnother": {
+    "message": "قراءة ملف آخر"
+  },
+  "btnLogOut": {
+    "message": "تسجيل الخروج"
+  },
+  "btnConnect": {
+    "message": "اتصال"
+  },
+  "btnCopy": {
+    "message": "نسخ"
+  },
+  "btnRetry": {
+    "message": "إعادة المحاولة"
+  },
+  "btnSign": {
+    "message": "توقيع"
+  },
+  "btnOK": {
+    "message": "موافق"
+  },
+  "btnCancel": {
+    "message": "إلغاء"
+  },
+  "btnGotIt": {
+    "message": "فهمت"
+  },
+  "btnHowItWorks": {
+    "message": "كيف يعمل"
+  },
+  "btnInstallRepair": {
+    "message": "تثبيت / إصلاح"
+  },
+  "btnChooseSecret": {
+    "message": "اختر ملف السر"
+  },
+  "btnClose": {
+    "message": "إغلاق"
+  },
+  "badgeExperimental": {
+    "message": "تجريبي"
+  },
+  "loadingGeneric": {
+    "message": "جارٍ التحميل…"
+  },
+  "statusChecking": {
+    "message": "جارٍ الفحص..."
+  },
+  "statusCheckingStatus": {
+    "message": "جارٍ فحص الحالة…"
+  },
+  "labelFingerprint": {
+    "message": "البصمة"
+  },
+  "labelAlgorithm": {
+    "message": "الخوارزمية"
+  },
+  "labelBackend": {
+    "message": "الخلفية"
+  },
+  "labelCreated": {
+    "message": "تاريخ الإنشاء"
+  },
+  "labelDID": {
+    "message": "DID"
+  },
+  "labelHandle": {
+    "message": "المعرّف"
+  },
+  "labelYubikey": {
+    "message": "Yubikey"
+  },
+  "labelPinTries": {
+    "message": "محاولات PIN"
+  },
+  "labelStatus": {
+    "message": "الحالة"
+  },
+  "labelLabel": {
+    "message": "التسمية"
+  },
+  "labelBy": {
+    "message": "بواسطة"
+  },
+  "labelTool": {
+    "message": "الأداة"
+  },
+  "labelFile": {
+    "message": "الملف"
+  },
+  "labelYourIdentity": {
+    "message": "هويتك"
+  },
+  "labelOutput": {
+    "message": "الناتج"
+  },
+  "aboutLinks": {
+    "message": "روابط"
+  },
+  "identityBskyHandle": {
+    "message": "معرّف Bsky"
+  },
+  "identityRunWatermark": {
+    "message": "تشغيل كشف العلامة المائية"
+  },
+  "identityRequireAttested": {
+    "message": "طلب التصديق"
+  },
+  "identityHandlePh": {
+    "message": "اختياري · مثل creator.bsky.social أو did:plc:…"
+  },
+  "dropzoneTitle": {
+    "message": "أفلت أي ملف هنا للتحقق"
+  },
+  "dropzoneSub": {
+    "message": "صوت · صورة · فيديو: أي شيء يحمل C2PA Content Credentials."
+  },
+  "verifyDropHint": {
+    "message": "أو شغّل دون شيء وستبقى هذه المساحة كما هي. خصوصية: الملفات لا تغادر جهازك أبدًا."
+  },
+  "verifyLoading": {
+    "message": "جارٍ التحقق…"
+  },
+  "verifyLoadingHint": {
+    "message": "كشف العلامة المائية عملية ثقيلة على المعالج في الصوت والفيديو وقد يستغرق بضع دقائق. ألغِ تحديد \"تشغيل كشف العلامة المائية\" للحصول على تحقق فوري من C2PA فقط."
+  },
+  "showRawManifest": {
+    "message": "إظهار تفاصيل البيان الخام"
+  },
+  "claimsHeading": {
+    "message": "الادعاءات"
+  },
+  "wmModelsNeeded": {
+    "message": "كشف العلامة المائية يحتاج إلى نماذج."
+  },
+  "wmInstallAll": {
+    "message": "تثبيت كل النماذج"
+  },
+  "wmScanFor": {
+    "message": "البحث عن:"
+  },
+  "wmDropTitle": {
+    "message": "أفلت أي ملف هنا لتشغيل كشف العلامة المائية"
+  },
+  "wmDropHint": {
+    "message": "خصوصية: الملفات لا تغادر جهازك أبدًا. كل كاشف هو المرجع فيما إذا كان ينطبق على نوع ملف الإدخال."
+  },
+  "wmLoading": {
+    "message": "جارٍ تشغيل كواشف العلامة المائية…"
+  },
+  "wmLoadingHint": {
+    "message": "استدلال النموذج عملية ثقيلة على المعالج في الصوت والفيديو؛ قد يستغرق الفحص بضع دقائق. العمل مستمر أثناء الدوران."
+  },
+  "wmResultTitle": {
+    "message": "كشف العلامة المائية"
+  },
+  "detectTitle": {
+    "message": "كشف محتوى الذكاء الاصطناعي: أحضر كاشفك الخاص"
+  },
+  "detectRouteAHead": {
+    "message": "المسار A: حزمة DLC مدفوعة (v1.x، مخطط لها)"
+  },
+  "detectRouteBHead": {
+    "message": "المسار B: غلاف مقدَّم من المشغّل (متاح الآن)"
+  },
+  "keysLocalIdentity": {
+    "message": "الهوية المحلية"
+  },
+  "keysNoIdentity": {
+    "message": "لا توجد هوية على هذا الجهاز."
+  },
+  "keysMismatchTitle": {
+    "message": "عدم تطابق في حالة الهوية"
+  },
+  "keysRotateBtn": {
+    "message": "إنشاء جديد + نشر"
+  },
+  "keysRotateTitle": {
+    "message": "إنشاء مفتاح توقيع جديد ونشره كسجل نشط جديد"
+  },
+  "keysSwitchYubikey": {
+    "message": "التبديل إلى هوية Yubikey…"
+  },
+  "keysSwitchYubikeyTitle": {
+    "message": "استبدال الهوية الحالية بهوية مدعومة بـ Yubikey"
+  },
+  "keysPublishedRecords": {
+    "message": "السجلات المنشورة (atproto)"
+  },
+  "keysRecordsEmptyHint": {
+    "message": "سجّل الدخول في تبويب التوقيع وانشر بصمتك المحلية."
+  },
+  "keysNotLoggedIn": {
+    "message": "لم يتم تسجيل الدخول إلى atproto."
+  },
+  "keysNoSessionHint": {
+    "message": "سجّل الدخول في تبويب التوقيع لجلب سجلاتك المنشورة."
+  },
+  "signIdentityLabel": {
+    "message": "الهوية:"
+  },
+  "signNotSetUp": {
+    "message": "غير مُعدّة"
+  },
+  "signSessionLabel": {
+    "message": "الجلسة:"
+  },
+  "signDisconnected": {
+    "message": "غير متصل"
+  },
+  "signSetupTitle": {
+    "message": "إعداد هوية التوقيع الخاصة بك"
+  },
+  "signSetupBody": {
+    "message": "هذا ينشئ مفتاحًا تشفيريًا على هذا الجهاز ويخزّنه في سلسلة مفاتيح نظام التشغيل لديك. ستحتاج إلى فعل هذا مرة واحدة فقط."
+  },
+  "signGenerateKey": {
+    "message": "إنشاء مفتاح توقيع"
+  },
+  "signSetupHint": {
+    "message": "المفتاح لا يغادر جهازك أبدًا. نظام التشغيل لديك يتولى طلبات الوصول."
+  },
+  "signConnectTitle": {
+    "message": "اربط هويتك على bsky"
+  },
+  "signConnectBody": {
+    "message": "أرفق مفتاح التوقيع الخاص بك بمعرّف atproto الخاص بك حتى يعرف المتحققون أنه ملكك."
+  },
+  "signHandlePh": {
+    "message": "creator.bsky.social"
+  },
+  "signAppPassword": {
+    "message": "كلمة مرور التطبيق"
+  },
+  "signRememberDevice": {
+    "message": "تذكرني على هذا الجهاز"
+  },
+  "signPublishTitle": {
+    "message": "انشر مفتاح التوقيع الخاص بك"
+  },
+  "signPublishBody": {
+    "message": "خطوة أخيرة: نشر بصمة مفتاحك في atproto يتيح للمتحققين التأكد من أنك من وقّع عملك. بدون هذا سيرون فقط \"توقيع صالح من مجهول\"."
+  },
+  "signLabelOptional": {
+    "message": "التسمية (اختياري)"
+  },
+  "signLabelPh": {
+    "message": "مثل استوديو ماك"
+  },
+  "signPublishKey": {
+    "message": "نشر المفتاح"
+  },
+  "signStaleTitle": {
+    "message": "مفتاح التوقيع الخاص بك قديم"
+  },
+  "signRecoverHeading": {
+    "message": "الاسترداد من الطرفية:"
+  },
+  "signStaleHint": {
+    "message": "هذا ينشئ مفتاحًا جديدًا، وينشره كسجل نشط جديد، و(عند الحاجة) يلغي السجل اليتيم حتى لا يتمكن أحد من التوقيع باسمك بالمفتاح المفقود."
+  },
+  "signDropTitle": {
+    "message": "أفلت ملفًا هنا للتوقيع"
+  },
+  "signDropSub": {
+    "message": "صوت · صورة · فيديو: أي شيء يدعمه c2pa-rs."
+  },
+  "signReadyToSign": {
+    "message": "جاهز للتوقيع"
+  },
+  "signChainTitle": {
+    "message": "هذا الملف موقّع بالفعل."
+  },
+  "signChainSub": {
+    "message": "سينضم توقيعك إلى السلسلة كنسخة مشتقة؛ يبقى التوقيع الأصلي سليمًا."
+  },
+  "signRelationshipQ": {
+    "message": "ما علاقتك بهذا الملف؟"
+  },
+  "signEmbedIdentity": {
+    "message": "تضمين تأكيد الهوية (موصى به؛ يتيح للمتحققين تخطي خطوة إدخال المعرّف)"
+  },
+  "signModelPh": {
+    "message": "مثل ACE-Step v1.0"
+  },
+  "signReplaceOriginal": {
+    "message": "استبدال الملف الأصلي (بدلاً من كتابة ملف جانبي)"
+  },
+  "signPickDifferent": {
+    "message": "اختيار ملف مختلف"
+  },
+  "signSigning": {
+    "message": "جارٍ التوقيع…"
+  },
+  "signSigned": {
+    "message": "موقّع"
+  },
+  "signAnother": {
+    "message": "توقيع ملف آخر"
+  },
+  "signVerifyIt": {
+    "message": "تحقق منه"
+  },
+  "signErrorTitle": {
+    "message": "تعذّر تحميل حالة التوقيع الخاصة بك"
+  },
+  "bfBackfireTitle": {
+    "message": "قراءة علامة Backfire مفتاحية"
+  },
+  "bfBackfireSub": {
+    "message": "تحقق من علامة مائية لكل صورة تعمل أدوات إزالة أصل الذكاء الاصطناعي على تضخيمها بدلاً من إزالتها."
+  },
+  "bfReaderLabel": {
+    "message": "قارئ Backfire"
+  },
+  "bfDropTitle": {
+    "message": "أفلت صورة هنا، أو اختر واحدة، لقراءة علامتها"
+  },
+  "bfChooseRead": {
+    "message": "اختيار صورة والقراءة"
+  },
+  "bfHint": {
+    "message": "أدخل مفتاحك أعلاه أولاً، ثم أفلت أو اختر صورة. تُقرأ تلقائيًا، وتبقى على جهازك."
+  },
+  "bfLoading": {
+    "message": "جارٍ قراءة علامة Backfire…"
+  },
+  "mlTitle": {
+    "message": "قراءة رقم تسلسلي مفتاحي من Mellin"
+  },
+  "mlSub": {
+    "message": "تحليل جنائي مفتاحي على جانب الصوت: استرجع الرقم التسلسلي المكوّن من 64 بت لكل نسخة الذي ضمّنته بأداة provcheck-mellin المستقلة المرخصة بـ BUSL (مجانية للاستخدام غير التجاري، منفصلة عن provcheck). تحتاج إلى ملف السر الخاص بالبائع ومعرّف العمل؛ كل شيء يبقى على جهازك."
+  },
+  "mlReaderLabel": {
+    "message": "قارئ Mellin"
+  },
+  "mlSecretNone": {
+    "message": "لم يُختر شيء. لا يُخزَّن السر أبدًا، لذا اخترْه مجددًا بعد كل تشغيل."
+  },
+  "mlWorkidPh": {
+    "message": "معرّف العمل المستخدم عند التضمين"
+  },
+  "mlDropTitle": {
+    "message": "اختر ملف صوت لقراءة رقمه التسلسلي"
+  },
+  "mlChooseRead": {
+    "message": "اختيار صوت والقراءة"
+  },
+  "mlHint": {
+    "message": "اختر ملف السر الخاص بك وأدخل معرّف العمل أولاً، ثم اختر الصوت أو أفلته في أي مكان في هذا التبويب. تعمل كل الصيغ (WAV، MP3، AAC، FLAC)؛ تُقرأ ملفات الصوت هنا، بينما تُقرأ الصور من علامة Backfire أعلاه."
+  },
+  "mlLoading": {
+    "message": "جارٍ قراءة الرقم التسلسلي لـ Mellin…"
+  },
+  "imTitle": {
+    "message": "قراءة علامة هوية idmark مفتاحية"
+  },
+  "imSub": {
+    "message": "هوية مفتاحية على جانب الصورة: اقرأ العلامة لكل نسخة المقاومة للقص والترميز الجديد والتدوير، المضمّنة بأداة provcheck-idmark المستقلة المرخصة بـ BUSL (مجانية للاستخدام غير التجاري، منفصلة عن provcheck). بدون سر تفحص العلامة المدمجة؛ أضف ملف السر الخاص بك ومقعدًا لنسب نسخة معينة. كل شيء يبقى على جهازك."
+  },
+  "imReaderLabel": {
+    "message": "قارئ idmark"
+  },
+  "imSecretNone": {
+    "message": "لم يُختر شيء. اتركه فارغًا لقراءة العلامة المدمجة؛ لا يُخزَّن السر أبدًا."
+  },
+  "imDropTitle": {
+    "message": "اختر صورة لقراءة علامتها"
+  },
+  "imChooseRead": {
+    "message": "اختيار صورة والقراءة"
+  },
+  "imHint": {
+    "message": "اختياريًا، اختر ملف السر الخاص بك ومقعدًا أولاً، ثم اختر الصورة. PNG أو JPEG. هذا يقرأ علامة هوية idmark؛ تُقرأ علامة Backfire والأرقام التسلسلية لـ Mellin في الأقسام أعلاه."
+  },
+  "imLoading": {
+    "message": "جارٍ قراءة idmark…"
+  },
+  "bfModalTitle": {
+    "message": "كيف يعمل Backfire"
+  },
+  "vVerified": {
+    "message": "تم التحقق"
+  },
+  "vUnsigned": {
+    "message": "غير موقّع"
+  },
+  "vNotVerified": {
+    "message": "لم يتم التحقق"
+  },
+  "attAttestedBy": {
+    "message": "مصدَّق من قِبل $1"
+  },
+  "attMatchSub": {
+    "message": "شهادة التوقيع تطابق مفتاحًا منشورًا تحت هذه الهوية."
+  },
+  "attMismatch": {
+    "message": "عدم تطابق التصديق لـ $1"
+  },
+  "attMismatchSub": {
+    "message": "شهادة التوقيع لا تطابق أي مفتاح منشور تحت هذه الهوية."
+  },
+  "attNotPublished": {
+    "message": "لا توجد مفاتيح منشورة تحت $1"
+  },
+  "attNotPublishedSub": {
+    "message": "هذه الهوية موجودة لكنها لم تنشر أي سجلات signingKey."
+  },
+  "attResolveFailed": {
+    "message": "تعذّر تحليل $1"
+  },
+  "attResolveFailedSub": {
+    "message": "فشل تحليل الهوية (المعرّف/DID غير قابل للوصول)."
+  },
+  "attThisIdentity": {
+    "message": "هذه الهوية"
+  },
+  "kvSigner": {
+    "message": "الموقِّع"
+  },
+  "kvSignedAt": {
+    "message": "تاريخ التوقيع"
+  },
+  "kvFormat": {
+    "message": "الصيغة"
+  },
+  "kvManifest": {
+    "message": "البيان"
+  },
+  "kvIngredients": {
+    "message": "المكوّنات"
+  },
+  "kvIngredientsVal": {
+    "message": "$1 (محتوى مشتق: تم إنشاء هذا الملف بتحرير ملفات موقّعة سابقًا)"
+  },
+  "kvValidationErrors": {
+    "message": "أخطاء التحقق"
+  },
+  "wmEmpty": {
+    "message": "لم يتم اكتشاف أي علامات مائية بواسطة عائلات الكواشف التي عملت."
+  },
+  "wmKeyedNote": {
+    "message": "العلامات المفتاحية (Backfire، Mellin) ليست جزءًا من هذا الفحص. يمكن قراءتها فقط بمفتاحك، في تبويب العلامات المفتاحية."
+  },
+  "wmConfidence": {
+    "message": "ثقة $1%"
+  },
+  "wmDegraded": {
+    "message": "ثقة $1%؛ العلامة متدهورة (تلف جزئي محتمل)"
+  },
+  "wmNa": {
+    "message": "$1: غير متاح"
+  },
+  "wmNoMark": {
+    "message": "$1: لم يتم اكتشاف علامة"
+  },
+  "wmTimelineAria": {
+    "message": "وجود العلامة المائية عبر الزمن: $1"
+  },
+  "wmUnrecognizedSource": {
+    "message": "مصدر غير معروف"
+  },
+  "btnCopied": {
+    "message": "تم النسخ"
+  },
+  "scanError": {
+    "message": "تعذّر فحص هذا الملف: $1"
+  },
+  "autoFilled": {
+    "message": "تعبئة تلقائية من الملف"
+  },
+  "dragFileOnto": {
+    "message": "اسحب الملف إلى النافذة"
+  },
+  "aiGenerated": {
+    "message": "منشأ بالذكاء الاصطناعي"
+  },
+  "btnCopiedBang": {
+    "message": "تم النسخ!"
+  },
+  "bfCouldNotRun": {
+    "message": "تعذّر تشغيل Backfire"
+  },
+  "btnInstalling": {
+    "message": "جارٍ التثبيت…"
+  },
+  "downloadingModels": {
+    "message": "جارٍ تنزيل النماذج، قد يستغرق هذا دقيقة…"
+  },
+  "btnWorking": {
+    "message": "جارٍ العمل…"
+  },
+  "bfInstalling": {
+    "message": "جارٍ تثبيت / إصلاح قارئ Backfire…"
+  },
+  "statusCheckFailed": {
+    "message": "فشل فحص الحالة: $1"
+  },
+  "readingFile": {
+    "message": "جارٍ قراءة $1…"
+  },
+  "mlCouldNotRun": {
+    "message": "تعذّر تشغيل Mellin"
+  },
+  "imCouldNotRun": {
+    "message": "تعذّر تشغيل idmark"
+  },
+  "keysMismSuperseded": {
+    "message": "تم استبدال مفتاحك المحلي"
+  },
+  "keysMismRevoked": {
+    "message": "تم إلغاء مفتاحك المحلي"
+  },
+  "keysMismActiveNoKey": {
+    "message": "السجل النشط يستخدم مفتاحًا لا تملكه"
+  },
+  "thisBox": {
+    "message": "(هذا المربع)"
+  },
+  "btnRevoke": {
+    "message": "إلغاء"
+  },
+  "checkingPublishedKeys": {
+    "message": "جارٍ فحص المفاتيح المنشورة…"
+  },
+  "btnGenerating": {
+    "message": "جارٍ الإنشاء…"
+  },
+  "btnConnecting": {
+    "message": "جارٍ الاتصال…"
+  },
+  "btnPublishing": {
+    "message": "جارٍ النشر…"
+  },
+  "signReadyToPublish": {
+    "message": "جاهز للنشر"
+  },
+  "bfMarkFound": {
+    "message": "تم العثور على علامة Backfire"
+  },
+  "bfNoValidMark": {
+    "message": "لا توجد علامة Backfire صالحة"
+  },
+  "mlSerialRecovered": {
+    "message": "تم استرجاع الرقم التسلسلي لـ Mellin"
+  },
+  "mlNoFullSerial": {
+    "message": "لا يوجد رقم تسلسلي كامل لـ Mellin"
+  },
+  "imPresent": {
+    "message": "علامة idmark موجودة"
+  },
+  "imNoDetected": {
+    "message": "لم يتم اكتشاف idmark"
+  },
+  "fieldIdentifier": {
+    "message": "المعرّف"
+  },
+  "fieldConfidenceMargin": {
+    "message": "الثقة (هامش أدنى بت)"
+  },
+  "fieldValid": {
+    "message": "صالح"
+  },
+  "fieldMatchesSerial": {
+    "message": "يطابق الرقم التسلسلي المتوقع"
+  },
+  "fieldTamperTripwire": {
+    "message": "كاشف العبث"
+  },
+  "fieldSerial": {
+    "message": "الرقم التسلسلي"
+  },
+  "fieldBitsRecovered": {
+    "message": "البتات المسترجعة"
+  },
+  "fieldErasureRate": {
+    "message": "معدل المحو"
+  },
+  "fieldMinBitVotes": {
+    "message": "الحد الأدنى لأصوات البت"
+  },
+  "fieldMarkPresent": {
+    "message": "العلامة موجودة"
+  },
+  "fieldSeat": {
+    "message": "المقعد"
+  },
+  "fieldMargin": {
+    "message": "الهامش"
+  },
+  "fieldReadVia": {
+    "message": "قُرئت عبر"
+  },
+  "fieldEstRotation": {
+    "message": "الدوران المقدَّر"
+  },
+  "fieldError": {
+    "message": "خطأ"
+  },
+  "valYes": {
+    "message": "نعم"
+  },
+  "valNo": {
+    "message": "لا"
+  },
+  "bfTamperDetected": {
+    "message": "تم اكتشاف عبث بالحز (إحصائية $1)"
+  },
+  "bfTamperClean": {
+    "message": "نظيف (إحصائية $1)"
+  }
+}

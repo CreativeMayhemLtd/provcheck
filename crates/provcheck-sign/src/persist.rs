@@ -119,9 +119,7 @@ pub fn save_public_artefacts(dir: &Path, locked: &LockedIdentity) -> Result<(), 
         source: e,
     })?;
 
-    // Cert chain: write atomically via a sibling temp file +
-    // rename. Avoids a half-written chain.pem on disk if the
-    // process is killed mid-write.
+    // Atomic temp-file + rename: no half-written chain.pem if killed mid-write.
     let chain_path = chain_pem_path(dir);
     let tmp = chain_path.with_extension("pem.tmp");
     fs::write(&tmp, &locked.chain_pem).map_err(|e| PersistError::Io {
@@ -160,8 +158,7 @@ pub fn save_public_artefacts(dir: &Path, locked: &LockedIdentity) -> Result<(), 
         source: e,
     })?;
 
-    // Owner-only file perms on Unix. Windows inherits ACL from
-    // %APPDATA%; no per-file perm bits to set.
+    // Owner-only perms on Unix; Windows inherits ACL from %APPDATA%.
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -249,11 +246,7 @@ mod tests {
         }
     }
 
-    // ----- Path-helper invariants ----------
-    //
-    // Pin the on-disk layout so a future refactor can't silently
-    // move files around. Operators back these up by directory;
-    // a layout drift would break their backups.
+    // Pin the on-disk layout: operators back up by directory, so a silent layout drift breaks their backups.
 
     #[test]
     fn keys_dir_is_keys_subdir_of_base() {
@@ -281,8 +274,7 @@ mod tests {
 
     #[test]
     fn age_key_path_is_signing_dot_key_dot_age_in_keys_dir() {
-        // The age-encrypted private key file. Path is documented;
-        // external tools (rage CLI, go age) read this format.
+        // External tools (rage, go age) read this documented path.
         let base = std::path::Path::new("/some/base");
         assert_eq!(
             age_key_path(base),
@@ -292,9 +284,7 @@ mod tests {
 
     #[test]
     fn all_path_helpers_compose_under_keys_dir() {
-        // Cross-helper consistency: every per-file path must be
-        // inside keys_dir(). Catches a future helper that forgets
-        // to .join("keys").
+        // Every per-file path must live under keys_dir(); catches a helper that forgets .join("keys").
         let base = std::path::Path::new("/foo/bar");
         let keys = keys_dir(base);
         for p in [
@@ -309,8 +299,6 @@ mod tests {
             );
         }
     }
-
-    // ----- PersistError Display contracts ----------
 
     #[test]
     fn data_dir_unavailable_display_mentions_platform_data_dir() {
@@ -348,8 +336,7 @@ mod tests {
         assert!(keys_dir(dir.path()).is_dir());
         assert!(chain_pem_path(dir.path()).is_file());
         assert!(identity_json_path(dir.path()).is_file());
-        // We don't write the encrypted key file in this layer —
-        // that's the EncryptedFileProvider's job (sub-pass 3).
+        // This layer doesn't write the encrypted key file (the provider's job).
         assert!(!age_key_path(dir.path()).exists());
     }
 
@@ -409,7 +396,6 @@ mod tests {
         let dir = TempDir::new().expect("tempdir");
         let locked = sample_locked(KeyProviderKind::EncryptedFile);
         save_public_artefacts(dir.path(), &locked).expect("save");
-        // Rewrite identity.json with a different schema version.
         let json = r#"{"schema_version":99,"fingerprint":"sha256:abc","algorithm":"ES256","created_at":"2026-06-13T12:00:00Z","key_provider":"encrypted_file"}"#;
         fs::write(identity_json_path(dir.path()), json).expect("write");
         let err = load_locked(dir.path()).expect_err("should fail");
@@ -428,8 +414,7 @@ mod tests {
         let locked = sample_locked(KeyProviderKind::EncryptedFile);
         save_public_artefacts(dir.path(), &locked).expect("save");
 
-        // The .tmp sidecar files used during the atomic-rename
-        // pattern should not be left behind on success.
+        // Atomic-rename .tmp sidecars must not be left behind on success.
         let chain_tmp = keys_dir(dir.path()).join("signing.pem.tmp");
         let id_tmp = keys_dir(dir.path()).join("identity.json.tmp");
         assert!(
@@ -446,9 +431,7 @@ mod tests {
 
     #[test]
     fn default_dir_returns_provcheck_kit_subdir_on_supported_platforms() {
-        // On any reasonable platform with a HOME envvar (which
-        // includes the test runner), default_dir succeeds and
-        // names "provcheck-kit" as the leaf.
+        // With a HOME envvar (incl. the test runner), default_dir resolves to a "provcheck-kit" leaf.
         let d = default_dir().expect("data dir resolves");
         assert_eq!(
             d.file_name().and_then(|s| s.to_str()),

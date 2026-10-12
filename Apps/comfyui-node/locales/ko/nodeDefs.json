@@ -1,0 +1,31 @@
+{
+  "ProvcheckC2PA": {
+    "display_name": "Provcheck (무료 C2PA 워터마크) • Creative Mayhem",
+    "description": "ComfyUI를 위한 무료 오픈소스(Apache-2.0) provcheck입니다. 이미지, 오디오, 비디오를 하나의 노드로 처리합니다. WRITE(쓰기): 무료 워터마크를 삽입하고(이미지에는 TrustMark, 오디오/비디오의 오디오 트랙에는 silentcipher), 필요에 따라 로컬 키와 atproto/Bluesky 신원으로 C2PA 서명을 수행하며, 생성 그래프를 함께 기록할 수도 있습니다. 서명된 파일은 출력 디렉터리에 기록됩니다. READ(읽기): 연결된 각 입력에서 provcheck 마크를 감지/검증합니다. 이미지, 오디오, 비디오 또는 이들의 조합을 자유롭게 연결하십시오. 출력 파일 이름을 포함한 모든 옵션은 다른 노드에서 연결할 수 있는 위젯이기도 합니다. Creative Mayhem은 AI 스트리핑이 제거 대신 오히려 증폭시키는 키드 마크인 Backfire도 제공합니다(이 무료 패키지에는 포함되지 않은 상용 애드온입니다): https://provcheck.ai/backfire . 자세한 내용: https://provcheck.ai",
+    "inputs": {
+      "mode": {
+        "name": "mode",
+        "tooltip": "쓰기 = 연결된 각 입력에 워터마크를 삽입하거나 C2PA로 서명합니다(가장 일반적으로 사용). 읽기 = 기존 provcheck 마크를 감지/검증합니다.",
+        "options": { "write": "쓰기", "read": "읽기" }
+      },
+      "image": { "name": "이미지", "tooltip": "쓰기 또는 읽기 대상이 되는 이미지 배치(선택 사항)." },
+      "audio": { "name": "오디오", "tooltip": "쓰기 또는 읽기 대상이 되는 오디오(선택 사항)." },
+      "video": { "name": "비디오", "tooltip": "비디오(선택 사항). 워터마크는 오디오 트랙에 실리며(프레임은 그대로 유지됩니다), 컨테이너는 C2PA로 서명됩니다." },
+      "watermark": { "name": "watermark", "tooltip": "[쓰기] 무료 오픈소스 워터마크를 삽입합니다(이미지는 TrustMark, 오디오는 silentcipher)." },
+      "c2pa_sign": { "name": "c2pa_sign", "tooltip": "[쓰기] 로컬 서명 키로 C2PA 서명을 수행합니다. 서명된 파일은 ComfyUI 출력 디렉터리에 기록됩니다." },
+      "embed_identity": { "name": "embed_identity", "tooltip": "[쓰기] 매니페스트에 atproto/Bluesky 신원(DID 및 핸들)을 삽입하여 검증자가 서명자를 확인할 수 있도록 합니다. kit 로그인이 필요합니다." },
+      "record_provenance": { "name": "record_provenance", "tooltip": "[쓰기] 생성 그래프의 요약 정보(모델, 시드, 샘플러, 프롬프트)를 정리하여 서명된 매니페스트에 기록합니다." },
+      "include_full_workflow": { "name": "include_full_workflow", "tooltip": "[쓰기] record_provenance와 함께 사용 시, 요약뿐 아니라 전체(일부 정보가 가려진) 워크플로를 삽입합니다. 프롬프트/경로 유출을 방지하기 위해 기본값은 꺼짐입니다." },
+      "brand_id": { "name": "brand_id", "tooltip": "[쓰기] atproto 브랜드 레지스트리에서 발급받은 5비트 브랜드 ID입니다(0-31). 기본값 2는 공개 rAIdio.bot ID이므로 본인의 ID를 사용하십시오." },
+      "filename_prefix": { "name": "filename_prefix", "tooltip": "[쓰기, 파일이 기록될 때] 서명/워터마크가 적용된 파일의 출력 파일 이름 접두사입니다. 직접 편집할 수 있으며, 다른 노드에서 연결할 수도 있습니다(마우스 오른쪽 버튼 클릭 -> Convert to input)." },
+      "timeout_secs": { "name": "timeout_secs", "tooltip": "항목별 하위 프로세스 제한 시간(초)입니다." }
+    },
+    "outputs": {
+      "0": { "name": "이미지" },
+      "1": { "name": "오디오" },
+      "2": { "name": "비디오" },
+      "3": { "name": "보고서" },
+      "4": { "name": "감지됨" }
+    }
+  }
+}

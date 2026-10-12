@@ -1,0 +1,647 @@
+{
+  "headerSubtitle": {
+    "message": "Podepisujte a ověřujte C2PA Content Credentials"
+  },
+  "tabVerify": {
+    "message": "Ověřit"
+  },
+  "tabWatermark": {
+    "message": "Vodoznak"
+  },
+  "tabDetect": {
+    "message": "Detekce"
+  },
+  "tabKeys": {
+    "message": "Klíče"
+  },
+  "tabSign": {
+    "message": "Podepsat"
+  },
+  "tabKeyedMarks": {
+    "message": "Znaky s klíčem"
+  },
+  "btnChooseFile": {
+    "message": "Vybrat soubor…"
+  },
+  "btnVerifyAnother": {
+    "message": "Ověřit další"
+  },
+  "btnCopyJson": {
+    "message": "Kopírovat jako JSON"
+  },
+  "btnCheckAnother": {
+    "message": "Zkontrolovat další soubor"
+  },
+  "btnReadAnother": {
+    "message": "Přečíst další"
+  },
+  "btnLogOut": {
+    "message": "Odhlásit se"
+  },
+  "btnConnect": {
+    "message": "Připojit"
+  },
+  "btnCopy": {
+    "message": "Kopírovat"
+  },
+  "btnRetry": {
+    "message": "Zkusit znovu"
+  },
+  "btnSign": {
+    "message": "Podepsat"
+  },
+  "btnOK": {
+    "message": "OK"
+  },
+  "btnCancel": {
+    "message": "Zrušit"
+  },
+  "btnGotIt": {
+    "message": "Rozumím"
+  },
+  "btnHowItWorks": {
+    "message": "Jak to funguje"
+  },
+  "btnInstallRepair": {
+    "message": "Instalovat / opravit"
+  },
+  "btnChooseSecret": {
+    "message": "Vybrat soubor s tajným klíčem"
+  },
+  "btnClose": {
+    "message": "Zavřít"
+  },
+  "badgeExperimental": {
+    "message": "Experimentální"
+  },
+  "loadingGeneric": {
+    "message": "Načítání…"
+  },
+  "statusChecking": {
+    "message": "Kontrola..."
+  },
+  "statusCheckingStatus": {
+    "message": "Kontrola stavu…"
+  },
+  "labelFingerprint": {
+    "message": "Otisk"
+  },
+  "labelAlgorithm": {
+    "message": "Algoritmus"
+  },
+  "labelBackend": {
+    "message": "Backend"
+  },
+  "labelCreated": {
+    "message": "Vytvořeno"
+  },
+  "labelDID": {
+    "message": "DID"
+  },
+  "labelHandle": {
+    "message": "Uživatelské jméno"
+  },
+  "labelYubikey": {
+    "message": "Yubikey"
+  },
+  "labelPinTries": {
+    "message": "Pokusy PIN"
+  },
+  "labelStatus": {
+    "message": "Stav"
+  },
+  "labelLabel": {
+    "message": "Popisek"
+  },
+  "labelBy": {
+    "message": "Autor"
+  },
+  "labelTool": {
+    "message": "Nástroj"
+  },
+  "labelFile": {
+    "message": "Soubor"
+  },
+  "labelYourIdentity": {
+    "message": "Vaše identita"
+  },
+  "labelOutput": {
+    "message": "Výstup"
+  },
+  "aboutLinks": {
+    "message": "Odkazy"
+  },
+  "identityBskyHandle": {
+    "message": "Uživatelské jméno Bsky"
+  },
+  "identityRunWatermark": {
+    "message": "Spustit detekci vodoznaku"
+  },
+  "identityRequireAttested": {
+    "message": "Vyžadovat ověření"
+  },
+  "identityHandlePh": {
+    "message": "volitelné · např. creator.bsky.social nebo did:plc:…"
+  },
+  "dropzoneTitle": {
+    "message": "Přetáhněte sem libovolný soubor k ověření"
+  },
+  "dropzoneSub": {
+    "message": "Zvuk · Obrázek · Video: cokoli, co nese C2PA Content Credentials."
+  },
+  "verifyDropHint": {
+    "message": "Nebo spusťte bez ničeho a zůstane to tady. Soukromí: soubory nikdy neopustí váš počítač."
+  },
+  "verifyLoading": {
+    "message": "Ověřování…"
+  },
+  "verifyLoadingHint": {
+    "message": "Detekce vodoznaku je při zvuku a videu náročná na procesor a může trvat několik minut. Zrušte zaškrtnutí „Spustit detekci vodoznaku“ pro okamžité ověření pouze C2PA."
+  },
+  "showRawManifest": {
+    "message": "Zobrazit podrobnosti nezpracovaného manifestu"
+  },
+  "claimsHeading": {
+    "message": "Tvrzení"
+  },
+  "wmModelsNeeded": {
+    "message": "Detekce vodoznaku vyžaduje modely."
+  },
+  "wmInstallAll": {
+    "message": "Nainstalovat všechny modely"
+  },
+  "wmScanFor": {
+    "message": "Hledat:"
+  },
+  "wmDropTitle": {
+    "message": "Přetáhněte sem libovolný soubor pro spuštění detekce vodoznaku"
+  },
+  "wmDropHint": {
+    "message": "Soukromí: soubory nikdy neopustí váš počítač. Každý detektor sám rozhoduje, zda se vztahuje na daný typ souboru."
+  },
+  "wmLoading": {
+    "message": "Spouštění detektorů vodoznaku…"
+  },
+  "wmLoadingHint": {
+    "message": "Inference modelu je náročná na procesor u zvuku a videa; skenování může trvat několik minut. Stále to pracuje, dokud se to točí."
+  },
+  "wmResultTitle": {
+    "message": "Detekce vodoznaku"
+  },
+  "detectTitle": {
+    "message": "Detekce obsahu AI: připojte vlastní detektor"
+  },
+  "detectRouteAHead": {
+    "message": "Cesta A: placený balíček DLC (v1.x, plánováno)"
+  },
+  "detectRouteBHead": {
+    "message": "Cesta B: wrapper dodaný operátorem (dostupné nyní)"
+  },
+  "keysLocalIdentity": {
+    "message": "Místní identita"
+  },
+  "keysNoIdentity": {
+    "message": "Na tomto počítači není žádná identita."
+  },
+  "keysMismatchTitle": {
+    "message": "Neshoda stavu identity"
+  },
+  "keysRotateBtn": {
+    "message": "Vygenerovat nový a publikovat"
+  },
+  "keysRotateTitle": {
+    "message": "Vygenerujte nový podpisový klíč a publikujte jej jako nový aktivní záznam"
+  },
+  "keysSwitchYubikey": {
+    "message": "Přepnout na identitu Yubikey…"
+  },
+  "keysSwitchYubikeyTitle": {
+    "message": "Nahraďte aktuální identitu identitou založenou na Yubikey"
+  },
+  "keysPublishedRecords": {
+    "message": "Publikované záznamy (atproto)"
+  },
+  "keysRecordsEmptyHint": {
+    "message": "Přihlaste se na kartě Podepsat a publikujte svůj místní otisk."
+  },
+  "keysNotLoggedIn": {
+    "message": "Nejste přihlášeni k atproto."
+  },
+  "keysNoSessionHint": {
+    "message": "Přihlaste se na kartě Podepsat, abyste načetli své publikované záznamy."
+  },
+  "signIdentityLabel": {
+    "message": "Identita:"
+  },
+  "signNotSetUp": {
+    "message": "nenastaveno"
+  },
+  "signSessionLabel": {
+    "message": "Relace:"
+  },
+  "signDisconnected": {
+    "message": "odpojeno"
+  },
+  "signSetupTitle": {
+    "message": "Nastavte svou podpisovou identitu"
+  },
+  "signSetupBody": {
+    "message": "Tímto se vygeneruje kryptografický klíč na tomto počítači a uloží se do klíčenky OS. Budete to muset udělat jen jednou."
+  },
+  "signGenerateKey": {
+    "message": "Vygenerovat podpisový klíč"
+  },
+  "signSetupHint": {
+    "message": "Klíč nikdy neopustí váš počítač. Přístupové výzvy zpracovává váš OS."
+  },
+  "signConnectTitle": {
+    "message": "Připojte svou identitu bsky"
+  },
+  "signConnectBody": {
+    "message": "Připojte svůj podpisový klíč ke svému uživatelskému jménu atproto, aby ověřovatelé věděli, že je váš."
+  },
+  "signHandlePh": {
+    "message": "creator.bsky.social"
+  },
+  "signAppPassword": {
+    "message": "Heslo aplikace"
+  },
+  "signRememberDevice": {
+    "message": "Zapamatovat si mě na tomto zařízení"
+  },
+  "signPublishTitle": {
+    "message": "Publikujte svůj podpisový klíč"
+  },
+  "signPublishBody": {
+    "message": "Poslední krok: publikováním otisku vašeho klíče do atproto umožníte ověřovatelům zkontrolovat, že jste svou práci podepsali vy. Bez toho vidí jen „platný podpis od neznámého“."
+  },
+  "signLabelOptional": {
+    "message": "Popisek (volitelné)"
+  },
+  "signLabelPh": {
+    "message": "např. studiové mac"
+  },
+  "signPublishKey": {
+    "message": "Publikovat klíč"
+  },
+  "signStaleTitle": {
+    "message": "Váš podpisový klíč je zastaralý"
+  },
+  "signRecoverHeading": {
+    "message": "Obnovit z terminálu:"
+  },
+  "signStaleHint": {
+    "message": "Tímto se vygeneruje nový klíč, publikuje se jako nový aktivní záznam a (v případě potřeby) se zneplatní osiřelý záznam, aby nikdo nemohl podepisovat vaším jménem ztraceným klíčem."
+  },
+  "signDropTitle": {
+    "message": "Přetáhněte sem soubor k podepsání"
+  },
+  "signDropSub": {
+    "message": "Zvuk · Obrázek · Video: cokoli, co podporuje c2pa-rs."
+  },
+  "signReadyToSign": {
+    "message": "Připraveno k podpisu"
+  },
+  "signChainTitle": {
+    "message": "Tento soubor je již podepsán."
+  },
+  "signChainSub": {
+    "message": "Váš podpis se připojí k řetězci jako odvozený; původní podpis zůstává neporušený."
+  },
+  "signRelationshipQ": {
+    "message": "Jaký je váš vztah k tomuto souboru?"
+  },
+  "signEmbedIdentity": {
+    "message": "Vložit tvrzení o identitě (doporučeno; umožňuje ověřovatelům přeskočit krok zadávání uživatelského jména)"
+  },
+  "signModelPh": {
+    "message": "např. ACE-Step v1.0"
+  },
+  "signReplaceOriginal": {
+    "message": "Nahradit originál (místo vytvoření doprovodného souboru)"
+  },
+  "signPickDifferent": {
+    "message": "Vybrat jiný soubor"
+  },
+  "signSigning": {
+    "message": "Podepisování…"
+  },
+  "signSigned": {
+    "message": "Podepsáno"
+  },
+  "signAnother": {
+    "message": "Podepsat další"
+  },
+  "signVerifyIt": {
+    "message": "Ověřit to"
+  },
+  "signErrorTitle": {
+    "message": "Nepodařilo se načíst stav podepisování"
+  },
+  "bfBackfireTitle": {
+    "message": "Přečíst značku Backfire s klíčem"
+  },
+  "bfBackfireSub": {
+    "message": "Ověřte vodoznak jednotlivého obrázku, který nástroje pro odstranění původu AI zesilují místo odstranění."
+  },
+  "bfReaderLabel": {
+    "message": "Čtečka Backfire"
+  },
+  "bfDropTitle": {
+    "message": "Přetáhněte sem obrázek nebo jej vyberte pro přečtení jeho značky"
+  },
+  "bfChooseRead": {
+    "message": "Vybrat obrázek a číst"
+  },
+  "bfHint": {
+    "message": "Nejprve zadejte výše svůj klíč, poté přetáhněte nebo vyberte obrázek. Čte se automaticky a zůstává na vašem počítači."
+  },
+  "bfLoading": {
+    "message": "Čtení značky Backfire…"
+  },
+  "mlTitle": {
+    "message": "Přečíst sériové číslo Mellin s klíčem"
+  },
+  "mlSub": {
+    "message": "Zvuková forenzní analýza s klíčem: obnovte 64bitové sériové číslo pro danou kopii, vložené samostatným nástrojem provcheck-mellin s licencí BUSL (zdarma pro nekomerční použití, odděleně od provcheck). Vyžaduje soubor s tajným klíčem prodejce a id díla; vše zůstává na vašem počítači."
+  },
+  "mlReaderLabel": {
+    "message": "Čtečka Mellin"
+  },
+  "mlSecretNone": {
+    "message": "nevybráno. Tajný klíč se nikdy neukládá, takže jej vyberte znovu po každém spuštění."
+  },
+  "mlWorkidPh": {
+    "message": "id díla použité při vkládání"
+  },
+  "mlDropTitle": {
+    "message": "Vyberte zvukový soubor pro přečtení jeho sériového čísla"
+  },
+  "mlChooseRead": {
+    "message": "Vybrat zvuk a číst"
+  },
+  "mlHint": {
+    "message": "Nejprve vyberte svůj soubor s tajným klíčem a zadejte id díla, poté vyberte zvuk nebo jej přetáhněte kamkoli na tuto kartu. Funguje jakýkoli formát (WAV, MP3, AAC, FLAC); zvukové soubory se čtou zde, obrázky čte značka Backfire výše."
+  },
+  "mlLoading": {
+    "message": "Čtení sériového čísla Mellin…"
+  },
+  "imTitle": {
+    "message": "Přečíst identitní značku idmark s klíčem"
+  },
+  "imSub": {
+    "message": "Identita obrazu s klíčem: přečtěte značku pro danou kopii odolnou vůči oříznutí, převodu formátu a otočení, vloženou samostatným nástrojem provcheck-idmark s licencí BUSL (zdarma pro nekomerční použití, odděleně od provcheck). Bez tajného klíče kontroluje vestavěnou značku; přidejte svůj soubor s tajným klíčem a místo pro přiřazení kopie. Vše zůstává na vašem počítači."
+  },
+  "imReaderLabel": {
+    "message": "Čtečka idmark"
+  },
+  "imSecretNone": {
+    "message": "nevybráno. Ponechte prázdné pro přečtení vestavěné značky; tajný klíč se nikdy neukládá."
+  },
+  "imDropTitle": {
+    "message": "Vyberte obrázek pro přečtení jeho značky"
+  },
+  "imChooseRead": {
+    "message": "Vybrat obrázek a číst"
+  },
+  "imHint": {
+    "message": "Volitelně nejprve vyberte svůj soubor s tajným klíčem a místo, poté vyberte obrázek. PNG nebo JPEG. Toto čte identitní značku idmark; značka Backfire a sériová čísla Mellin se čtou v sekcích výše."
+  },
+  "imLoading": {
+    "message": "Čtení idmark…"
+  },
+  "bfModalTitle": {
+    "message": "Jak funguje Backfire"
+  },
+  "vVerified": {
+    "message": "Ověřeno"
+  },
+  "vUnsigned": {
+    "message": "Nepodepsáno"
+  },
+  "vNotVerified": {
+    "message": "Neověřeno"
+  },
+  "attAttestedBy": {
+    "message": "Ověřeno uživatelem $1"
+  },
+  "attMatchSub": {
+    "message": "Podpisový certifikát odpovídá klíči publikovanému pod touto identitou."
+  },
+  "attMismatch": {
+    "message": "Neshoda ověření pro $1"
+  },
+  "attMismatchSub": {
+    "message": "Podpisový certifikát neodpovídá žádnému klíči publikovanému pod touto identitou."
+  },
+  "attNotPublished": {
+    "message": "Pod $1 nejsou publikovány žádné klíče"
+  },
+  "attNotPublishedSub": {
+    "message": "Tato identita existuje, ale nepublikovala žádné záznamy signingKey."
+  },
+  "attResolveFailed": {
+    "message": "Nepodařilo se přeložit $1"
+  },
+  "attResolveFailedSub": {
+    "message": "Rozlišení identity selhalo (uživatelské jméno/DID nedostupné)."
+  },
+  "attThisIdentity": {
+    "message": "této identity"
+  },
+  "kvSigner": {
+    "message": "Podepisující"
+  },
+  "kvSignedAt": {
+    "message": "Podepsáno v"
+  },
+  "kvFormat": {
+    "message": "Formát"
+  },
+  "kvManifest": {
+    "message": "Manifest"
+  },
+  "kvIngredients": {
+    "message": "Ingredience"
+  },
+  "kvIngredientsVal": {
+    "message": "$1 (odvozený obsah: tento soubor vznikl úpravou dříve podepsaných souborů)"
+  },
+  "kvValidationErrors": {
+    "message": "Chyby validace"
+  },
+  "wmEmpty": {
+    "message": "Spuštěné rodiny detektorů nezjistily žádné vodoznaky."
+  },
+  "wmKeyedNote": {
+    "message": "Značky s klíčem (Backfire, Mellin) nejsou součástí tohoto skenování. Lze je přečíst pouze pomocí vašeho klíče na kartě Znaky s klíčem."
+  },
+  "wmConfidence": {
+    "message": "spolehlivost $1 %"
+  },
+  "wmDegraded": {
+    "message": "spolehlivost $1 %; značka je degradovaná (pravděpodobné částečné poškození)"
+  },
+  "wmNa": {
+    "message": "$1: n/a"
+  },
+  "wmNoMark": {
+    "message": "$1: nebyla zjištěna žádná značka"
+  },
+  "wmTimelineAria": {
+    "message": "Přítomnost vodoznaku v čase: $1"
+  },
+  "wmUnrecognizedSource": {
+    "message": "nerozpoznaný zdroj"
+  },
+  "btnCopied": {
+    "message": "Zkopírováno"
+  },
+  "scanError": {
+    "message": "Nepodařilo se prohledat tento soubor: $1"
+  },
+  "autoFilled": {
+    "message": "automaticky vyplněno ze souboru"
+  },
+  "dragFileOnto": {
+    "message": "Přetáhněte soubor do okna"
+  },
+  "aiGenerated": {
+    "message": "Generováno AI"
+  },
+  "btnCopiedBang": {
+    "message": "Zkopírováno!"
+  },
+  "bfCouldNotRun": {
+    "message": "Backfire se nepodařilo spustit"
+  },
+  "btnInstalling": {
+    "message": "Instalace…"
+  },
+  "downloadingModels": {
+    "message": "Stahování modelů, může to chvíli trvat…"
+  },
+  "btnWorking": {
+    "message": "Pracuje se…"
+  },
+  "bfInstalling": {
+    "message": "Instalace / oprava čtečky Backfire…"
+  },
+  "statusCheckFailed": {
+    "message": "Kontrola stavu selhala: $1"
+  },
+  "readingFile": {
+    "message": "Čtení $1…"
+  },
+  "mlCouldNotRun": {
+    "message": "Mellin se nepodařilo spustit"
+  },
+  "imCouldNotRun": {
+    "message": "idmark se nepodařilo spustit"
+  },
+  "keysMismSuperseded": {
+    "message": "Váš místní klíč byl nahrazen"
+  },
+  "keysMismRevoked": {
+    "message": "Váš místní klíč byl zneplatněn"
+  },
+  "keysMismActiveNoKey": {
+    "message": "Aktivní záznam používá klíč, který nemáte"
+  },
+  "thisBox": {
+    "message": "(tento počítač)"
+  },
+  "btnRevoke": {
+    "message": "Zneplatnit"
+  },
+  "checkingPublishedKeys": {
+    "message": "Kontrola publikovaných klíčů…"
+  },
+  "btnGenerating": {
+    "message": "Generování…"
+  },
+  "btnConnecting": {
+    "message": "Připojování…"
+  },
+  "btnPublishing": {
+    "message": "Publikování…"
+  },
+  "signReadyToPublish": {
+    "message": "Připraveno k publikaci"
+  },
+  "bfMarkFound": {
+    "message": "Značka Backfire nalezena"
+  },
+  "bfNoValidMark": {
+    "message": "Žádná platná značka Backfire"
+  },
+  "mlSerialRecovered": {
+    "message": "Sériové číslo Mellin obnoveno"
+  },
+  "mlNoFullSerial": {
+    "message": "Žádné úplné sériové číslo Mellin"
+  },
+  "imPresent": {
+    "message": "idmark přítomen"
+  },
+  "imNoDetected": {
+    "message": "idmark nebyl zjištěn"
+  },
+  "fieldIdentifier": {
+    "message": "Identifikátor"
+  },
+  "fieldConfidenceMargin": {
+    "message": "Spolehlivost (min-bit marže)"
+  },
+  "fieldValid": {
+    "message": "Platný"
+  },
+  "fieldMatchesSerial": {
+    "message": "Odpovídá očekávanému sériovému číslu"
+  },
+  "fieldTamperTripwire": {
+    "message": "Spouštěč narušení"
+  },
+  "fieldSerial": {
+    "message": "Sériové číslo"
+  },
+  "fieldBitsRecovered": {
+    "message": "Obnovené bity"
+  },
+  "fieldErasureRate": {
+    "message": "Míra ztráty"
+  },
+  "fieldMinBitVotes": {
+    "message": "Min. hlasů na bit"
+  },
+  "fieldMarkPresent": {
+    "message": "Značka přítomna"
+  },
+  "fieldSeat": {
+    "message": "Místo"
+  },
+  "fieldMargin": {
+    "message": "Marže"
+  },
+  "fieldReadVia": {
+    "message": "Přečteno přes"
+  },
+  "fieldEstRotation": {
+    "message": "Odh. otočení"
+  },
+  "fieldError": {
+    "message": "Chyba"
+  },
+  "valYes": {
+    "message": "ano"
+  },
+  "valNo": {
+    "message": "ne"
+  },
+  "bfTamperDetected": {
+    "message": "zjištěno narušení zářezu (statistika $1)"
+  },
+  "bfTamperClean": {
+    "message": "čisté (statistika $1)"
+  }
+}

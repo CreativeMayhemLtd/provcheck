@@ -152,10 +152,7 @@ impl SecretCache {
         if entry.expires_at <= now {
             return None;
         }
-        // Re-wrap the SecretString. The clone here is cheap (the
-        // underlying inner is Arc'd inside secrecy) and gives the
-        // caller an owned SecretString they can move out of the
-        // cache's lifetime.
+        // Cheap clone (secrecy inner is Arc'd) giving the caller an owned SecretString.
         Some(SecretString::from(entry.secret.expose_secret().to_string()))
     }
 
@@ -224,7 +221,6 @@ mod tests {
     fn entry_expires_after_ttl() {
         let (cache, clock) = manual_cache();
         cache.put(FP.to_string(), SecretString::from("the-key".to_string()));
-        // Just before TTL: still cached.
         clock.advance(Duration::from_secs(59));
         assert!(cache.get(FP).is_some());
         // Exactly at TTL: expired (strict-less-than semantics).
@@ -234,9 +230,7 @@ mod tests {
 
     #[test]
     fn get_does_not_extend_ttl() {
-        // Sliding-window TTLs would let an attacker keep an entry
-        // alive indefinitely. Confirm get() is read-only on the
-        // expiry deadline.
+        // Confirm get() doesn't slide the TTL (a sliding window would let an attacker keep an entry alive indefinitely).
         let (cache, clock) = manual_cache();
         cache.put(FP.to_string(), SecretString::from("k".to_string()));
         clock.advance(Duration::from_secs(30));
@@ -260,8 +254,7 @@ mod tests {
         cache.put(FP.to_string(), SecretString::from("v1".to_string()));
         clock.advance(Duration::from_secs(45));
         cache.put(FP.to_string(), SecretString::from("v2".to_string()));
-        // 30 sec after the second put: still cached (would have
-        // expired if put() were idempotent on TTL).
+        // Still cached 30s after the 2nd put (would have expired if put didn't reset TTL).
         clock.advance(Duration::from_secs(30));
         assert!(cache.get(FP).is_some());
     }
@@ -312,10 +305,7 @@ mod tests {
 
     #[test]
     fn cache_is_cheap_to_clone() {
-        // Clone shares state: a put on the clone is visible
-        // through the original. This is the property the CLI
-        // binary relies on — pass the cache by clone wherever
-        // needed without losing coherence.
+        // Clone shares state (a put on the clone is visible through the original) — the CLI relies on this.
         let (cache, _) = manual_cache();
         let cloned = cache.clone();
         cloned.put(FP.to_string(), SecretString::from("from-clone".to_string()));
@@ -327,8 +317,7 @@ mod tests {
 
     #[test]
     fn system_clock_advances_with_wall_time() {
-        // Sanity: the production clock is monotonic and actually
-        // moves forward between two calls.
+        // Sanity: the production clock is monotonic.
         let c = SystemClock;
         let t1 = c.now();
         let t2 = c.now();

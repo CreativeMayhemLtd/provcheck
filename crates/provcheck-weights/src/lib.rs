@@ -131,8 +131,7 @@ pub fn load_if_cached(family: &str, variant: &str) -> Result<PathBuf, Error> {
         });
     }
     if !verify::file_sha256_matches(&path, &entry.sha256)? {
-        // Stale or corrupted cache; remove + surface as NotCached
-        // so the caller gets a clean "needs install" signal.
+        // Stale/corrupt cache: remove it and surface NotCached so the caller gets a clean "needs install" signal.
         let _ = std::fs::remove_file(&path);
         return Err(Error::NotCached {
             family: entry.family,
@@ -154,8 +153,7 @@ pub fn download(family: &str, variant: &str) -> Result<PathBuf, Error> {
     let entry = entry(family, variant)?;
     let path = cache_path_for(entry)?;
 
-    // Idempotent: if a valid cached copy already exists, skip the
-    // network entirely.
+    // Idempotent: a valid cached copy skips the network entirely.
     if path.exists() && verify::file_sha256_matches(&path, &entry.sha256)? {
         return Ok(path);
     }
@@ -240,13 +238,7 @@ pub struct WeightCacheState {
     pub valid: bool,
 }
 
-// NOTE: an `install_all()` bulk pre-fetch was deliberately removed
-// from the public API per the v0.7 phase 8a design direction
-// ("always respect the user"). The kit's `weights install`
-// subcommand takes one family at a time. Operators who genuinely
-// want everything installed can script it from `MANIFEST` directly,
-// but the default flow does not push a download decision on the
-// user.
+// No `install_all()` bulk pre-fetch by design ("always respect the user"): the kit installs one family at a time.
 
 fn hex(bytes: &[u8]) -> String {
     let mut s = String::with_capacity(bytes.len() * 2);
@@ -268,8 +260,6 @@ fn leak(s: &str) -> &'static str {
 mod tests {
     use super::*;
 
-    // ----- entry() lookup ----------
-
     #[test]
     fn entry_silentcipher_encoder_is_present() {
         let r = entry("silentcipher", "encoder");
@@ -284,8 +274,7 @@ mod tests {
 
     #[test]
     fn entry_audioseal_present_for_both_variants() {
-        // Detector + generator variants. `gen` is a reserved
-        // keyword in edition 2024 — avoid it as an identifier.
+        // Named `generator`, not `gen`: `gen` is a reserved keyword in edition 2024.
         let detector = entry("audioseal", "detector");
         let generator = entry("audioseal", "generator");
         assert!(detector.is_ok(), "audioseal/detector must be in manifest");
@@ -302,8 +291,6 @@ mod tests {
 
     #[test]
     fn entry_unknown_family_with_known_variant_still_errors() {
-        // "encoder" exists for silentcipher; "nope/encoder"
-        // must still error.
         let r = entry("nope-not-a-family", "encoder");
         assert!(matches!(r, Err(Error::UnknownWeight { .. })));
     }
@@ -326,8 +313,6 @@ mod tests {
         }
     }
 
-    // ----- hex helper ----------
-
     #[test]
     fn hex_empty_input_is_empty_string() {
         assert_eq!(hex(&[]), "");
@@ -335,8 +320,7 @@ mod tests {
 
     #[test]
     fn hex_is_lowercase_only() {
-        // Mirrors the hex_lower contract in attestation-spec.
-        // Pin lowercase explicitly.
+        // Mirrors the hex_lower lowercase contract in attestation-spec.
         let s = hex(&[0xDE, 0xAD, 0xBE, 0xEF]);
         assert_eq!(s, "deadbeef");
         assert!(!s.chars().any(|c| c.is_ascii_uppercase()));
@@ -350,20 +334,14 @@ mod tests {
         }
     }
 
-    // ----- WeightCacheState shape ----------
-
     #[test]
     fn weight_cache_state_is_copy() {
-        // WeightCacheState is Copy per its derive; pin so a
-        // future refactor that adds a non-Copy field has to
-        // confront this test.
         fn assert_copy<T: Copy>() {}
         assert_copy::<WeightCacheState>();
     }
 
     #[test]
     fn manifest_has_trustmark_entries() {
-        // v1 manifest ships TrustMark-B decoder + encoder.
         assert!(entry("trustmark", "b-decoder").is_ok());
         assert!(entry("trustmark", "b-encoder").is_ok());
     }

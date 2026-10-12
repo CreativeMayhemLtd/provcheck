@@ -1,0 +1,67 @@
+{
+  "ProvcheckC2PA": {
+    "display_name": "Provcheck (Gratis C2PA-vattenmärke) • Creative Mayhem",
+    "description": "Gratis, öppen (Apache-2.0) provcheck för ComfyUI — en nod för bild, ljud och video. SKRIV: bäddar in det gratis vattenmärket (TrustMark på bilder, silentcipher på ljudspåret för ljud/video) och/eller C2PA-signerar med din lokala nyckel + atproto/Bluesky-identitet, valfritt med registrering av genereringsgrafen; den signerade filen skrivs till din utdatakatalog. LÄS: upptäcker/verifierar en provcheck-markering på varje ansluten indata. Anslut en bild, ljud, video eller valfri blandning. Varje alternativ är en widget som även kan anslutas från en annan nod, inklusive utdatafilnamnet. Creative Mayhem tillverkar även Backfire, en nyckelbaserad markering som AI-borttagning förstärker istället för att ta bort (kommersiellt tillägg, ingår inte i detta gratispaket): https://provcheck.ai/backfire . Mer: https://provcheck.ai",
+    "inputs": {
+      "mode": {
+        "name": "mode",
+        "tooltip": "skriv = sätt vattenmärke och/eller C2PA-signera varje ansluten indata (vanligast). läs = upptäck/verifiera en befintlig provcheck-markering.",
+        "options": {
+          "write": "skriv",
+          "read": "läs"
+        }
+      },
+      "image": {
+        "name": "Bild",
+        "tooltip": "Valfri bildbatch att skriva till / läsa från."
+      },
+      "audio": {
+        "name": "Ljud",
+        "tooltip": "Valfritt ljud att skriva till / läsa från."
+      },
+      "video": {
+        "name": "Video",
+        "tooltip": "Valfri video. Vattenmärket ligger på ljudspåret (bildrutorna bevaras); behållaren C2PA-signeras."
+      },
+      "watermark": {
+        "name": "watermark",
+        "tooltip": "[skriv] Bäddar in det gratis FOSS-vattenmärket (TrustMark bild / silentcipher ljud)."
+      },
+      "c2pa_sign": {
+        "name": "c2pa_sign",
+        "tooltip": "[skriv] C2PA-signerar med din lokala signeringsnyckel. Den signerade filen skrivs till din ComfyUI-utdatakatalog."
+      },
+      "embed_identity": {
+        "name": "embed_identity",
+        "tooltip": "[skriv] Bäddar in din atproto/Bluesky-identitet (DID + handle) i manifestet så att en verifierare ser vem som signerade det. Kräver kit-inloggning."
+      },
+      "record_provenance": {
+        "name": "record_provenance",
+        "tooltip": "[skriv] Registrerar en sammanställd sammanfattning av genereringsgrafen (modell, seed, sampler, prompter) i det signerade manifestet."
+      },
+      "include_full_workflow": {
+        "name": "include_full_workflow",
+        "tooltip": "[skriv] Tillsammans med record_provenance: bäddar in HELA (redigerade) arbetsflödet, inte bara sammanfattningen. Avstängt som standard för att undvika att prompter/sökvägar läcker."
+      },
+      "brand_id": {
+        "name": "brand_id",
+        "tooltip": "[skriv] Ditt 5-bitars brand-id från atproto-varumärkesregistret (0-31). Standardvärdet 2 är det publika rAIdio.bot-id:t; använd ditt eget."
+      },
+      "filename_prefix": {
+        "name": "filename_prefix",
+        "tooltip": "[skriv, när en fil skrivs] Prefix för utdatafilnamnet för de signerade/vattenmärkta filerna. Redigerbart, och kan anslutas från en annan nod (högerklicka -> Konvertera till indata)."
+      },
+      "timeout_secs": {
+        "name": "timeout_secs",
+        "tooltip": "Timeout per objekt för underprocessen, i sekunder."
+      }
+    },
+    "outputs": {
+      "0": { "name": "Bild" },
+      "1": { "name": "Ljud" },
+      "2": { "name": "Video" },
+      "3": { "name": "Rapport" },
+      "4": { "name": "Upptäckt" }
+    }
+  }
+}

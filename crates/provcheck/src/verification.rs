@@ -54,24 +54,16 @@ pub fn verify(path: &Path) -> Result<Report, Error> {
 /// error. A present-but-malformed or tamper-broken manifest is
 /// reported as `verified: false` with a descriptive `failure_reason`.
 pub fn verify_with_options(path: &Path, opts: &VerifyOptions) -> Result<Report, Error> {
-    // Validate trust-store PEM before touching the filesystem — a
-    // malformed PEM is a caller bug, not a file problem, and we want
-    // it to surface cleanly regardless of whether the target file
-    // exists.
+    // Validate the PEM before touching the filesystem: a malformed PEM is a caller bug, not a file problem.
     if let Some(pem) = opts.trust_store_pem.as_deref() {
         crate::sanity_check_pem(pem)?;
     }
 
-    // Guard: file must exist and be a file. c2pa::Reader would also
-    // surface this, but a preflight check gives us a cleaner error.
+    // Preflight metadata for a cleaner error than c2pa::Reader would give.
     let _ = std::fs::metadata(path)?;
 
     let reader_result = if let Some(pem) = opts.trust_store_pem.as_deref() {
-        // Build a Settings object that layers the caller's PEM bundle
-        // on top of the default C2PA trust list. c2pa parses the PEM
-        // lazily at verification time, so a malformed bundle surfaces
-        // as a Reader error — we preflight it with `sanity_check_pem`
-        // above to return a cleaner Error::InvalidTrustStore.
+        // Layer the caller's PEM onto the default trust list; c2pa parses it lazily (preflighted above).
         let mut settings = c2pa::Settings::default();
         settings.trust.user_anchors = Some(pem.to_string());
         let context = c2pa::Context::new()
@@ -106,22 +98,24 @@ pub fn verify_with_options(path: &Path, opts: &VerifyOptions) -> Result<Report, 
                 ingredient_count: 0,
                 format: None,
                 validation_errors: 1,
+                // A present-but-unparseable C2PA box is positive tamper evidence, distinct from unsigned or hash-failing.
+                provenance_tamper: Some(format!(
+                    "a C2PA provenance box is present but does not parse — provenance metadata appears corrupted or partially removed ({e})"
+                )),
                 did_attestation: None,
                 identity: None,
                 parents: Vec::new(),
                 watermarks: Vec::new(),
                 detections: Vec::new(),
+                checks: Vec::new(),
             });
         }
-        Err(e) => return Err(Error::C2pa(e)),
+        Err(e) => return Err(e.into()),
     };
 
     let state = reader.validation_state();
 
-    // Failure codes that we intentionally DO NOT treat as verification
-    // failures for the default `verified` flag. Trust-list membership
-    // is a separate dimension, reported via `trusted`. Callers who
-    // want to enforce trust set `VerifyOptions::require_trusted`.
+    // Codes intentionally NOT counted as verification failures: trust-list membership is a separate dimension.
     const TRUST_POLICY_IGNORED: &[&str] = &[
         "signingCredential.untrusted",
         "timeStamp.untrusted",
@@ -141,14 +135,7 @@ pub fn verify_with_options(path: &Path, opts: &VerifyOptions) -> Result<Report, 
         .filter(|s| !TRUST_POLICY_IGNORED.contains(&s.code()))
         .count();
 
-    // Trust-list membership is only evaluated when the caller asked a
-    // trust question — i.e. they supplied a trust store OR demanded
-    // `require_trusted`. Without that, the `trusted` field stays None
-    // and renderers omit the trust line entirely. Rationale: the c2pa
-    // crate emits `signingCredential.untrusted` against its default
-    // CAI trust list for any cert that isn't in it, which is most
-    // per-install signing certs. Reporting "untrusted" by default
-    // would be technically accurate but materially misleading.
+    // Only evaluate trust when the caller asked: c2pa flags most per-install certs "untrusted" by default, which would mislead.
     let trust_was_configured = opts.trust_store_pem.is_some() || opts.require_trusted;
     let trusted = if trust_was_configured {
         evaluate_trust(&reader)
@@ -156,14 +143,12 @@ pub fn verify_with_options(path: &Path, opts: &VerifyOptions) -> Result<Report, 
         None
     };
 
-    // `verified` cryptographic integrity — same definition as before.
     let crypto_ok = matches!(
         state,
         c2pa::ValidationState::Valid | c2pa::ValidationState::Trusted
     );
     let crypto_and_no_errors = crypto_ok && validation_errors == 0;
 
-    // Apply the caller's trust requirement on top of crypto.
     let verified = if opts.require_trusted {
         crypto_and_no_errors && matches!(trusted, Some(true))
     } else {
@@ -195,12 +180,7 @@ pub fn verify_with_options(path: &Path, opts: &VerifyOptions) -> Result<Report, 
                 .cloned()
                 .unwrap_or_else(|_| serde_json::Value::String("<value unavailable>".into()));
 
-            // c2pa-rs sometimes appends a hashed disambiguation suffix
-            // to user-defined assertion labels (e.g.
-            // "app.provcheck.identity__jumbf=..."). Match both the bare
-            // label and any string that starts with the label + "__".
-            // The first valid IdentityClaim we find wins (assertions
-            // are walked in manifest order).
+            // c2pa-rs may suffix user labels (e.g. "...__jumbf="); is_identity_label matches both shapes, first valid wins.
             if identity_claim.is_none()
                 && is_identity_label(&key)
                 && let Ok(claim) =
@@ -272,11 +252,14 @@ pub fn verify_with_options(path: &Path, opts: &VerifyOptions) -> Result<Report, 
         ingredient_count,
         format,
         validation_errors,
+        // A parseable manifest has an intact box; tampering here surfaces via validation_errors, not this field.
+        provenance_tamper: None,
         did_attestation: None,
         identity,
         parents,
         watermarks: Vec::new(),
         detections: Vec::new(),
+        checks: Vec::new(),
     })
 }
 
@@ -298,8 +281,7 @@ fn walk_parent_chain(reader: &c2pa::Reader) -> Vec<crate::report::ParentManifest
     };
     let mut chain = Vec::new();
     let mut current = active;
-    // Bound the loop so a pathological store with a cycle can't
-    // hang the verifier. Real chains are typically 1-2 deep.
+    // Bounded so a cyclic store can't hang the verifier; real chains are 1-2 deep.
     for _ in 0..8 {
         let Some(parent_label) = current
             .ingredients()
@@ -314,7 +296,6 @@ fn walk_parent_chain(reader: &c2pa::Reader) -> Vec<crate::report::ParentManifest
         };
         let sig = parent_manifest.signature_info();
         let signer = sig.and_then(|s| s.common_name.clone().or_else(|| s.issuer.clone()));
-        // Try to extract the parent's app.provcheck.identity claim.
         let identity = parent_manifest
             .assertions()
             .iter()
@@ -352,14 +333,7 @@ fn is_identity_label(label: &str) -> bool {
 }
 
 fn evaluate_trust(reader: &c2pa::Reader) -> Option<bool> {
-    // Trust is a tri-state: trusted / untrusted / unknown.
-    //
-    // The c2pa crate records SIGNING_CREDENTIAL_TRUSTED as a SUCCESS
-    // status and SIGNING_CREDENTIAL_UNTRUSTED as a FAILURE status.
-    // `reader.validation_status()` only surfaces errors — so a
-    // cleanly-trusted cert is invisible there. We have to look at
-    // the full ValidationResults (success + failure lists) to
-    // distinguish "trusted" from "not evaluated".
+    // Use full ValidationResults, not validation_status() (errors-only): a trusted cert is a SUCCESS status, invisible there.
     let results = reader.validation_results()?;
     let active = results.active_manifest()?;
 
@@ -384,8 +358,6 @@ fn evaluate_trust(reader: &c2pa::Reader) -> Option<bool> {
 mod tests {
     use super::*;
 
-    // ----- VerifyOptions::default ----------
-
     #[test]
     fn verify_options_default_has_no_trust_store() {
         let opts = VerifyOptions::default();
@@ -394,22 +366,10 @@ mod tests {
 
     #[test]
     fn verify_options_default_does_not_require_trusted() {
-        // The website's FAQ documents this contract: by default
-        // the verifier reports what the crypto says without
-        // demoting based on trust-anchor membership. Pin so a
-        // future maintainer doesn't silently flip the default
-        // (which would change every `provcheck file.wav` exit
-        // code on signed-but-not-trust-anchored content).
+        // Flipping this default would change the exit code of every signed-but-not-trust-anchored file.
         let opts = VerifyOptions::default();
         assert!(!opts.require_trusted);
     }
-
-    // ----- is_identity_label ----------
-    //
-    // c2pa-rs sometimes decorates assertion labels with `__<suffix>`
-    // disambiguators when a hash collision occurs. The producer
-    // always writes the bare label; the verifier must accept both
-    // shapes. Pin both branches plus the dot-suffix variant.
 
     #[test]
     fn is_identity_label_accepts_bare_label() {
@@ -445,22 +405,16 @@ mod tests {
 
     #[test]
     fn is_identity_label_rejects_prefix_match_without_separator() {
-        // The label "app.provcheck.identityXX" (no separator)
-        // must NOT match — only `__` and `.` are documented
-        // suffixes. Pin the strict-separator contract.
+        // Only `__` and `.` are valid suffix separators; a bare prefix must not match.
         let prefix = format!("{}XX", provcheck_attestation_spec::IDENTITY_ASSERTION_LABEL);
         assert!(!is_identity_label(&prefix));
     }
 
     #[test]
     fn is_identity_label_rejects_substring_inside_label() {
-        // The label substring inside a longer string (not as
-        // prefix) must NOT match.
         let inside = format!("x.{}", provcheck_attestation_spec::IDENTITY_ASSERTION_LABEL);
         assert!(!is_identity_label(&inside));
     }
-
-    // ----- verify() error paths ----------
 
     #[test]
     fn verify_missing_file_returns_io_error() {

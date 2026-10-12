@@ -100,18 +100,42 @@ Plus the pre-push regression gate fires automatically via
 
 ~10 minutes. Releases never bypass with `--no-verify`.
 
-### 3. cargo audit clean against tolerated-list
+### 3. cargo audit clean against tolerated-list (BOTH locks; re-sync the app lock first)
+
+`app/src-tauri/` lives outside the workspace and carries its OWN
+`Cargo.lock`, which resolves independently and tends to drift older
+than the workspace lock. A security bump applied to the workspace
+does NOT reach the app until the app lock is re-synced, so the app
+can ship a vulnerable crate the workspace already fixed. (v1.5.0
+QA found exactly this: the workspace had cleared the rustls
+RUSTSEC-2026-0285 fix in a64eff9, but `app/src-tauri/Cargo.lock`
+still pinned the vulnerable rustls, reachable via attestation TLS.)
+
+So audit BOTH locks, and re-sync the app lock before auditing it:
 
 ```bash
+# Workspace
 cargo audit --ignore RUSTSEC-XXXX-YYYY --ignore RUSTSEC-XXXX-ZZZZ
+
+# Re-sync app/src-tauri, then audit it too. For every advisory the app
+# reports that is NOT in the tolerated table, bump it in the app lock
+# (targeted `cargo update -p <crate>` to mirror the workspace fix) and
+# re-audit until only the tolerated IDs remain. The app lock must be at
+# least as patched as the workspace lock for every shared crate.
+( cd app/src-tauri
+  cargo update -p <crate>            # one per workspace security bump, or
+  # cargo update                     # a full periodic sync (review the diff)
+  cargo audit --ignore RUSTSEC-XXXX-YYYY --ignore RUSTSEC-XXXX-ZZZZ
+)
 ```
 
-The ignored advisories must match the **Tolerated transitive
-advisories** table in `SECURITY.md`. Per the
+The ignored advisories in BOTH runs must match the **Tolerated
+transitive advisories** table in `SECURITY.md` (which is split into
+a Workspace and an `app/src-tauri` section for this reason). Per the
 `feedback_tolerated_advisories_watch` memory note: on each pass,
-diff against the tolerated table — if any advisory has cleared
-upstream, bump the dep and remove the row in the same commit
-as the release.
+diff against the tolerated table, and if any advisory has cleared
+upstream, bump the dep and remove the row in the same commit as the
+release.
 
 ### 4. README changelog row
 

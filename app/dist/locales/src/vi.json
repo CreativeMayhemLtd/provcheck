@@ -1,0 +1,647 @@
+{
+  "headerSubtitle": {
+    "message": "Ký và xác minh C2PA Content Credentials"
+  },
+  "tabVerify": {
+    "message": "Xác minh"
+  },
+  "tabWatermark": {
+    "message": "Watermark"
+  },
+  "tabDetect": {
+    "message": "Phát hiện"
+  },
+  "tabKeys": {
+    "message": "Khóa"
+  },
+  "tabSign": {
+    "message": "Ký"
+  },
+  "tabKeyedMarks": {
+    "message": "Dấu hiệu theo khóa"
+  },
+  "btnChooseFile": {
+    "message": "Chọn tệp…"
+  },
+  "btnVerifyAnother": {
+    "message": "Xác minh tệp khác"
+  },
+  "btnCopyJson": {
+    "message": "Sao chép dưới dạng JSON"
+  },
+  "btnCheckAnother": {
+    "message": "Kiểm tra tệp khác"
+  },
+  "btnReadAnother": {
+    "message": "Đọc tệp khác"
+  },
+  "btnLogOut": {
+    "message": "Đăng xuất"
+  },
+  "btnConnect": {
+    "message": "Kết nối"
+  },
+  "btnCopy": {
+    "message": "Sao chép"
+  },
+  "btnRetry": {
+    "message": "Thử lại"
+  },
+  "btnSign": {
+    "message": "Ký"
+  },
+  "btnOK": {
+    "message": "OK"
+  },
+  "btnCancel": {
+    "message": "Hủy"
+  },
+  "btnGotIt": {
+    "message": "Đã hiểu"
+  },
+  "btnHowItWorks": {
+    "message": "Cách hoạt động"
+  },
+  "btnInstallRepair": {
+    "message": "Cài đặt / Sửa chữa"
+  },
+  "btnChooseSecret": {
+    "message": "Chọn tệp bí mật"
+  },
+  "btnClose": {
+    "message": "Đóng"
+  },
+  "badgeExperimental": {
+    "message": "Thử nghiệm"
+  },
+  "loadingGeneric": {
+    "message": "Đang tải…"
+  },
+  "statusChecking": {
+    "message": "Đang kiểm tra..."
+  },
+  "statusCheckingStatus": {
+    "message": "Đang kiểm tra trạng thái…"
+  },
+  "labelFingerprint": {
+    "message": "Vân tay"
+  },
+  "labelAlgorithm": {
+    "message": "Thuật toán"
+  },
+  "labelBackend": {
+    "message": "Backend"
+  },
+  "labelCreated": {
+    "message": "Đã tạo"
+  },
+  "labelDID": {
+    "message": "DID"
+  },
+  "labelHandle": {
+    "message": "Handle"
+  },
+  "labelYubikey": {
+    "message": "Yubikey"
+  },
+  "labelPinTries": {
+    "message": "Số lần thử PIN"
+  },
+  "labelStatus": {
+    "message": "Trạng thái"
+  },
+  "labelLabel": {
+    "message": "Nhãn"
+  },
+  "labelBy": {
+    "message": "Bởi"
+  },
+  "labelTool": {
+    "message": "Công cụ"
+  },
+  "labelFile": {
+    "message": "Tệp"
+  },
+  "labelYourIdentity": {
+    "message": "Danh tính của bạn"
+  },
+  "labelOutput": {
+    "message": "Đầu ra"
+  },
+  "aboutLinks": {
+    "message": "Liên kết"
+  },
+  "identityBskyHandle": {
+    "message": "Handle Bsky"
+  },
+  "identityRunWatermark": {
+    "message": "Chạy phát hiện watermark"
+  },
+  "identityRequireAttested": {
+    "message": "Yêu cầu đã được chứng thực"
+  },
+  "identityHandlePh": {
+    "message": "tùy chọn · ví dụ creator.bsky.social hoặc did:plc:…"
+  },
+  "dropzoneTitle": {
+    "message": "Thả bất kỳ tệp nào vào đây để xác minh"
+  },
+  "dropzoneSub": {
+    "message": "Âm thanh · Hình ảnh · Video: bất kỳ tệp nào mang C2PA Content Credentials."
+  },
+  "verifyDropHint": {
+    "message": "Hoặc chạy mà không có gì và mục này sẽ giữ nguyên. Riêng tư: tệp không bao giờ rời khỏi máy của bạn."
+  },
+  "verifyLoading": {
+    "message": "Đang xác minh…"
+  },
+  "verifyLoadingHint": {
+    "message": "Việc phát hiện watermark tốn nhiều CPU đối với âm thanh và video, và có thể mất vài phút. Bỏ chọn \"Chạy phát hiện watermark\" để xác minh chỉ C2PA tức thì."
+  },
+  "showRawManifest": {
+    "message": "Hiển thị chi tiết manifest thô"
+  },
+  "claimsHeading": {
+    "message": "Tuyên bố"
+  },
+  "wmModelsNeeded": {
+    "message": "Phát hiện watermark cần các mô hình."
+  },
+  "wmInstallAll": {
+    "message": "Cài đặt tất cả mô hình"
+  },
+  "wmScanFor": {
+    "message": "Quét tìm:"
+  },
+  "wmDropTitle": {
+    "message": "Thả bất kỳ tệp nào vào đây để chạy phát hiện watermark"
+  },
+  "wmDropHint": {
+    "message": "Riêng tư: tệp không bao giờ rời khỏi máy của bạn. Mỗi bộ phát hiện có thẩm quyền quyết định liệu nó có áp dụng cho loại tệp đầu vào hay không."
+  },
+  "wmLoading": {
+    "message": "Đang chạy các bộ phát hiện watermark…"
+  },
+  "wmLoadingHint": {
+    "message": "Suy luận mô hình tốn nhiều CPU đối với âm thanh và video; việc quét có thể mất vài phút. Vẫn đang hoạt động trong khi biểu tượng này xoay."
+  },
+  "wmResultTitle": {
+    "message": "Phát hiện watermark"
+  },
+  "detectTitle": {
+    "message": "Phát hiện nội dung AI: tự mang bộ phát hiện của bạn"
+  },
+  "detectRouteAHead": {
+    "message": "Lộ trình A: gói DLC trả phí (v1.x, đã lên kế hoạch)"
+  },
+  "detectRouteBHead": {
+    "message": "Lộ trình B: trình bao do người vận hành cung cấp (đã có sẵn)"
+  },
+  "keysLocalIdentity": {
+    "message": "Danh tính cục bộ"
+  },
+  "keysNoIdentity": {
+    "message": "Không có danh tính nào trên máy này."
+  },
+  "keysMismatchTitle": {
+    "message": "Trạng thái danh tính không khớp"
+  },
+  "keysRotateBtn": {
+    "message": "Tạo mới + xuất bản"
+  },
+  "keysRotateTitle": {
+    "message": "Tạo một khóa ký mới và xuất bản nó làm bản ghi đang hoạt động mới"
+  },
+  "keysSwitchYubikey": {
+    "message": "Chuyển sang danh tính Yubikey…"
+  },
+  "keysSwitchYubikeyTitle": {
+    "message": "Thay thế danh tính hiện tại bằng một danh tính dựa trên Yubikey"
+  },
+  "keysPublishedRecords": {
+    "message": "Bản ghi đã xuất bản (atproto)"
+  },
+  "keysRecordsEmptyHint": {
+    "message": "Đăng nhập ở tab Sign và xuất bản vân tay cục bộ của bạn."
+  },
+  "keysNotLoggedIn": {
+    "message": "Chưa đăng nhập vào atproto."
+  },
+  "keysNoSessionHint": {
+    "message": "Đăng nhập ở tab Sign để lấy các bản ghi đã xuất bản của bạn."
+  },
+  "signIdentityLabel": {
+    "message": "Danh tính:"
+  },
+  "signNotSetUp": {
+    "message": "chưa được thiết lập"
+  },
+  "signSessionLabel": {
+    "message": "Phiên:"
+  },
+  "signDisconnected": {
+    "message": "đã ngắt kết nối"
+  },
+  "signSetupTitle": {
+    "message": "Thiết lập danh tính ký của bạn"
+  },
+  "signSetupBody": {
+    "message": "Thao tác này tạo một khóa mật mã trên máy này và lưu trữ nó trong keychain hệ điều hành của bạn. Bạn chỉ cần làm việc này một lần."
+  },
+  "signGenerateKey": {
+    "message": "Tạo khóa ký"
+  },
+  "signSetupHint": {
+    "message": "Khóa không bao giờ rời khỏi máy của bạn. Hệ điều hành của bạn xử lý các lời nhắc truy cập."
+  },
+  "signConnectTitle": {
+    "message": "Kết nối danh tính bsky của bạn"
+  },
+  "signConnectBody": {
+    "message": "Gắn khóa ký của bạn với handle atproto của bạn để người xác minh biết đó là của bạn."
+  },
+  "signHandlePh": {
+    "message": "creator.bsky.social"
+  },
+  "signAppPassword": {
+    "message": "Mật khẩu ứng dụng"
+  },
+  "signRememberDevice": {
+    "message": "Nhớ tôi trên thiết bị này"
+  },
+  "signPublishTitle": {
+    "message": "Xuất bản khóa ký của bạn"
+  },
+  "signPublishBody": {
+    "message": "Một bước cuối cùng: xuất bản vân tay của khóa bạn lên atproto cho phép người xác minh đối chiếu rằng bạn đã ký tác phẩm của mình. Nếu không có điều này, họ chỉ thấy \"chữ ký hợp lệ bởi người không xác định.\""
+  },
+  "signLabelOptional": {
+    "message": "Nhãn (tùy chọn)"
+  },
+  "signLabelPh": {
+    "message": "ví dụ studio mac"
+  },
+  "signPublishKey": {
+    "message": "Xuất bản khóa"
+  },
+  "signStaleTitle": {
+    "message": "Khóa ký của bạn đã lỗi thời"
+  },
+  "signRecoverHeading": {
+    "message": "Khôi phục từ terminal:"
+  },
+  "signStaleHint": {
+    "message": "Thao tác này tạo một khóa mới, xuất bản nó làm bản ghi đang hoạt động mới, và (khi cần) thu hồi bản ghi mồ côi để không ai có thể ký dưới tên bạn bằng khóa đã mất."
+  },
+  "signDropTitle": {
+    "message": "Thả một tệp vào đây để ký"
+  },
+  "signDropSub": {
+    "message": "Âm thanh · Hình ảnh · Video: bất cứ thứ gì c2pa-rs hỗ trợ."
+  },
+  "signReadyToSign": {
+    "message": "Sẵn sàng ký"
+  },
+  "signChainTitle": {
+    "message": "Tệp này đã được ký."
+  },
+  "signChainSub": {
+    "message": "Chữ ký của bạn sẽ tham gia vào chuỗi như một tác phẩm phái sinh; chữ ký gốc vẫn còn nguyên vẹn."
+  },
+  "signRelationshipQ": {
+    "message": "Mối quan hệ của bạn với tệp này là gì?"
+  },
+  "signEmbedIdentity": {
+    "message": "Nhúng xác nhận danh tính (khuyến nghị; cho phép người xác minh bỏ qua bước nhập handle)"
+  },
+  "signModelPh": {
+    "message": "ví dụ ACE-Step v1.0"
+  },
+  "signReplaceOriginal": {
+    "message": "Thay thế bản gốc (thay vì viết một tệp sidecar)"
+  },
+  "signPickDifferent": {
+    "message": "Chọn một tệp khác"
+  },
+  "signSigning": {
+    "message": "Đang ký…"
+  },
+  "signSigned": {
+    "message": "Đã ký"
+  },
+  "signAnother": {
+    "message": "Ký tệp khác"
+  },
+  "signVerifyIt": {
+    "message": "Xác minh nó"
+  },
+  "signErrorTitle": {
+    "message": "Không thể tải trạng thái ký của bạn"
+  },
+  "bfBackfireTitle": {
+    "message": "Đọc dấu hiệu Backfire theo khóa"
+  },
+  "bfBackfireSub": {
+    "message": "Xác minh một watermark theo từng hình ảnh mà các công cụ gỡ bỏ nguồn gốc AI khuếch đại thay vì loại bỏ."
+  },
+  "bfReaderLabel": {
+    "message": "Trình đọc Backfire"
+  },
+  "bfDropTitle": {
+    "message": "Thả một hình ảnh vào đây, hoặc chọn một, để đọc dấu hiệu của nó"
+  },
+  "bfChooseRead": {
+    "message": "Chọn hình ảnh và đọc"
+  },
+  "bfHint": {
+    "message": "Nhập khóa của bạn ở trên trước, sau đó thả hoặc chọn một hình ảnh. Nó đọc tự động, và dữ liệu ở lại trên máy của bạn."
+  },
+  "bfLoading": {
+    "message": "Đang đọc dấu hiệu Backfire…"
+  },
+  "mlTitle": {
+    "message": "Đọc số serial Mellin theo khóa"
+  },
+  "mlSub": {
+    "message": "Pháp y theo khóa phía âm thanh: khôi phục số serial 64-bit theo từng bản sao mà bạn đã nhúng bằng công cụ provcheck-mellin độc lập, được cấp phép BUSL (miễn phí cho mục đích phi thương mại, tách biệt với provcheck). Cần tệp bí mật của người bán và mã công việc của bạn; mọi thứ ở lại trên máy của bạn."
+  },
+  "mlReaderLabel": {
+    "message": "Trình đọc Mellin"
+  },
+  "mlSecretNone": {
+    "message": "chưa chọn. Bí mật không bao giờ được lưu trữ, vì vậy hãy chọn lại sau mỗi lần khởi động."
+  },
+  "mlWorkidPh": {
+    "message": "mã công việc đã dùng khi nhúng"
+  },
+  "mlDropTitle": {
+    "message": "Chọn một tệp âm thanh để đọc số serial của nó"
+  },
+  "mlChooseRead": {
+    "message": "Chọn âm thanh và đọc"
+  },
+  "mlHint": {
+    "message": "Chọn tệp bí mật của bạn và nhập mã công việc trước, sau đó chọn âm thanh hoặc thả nó vào bất kỳ đâu trên tab này. Mọi định dạng đều hoạt động (WAV, MP3, AAC, FLAC); tệp âm thanh được đọc ở đây, hình ảnh đọc dấu hiệu Backfire ở trên."
+  },
+  "mlLoading": {
+    "message": "Đang đọc số serial Mellin…"
+  },
+  "imTitle": {
+    "message": "Đọc dấu hiệu danh tính idmark theo khóa"
+  },
+  "imSub": {
+    "message": "Danh tính theo khóa phía hình ảnh: đọc dấu hiệu theo từng bản sao chịu được cắt xén, chuyển mã, và xoay, được nhúng bằng công cụ provcheck-idmark độc lập, được cấp phép BUSL (miễn phí cho mục đích phi thương mại, tách biệt với provcheck). Không có bí mật, nó kiểm tra dấu hiệu tích hợp sẵn; thêm tệp bí mật và một seat của bạn để quy kết một bản sao. Mọi thứ ở lại trên máy của bạn."
+  },
+  "imReaderLabel": {
+    "message": "Trình đọc idmark"
+  },
+  "imSecretNone": {
+    "message": "chưa chọn. Để trống để đọc dấu hiệu tích hợp sẵn; bí mật không bao giờ được lưu trữ."
+  },
+  "imDropTitle": {
+    "message": "Chọn một hình ảnh để đọc dấu hiệu của nó"
+  },
+  "imChooseRead": {
+    "message": "Chọn hình ảnh và đọc"
+  },
+  "imHint": {
+    "message": "Tùy chọn chọn tệp bí mật và một seat của bạn trước, sau đó chọn hình ảnh. PNG hoặc JPEG. Thao tác này đọc dấu hiệu danh tính idmark; dấu hiệu Backfire và số serial Mellin được đọc trong các phần ở trên."
+  },
+  "imLoading": {
+    "message": "Đang đọc idmark…"
+  },
+  "bfModalTitle": {
+    "message": "Backfire hoạt động như thế nào"
+  },
+  "vVerified": {
+    "message": "Đã xác minh"
+  },
+  "vUnsigned": {
+    "message": "Chưa ký"
+  },
+  "vNotVerified": {
+    "message": "Chưa được xác minh"
+  },
+  "attAttestedBy": {
+    "message": "Được chứng thực bởi $1"
+  },
+  "attMatchSub": {
+    "message": "Chứng chỉ ký khớp với một khóa được xuất bản dưới danh tính này."
+  },
+  "attMismatch": {
+    "message": "Chứng thực không khớp cho $1"
+  },
+  "attMismatchSub": {
+    "message": "Chứng chỉ ký không khớp với bất kỳ khóa nào được xuất bản dưới danh tính này."
+  },
+  "attNotPublished": {
+    "message": "Không có khóa nào được xuất bản dưới $1"
+  },
+  "attNotPublishedSub": {
+    "message": "Danh tính này tồn tại nhưng chưa xuất bản bất kỳ bản ghi signingKey nào."
+  },
+  "attResolveFailed": {
+    "message": "Không thể phân giải $1"
+  },
+  "attResolveFailedSub": {
+    "message": "Phân giải danh tính thất bại (handle/DID không thể truy cập)."
+  },
+  "attThisIdentity": {
+    "message": "danh tính này"
+  },
+  "kvSigner": {
+    "message": "Người ký"
+  },
+  "kvSignedAt": {
+    "message": "Ký lúc"
+  },
+  "kvFormat": {
+    "message": "Định dạng"
+  },
+  "kvManifest": {
+    "message": "Manifest"
+  },
+  "kvIngredients": {
+    "message": "Thành phần"
+  },
+  "kvIngredientsVal": {
+    "message": "$1 (nội dung phái sinh, tệp này được tạo bằng cách chỉnh sửa các tệp đã ký trước đó)"
+  },
+  "kvValidationErrors": {
+    "message": "Lỗi xác thực"
+  },
+  "wmEmpty": {
+    "message": "Không phát hiện watermark nào từ các nhóm bộ phát hiện đã chạy."
+  },
+  "wmKeyedNote": {
+    "message": "Các dấu hiệu theo khóa (Backfire, Mellin) không thuộc bản quét này. Chúng chỉ có thể được đọc bằng khóa của bạn, ở tab Keyed marks."
+  },
+  "wmConfidence": {
+    "message": "Độ tin cậy $1%"
+  },
+  "wmDegraded": {
+    "message": "Độ tin cậy $1%; dấu hiệu bị suy giảm (có khả năng bị hỏng một phần)"
+  },
+  "wmNa": {
+    "message": "$1: không áp dụng"
+  },
+  "wmNoMark": {
+    "message": "$1: không phát hiện dấu hiệu"
+  },
+  "wmTimelineAria": {
+    "message": "Sự hiện diện của watermark theo thời gian: $1"
+  },
+  "wmUnrecognizedSource": {
+    "message": "nguồn không xác định"
+  },
+  "btnCopied": {
+    "message": "Đã sao chép"
+  },
+  "scanError": {
+    "message": "Không thể quét tệp này: $1"
+  },
+  "autoFilled": {
+    "message": "tự động điền từ tệp"
+  },
+  "dragFileOnto": {
+    "message": "Kéo tệp vào cửa sổ"
+  },
+  "aiGenerated": {
+    "message": "Do AI tạo ra"
+  },
+  "btnCopiedBang": {
+    "message": "Đã sao chép!"
+  },
+  "bfCouldNotRun": {
+    "message": "Backfire không thể chạy"
+  },
+  "btnInstalling": {
+    "message": "Đang cài đặt…"
+  },
+  "downloadingModels": {
+    "message": "Đang tải xuống các mô hình, việc này có thể mất một phút…"
+  },
+  "btnWorking": {
+    "message": "Đang xử lý…"
+  },
+  "bfInstalling": {
+    "message": "Đang cài đặt / sửa chữa trình đọc Backfire…"
+  },
+  "statusCheckFailed": {
+    "message": "Kiểm tra trạng thái thất bại: $1"
+  },
+  "readingFile": {
+    "message": "Đang đọc $1…"
+  },
+  "mlCouldNotRun": {
+    "message": "Mellin không thể chạy"
+  },
+  "imCouldNotRun": {
+    "message": "idmark không thể chạy"
+  },
+  "keysMismSuperseded": {
+    "message": "Khóa cục bộ của bạn đã bị thay thế"
+  },
+  "keysMismRevoked": {
+    "message": "Khóa cục bộ của bạn đã bị thu hồi"
+  },
+  "keysMismActiveNoKey": {
+    "message": "Bản ghi đang hoạt động sử dụng một khóa mà bạn không có"
+  },
+  "thisBox": {
+    "message": "(hộp này)"
+  },
+  "btnRevoke": {
+    "message": "Thu hồi"
+  },
+  "checkingPublishedKeys": {
+    "message": "Đang kiểm tra các khóa đã xuất bản…"
+  },
+  "btnGenerating": {
+    "message": "Đang tạo…"
+  },
+  "btnConnecting": {
+    "message": "Đang kết nối…"
+  },
+  "btnPublishing": {
+    "message": "Đang xuất bản…"
+  },
+  "signReadyToPublish": {
+    "message": "Sẵn sàng xuất bản"
+  },
+  "bfMarkFound": {
+    "message": "Đã tìm thấy dấu hiệu Backfire"
+  },
+  "bfNoValidMark": {
+    "message": "Không có dấu hiệu Backfire hợp lệ"
+  },
+  "mlSerialRecovered": {
+    "message": "Đã khôi phục số serial Mellin"
+  },
+  "mlNoFullSerial": {
+    "message": "Không có số serial Mellin đầy đủ"
+  },
+  "imPresent": {
+    "message": "Có idmark"
+  },
+  "imNoDetected": {
+    "message": "Không phát hiện idmark"
+  },
+  "fieldIdentifier": {
+    "message": "Mã định danh"
+  },
+  "fieldConfidenceMargin": {
+    "message": "Độ tin cậy (biên độ bit tối thiểu)"
+  },
+  "fieldValid": {
+    "message": "Hợp lệ"
+  },
+  "fieldMatchesSerial": {
+    "message": "Khớp với số serial mong đợi"
+  },
+  "fieldTamperTripwire": {
+    "message": "Bẫy phát hiện can thiệp"
+  },
+  "fieldSerial": {
+    "message": "Số serial"
+  },
+  "fieldBitsRecovered": {
+    "message": "Số bit đã khôi phục"
+  },
+  "fieldErasureRate": {
+    "message": "Tỷ lệ xóa"
+  },
+  "fieldMinBitVotes": {
+    "message": "Số phiếu bit tối thiểu"
+  },
+  "fieldMarkPresent": {
+    "message": "Có dấu hiệu"
+  },
+  "fieldSeat": {
+    "message": "Seat"
+  },
+  "fieldMargin": {
+    "message": "Biên độ"
+  },
+  "fieldReadVia": {
+    "message": "Đọc qua"
+  },
+  "fieldEstRotation": {
+    "message": "Ước tính góc xoay"
+  },
+  "fieldError": {
+    "message": "Lỗi"
+  },
+  "valYes": {
+    "message": "có"
+  },
+  "valNo": {
+    "message": "không"
+  },
+  "bfTamperDetected": {
+    "message": "phát hiện can thiệp notch (stat $1)"
+  },
+  "bfTamperClean": {
+    "message": "sạch (stat $1)"
+  }
+}

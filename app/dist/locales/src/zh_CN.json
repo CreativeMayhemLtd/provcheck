@@ -1,0 +1,647 @@
+{
+  "headerSubtitle": {
+    "message": "签署与验证 C2PA Content Credentials"
+  },
+  "tabVerify": {
+    "message": "验证"
+  },
+  "tabWatermark": {
+    "message": "水印"
+  },
+  "tabDetect": {
+    "message": "检测"
+  },
+  "tabKeys": {
+    "message": "密钥"
+  },
+  "tabSign": {
+    "message": "签署"
+  },
+  "tabKeyedMarks": {
+    "message": "密钥标记"
+  },
+  "btnChooseFile": {
+    "message": "选择文件…"
+  },
+  "btnVerifyAnother": {
+    "message": "验证其他文件"
+  },
+  "btnCopyJson": {
+    "message": "复制为 JSON"
+  },
+  "btnCheckAnother": {
+    "message": "检查其他文件"
+  },
+  "btnReadAnother": {
+    "message": "读取其他文件"
+  },
+  "btnLogOut": {
+    "message": "退出登录"
+  },
+  "btnConnect": {
+    "message": "连接"
+  },
+  "btnCopy": {
+    "message": "复制"
+  },
+  "btnRetry": {
+    "message": "重试"
+  },
+  "btnSign": {
+    "message": "签署"
+  },
+  "btnOK": {
+    "message": "确定"
+  },
+  "btnCancel": {
+    "message": "取消"
+  },
+  "btnGotIt": {
+    "message": "知道了"
+  },
+  "btnHowItWorks": {
+    "message": "工作原理"
+  },
+  "btnInstallRepair": {
+    "message": "安装/修复"
+  },
+  "btnChooseSecret": {
+    "message": "选择密钥文件"
+  },
+  "btnClose": {
+    "message": "关闭"
+  },
+  "badgeExperimental": {
+    "message": "实验性"
+  },
+  "loadingGeneric": {
+    "message": "加载中…"
+  },
+  "statusChecking": {
+    "message": "检查中..."
+  },
+  "statusCheckingStatus": {
+    "message": "正在检查状态…"
+  },
+  "labelFingerprint": {
+    "message": "指纹"
+  },
+  "labelAlgorithm": {
+    "message": "算法"
+  },
+  "labelBackend": {
+    "message": "后端"
+  },
+  "labelCreated": {
+    "message": "创建时间"
+  },
+  "labelDID": {
+    "message": "DID"
+  },
+  "labelHandle": {
+    "message": "账号"
+  },
+  "labelYubikey": {
+    "message": "Yubikey"
+  },
+  "labelPinTries": {
+    "message": "PIN 尝试次数"
+  },
+  "labelStatus": {
+    "message": "状态"
+  },
+  "labelLabel": {
+    "message": "标签"
+  },
+  "labelBy": {
+    "message": "作者"
+  },
+  "labelTool": {
+    "message": "工具"
+  },
+  "labelFile": {
+    "message": "文件"
+  },
+  "labelYourIdentity": {
+    "message": "您的身份"
+  },
+  "labelOutput": {
+    "message": "输出"
+  },
+  "aboutLinks": {
+    "message": "链接"
+  },
+  "identityBskyHandle": {
+    "message": "Bsky 账号"
+  },
+  "identityRunWatermark": {
+    "message": "运行水印检测"
+  },
+  "identityRequireAttested": {
+    "message": "要求已认证"
+  },
+  "identityHandlePh": {
+    "message": "可选 · 例如 creator.bsky.social 或 did:plc:…"
+  },
+  "dropzoneTitle": {
+    "message": "将任意文件拖放到此处进行验证"
+  },
+  "dropzoneSub": {
+    "message": "音频 · 图像 · 视频:任何携带 C2PA Content Credentials 的文件。"
+  },
+  "verifyDropHint": {
+    "message": "不选择文件运行也没问题,界面会保持不变。隐私保护:文件绝不会离开您的设备。"
+  },
+  "verifyLoading": {
+    "message": "验证中…"
+  },
+  "verifyLoadingHint": {
+    "message": "水印检测对音频和视频而言 CPU 负载较高,可能需要几分钟。取消勾选“运行水印检测”可实现仅 C2PA 的即时验证。"
+  },
+  "showRawManifest": {
+    "message": "显示原始清单详情"
+  },
+  "claimsHeading": {
+    "message": "声明"
+  },
+  "wmModelsNeeded": {
+    "message": "水印检测需要模型。"
+  },
+  "wmInstallAll": {
+    "message": "安装所有模型"
+  },
+  "wmScanFor": {
+    "message": "扫描目标:"
+  },
+  "wmDropTitle": {
+    "message": "将文件拖放到此处以运行水印检测"
+  },
+  "wmDropHint": {
+    "message": "隐私保护:文件绝不会离开您的设备。每个检测器都会自行判断是否适用于输入文件类型。"
+  },
+  "wmLoading": {
+    "message": "正在运行水印检测器…"
+  },
+  "wmLoadingHint": {
+    "message": "模型推理对音频和视频而言 CPU 负载较高,扫描可能需要几分钟。此图标转动期间处理仍在继续。"
+  },
+  "wmResultTitle": {
+    "message": "水印检测"
+  },
+  "detectTitle": {
+    "message": "AI 内容检测:自备检测器"
+  },
+  "detectRouteAHead": {
+    "message": "路线 A:付费 DLC 包(v1.x,计划中)"
+  },
+  "detectRouteBHead": {
+    "message": "路线 B:运营方提供的封装(现已提供)"
+  },
+  "keysLocalIdentity": {
+    "message": "本地身份"
+  },
+  "keysNoIdentity": {
+    "message": "此设备上没有身份。"
+  },
+  "keysMismatchTitle": {
+    "message": "身份状态不匹配"
+  },
+  "keysRotateBtn": {
+    "message": "生成新密钥并发布"
+  },
+  "keysRotateTitle": {
+    "message": "生成新的签名密钥,并将其作为新的活动记录发布"
+  },
+  "keysSwitchYubikey": {
+    "message": "切换到 Yubikey 身份…"
+  },
+  "keysSwitchYubikeyTitle": {
+    "message": "将当前身份替换为基于 Yubikey 的身份"
+  },
+  "keysPublishedRecords": {
+    "message": "已发布记录(atproto)"
+  },
+  "keysRecordsEmptyHint": {
+    "message": "在“签署”标签页登录并发布您的本地指纹。"
+  },
+  "keysNotLoggedIn": {
+    "message": "尚未登录 atproto。"
+  },
+  "keysNoSessionHint": {
+    "message": "在“签署”标签页登录以获取您已发布的记录。"
+  },
+  "signIdentityLabel": {
+    "message": "身份:"
+  },
+  "signNotSetUp": {
+    "message": "尚未设置"
+  },
+  "signSessionLabel": {
+    "message": "会话:"
+  },
+  "signDisconnected": {
+    "message": "已断开"
+  },
+  "signSetupTitle": {
+    "message": "设置您的签署身份"
+  },
+  "signSetupBody": {
+    "message": "此操作会在本机生成加密密钥,并存储在您的操作系统钥匙串中。您只需执行一次。"
+  },
+  "signGenerateKey": {
+    "message": "生成签名密钥"
+  },
+  "signSetupHint": {
+    "message": "密钥绝不会离开您的设备。访问提示由您的操作系统处理。"
+  },
+  "signConnectTitle": {
+    "message": "连接您的 bsky 身份"
+  },
+  "signConnectBody": {
+    "message": "将您的签名密钥与 atproto 账号关联,以便验证者确认其归属于您。"
+  },
+  "signHandlePh": {
+    "message": "creator.bsky.social"
+  },
+  "signAppPassword": {
+    "message": "应用密码"
+  },
+  "signRememberDevice": {
+    "message": "在此设备上记住我"
+  },
+  "signPublishTitle": {
+    "message": "发布您的签名密钥"
+  },
+  "signPublishBody": {
+    "message": "最后一步:将密钥指纹发布到 atproto,可让验证者核实是您对作品进行了签署。若不这样做,他们只能看到“有效签名,签署者未知”。"
+  },
+  "signLabelOptional": {
+    "message": "标签(可选)"
+  },
+  "signLabelPh": {
+    "message": "例如 studio mac"
+  },
+  "signPublishKey": {
+    "message": "发布密钥"
+  },
+  "signStaleTitle": {
+    "message": "您的签名密钥已过期"
+  },
+  "signRecoverHeading": {
+    "message": "通过终端恢复:"
+  },
+  "signStaleHint": {
+    "message": "此操作会生成新密钥,将其作为新的活动记录发布,并在需要时吊销孤立记录,以防止任何人使用遗失的密钥冒用您的名义签署。"
+  },
+  "signDropTitle": {
+    "message": "将要签署的文件拖放到此处"
+  },
+  "signDropSub": {
+    "message": "音频 · 图像 · 视频:c2pa-rs 支持的任何格式。"
+  },
+  "signReadyToSign": {
+    "message": "已准备好签署"
+  },
+  "signChainTitle": {
+    "message": "此文件已被签署。"
+  },
+  "signChainSub": {
+    "message": "您的签名将作为衍生记录加入签名链;原始签名将保持不变。"
+  },
+  "signRelationshipQ": {
+    "message": "您与此文件的关系是什么?"
+  },
+  "signEmbedIdentity": {
+    "message": "嵌入身份声明(推荐;可让验证者跳过账号输入步骤)"
+  },
+  "signModelPh": {
+    "message": "例如 ACE-Step v1.0"
+  },
+  "signReplaceOriginal": {
+    "message": "替换原始文件(而非写入附属文件)"
+  },
+  "signPickDifferent": {
+    "message": "选择其他文件"
+  },
+  "signSigning": {
+    "message": "签署中…"
+  },
+  "signSigned": {
+    "message": "已签署"
+  },
+  "signAnother": {
+    "message": "签署其他文件"
+  },
+  "signVerifyIt": {
+    "message": "验证"
+  },
+  "signErrorTitle": {
+    "message": "无法加载您的签署状态"
+  },
+  "bfBackfireTitle": {
+    "message": "读取带密钥的 Backfire 标记"
+  },
+  "bfBackfireSub": {
+    "message": "验证一种逐图水印,AI 溯源剥离工具非但无法移除,反而会将其放大。"
+  },
+  "bfReaderLabel": {
+    "message": "Backfire 读取器"
+  },
+  "bfDropTitle": {
+    "message": "将图像拖放到此处或选择图像以读取其标记"
+  },
+  "bfChooseRead": {
+    "message": "选择图像并读取"
+  },
+  "bfHint": {
+    "message": "请先在上方输入密钥,然后拖放或选择图像。系统会自动读取,且全程在您的设备上完成。"
+  },
+  "bfLoading": {
+    "message": "正在读取 Backfire 标记…"
+  },
+  "mlTitle": {
+    "message": "读取带密钥的 Mellin 序列号"
+  },
+  "mlSub": {
+    "message": "音频侧密钥取证:恢复您使用独立的 BUSL 许可 provcheck-mellin 工具(非商业用途免费,与 provcheck 分开)嵌入的逐份 64 位序列号。需要您的卖家密钥文件和作品 ID;所有处理均在您的设备上完成。"
+  },
+  "mlReaderLabel": {
+    "message": "Mellin 读取器"
+  },
+  "mlSecretNone": {
+    "message": "未选择。密钥不会被存储,因此每次启动后都需要重新选择。"
+  },
+  "mlWorkidPh": {
+    "message": "嵌入时使用的作品 ID"
+  },
+  "mlDropTitle": {
+    "message": "选择要读取序列号的音频文件"
+  },
+  "mlChooseRead": {
+    "message": "选择音频并读取"
+  },
+  "mlHint": {
+    "message": "请先选择密钥文件并输入作品 ID,然后选择音频,或将其拖放到此标签页的任意位置。支持任意格式(WAV、MP3、AAC、FLAC);音频文件在此处读取,图像则在上方的 Backfire 标记处读取。"
+  },
+  "mlLoading": {
+    "message": "正在读取 Mellin 序列号…"
+  },
+  "imTitle": {
+    "message": "读取带密钥的 idmark 身份标记"
+  },
+  "imSub": {
+    "message": "图像侧密钥身份:读取您使用独立的 BUSL 许可 provcheck-idmark 工具(非商业用途免费,与 provcheck 分开)嵌入的、可耐受裁剪、转码和旋转的逐份标记。不提供密钥时,系统会检查内置标记;添加您的密钥文件和席位后可归属具体副本。所有处理均在您的设备上完成。"
+  },
+  "imReaderLabel": {
+    "message": "idmark 读取器"
+  },
+  "imSecretNone": {
+    "message": "未选择。留空可读取内置标记;密钥不会被存储。"
+  },
+  "imDropTitle": {
+    "message": "选择要读取标记的图像"
+  },
+  "imChooseRead": {
+    "message": "选择图像并读取"
+  },
+  "imHint": {
+    "message": "可选择先选择密钥文件和席位,然后选择图像。支持 PNG 或 JPEG。此处读取的是 idmark 身份标记;Backfire 标记和 Mellin 序列号请在上方对应区块读取。"
+  },
+  "imLoading": {
+    "message": "正在读取 idmark…"
+  },
+  "bfModalTitle": {
+    "message": "Backfire 的工作原理"
+  },
+  "vVerified": {
+    "message": "已验证"
+  },
+  "vUnsigned": {
+    "message": "未签署"
+  },
+  "vNotVerified": {
+    "message": "未验证"
+  },
+  "attAttestedBy": {
+    "message": "由 $1 认证"
+  },
+  "attMatchSub": {
+    "message": "签名证书与该身份下发布的密钥相匹配。"
+  },
+  "attMismatch": {
+    "message": "$1 的认证不匹配"
+  },
+  "attMismatchSub": {
+    "message": "签名证书与该身份下发布的任何密钥均不匹配。"
+  },
+  "attNotPublished": {
+    "message": "$1 下未发布任何密钥"
+  },
+  "attNotPublishedSub": {
+    "message": "该身份存在,但尚未发布任何 signingKey 记录。"
+  },
+  "attResolveFailed": {
+    "message": "无法解析 $1"
+  },
+  "attResolveFailedSub": {
+    "message": "身份解析失败(账号/DID 无法访问)。"
+  },
+  "attThisIdentity": {
+    "message": "此身份"
+  },
+  "kvSigner": {
+    "message": "签署者"
+  },
+  "kvSignedAt": {
+    "message": "签署时间"
+  },
+  "kvFormat": {
+    "message": "格式"
+  },
+  "kvManifest": {
+    "message": "清单"
+  },
+  "kvIngredients": {
+    "message": "组成材料"
+  },
+  "kvIngredientsVal": {
+    "message": "$1(衍生内容:此文件是通过编辑先前已签署的文件创建的)"
+  },
+  "kvValidationErrors": {
+    "message": "验证错误"
+  },
+  "wmEmpty": {
+    "message": "本次运行的检测器系列均未检测到水印。"
+  },
+  "wmKeyedNote": {
+    "message": "带密钥的标记(Backfire、Mellin)不包含在此次扫描中。它们只能在“密钥标记”标签页中使用您的密钥读取。"
+  },
+  "wmConfidence": {
+    "message": "置信度 $1%"
+  },
+  "wmDegraded": {
+    "message": "置信度 $1%;标记已劣化(可能存在部分损坏)"
+  },
+  "wmNa": {
+    "message": "$1:不适用"
+  },
+  "wmNoMark": {
+    "message": "$1:未检测到标记"
+  },
+  "wmTimelineAria": {
+    "message": "水印随时间的存在情况:$1"
+  },
+  "wmUnrecognizedSource": {
+    "message": "来源不明"
+  },
+  "btnCopied": {
+    "message": "已复制"
+  },
+  "scanError": {
+    "message": "无法扫描此文件:$1"
+  },
+  "autoFilled": {
+    "message": "已根据文件自动填充"
+  },
+  "dragFileOnto": {
+    "message": "将文件拖到窗口中"
+  },
+  "aiGenerated": {
+    "message": "AI 生成"
+  },
+  "btnCopiedBang": {
+    "message": "已复制!"
+  },
+  "bfCouldNotRun": {
+    "message": "Backfire 无法运行"
+  },
+  "btnInstalling": {
+    "message": "安装中…"
+  },
+  "downloadingModels": {
+    "message": "正在下载模型,可能需要几分钟…"
+  },
+  "btnWorking": {
+    "message": "处理中…"
+  },
+  "bfInstalling": {
+    "message": "正在安装/修复 Backfire 读取器…"
+  },
+  "statusCheckFailed": {
+    "message": "状态检查失败:$1"
+  },
+  "readingFile": {
+    "message": "正在读取 $1…"
+  },
+  "mlCouldNotRun": {
+    "message": "Mellin 无法运行"
+  },
+  "imCouldNotRun": {
+    "message": "idmark 无法运行"
+  },
+  "keysMismSuperseded": {
+    "message": "您的本地密钥已被取代"
+  },
+  "keysMismRevoked": {
+    "message": "您的本地密钥已被吊销"
+  },
+  "keysMismActiveNoKey": {
+    "message": "活动记录使用的密钥您并未持有"
+  },
+  "thisBox": {
+    "message": "(此设备)"
+  },
+  "btnRevoke": {
+    "message": "吊销"
+  },
+  "checkingPublishedKeys": {
+    "message": "正在检查已发布的密钥…"
+  },
+  "btnGenerating": {
+    "message": "生成中…"
+  },
+  "btnConnecting": {
+    "message": "连接中…"
+  },
+  "btnPublishing": {
+    "message": "发布中…"
+  },
+  "signReadyToPublish": {
+    "message": "已准备好发布"
+  },
+  "bfMarkFound": {
+    "message": "已找到 Backfire 标记"
+  },
+  "bfNoValidMark": {
+    "message": "没有有效的 Backfire 标记"
+  },
+  "mlSerialRecovered": {
+    "message": "已恢复 Mellin 序列号"
+  },
+  "mlNoFullSerial": {
+    "message": "没有完整的 Mellin 序列号"
+  },
+  "imPresent": {
+    "message": "存在 idmark"
+  },
+  "imNoDetected": {
+    "message": "未检测到 idmark"
+  },
+  "fieldIdentifier": {
+    "message": "标识符"
+  },
+  "fieldConfidenceMargin": {
+    "message": "置信度(最小位边际)"
+  },
+  "fieldValid": {
+    "message": "有效"
+  },
+  "fieldMatchesSerial": {
+    "message": "与预期序列号匹配"
+  },
+  "fieldTamperTripwire": {
+    "message": "篡改触发器"
+  },
+  "fieldSerial": {
+    "message": "序列号"
+  },
+  "fieldBitsRecovered": {
+    "message": "已恢复的位数"
+  },
+  "fieldErasureRate": {
+    "message": "擦除率"
+  },
+  "fieldMinBitVotes": {
+    "message": "最小位投票数"
+  },
+  "fieldMarkPresent": {
+    "message": "存在标记"
+  },
+  "fieldSeat": {
+    "message": "席位"
+  },
+  "fieldMargin": {
+    "message": "边际"
+  },
+  "fieldReadVia": {
+    "message": "读取方式"
+  },
+  "fieldEstRotation": {
+    "message": "预计旋转角度"
+  },
+  "fieldError": {
+    "message": "错误"
+  },
+  "valYes": {
+    "message": "是"
+  },
+  "valNo": {
+    "message": "否"
+  },
+  "bfTamperDetected": {
+    "message": "检测到陷波篡改(统计值 $1)"
+  },
+  "bfTamperClean": {
+    "message": "未见异常(统计值 $1)"
+  }
+}

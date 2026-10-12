@@ -164,16 +164,12 @@ pub(crate) fn test_build_secret_for_bch5(brand_id_5bit: u8) -> [u8; SECRET_LEN] 
 fn build_secret(brand_id_5bit: u8) -> [u8; SECRET_LEN] {
     let data = build_data_payload(brand_id_5bit);
 
-    // Shortened BCH: pad data to BCH's full K=92 input width by
-    // prepending SHORTEN_PAD=31 zero bits.
+    // Shortened BCH: pad data to K=92 by prepending SHORTEN_PAD=31 zero bits.
     let mut bch_input = vec![0u8; bch::K];
     bch_input[SHORTEN_PAD..].copy_from_slice(&data);
 
     let codeword = bch::encode(&bch_input);
-    // codeword layout per bch::encode: positions [0..ECC_LEN]
-    // hold parity; positions [ECC_LEN..N] hold the 92-bit BCH
-    // input we just fed (first SHORTEN_PAD are zero, last DATA_LEN
-    // are the real data).
+    // codeword layout: [0..ECC_LEN] parity; [ECC_LEN..N] the 92-bit input (first SHORTEN_PAD zero, last DATA_LEN real).
     debug_assert_eq!(codeword.len(), bch::N);
 
     let mut secret = [0u8; SECRET_LEN];
@@ -235,8 +231,7 @@ pub fn embed_with_config(
         }
     }
 
-    // 7. Resize residual back to the ORIGINAL image dimensions via
-    //    bilinear interpolation.
+    // 7. Bilinear-resize residual back to the original image dimensions.
     let residual_resized = resize_residual_chw(
         &residual,
         imgmod::MODEL_RES,
@@ -245,8 +240,7 @@ pub fn embed_with_config(
         orig_h,
     );
 
-    // 8. Blend the residual into the original-sized cover. We need
-    //    the cover at the original resolution in [-1, 1] CHW too.
+    // 8. Blend the residual into the original-resolution cover ([-1, 1] CHW).
     let cover_orig_chw = load_cover_chw_at_original_res(src, orig_w, orig_h)?;
     let mut out_chw = Vec::with_capacity(cover_orig_chw.len());
     for (r, c) in residual_resized.iter().zip(cover_orig_chw.iter()) {
@@ -319,8 +313,7 @@ fn load_cover_chw_at_original_res(
         .map_err(|e| EncodeError::Read(format!("open: {e}")))?
         .with_guessed_format()
         .map_err(|e| EncodeError::Read(format!("format: {e}")))?;
-    // v0.9.0 audit §2.3: decompression-bomb guard. Same caps as
-    // the decoder side via the image module's constants.
+    // Decompression-bomb guard; same caps as the decoder side (audit §2.3).
     let mut limits = image::Limits::default();
     limits.max_image_width = Some(imgmod::MAX_IMAGE_DIM);
     limits.max_image_height = Some(imgmod::MAX_IMAGE_DIM);
@@ -331,9 +324,7 @@ fn load_cover_chw_at_original_res(
         .map_err(|e| EncodeError::Read(format!("decode: {e}")))?;
     let rgb = img.to_rgb8();
     debug_assert_eq!(rgb.dimensions(), (orig_w, orig_h));
-    // v0.9.0 audit §2.4: cast each operand to usize BEFORE
-    // multiplication to avoid silent u32 overflow on dimensions
-    // above ~65k (caught by MAX_IMAGE_DIM but defence in depth).
+    // Cast to usize before multiplying to avoid u32 overflow on huge dimensions (audit §2.4, defence in depth).
     let area = (orig_w as usize) * (orig_h as usize);
     let mut chw = vec![0.0_f32; 3 * area];
     let w = orig_w as usize;
@@ -349,7 +340,7 @@ fn load_cover_chw_at_original_res(
 
 /// CHW f32 in `[-1, 1]` → HWC u8 RGB image.
 fn chw_normalised_to_rgb_u8(chw: &[f32], w: u32, h: u32) -> RgbImage {
-    // v0.9.0 audit §2.4: cast to usize first.
+    // Cast to usize first (audit §2.4).
     let w_usize = w as usize;
     let h_usize = h as usize;
     let area = w_usize * h_usize;
@@ -377,26 +368,15 @@ mod helper_tests {
         build_data_payload, chw_normalised_to_rgb_u8, denorm, resize_residual_chw,
     };
 
-    // ----- denorm ----------
-    //
-    // denorm maps `[-1, 1]` f32 → `[0, 255]` u8 via
-    // `(v + 1) * 0.5 → clamp[0,1] → * 255 → round`.
-
-    // ----- build_data_payload ----------
-
     #[test]
     fn build_data_payload_length_is_data_len() {
-        // The data payload must be exactly DATA_LEN = 61 bits.
         let p = build_data_payload(0);
         assert_eq!(p.len(), DATA_LEN);
     }
 
     #[test]
     fn build_data_payload_starts_with_provcheck_magic() {
-        // First 8 bits MUST be the PROVCHECK_RAW_MAGIC byte
-        // (0xA5 = 0b10100101), MSB-first. This is what
-        // classify_bch5 uses to detect that the decoded BCH
-        // payload is one of OURS vs random noise.
+        // First 8 bits are PROVCHECK_RAW_MAGIC (0xA5) MSB-first; classify_bch5 uses it to tell our marks from noise.
         let p = build_data_payload(0);
         for (i, slot) in p.iter().enumerate().take(8) {
             let expected = (PROVCHECK_RAW_MAGIC >> (7 - i)) & 1;
@@ -433,39 +413,27 @@ mod helper_tests {
 
     #[test]
     fn build_data_payload_brand_id_only_uses_5_bits() {
-        // The function takes u8 but uses only bits 0..5 of the
-        // input. Higher bits MUST be ignored — pin so a future
-        // caller passing 0xFF doesn't silently overflow into
-        // the reserved tail.
+        // Only the low 5 brand bits are used; higher bits must be ignored, not overflow into the reserved tail.
         let p_high = build_data_payload(0xFF);
         let p_low = build_data_payload(0b00011111);
-        // The 5-bit-effective brand portion should match.
         for i in 8..13 {
             assert_eq!(p_high[i], p_low[i], "brand bit {i} differs");
         }
     }
 
-    // ----- PROVCHECK_RAW_MAGIC pin ----------
-
     #[test]
     fn provcheck_raw_magic_is_0xa5() {
-        // Wire-format pin. Bumping this breaks every existing
-        // marked image.
+        // Wire-format pin; bumping this breaks every existing marked image.
         assert_eq!(PROVCHECK_RAW_MAGIC, 0xA5);
     }
 
     #[test]
     fn version_bch5_is_0b0001() {
-        // The 4 version bits the encoder writes — pin them.
         assert_eq!(VERSION_BCH5, [0, 0, 0, 1]);
     }
 
-    // ----- Layout constants ----------
-
     #[test]
     fn data_layout_constants_are_self_consistent() {
-        // PROTECTED_LEN = DATA_LEN + ECC_LEN. Compile-time-derived
-        // but pin via test in case someone "simplifies" later.
         assert_eq!(PROTECTED_LEN, DATA_LEN + ECC_LEN);
     }
 
@@ -492,8 +460,7 @@ mod helper_tests {
 
     #[test]
     fn denorm_below_minus_one_clamps_to_zero() {
-        // Pixel residuals can over-shoot [-1, 1] before clamping;
-        // pin that we clamp at 0 rather than wrapping.
+        // Over-shooting residuals clamp at 0, not wrap.
         assert_eq!(denorm(-2.5), 0);
         assert_eq!(denorm(-100.0), 0);
     }
@@ -506,19 +473,13 @@ mod helper_tests {
 
     #[test]
     fn denorm_handles_nan_safely() {
-        // f32::NAN through (NaN + 1) * 0.5 → NaN. clamp(NaN, 0, 1)
-        // returns 0.0 per std (NaN propagates to 0, the lower
-        // bound). Pin that we don't panic and produce a black
-        // pixel rather than a wraparound u8.
+        // clamp(NaN, 0, 1) == 0.0 per std: NaN yields a deterministic black pixel, no panic or wraparound.
         let r = denorm(f32::NAN);
         assert_eq!(r, 0, "NaN should produce a deterministic black pixel");
     }
 
-    // ----- chw_normalised_to_rgb_u8 ----------
-
     #[test]
     fn chw_to_rgb_u8_produces_image_of_correct_dimensions() {
-        // 2x2 image, 3 channels, fully grey.
         let area = 4_usize;
         let chw = vec![0.0_f32; 3 * area];
         let img = chw_normalised_to_rgb_u8(&chw, 2, 2);
@@ -527,9 +488,7 @@ mod helper_tests {
 
     #[test]
     fn chw_to_rgb_u8_zeroes_produce_mid_grey_pixels() {
-        // 0 normalised value → mid-grey u8 (128). Verify the
-        // channel-interleave layout is right by sampling a
-        // single pixel.
+        // 0 -> mid-grey 128; also checks the channel-interleave layout.
         let area = 4_usize;
         let chw = vec![0.0_f32; 3 * area];
         let img = chw_normalised_to_rgb_u8(&chw, 2, 2);
@@ -550,20 +509,15 @@ mod helper_tests {
         assert_eq!(pix[2], 255, "B channel");
     }
 
-    // ----- resize_residual_chw ----------
-
     #[test]
     fn resize_residual_chw_identity_size_returns_same_buffer() {
-        // 2x2 → 2x2 should preserve the input values (bilinear
-        // at integer-aligned grid points is identity).
+        // Same-size resize is identity (bilinear at integer-aligned grid points).
         let src = vec![1.0, 2.0, 3.0, 4.0]; // 1 channel for clarity
-        // Replicate to 3 channels so the function signature is happy.
         let mut chw = Vec::with_capacity(12);
         chw.extend(&src);
         chw.extend(&src);
         chw.extend(&src);
         let out = resize_residual_chw(&chw, 2, 2, 2, 2);
-        // Same-size resize should produce the same values.
         assert_eq!(out.len(), 12);
         for (i, &v) in out.iter().enumerate() {
             let expected = src[i % 4];
@@ -576,8 +530,7 @@ mod helper_tests {
 
     #[test]
     fn resize_residual_chw_upsize_doubles_dimensions() {
-        // 2x2 → 4x4. Just check the output buffer size; values
-        // are bilinearly interpolated.
+        // 2x2 -> 4x4: check the output buffer size.
         let chw = vec![0.0_f32; 3 * 4];
         let out = resize_residual_chw(&chw, 2, 2, 4, 4);
         assert_eq!(out.len(), 3 * 16);
@@ -592,8 +545,7 @@ mod helper_tests {
 
     #[test]
     fn resize_residual_chw_uniform_input_produces_uniform_output() {
-        // All values = 0.5; output must also be ~0.5 everywhere
-        // (no edge artefacts from bilinear interpolation).
+        // Uniform 0.5 input stays ~0.5 everywhere (no bilinear edge artefacts).
         let chw = vec![0.5_f32; 3 * 64];
         let out = resize_residual_chw(&chw, 8, 8, 16, 16);
         for v in out.iter() {

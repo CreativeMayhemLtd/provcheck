@@ -10,16 +10,10 @@
       .grp { border-top: 1px solid #ddd; margin-top: 8px; padding-top: 6px; }
       .muted { color: #777; font-size: 11px; margin-top: 8px; }
       select { padding: 3px; }
-      details.about { border-top: 1px solid #ddd; margin-top: 8px; padding-top: 6px; }
-      details.about summary { cursor: pointer; font-weight: 600; font-size: 12px; }
-      details.about .body { font-size: 11px; color: #444; margin-top: 6px; }
-      details.about ul { margin: 4px 0 6px; padding-left: 16px; }
-      details.about li { margin: 2px 0; }
-      details.about code { background: #f0f0f0; padding: 0 2px; border-radius: 2px; }
     </style>
   </head>
   <body>
-    <h1>Provcheck AI Blur</h1>
+    <h1>provcheck filter</h1>
     <label><input type="checkbox" id="enabled" /> <b>Enable filtering on this tab</b></label>
 
     <div class="grp">
@@ -40,29 +34,6 @@
       <label><input type="checkbox" id="badge" /> Show provenance badge (hover)</label>
     </div>
     <div class="muted" id="note">C2PA and AI use local byte-scan presence detection (not full signature validation). Nothing leaves your browser.</div>
-
-    <details class="about">
-      <summary>About: what this catches</summary>
-      <div class="body">
-        <p><b>It reads provenance and platform labels, not pixels.</b> It can only flag media that carries a signal.</p>
-        <p><b>Catches:</b></p>
-        <ul>
-          <li>C2PA provenance present or absent (byte-scan of the file).</li>
-          <li>AI declared in C2PA (the <code>trainedAlgorithmicMedia</code> assertion).</li>
-          <li>YouTube's own "Altered or synthetic content" AI label.</li>
-          <li>A keyword in the media's alt text, title, or captions.</li>
-        </ul>
-        <p><b>Will not catch:</b></p>
-        <ul>
-          <li>Unlabelled AI images with no provenance, such as raw output on AI-art sites. It cannot tell AI from pixels.</li>
-          <li>Content a platform publishes without the machine-readable AI mark that <b><a href="https://eur-lex.europa.eu/eli/reg/2024/1689/oj" target="_blank" rel="noopener">EU AI Act Article 50</a></b> has required since 2 August 2026. Platforms that ignore the law leave no signal to read.</li>
-          <li>A stream delivered as a blob, such as a YouTube player video. It reads file bytes, not streams.</li>
-          <li>Provenance a platform stripped by re-encoding an upload.</li>
-          <li>Thumbnails a site serves with the C2PA stripped: many sites re-encode an image into their own thumbnail and drop the provenance, even when the original was signed, so the thumbnail you see reads as unsigned.</li>
-        </ul>
-        <p>Presence detection, not signature validation. Local only, nothing leaves your browser.</p>
-      </div>
-    </details>
     <script src="popup.js"></script>
   </body>
 </html>

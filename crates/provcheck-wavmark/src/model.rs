@@ -33,11 +33,7 @@ use tract_onnx::prelude::*;
 
 use crate::stft::StftConfig;
 
-// v0.7 phase 8a: wavmark encoder + decoder + FC weights migrated
-// from include_bytes!() to the provcheck-weights DLC pattern. Kit
-// binary drops by ~16 MB. The tiny bias .bin files (64 KB
-// fc.bias, 128 bytes fc_back.bias) stay embedded — too small to
-// justify a download round trip.
+// Encoder, decoder, and FC weights load via the weights DLC; the tiny bias .bin files stay embedded (too small to justify a download).
 const FC_BIAS: &[u8] = include_bytes!("../models/wavmark-watermark_fc.bias.bin");
 const FC_BACK_BIAS: &[u8] = include_bytes!("../models/wavmark-watermark_fc_back.bias.bin");
 
@@ -79,9 +75,7 @@ pub fn apply_watermark_fc(message: &[f32; NUM_BITS]) -> Vec<f32> {
     let weights = fc_weights();
     let bias = fc_bias();
     let mut out = vec![0.0_f32; CHUNK_SAMPLES];
-    // PyTorch Linear: y = x @ W^T + b. Stored weight has shape
-    // (out_features, in_features), so the dot product is over the
-    // 32 in_features per row.
+    // PyTorch Linear y = x @ W^T + b; weight shape is (out_features, in_features), so dot over 32 in_features per row.
     for i in 0..CHUNK_SAMPLES {
         let row_off = i * NUM_BITS;
         let mut acc = bias[i];
@@ -239,9 +233,7 @@ pub fn permute_freq_time_to_channel_time_freq(
     freq_bins: usize,
 ) -> Vec<f32> {
     let mut out = vec![0.0_f32; 2 * t_frames * freq_bins];
-    // Output layout: [2, t_frames, freq_bins] row-major. Channel 0
-    // holds reals at offsets [0, t_frames*freq_bins), channel 1
-    // holds imaginaries at offsets [t_frames*freq_bins, 2*t_frames*freq_bins).
+    // Layout [2, t_frames, freq_bins] row-major: channel 0 reals, channel 1 imaginaries offset by t_frames*freq_bins.
     let chan1_off = t_frames * freq_bins;
     for b in 0..freq_bins {
         for t in 0..t_frames {
@@ -373,7 +365,7 @@ fn load_f32_blob(bytes: &[u8], expected_elems: usize, label: &str) -> Vec<f32> {
         bytes.len()
     );
     let mut out = Vec::with_capacity(expected_elems);
-    for chunk in bytes.chunks_exact(4) {
+    for chunk in bytes.as_chunks::<4>().0 {
         out.push(f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]));
     }
     out

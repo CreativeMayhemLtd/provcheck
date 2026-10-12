@@ -1,0 +1,67 @@
+{
+  "ProvcheckC2PA": {
+    "display_name": "Provcheck (Bezplatný C2PA vodoznak) • Creative Mayhem",
+    "description": "Bezplatný, otevřený (Apache-2.0) provcheck pro ComfyUI — jeden uzel pro obraz, audio a video. ZÁPIS: vloží bezplatný vodoznak (TrustMark u obrázků, silentcipher na audio stopě u audia/videa) a/nebo podepíše C2PA pomocí vašeho lokálního klíče a identity atproto/Bluesky, volitelně se záznamem grafu generování; podepsaný soubor se zapíše do vašeho výstupního adresáře. ČTENÍ: rozpozná/ověří značku provcheck na každém připojeném vstupu. Připojte obraz, audio, video nebo libovolnou kombinaci. Každá volba je widget, který lze také připojit z jiného uzlu, včetně výstupního názvu souboru. Creative Mayhem také vyrábí Backfire, klíčovanou značku, kterou pokusy o odstranění pomocí AI spíše zesilují, než odstraňují (komerční doplněk, není součástí tohoto bezplatného balíčku): https://provcheck.ai/backfire . Více: https://provcheck.ai",
+    "inputs": {
+      "mode": {
+        "name": "mode",
+        "tooltip": "zápis = vodoznak a/nebo podpis C2PA pro každý připojený vstup (nejběžnější). čtení = rozpoznat/ověřit existující značku provcheck.",
+        "options": {
+          "write": "zápis",
+          "read": "čtení"
+        }
+      },
+      "image": {
+        "name": "obrázek",
+        "tooltip": "Volitelná dávka obrázků k zápisu / čtení."
+      },
+      "audio": {
+        "name": "audio",
+        "tooltip": "Volitelné audio k zápisu / čtení."
+      },
+      "video": {
+        "name": "video",
+        "tooltip": "Volitelné video. Vodoznak je na audio stopě (snímky jsou zachovány); kontejner je podepsán C2PA."
+      },
+      "watermark": {
+        "name": "watermark",
+        "tooltip": "[zápis] Vloží bezplatný FOSS vodoznak (TrustMark obraz / silentcipher audio)."
+      },
+      "c2pa_sign": {
+        "name": "c2pa_sign",
+        "tooltip": "[zápis] Podepíše C2PA pomocí vašeho lokálního podpisového klíče. Podepsaný soubor se zapíše do výstupního adresáře ComfyUI."
+      },
+      "embed_identity": {
+        "name": "embed_identity",
+        "tooltip": "[zápis] Vloží vaši identitu atproto/Bluesky (DID + handle) do manifestu, aby ověřovatel viděl, kdo podepsal. Vyžaduje přihlášení kit."
+      },
+      "record_provenance": {
+        "name": "record_provenance",
+        "tooltip": "[zápis] Uloží kurátorované shrnutí grafu generování (model, seed, sampler, prompty) do podepsaného manifestu."
+      },
+      "include_full_workflow": {
+        "name": "include_full_workflow",
+        "tooltip": "[zápis] S record_provenance: vloží ÚPLNÝ (redigovaný) workflow, nejen shrnutí. Ve výchozím stavu vypnuto, aby se předešlo úniku promptů/cest."
+      },
+      "brand_id": {
+        "name": "brand_id",
+        "tooltip": "[zápis] Vaše 5bitové ID značky z registru značek atproto (0-31). Výchozí 2 je veřejné ID rAIdio.bot; použijte vlastní."
+      },
+      "filename_prefix": {
+        "name": "filename_prefix",
+        "tooltip": "[zápis, když se soubor zapisuje] Předpona názvu výstupního souboru pro podepsané/označené soubory. Editovatelné a lze připojit z jiného uzlu (klikněte pravým tlačítkem -> Convert to input)."
+      },
+      "timeout_secs": {
+        "name": "timeout_secs",
+        "tooltip": "Časový limit subprocesu na položku, v sekundách."
+      }
+    },
+    "outputs": {
+      "0": { "name": "obrázek" },
+      "1": { "name": "audio" },
+      "2": { "name": "video" },
+      "3": { "name": "zpráva" },
+      "4": { "name": "rozpoznáno" }
+    }
+  }
+}

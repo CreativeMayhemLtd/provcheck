@@ -1,0 +1,647 @@
+{
+  "headerSubtitle": {
+    "message": "Onderteken en verifieer C2PA Content Credentials"
+  },
+  "tabVerify": {
+    "message": "Verifiëren"
+  },
+  "tabWatermark": {
+    "message": "Watermerk"
+  },
+  "tabDetect": {
+    "message": "Detecteren"
+  },
+  "tabKeys": {
+    "message": "Sleutels"
+  },
+  "tabSign": {
+    "message": "Ondertekenen"
+  },
+  "tabKeyedMarks": {
+    "message": "Sleutelmarkeringen"
+  },
+  "btnChooseFile": {
+    "message": "Bestand kiezen…"
+  },
+  "btnVerifyAnother": {
+    "message": "Nog een verifiëren"
+  },
+  "btnCopyJson": {
+    "message": "Kopiëren als JSON"
+  },
+  "btnCheckAnother": {
+    "message": "Nog een bestand controleren"
+  },
+  "btnReadAnother": {
+    "message": "Nog een lezen"
+  },
+  "btnLogOut": {
+    "message": "Uitloggen"
+  },
+  "btnConnect": {
+    "message": "Verbinden"
+  },
+  "btnCopy": {
+    "message": "Kopiëren"
+  },
+  "btnRetry": {
+    "message": "Opnieuw proberen"
+  },
+  "btnSign": {
+    "message": "Ondertekenen"
+  },
+  "btnOK": {
+    "message": "OK"
+  },
+  "btnCancel": {
+    "message": "Annuleren"
+  },
+  "btnGotIt": {
+    "message": "Begrepen"
+  },
+  "btnHowItWorks": {
+    "message": "Hoe het werkt"
+  },
+  "btnInstallRepair": {
+    "message": "Installeren / repareren"
+  },
+  "btnChooseSecret": {
+    "message": "Geheim bestand kiezen"
+  },
+  "btnClose": {
+    "message": "Sluiten"
+  },
+  "badgeExperimental": {
+    "message": "Experimenteel"
+  },
+  "loadingGeneric": {
+    "message": "Laden…"
+  },
+  "statusChecking": {
+    "message": "Controleren..."
+  },
+  "statusCheckingStatus": {
+    "message": "Status controleren…"
+  },
+  "labelFingerprint": {
+    "message": "Vingerafdruk"
+  },
+  "labelAlgorithm": {
+    "message": "Algoritme"
+  },
+  "labelBackend": {
+    "message": "Backend"
+  },
+  "labelCreated": {
+    "message": "Aangemaakt"
+  },
+  "labelDID": {
+    "message": "DID"
+  },
+  "labelHandle": {
+    "message": "Handle"
+  },
+  "labelYubikey": {
+    "message": "Yubikey"
+  },
+  "labelPinTries": {
+    "message": "PIN-pogingen"
+  },
+  "labelStatus": {
+    "message": "Status"
+  },
+  "labelLabel": {
+    "message": "Label"
+  },
+  "labelBy": {
+    "message": "Door"
+  },
+  "labelTool": {
+    "message": "Tool"
+  },
+  "labelFile": {
+    "message": "Bestand"
+  },
+  "labelYourIdentity": {
+    "message": "Jouw identiteit"
+  },
+  "labelOutput": {
+    "message": "Uitvoer"
+  },
+  "aboutLinks": {
+    "message": "Links"
+  },
+  "identityBskyHandle": {
+    "message": "Bsky-handle"
+  },
+  "identityRunWatermark": {
+    "message": "Watermerkdetectie uitvoeren"
+  },
+  "identityRequireAttested": {
+    "message": "Attestatie vereisen"
+  },
+  "identityHandlePh": {
+    "message": "optioneel · bijv. creator.bsky.social of did:plc:…"
+  },
+  "dropzoneTitle": {
+    "message": "Zet hier een willekeurig bestand neer om te verifiëren"
+  },
+  "dropzoneSub": {
+    "message": "Audio · Afbeelding · Video: alles dat C2PA Content Credentials bevat."
+  },
+  "verifyDropHint": {
+    "message": "Of voer uit zonder bestand en dit blijft staan. Privé: bestanden verlaten nooit je computer."
+  },
+  "verifyLoading": {
+    "message": "Verifiëren…"
+  },
+  "verifyLoadingHint": {
+    "message": "Watermerkdetectie is CPU-intensief bij audio en video en kan enkele minuten duren. Schakel \"Watermerkdetectie uitvoeren\" uit voor een directe verificatie die alleen C2PA controleert."
+  },
+  "showRawManifest": {
+    "message": "Ruwe manifestgegevens tonen"
+  },
+  "claimsHeading": {
+    "message": "Claims"
+  },
+  "wmModelsNeeded": {
+    "message": "Watermerkdetectie heeft modellen nodig."
+  },
+  "wmInstallAll": {
+    "message": "Alle modellen installeren"
+  },
+  "wmScanFor": {
+    "message": "Scannen op:"
+  },
+  "wmDropTitle": {
+    "message": "Zet hier een willekeurig bestand neer om watermerkdetectie uit te voeren"
+  },
+  "wmDropHint": {
+    "message": "Privé: bestanden verlaten nooit je computer. Elke detector bepaalt zelf of hij van toepassing is op het invoerbestandstype."
+  },
+  "wmLoading": {
+    "message": "Watermerkdetectors worden uitgevoerd…"
+  },
+  "wmLoadingHint": {
+    "message": "Modelinferentie is CPU-intensief bij audio en video; een scan kan enkele minuten duren. Er wordt nog gewerkt terwijl dit draait."
+  },
+  "wmResultTitle": {
+    "message": "Watermerkdetectie"
+  },
+  "detectTitle": {
+    "message": "AI-contentdetectie: breng je eigen detector mee"
+  },
+  "detectRouteAHead": {
+    "message": "Route A: betaald DLC-pakket (v1.x, gepland)"
+  },
+  "detectRouteBHead": {
+    "message": "Route B: door operator geleverde wrapper (nu beschikbaar)"
+  },
+  "keysLocalIdentity": {
+    "message": "Lokale identiteit"
+  },
+  "keysNoIdentity": {
+    "message": "Geen identiteit op deze computer."
+  },
+  "keysMismatchTitle": {
+    "message": "Identiteitsstatus komt niet overeen"
+  },
+  "keysRotateBtn": {
+    "message": "Nieuwe genereren + publiceren"
+  },
+  "keysRotateTitle": {
+    "message": "Genereer een nieuwe ondertekeningssleutel en publiceer deze als het nieuwe actieve record"
+  },
+  "keysSwitchYubikey": {
+    "message": "Overschakelen naar Yubikey-identiteit…"
+  },
+  "keysSwitchYubikeyTitle": {
+    "message": "Vervang de huidige identiteit door een op Yubikey gebaseerde identiteit"
+  },
+  "keysPublishedRecords": {
+    "message": "Gepubliceerde records (atproto)"
+  },
+  "keysRecordsEmptyHint": {
+    "message": "Log in op het tabblad Ondertekenen en publiceer je lokale vingerafdruk."
+  },
+  "keysNotLoggedIn": {
+    "message": "Niet ingelogd bij atproto."
+  },
+  "keysNoSessionHint": {
+    "message": "Log in op het tabblad Ondertekenen om je gepubliceerde records op te halen."
+  },
+  "signIdentityLabel": {
+    "message": "Identiteit:"
+  },
+  "signNotSetUp": {
+    "message": "niet ingesteld"
+  },
+  "signSessionLabel": {
+    "message": "Sessie:"
+  },
+  "signDisconnected": {
+    "message": "niet verbonden"
+  },
+  "signSetupTitle": {
+    "message": "Stel je ondertekeningsidentiteit in"
+  },
+  "signSetupBody": {
+    "message": "Dit genereert een cryptografische sleutel op deze computer en slaat deze op in de sleutelhanger van je besturingssysteem. Dit hoef je maar één keer te doen."
+  },
+  "signGenerateKey": {
+    "message": "Ondertekeningssleutel genereren"
+  },
+  "signSetupHint": {
+    "message": "De sleutel verlaat nooit je computer. Je besturingssysteem regelt de toegangsvragen."
+  },
+  "signConnectTitle": {
+    "message": "Verbind je bsky-identiteit"
+  },
+  "signConnectBody": {
+    "message": "Koppel je ondertekeningssleutel aan je atproto-handle, zodat verifiers weten dat deze van jou is."
+  },
+  "signHandlePh": {
+    "message": "creator.bsky.social"
+  },
+  "signAppPassword": {
+    "message": "App-wachtwoord"
+  },
+  "signRememberDevice": {
+    "message": "Onthoud mij op dit apparaat"
+  },
+  "signPublishTitle": {
+    "message": "Publiceer je ondertekeningssleutel"
+  },
+  "signPublishBody": {
+    "message": "Nog één stap: door de vingerafdruk van je sleutel te publiceren op atproto kunnen verifiers controleren dat jij je werk hebt ondertekend. Zonder dit zien ze alleen \"geldige handtekening door onbekend.\""
+  },
+  "signLabelOptional": {
+    "message": "Label (optioneel)"
+  },
+  "signLabelPh": {
+    "message": "bijv. studio mac"
+  },
+  "signPublishKey": {
+    "message": "Sleutel publiceren"
+  },
+  "signStaleTitle": {
+    "message": "Je ondertekeningssleutel is verouderd"
+  },
+  "signRecoverHeading": {
+    "message": "Herstellen vanuit een terminal:"
+  },
+  "signStaleHint": {
+    "message": "Dit genereert een nieuwe sleutel, publiceert deze als het nieuwe actieve record en trekt (indien nodig) het verweesde record in, zodat niemand met de verloren sleutel in jouw naam kan ondertekenen."
+  },
+  "signDropTitle": {
+    "message": "Zet hier een bestand neer om te ondertekenen"
+  },
+  "signDropSub": {
+    "message": "Audio · Afbeelding · Video: alles wat c2pa-rs ondersteunt."
+  },
+  "signReadyToSign": {
+    "message": "Klaar om te ondertekenen"
+  },
+  "signChainTitle": {
+    "message": "Dit bestand is al ondertekend."
+  },
+  "signChainSub": {
+    "message": "Je handtekening wordt toegevoegd aan de keten als afgeleide; de oorspronkelijke handtekening blijft intact."
+  },
+  "signRelationshipQ": {
+    "message": "Wat is jouw relatie tot dit bestand?"
+  },
+  "signEmbedIdentity": {
+    "message": "Identiteitsbewering insluiten (aanbevolen; hiermee kunnen verifiers de handle-invoerstap overslaan)"
+  },
+  "signModelPh": {
+    "message": "bijv. ACE-Step v1.0"
+  },
+  "signReplaceOriginal": {
+    "message": "Origineel vervangen (in plaats van een sidecar te schrijven)"
+  },
+  "signPickDifferent": {
+    "message": "Kies een ander bestand"
+  },
+  "signSigning": {
+    "message": "Ondertekenen…"
+  },
+  "signSigned": {
+    "message": "Ondertekend"
+  },
+  "signAnother": {
+    "message": "Nog een ondertekenen"
+  },
+  "signVerifyIt": {
+    "message": "Verifieer het"
+  },
+  "signErrorTitle": {
+    "message": "Kon je ondertekeningsstatus niet laden"
+  },
+  "bfBackfireTitle": {
+    "message": "Lees een sleutelgebonden Backfire-markering"
+  },
+  "bfBackfireSub": {
+    "message": "Verifieer een per-afbeelding watermerk dat AI-herkomststrippers versterken in plaats van verwijderen."
+  },
+  "bfReaderLabel": {
+    "message": "Backfire-lezer"
+  },
+  "bfDropTitle": {
+    "message": "Zet hier een afbeelding neer, of kies er een, om de markering te lezen"
+  },
+  "bfChooseRead": {
+    "message": "Afbeelding kiezen en lezen"
+  },
+  "bfHint": {
+    "message": "Voer eerst je sleutel hierboven in en zet daarna een afbeelding neer of kies er een. Deze wordt automatisch gelezen en blijft op je computer."
+  },
+  "bfLoading": {
+    "message": "Backfire-markering lezen…"
+  },
+  "mlTitle": {
+    "message": "Lees een sleutelgebonden Mellin-serienummer"
+  },
+  "mlSub": {
+    "message": "Audiozijdige sleutelgebonden forensica: herstel het 64-bit per-exemplaar serienummer dat je hebt ingesloten met de standalone, BUSL-gelicentieerde tool provcheck-mellin (gratis voor niet-commercieel gebruik, los van provcheck). Vereist je verkoper-geheimbestand en werk-id; alles blijft op je computer."
+  },
+  "mlReaderLabel": {
+    "message": "Mellin-lezer"
+  },
+  "mlSecretNone": {
+    "message": "geen gekozen. Het geheim wordt nooit opgeslagen, dus kies het opnieuw na elke start."
+  },
+  "mlWorkidPh": {
+    "message": "het werk-id dat is gebruikt bij het insluiten"
+  },
+  "mlDropTitle": {
+    "message": "Kies een audiobestand om het serienummer te lezen"
+  },
+  "mlChooseRead": {
+    "message": "Audio kiezen en lezen"
+  },
+  "mlHint": {
+    "message": "Kies eerst je geheime bestand en voer het werk-id in, kies daarna de audio of zet deze ergens op dit tabblad neer. Elk formaat werkt (WAV, MP3, AAC, FLAC); audiobestanden worden hier gelezen, afbeeldingen lezen de Backfire-markering hierboven."
+  },
+  "mlLoading": {
+    "message": "Mellin-serienummer lezen…"
+  },
+  "imTitle": {
+    "message": "Lees een sleutelgebonden idmark-identiteitsmarkering"
+  },
+  "imSub": {
+    "message": "Afbeeldingszijdige sleutelgebonden identiteit: lees de bijsnijd-, transcodeer- en rotatiebestendige per-exemplaar markering die is ingesloten met de standalone, BUSL-gelicentieerde tool provcheck-idmark (gratis voor niet-commercieel gebruik, los van provcheck). Zonder geheim controleert het de ingebouwde markering; voeg je geheime bestand en een seat toe om een exemplaar toe te wijzen. Alles blijft op je computer."
+  },
+  "imReaderLabel": {
+    "message": "idmark-lezer"
+  },
+  "imSecretNone": {
+    "message": "geen gekozen. Laat leeg om de ingebouwde markering te lezen; het geheim wordt nooit opgeslagen."
+  },
+  "imDropTitle": {
+    "message": "Kies een afbeelding om de markering te lezen"
+  },
+  "imChooseRead": {
+    "message": "Afbeelding kiezen en lezen"
+  },
+  "imHint": {
+    "message": "Kies eventueel eerst je geheime bestand en een seat, kies daarna de afbeelding. PNG of JPEG. Dit leest de idmark-identiteitsmarkering; de Backfire-markering en Mellin-serienummers worden gelezen in de secties hierboven."
+  },
+  "imLoading": {
+    "message": "idmark lezen…"
+  },
+  "bfModalTitle": {
+    "message": "Hoe Backfire werkt"
+  },
+  "vVerified": {
+    "message": "Geverifieerd"
+  },
+  "vUnsigned": {
+    "message": "Niet ondertekend"
+  },
+  "vNotVerified": {
+    "message": "Niet geverifieerd"
+  },
+  "attAttestedBy": {
+    "message": "Geattesteerd door $1"
+  },
+  "attMatchSub": {
+    "message": "Het ondertekeningscertificaat komt overeen met een sleutel die onder deze identiteit is gepubliceerd."
+  },
+  "attMismatch": {
+    "message": "Attestatie komt niet overeen voor $1"
+  },
+  "attMismatchSub": {
+    "message": "Het ondertekeningscertificaat komt niet overeen met een sleutel die onder deze identiteit is gepubliceerd."
+  },
+  "attNotPublished": {
+    "message": "Geen sleutels gepubliceerd onder $1"
+  },
+  "attNotPublishedSub": {
+    "message": "Deze identiteit bestaat, maar heeft geen signingKey-records gepubliceerd."
+  },
+  "attResolveFailed": {
+    "message": "Kon $1 niet omzetten"
+  },
+  "attResolveFailedSub": {
+    "message": "Identiteitsomzetting mislukt (handle/DID niet bereikbaar)."
+  },
+  "attThisIdentity": {
+    "message": "deze identiteit"
+  },
+  "kvSigner": {
+    "message": "Ondertekenaar"
+  },
+  "kvSignedAt": {
+    "message": "Ondertekend op"
+  },
+  "kvFormat": {
+    "message": "Formaat"
+  },
+  "kvManifest": {
+    "message": "Manifest"
+  },
+  "kvIngredients": {
+    "message": "Ingrediënten"
+  },
+  "kvIngredientsVal": {
+    "message": "$1 (afgeleide content: dit bestand is gemaakt door eerder ondertekende bestanden te bewerken)"
+  },
+  "kvValidationErrors": {
+    "message": "Validatiefouten"
+  },
+  "wmEmpty": {
+    "message": "Geen watermerken gedetecteerd door de uitgevoerde detectorfamilies."
+  },
+  "wmKeyedNote": {
+    "message": "Sleutelgebonden markeringen (Backfire, Mellin) maken geen deel uit van deze scan. Ze kunnen alleen worden gelezen met jouw sleutel, op het tabblad Sleutelmarkeringen."
+  },
+  "wmConfidence": {
+    "message": "$1% zekerheid"
+  },
+  "wmDegraded": {
+    "message": "$1% zekerheid; markering is verslechterd (gedeeltelijke beschadiging waarschijnlijk)"
+  },
+  "wmNa": {
+    "message": "$1: n/a"
+  },
+  "wmNoMark": {
+    "message": "$1: geen markering gedetecteerd"
+  },
+  "wmTimelineAria": {
+    "message": "Aanwezigheid van watermerk in de tijd: $1"
+  },
+  "wmUnrecognizedSource": {
+    "message": "niet-herkende bron"
+  },
+  "btnCopied": {
+    "message": "Gekopieerd"
+  },
+  "scanError": {
+    "message": "Kon dit bestand niet scannen: $1"
+  },
+  "autoFilled": {
+    "message": "automatisch ingevuld vanuit bestand"
+  },
+  "dragFileOnto": {
+    "message": "Sleep het bestand naar het venster"
+  },
+  "aiGenerated": {
+    "message": "AI-gegenereerd"
+  },
+  "btnCopiedBang": {
+    "message": "Gekopieerd!"
+  },
+  "bfCouldNotRun": {
+    "message": "Backfire kon niet worden uitgevoerd"
+  },
+  "btnInstalling": {
+    "message": "Installeren…"
+  },
+  "downloadingModels": {
+    "message": "Modellen downloaden, dit kan een minuutje duren…"
+  },
+  "btnWorking": {
+    "message": "Bezig…"
+  },
+  "bfInstalling": {
+    "message": "Backfire-lezer installeren / repareren…"
+  },
+  "statusCheckFailed": {
+    "message": "Statuscontrole mislukt: $1"
+  },
+  "readingFile": {
+    "message": "$1 lezen…"
+  },
+  "mlCouldNotRun": {
+    "message": "Mellin kon niet worden uitgevoerd"
+  },
+  "imCouldNotRun": {
+    "message": "idmark kon niet worden uitgevoerd"
+  },
+  "keysMismSuperseded": {
+    "message": "Je lokale sleutel is vervangen"
+  },
+  "keysMismRevoked": {
+    "message": "Je lokale sleutel is ingetrokken"
+  },
+  "keysMismActiveNoKey": {
+    "message": "Actief record gebruikt een sleutel die je niet hebt"
+  },
+  "thisBox": {
+    "message": "(deze computer)"
+  },
+  "btnRevoke": {
+    "message": "Intrekken"
+  },
+  "checkingPublishedKeys": {
+    "message": "Gepubliceerde sleutels controleren…"
+  },
+  "btnGenerating": {
+    "message": "Genereren…"
+  },
+  "btnConnecting": {
+    "message": "Verbinden…"
+  },
+  "btnPublishing": {
+    "message": "Publiceren…"
+  },
+  "signReadyToPublish": {
+    "message": "Klaar om te publiceren"
+  },
+  "bfMarkFound": {
+    "message": "Backfire-markering gevonden"
+  },
+  "bfNoValidMark": {
+    "message": "Geen geldige Backfire-markering"
+  },
+  "mlSerialRecovered": {
+    "message": "Mellin-serienummer hersteld"
+  },
+  "mlNoFullSerial": {
+    "message": "Geen volledig Mellin-serienummer"
+  },
+  "imPresent": {
+    "message": "idmark aanwezig"
+  },
+  "imNoDetected": {
+    "message": "Geen idmark gedetecteerd"
+  },
+  "fieldIdentifier": {
+    "message": "Identificatie"
+  },
+  "fieldConfidenceMargin": {
+    "message": "Zekerheid (min-bit marge)"
+  },
+  "fieldValid": {
+    "message": "Geldig"
+  },
+  "fieldMatchesSerial": {
+    "message": "Komt overeen met verwacht serienummer"
+  },
+  "fieldTamperTripwire": {
+    "message": "Manipulatiealarm"
+  },
+  "fieldSerial": {
+    "message": "Serienummer"
+  },
+  "fieldBitsRecovered": {
+    "message": "Bits hersteld"
+  },
+  "fieldErasureRate": {
+    "message": "Uitvalpercentage"
+  },
+  "fieldMinBitVotes": {
+    "message": "Min. bit-stemmen"
+  },
+  "fieldMarkPresent": {
+    "message": "Markering aanwezig"
+  },
+  "fieldSeat": {
+    "message": "Seat"
+  },
+  "fieldMargin": {
+    "message": "Marge"
+  },
+  "fieldReadVia": {
+    "message": "Gelezen via"
+  },
+  "fieldEstRotation": {
+    "message": "Geschatte rotatie"
+  },
+  "fieldError": {
+    "message": "Fout"
+  },
+  "valYes": {
+    "message": "ja"
+  },
+  "valNo": {
+    "message": "nee"
+  },
+  "bfTamperDetected": {
+    "message": "notch-manipulatie gedetecteerd (stat $1)"
+  },
+  "bfTamperClean": {
+    "message": "schoon (stat $1)"
+  }
+}

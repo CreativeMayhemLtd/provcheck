@@ -1,0 +1,67 @@
+{
+  "ProvcheckC2PA": {
+    "display_name": "Provcheck (Watermark C2PA Gratis) • Creative Mayhem",
+    "description": "provcheck gratis dan terbuka (Apache-2.0) untuk ComfyUI — satu node untuk gambar, audio, dan video. WRITE: menyematkan watermark gratis (TrustMark pada gambar, silentcipher pada track audio dari audio/video) dan/atau menandatangani C2PA dengan kunci lokal Anda + identitas atproto/Bluesky, secara opsional mencatat graf pembuatan; berkas yang ditandatangani ditulis ke direktori output Anda. READ: mendeteksi/memverifikasi tanda provcheck pada setiap input yang terhubung. Hubungkan gambar, audio, video, atau kombinasi apa pun. Setiap opsi adalah widget yang juga dapat Anda hubungkan dari node lain, termasuk nama berkas output. Creative Mayhem juga membuat Backfire, tanda berkunci yang justru diperkuat oleh upaya penghapusan AI, bukan dihilangkan (add-on komersial, tidak termasuk dalam paket gratis ini): https://provcheck.ai/backfire . Selengkapnya: https://provcheck.ai",
+    "inputs": {
+      "mode": {
+        "name": "mode",
+        "tooltip": "write = beri watermark dan/atau tanda tangani C2PA pada setiap input yang terhubung (paling umum). read = deteksi/verifikasi tanda provcheck yang sudah ada.",
+        "options": {
+          "write": "tulis",
+          "read": "baca"
+        }
+      },
+      "image": {
+        "name": "gambar",
+        "tooltip": "Batch gambar opsional untuk ditulis / dibaca."
+      },
+      "audio": {
+        "name": "audio",
+        "tooltip": "Audio opsional untuk ditulis / dibaca."
+      },
+      "video": {
+        "name": "video",
+        "tooltip": "Video opsional. Watermark menumpang pada track audio (frame tetap terjaga); container ditandatangani C2PA."
+      },
+      "watermark": {
+        "name": "watermark",
+        "tooltip": "[write] Menyematkan watermark FOSS gratis (TrustMark untuk gambar / silentcipher untuk audio)."
+      },
+      "c2pa_sign": {
+        "name": "c2pa_sign",
+        "tooltip": "[write] Menandatangani C2PA dengan kunci penandatanganan lokal Anda. Berkas yang ditandatangani ditulis ke direktori output ComfyUI Anda."
+      },
+      "embed_identity": {
+        "name": "embed_identity",
+        "tooltip": "[write] Menyematkan identitas atproto/Bluesky Anda (DID + handle) ke dalam manifest agar pemverifikasi tahu siapa yang menandatangani. Memerlukan login kit."
+      },
+      "record_provenance": {
+        "name": "record_provenance",
+        "tooltip": "[write] Mencatat ringkasan terkurasi dari graf pembuatan (model, seed, sampler, prompts) ke dalam manifest yang ditandatangani."
+      },
+      "include_full_workflow": {
+        "name": "include_full_workflow",
+        "tooltip": "[write] Bersama record_provenance: menyematkan workflow LENGKAP (yang telah disamarkan), bukan hanya ringkasan. Nonaktif secara default untuk menghindari kebocoran prompts/paths."
+      },
+      "brand_id": {
+        "name": "brand_id",
+        "tooltip": "[write] brand id 5-bit Anda dari atproto brand registry (0-31). Default 2 adalah id publik rAIdio.bot; gunakan milik Anda sendiri."
+      },
+      "filename_prefix": {
+        "name": "filename_prefix",
+        "tooltip": "[write, saat sebuah berkas ditulis] Prefiks nama berkas output untuk berkas yang ditandatangani/diberi watermark. Dapat diedit, dan dapat dihubungkan dari node lain (klik kanan -> Convert to input)."
+      },
+      "timeout_secs": {
+        "name": "timeout_secs",
+        "tooltip": "Batas waktu subprocess per item, dalam detik."
+      }
+    },
+    "outputs": {
+      "0": { "name": "gambar" },
+      "1": { "name": "audio" },
+      "2": { "name": "video" },
+      "3": { "name": "laporan" },
+      "4": { "name": "terdeteksi" }
+    }
+  }
+}

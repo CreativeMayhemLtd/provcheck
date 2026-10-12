@@ -39,12 +39,6 @@ use crate::stft::{
     streaming_utterance_norm, waveform_to_spectrum,
 };
 
-// v0.7 phase 8a: silentcipher encoder ONNX migrated from
-// include_bytes!() to the provcheck-weights DLC pattern. First
-// embed() lazily pulls from the public mirror's weights-v1
-// release; subsequent calls hit the cache. Kit binary drops by
-// ~2.1 MB.
-
 /// `Encoder.linear` weights — shape `(MESSAGE_BAND_SIZE=1024, MESSAGE_DIM=5)`,
 /// row-major as PyTorch dumps them. Used by [`transform_message`] to project
 /// the 5-channel one-hot message tensor up to 1024 frequency bins; the
@@ -156,8 +150,7 @@ pub fn embed_with_config(
         return Err(EncodeError::TooShort);
     }
 
-    // 1. VCTK rescale. Remember the original power so we can de-rescale
-    //    the watermarked output to the input's loudness.
+    // 1. VCTK rescale; keep original power to de-rescale the output.
     let original_power: f32 = waveform.iter().map(|s| s * s).sum::<f32>() / waveform.len() as f32;
     let rescale = if original_power > f32::EPSILON {
         (VCTK_AVG_ENERGY / original_power).sqrt()
@@ -166,28 +159,15 @@ pub fn embed_with_config(
     };
     let rescaled: Vec<f32> = waveform.iter().map(|s| s * rescale).collect();
 
-    // 2. Forward STFT. Drop `rescaled` here so its `n_samples` worth of
-    //    memory (~596 MB on a 56-minute mp3 at 44.1 kHz) doesn't sit
-    //    next to the spectrogram during the chunk loop. The STFT keeps
-    //    everything it needs in `spec`.
+    // 2. Forward STFT; drop `rescaled` to keep its ~596 MB off-heap during the chunk loop.
     let spec = waveform_to_spectrum(&rescaled)?;
     drop(rescaled);
     let n_frames = spec.n_frames;
 
-    // 3. Message symbol stream — the small `[MESSAGE_DIM, n_frames]`
-    //    one-hot tensor that gets projected up to `[FREQ_BINS, n_frames]`
-    //    by `transform_message`. We do NOT precompute the projected
-    //    full grid here; that was a ~595 MB allocation that scaled
-    //    linearly with input length and was the dominant cause of the
-    //    v0.3.8 embed-side OOM on multi-minute MP3s (public issue #17,
-    //    fixed in v0.5.1). The projection lives inside the chunk loop
-    //    instead, producing only `[FREQ_BINS, chunk_t]` per iteration.
+    // 3. Small `[MESSAGE_DIM, n_frames]` one-hot; projected per-chunk (not full-grid) to avoid the ~595 MB embed OOM (issue #17).
     let msg_enc_5 = letters_encoding(payload, n_frames);
 
-    // 4. Utterance-level normalisation scalar: sqrt(mean(carrier²))
-    //    over the full magnitude grid. silentcipher applies this AFTER
-    //    the dec_c output, so it must be computed from the full pre-
-    //    inference carrier and applied to chunked outputs.
+    // 4. Utterance norm = sqrt(mean(carrier²)) over the full grid; silentcipher applies it after dec_c, so compute pre-inference and apply per chunk.
     let utterance_norm: f32 = {
         let mean_sq: f32 = spec.magnitude.iter().map(|m| m * m).sum::<f32>()
             / (FREQ_BINS as f32 * n_frames as f32);
@@ -196,23 +176,9 @@ pub fn embed_with_config(
 
     let sdr = message_sdr_db.unwrap_or(DEFAULT_MESSAGE_SDR_DB);
 
-    // 5. Chunked ONNX inference, then post-process per chunk into the
-    //    `carrier_reconst` buffer (magnitude after watermark embed).
-    //    `transform_message_chunk` runs inline so the message projection
-    //    never exists as a full-length tensor; only `chunk_t` columns
-    //    of it are materialised at any time.
-    //
-    //    v0.6.0 P1: batches of up to `parallel_batch` chunks run
-    //    concurrently via rayon. Each thread independently extracts
-    //    its slice of the spectrogram, runs tract, and post-processes
-    //    into a chunk-local buffer; the scatter into `carrier_reconst`
-    //    happens sequentially after each batch because chunks within
-    //    a batch are disjoint in time. Mirrors the detector's
-    //    PARALLEL_BATCH pattern in `crates/provcheck-watermark/src/lib.rs`
-    //    (`detect_chunked`). Empirical cap of 4 keeps peak memory
-    //    bounded — each chunk peaks around 1.5 GB of tract intermediates,
-    //    so 4-wide is safe on a 16 GB host and the doomscroll
-    //    16 GB container we observed.
+    // 5. Chunked ONNX inference + per-chunk post-process into `carrier_reconst`;
+    //    up to `parallel_batch` disjoint chunks run concurrently via rayon, scattered
+    //    sequentially after each batch. Cap 4: each chunk peaks ~1.5 GB of tract intermediates.
     use rayon::prelude::*;
 
     let auto_batch: usize = std::thread::available_parallelism()
@@ -225,7 +191,6 @@ pub fn embed_with_config(
     let mut t_consumed: usize = 0;
 
     while t_consumed < n_frames {
-        // Build this batch's chunk offsets + sizes.
         let mut batch: Vec<(usize, usize)> = Vec::with_capacity(parallel_batch);
         let mut t_cursor = t_consumed;
         for _ in 0..parallel_batch {
@@ -237,12 +202,7 @@ pub fn embed_with_config(
             t_cursor += chunk_t;
         }
 
-        // Run encoder + post-process in parallel. Each thread produces
-        // a `[FREQ_BINS, chunk_t]` chunk-local buffer of reconst values
-        // (laid out as `bin * chunk_t + t`). tract's runnable model is
-        // `Send + Sync` behind `&`, so rayon can hand the same
-        // OnceLock-cached model to every worker without contention on
-        // its own state.
+        // Encoder + post-process per chunk in parallel; tract's model is Send+Sync behind `&`, so workers share the OnceLock cache.
         let processed: Result<Vec<(usize, usize, Vec<f32>)>, EncodeError> = batch
             .par_iter()
             .map(|&(t_start, chunk_t)| {
@@ -266,9 +226,7 @@ pub fn embed_with_config(
             .collect();
         let chunks = processed?;
 
-        // Scatter every chunk in this batch into carrier_reconst.
-        // Chunks within a batch are guaranteed non-overlapping by
-        // construction (cursor advances by chunk_t each iteration).
+        // Scatter each chunk into carrier_reconst; chunks in a batch are non-overlapping by construction.
         for (t_start, chunk_t, chunk_reconst) in chunks {
             for bin in 0..FREQ_BINS {
                 let src_off = bin * chunk_t;
@@ -280,8 +238,7 @@ pub fn embed_with_config(
         }
     }
 
-    // 6. Inverse STFT — magnitude from carrier_reconst, phase from
-    //    the original spectrum.
+    // 6. Inverse STFT: carrier_reconst magnitude + original phase.
     let modified_spec = Spectrum {
         magnitude: carrier_reconst,
         phase: spec.phase,
@@ -290,11 +247,10 @@ pub fn embed_with_config(
     };
     let mut rescaled_out = spectrum_to_waveform(&modified_spec)?;
 
-    // The iSTFT returns the tail-padded length. Trim back to the
-    // caller's original length before de-rescaling.
+    // iSTFT returns the tail-padded length; trim to the caller's length before de-rescaling.
     rescaled_out.truncate(waveform.len());
 
-    // 7. De-rescale by undoing the VCTK rescale.
+    // 7. Undo the VCTK rescale.
     let de_rescale = if original_power > f32::EPSILON {
         (original_power / VCTK_AVG_ENERGY).sqrt()
     } else {
@@ -350,8 +306,7 @@ pub fn embed_streaming_with_config(
     };
     let rescaled: Vec<f32> = waveform.iter().map(|s| s * rescale).collect();
 
-    // 2. Derive padded-space dimensions without materialising the
-    //    spectrum.
+    // 2. Derive padded-space dimensions without materialising the spectrum.
     let n_samples_input = rescaled.len() + (WIN - (rescaled.len() % WIN));
     let pad = N_FFT / 2;
     let padded_len = n_samples_input + 2 * pad;
@@ -509,8 +464,7 @@ pub fn letters_encoding(payload: [u8; 5], t_frames: usize) -> Vec<f32> {
         for bit_pair in 0..4 {
             let shift = 6 - 2 * bit_pair;
             let sym = (byte >> shift) & 0b11;
-            // +1 offset puts payload symbols in {1,2,3,4}; 0 is
-            // reserved for the terminator at position 20.
+            // +1 offset puts symbols in {1,2,3,4}; 0 is the terminator.
             symbols[byte_idx * 4 + bit_pair] = sym + 1;
         }
     }
@@ -570,16 +524,13 @@ fn transform_message_chunk(
     debug_assert_eq!(msg_enc.len(), MESSAGE_DIM * n_frames);
     debug_assert!(t_start + chunk_t <= n_frames);
 
-    // Decode the embedded weight + bias. PyTorch stores `Linear` weight
-    // as `(out, in)` row-major: `weight[k, d] = bytes[(k * MESSAGE_DIM + d) * 4..]`.
+    // Weight/bias blobs; PyTorch `Linear` weight is `(out, in)` row-major: weight[k, d] = [(k*MESSAGE_DIM + d)*4..].
     let weight = bytes_to_f32_le(TRANSFORM_MESSAGE_WEIGHTS);
     let bias = bytes_to_f32_le(TRANSFORM_MESSAGE_BIAS);
     debug_assert_eq!(weight.len(), MESSAGE_BAND_SIZE * MESSAGE_DIM);
     debug_assert_eq!(bias.len(), MESSAGE_BAND_SIZE);
 
-    // Output layout matches the carrier chunk: row-major `[bin, t]`
-    // flattened as `bin * chunk_t + t`, where `t` runs `0..chunk_t`.
-    // Bins `MESSAGE_BAND_SIZE..FREQ_BINS` stay at zero (the F.pad).
+    // Output `[bin, t]` row-major (bin*chunk_t + t); bins MESSAGE_BAND_SIZE..FREQ_BINS stay zero (the F.pad).
     let mut padded = vec![0.0_f32; FREQ_BINS * chunk_t];
     for t_local in 0..chunk_t {
         let t = t_start + t_local;
@@ -613,7 +564,9 @@ fn bytes_to_f32_le(bytes: &[u8]) -> Vec<f32> {
         "f32 blob length must be a multiple of 4"
     );
     bytes
-        .chunks_exact(4)
+        .as_chunks::<4>()
+        .0
+        .iter()
         .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
         .collect()
 }
@@ -632,8 +585,7 @@ fn run_encoder_chunk(
     let carrier_tensor =
         tract_ndarray::Array4::from_shape_vec((1, 1, FREQ_BINS, chunk_t), carrier.to_vec())
             .map_err(|e| EncodeError::Inference(format!("carrier shape: {e}")))?;
-    // msg_enc is already in `[FREQ_BINS, chunk_t]` layout — it's the
-    // output of transform_message (linear 5→1024 + zero-pad to 2049).
+    // msg_enc already `[FREQ_BINS, chunk_t]` (linear 5→1024 + zero-pad to 2049).
     let msg_tensor =
         tract_ndarray::Array4::from_shape_vec((1, 1, FREQ_BINS, chunk_t), msg_enc.to_vec())
             .map_err(|e| EncodeError::Inference(format!("msg_enc shape: {e}")))?;
@@ -754,11 +706,7 @@ fn build_model() -> Result<Runnable, String> {
     use ort::session::builder::GraphOptimizationLevel;
     let path = provcheck_weights::load_if_cached("silentcipher", "encoder")
         .map_err(|e| format!("weights: {e}"))?;
-    // v0.7.x followup for public issue #32: `error_on_failure` flips
-    // ort's CUDA EP from "silently fall back to CPU if the runtime
-    // is missing" to "fail loudly", so we can surface a useful
-    // diagnostic to the operator instead of letting them wait the
-    // full embed wall-clock on a CPU path they thought was GPU.
+    // issue #32: `error_on_failure` makes the CUDA EP fail loudly instead of silently falling back to CPU, so we can diagnose.
     let cuda_ep = CUDAExecutionProvider::default()
         .with_device_id(0)
         .build()
@@ -798,17 +746,8 @@ fn build_model() -> Result<Runnable, String> {
 mod tests {
     use super::*;
 
-    // ----- extract_carrier_chunk ----------
-    //
-    // The chunked-extract helper lets the encoder iterate over
-    // long-form audio without materialising the full carrier
-    // copy in memory. Wrong column-slice math here corrupts every
-    // chunked embed; pin it.
-
     #[test]
     fn extract_carrier_chunk_full_range_round_trips() {
-        // When t_start=0 and chunk_t=t_frames, the chunk must
-        // equal the input bit-identically.
         let t_frames = 10;
         let mut carrier = vec![0.0_f32; FREQ_BINS * t_frames];
         for (i, slot) in carrier.iter_mut().enumerate() {
@@ -820,8 +759,6 @@ mod tests {
 
     #[test]
     fn extract_carrier_chunk_output_size_matches_freq_bins_times_chunk_t() {
-        // Layout contract: output is exactly FREQ_BINS * chunk_t
-        // f32s. The encoder's ONNX session asserts on this.
         let carrier = vec![0.0_f32; FREQ_BINS * 100];
         for t_start in [0, 10, 50] {
             for chunk_t in [1, 5, 20] {
@@ -837,11 +774,8 @@ mod tests {
 
     #[test]
     fn extract_carrier_chunk_preserves_per_bin_values() {
-        // For each bin b, the chunk's row b must equal the
-        // carrier's row b sliced at [t_start..t_start+chunk_t].
         let t_frames = 20;
         let mut carrier = vec![0.0_f32; FREQ_BINS * t_frames];
-        // Fill bin 100's row with 0,1,...,19.
         for t in 0..t_frames {
             carrier[100 * t_frames + t] = t as f32;
         }
@@ -859,11 +793,8 @@ mod tests {
 
     #[test]
     fn extract_carrier_chunk_first_chunk_starts_at_zero() {
-        // The first chunk (t_start=0) reads from the very
-        // start of each bin's row.
         let t_frames = 30;
         let mut carrier = vec![0.0_f32; FREQ_BINS * t_frames];
-        // Mark bin 0 with a sentinel at column 0.
         carrier[0] = 42.0;
         let chunk = extract_carrier_chunk(&carrier, t_frames, 0, 5);
         assert_eq!(chunk[0], 42.0);
@@ -871,26 +802,18 @@ mod tests {
 
     #[test]
     fn extract_carrier_chunk_tail_chunk_reads_correct_columns() {
-        // The last chunk (t_start = t_frames - chunk_t) must
-        // read the FINAL chunk_t columns of each bin.
         let t_frames = 30;
         let chunk_t = 7;
         let t_start = t_frames - chunk_t;
         let mut carrier = vec![0.0_f32; FREQ_BINS * t_frames];
-        // Sentinel at the very last column of bin 0.
         carrier[t_frames - 1] = 99.0;
         let chunk = extract_carrier_chunk(&carrier, t_frames, t_start, chunk_t);
         assert_eq!(chunk[chunk_t - 1], 99.0);
     }
 
-    // ----- DEFAULT_MESSAGE_SDR_DB pin ----------
-
     #[test]
     fn default_message_sdr_db_is_30() {
-        // v0.5.2 lowered the default from 47 → 30 dB after the
-        // codec-survival sweep. Pin so a future maintainer can't
-        // silently bump it back to 47 (which was the training
-        // default but couldn't survive lossy delivery codecs).
+        // v0.5.2 lowered default 47->30 dB (codec-survival); pin against a silent bump back.
         assert_eq!(DEFAULT_MESSAGE_SDR_DB, 30.0);
     }
 
@@ -903,9 +826,7 @@ mod tests {
 
     #[test]
     fn default_message_sdr_db_is_below_training_value() {
-        // Sanity: must be less than the 47.0 silentcipher
-        // training default. If it ever drifts above, we've lost
-        // the delivery-codec-survival fix from v0.5.2.
+        // Must stay below the 47 dB training default (v0.5.2 codec-survival fix).
         let sdr = std::hint::black_box(DEFAULT_MESSAGE_SDR_DB);
         let training_default: f32 = 47.0;
         assert!(
@@ -914,25 +835,15 @@ mod tests {
         );
     }
 
-    // ----- MESSAGE_BAND_SIZE pin ----------
-
     #[test]
     fn message_band_size_is_1024() {
-        // The encoder's `nn.Linear` output dimension. This is
-        // the second axis of the projected `[MESSAGE_BAND_SIZE, T]`
-        // tensor that's then zero-padded up to FREQ_BINS before
-        // being added to the carrier. Bumping requires re-training
-        // (Linear weights are MESSAGE_BAND_SIZE×MESSAGE_DIM, so a
-        // shape mismatch fires loudly via debug_assert at runtime).
+        // Encoder nn.Linear output dim; bumping requires re-training.
         assert_eq!(MESSAGE_BAND_SIZE, 1024);
     }
 
     #[test]
     fn message_band_size_is_below_freq_bins() {
-        // MESSAGE_BAND_SIZE < FREQ_BINS — the encoder only
-        // modulates the low-frequency band (1024 bins out of
-        // FREQ_BINS=2049). Above that we zero-pad. Pin the
-        // inequality.
+        // Encoder modulates only the low band (1024 of 2049 bins); rest zero-padded.
         let band = std::hint::black_box(MESSAGE_BAND_SIZE);
         let freq = std::hint::black_box(FREQ_BINS);
         assert!(band < freq, "band {band} must be below FREQ_BINS {freq}");
@@ -940,15 +851,7 @@ mod tests {
 
     #[test]
     fn letters_encoding_for_dfm_payload_matches_expected_symbols() {
-        // DFM payload: 0x44, 0x46, 0x4d, 0x01, 0x00
-        // Bytes → 2-bit symbols MSB-first:
-        //   0x44 = 01000100 → [1, 0, 1, 0]
-        //   0x46 = 01000110 → [1, 0, 1, 2]
-        //   0x4d = 01001101 → [1, 0, 3, 1]
-        //   0x01 = 00000001 → [0, 0, 0, 1]
-        //   0x00 = 00000000 → [0, 0, 0, 0]
-        // +1 offset: [2,1,2,1, 2,1,2,3, 2,1,4,2, 1,1,1,2, 1,1,1,1]
-        // Terminator at end: [..., 0]
+        // DFM [0x44,0x46,0x4d,0x01,0x00] -> 2-bit symbols MSB-first, +1 offset, terminator 0.
         let payload = [0x44, 0x46, 0x4d, 0x01, 0x00];
         let t_frames = MESSAGE_LEN; // exactly one tile so positions map directly
         let out = letters_encoding(payload, t_frames);
@@ -957,7 +860,6 @@ mod tests {
             2, 1, 2, 1, 2, 1, 2, 3, 2, 1, 4, 2, 1, 1, 1, 2, 1, 1, 1, 1, 0,
         ];
         for (t, sym) in expected_symbols.iter().enumerate() {
-            // Confirm one-hot at the expected dimension.
             for dim in 0..MESSAGE_DIM {
                 let v = out[dim * t_frames + t];
                 if dim == *sym as usize {
@@ -971,8 +873,7 @@ mod tests {
 
     #[test]
     fn letters_encoding_output_size_matches_message_dim_times_t_frames() {
-        // Wire-format invariant: output is exactly MESSAGE_DIM * T
-        // f32s. ONNX session.run rejects mismatched input lengths.
+        // Output is exactly MESSAGE_DIM * T f32s (ONNX rejects mismatches).
         for t in [1, MESSAGE_LEN, 50, 100, 1000] {
             let out = letters_encoding([0u8; 5], t);
             assert_eq!(
@@ -985,10 +886,7 @@ mod tests {
 
     #[test]
     fn letters_encoding_is_one_hot_per_time_slot() {
-        // Each time slot must have EXACTLY one 1.0 value across
-        // the MESSAGE_DIM channels — that's what "one-hot" means.
-        // Without this invariant the encoder's message tensor is
-        // structurally invalid.
+        // Each time slot must be exactly one-hot across MESSAGE_DIM channels.
         let payload = [0x44, 0x46, 0x4d, 0x01, 0x00];
         let t_frames = 100;
         let out = letters_encoding(payload, t_frames);
@@ -1011,15 +909,10 @@ mod tests {
 
     #[test]
     fn letters_encoding_terminator_at_position_20_is_dim_0() {
-        // The terminator symbol is value 0, which lights up
-        // dim 0 in the one-hot encoding.
         let payload = [0u8; 5];
         let out = letters_encoding(payload, MESSAGE_LEN);
-        // Position 20 (terminator) — dim 0 should be hot.
         let t = MESSAGE_LEN - 1;
-        // dim 0 at position t (terminator):
         assert_eq!(out[t], 1.0, "terminator dim mismatch");
-        // All other dims at t=20 should be cold.
         for dim in 1..MESSAGE_DIM {
             assert_eq!(out[dim * MESSAGE_LEN + t], 0.0);
         }
@@ -1027,8 +920,7 @@ mod tests {
 
     #[test]
     fn letters_encoding_zero_payload_produces_all_dim_1_then_terminator() {
-        // payload = 0x00 → bit pairs 00 → +1 = 1. All 20 payload
-        // positions should be dim 1 hot.
+        // 0x00 -> pairs 00 -> +1 = 1: all 20 payload positions are dim-1 hot.
         let payload = [0u8; 5];
         let out = letters_encoding(payload, MESSAGE_LEN);
         for t in 0..(MESSAGE_LEN - 1) {
@@ -1042,8 +934,7 @@ mod tests {
 
     #[test]
     fn letters_encoding_max_payload_produces_all_dim_4_then_terminator() {
-        // payload = 0xFF → bit pairs 11 → +1 = 4. All 20 payload
-        // positions should be dim 4 hot.
+        // 0xFF -> pairs 11 -> +1 = 4: all 20 payload positions are dim-4 hot.
         let payload = [0xFFu8; 5];
         let out = letters_encoding(payload, MESSAGE_LEN);
         for t in 0..(MESSAGE_LEN - 1) {
@@ -1057,9 +948,7 @@ mod tests {
 
     #[test]
     fn letters_encoding_msb_first_per_byte() {
-        // Byte 0x44 = 0b01000100. MSB-first 2-bit chunks:
-        //   01, 00, 01, 00 → +1 → 2, 1, 2, 1.
-        // So out[2*T+0]=1, out[1*T+1]=1, out[2*T+2]=1, out[1*T+3]=1.
+        // 0x44 = 0b01000100 -> MSB-first pairs 01,00,01,00 -> +1 -> 2,1,2,1.
         let payload = [0x44, 0, 0, 0, 0];
         let t = MESSAGE_LEN;
         let out = letters_encoding(payload, t);
@@ -1071,9 +960,6 @@ mod tests {
 
     #[test]
     fn letters_encoding_short_t_frames_truncates_correctly() {
-        // t_frames = 5 should cover the first 5 positions of the
-        // 21-symbol cycle and nothing more. Output length must
-        // be exactly MESSAGE_DIM * 5 regardless.
         let payload = [0u8; 5];
         let out = letters_encoding(payload, 5);
         assert_eq!(out.len(), MESSAGE_DIM * 5);
@@ -1081,8 +967,7 @@ mod tests {
 
     #[test]
     fn letters_encoding_tiles_across_longer_t_frames() {
-        // With t_frames = 2*MESSAGE_LEN, position 0 should equal
-        // position MESSAGE_LEN (start of second tile).
+        // Tiling: position 0 equals position MESSAGE_LEN (second tile start).
         let payload = [0x44, 0x46, 0x4d, 0x01, 0x00];
         let t_frames = 2 * MESSAGE_LEN;
         let out = letters_encoding(payload, t_frames);
@@ -1121,16 +1006,11 @@ mod tests {
     #[test]
     fn transform_message_chunk_matches_full_projection() {
         let payload = [0x44, 0x46, 0x4d, 0x01, 0x00];
-        // Pick a t_frames that crosses several tile boundaries and is
-        // not a multiple of an arbitrary chunk size.
         let n_frames = MESSAGE_LEN * 7 + 3;
         let msg_enc = letters_encoding(payload, n_frames);
 
         let full = transform_message_full(&msg_enc, n_frames);
 
-        // Walk every reasonable chunk window and confirm the per-bin
-        // values match. Cover the head, the tail (truncated final
-        // chunk), and an interior window.
         for &(t_start, chunk_t) in &[
             (0_usize, 32_usize),
             (32, 32),

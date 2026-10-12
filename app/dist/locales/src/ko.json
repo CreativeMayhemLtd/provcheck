@@ -1,0 +1,647 @@
+{
+  "headerSubtitle": {
+    "message": "C2PA Content Credentials 서명 및 검증"
+  },
+  "tabVerify": {
+    "message": "검증"
+  },
+  "tabWatermark": {
+    "message": "워터마크"
+  },
+  "tabDetect": {
+    "message": "탐지"
+  },
+  "tabKeys": {
+    "message": "키"
+  },
+  "tabSign": {
+    "message": "서명"
+  },
+  "tabKeyedMarks": {
+    "message": "키 마크"
+  },
+  "btnChooseFile": {
+    "message": "파일 선택…"
+  },
+  "btnVerifyAnother": {
+    "message": "다른 파일 검증"
+  },
+  "btnCopyJson": {
+    "message": "JSON으로 복사"
+  },
+  "btnCheckAnother": {
+    "message": "다른 파일 확인"
+  },
+  "btnReadAnother": {
+    "message": "다른 항목 읽기"
+  },
+  "btnLogOut": {
+    "message": "로그아웃"
+  },
+  "btnConnect": {
+    "message": "연결"
+  },
+  "btnCopy": {
+    "message": "복사"
+  },
+  "btnRetry": {
+    "message": "다시 시도"
+  },
+  "btnSign": {
+    "message": "서명"
+  },
+  "btnOK": {
+    "message": "확인"
+  },
+  "btnCancel": {
+    "message": "취소"
+  },
+  "btnGotIt": {
+    "message": "확인했습니다"
+  },
+  "btnHowItWorks": {
+    "message": "작동 방식"
+  },
+  "btnInstallRepair": {
+    "message": "설치 / 복구"
+  },
+  "btnChooseSecret": {
+    "message": "비밀 파일 선택"
+  },
+  "btnClose": {
+    "message": "닫기"
+  },
+  "badgeExperimental": {
+    "message": "실험적"
+  },
+  "loadingGeneric": {
+    "message": "로딩 중…"
+  },
+  "statusChecking": {
+    "message": "확인 중..."
+  },
+  "statusCheckingStatus": {
+    "message": "상태 확인 중…"
+  },
+  "labelFingerprint": {
+    "message": "핑거프린트"
+  },
+  "labelAlgorithm": {
+    "message": "알고리즘"
+  },
+  "labelBackend": {
+    "message": "백엔드"
+  },
+  "labelCreated": {
+    "message": "생성됨"
+  },
+  "labelDID": {
+    "message": "DID"
+  },
+  "labelHandle": {
+    "message": "핸들"
+  },
+  "labelYubikey": {
+    "message": "Yubikey"
+  },
+  "labelPinTries": {
+    "message": "PIN 시도 횟수"
+  },
+  "labelStatus": {
+    "message": "상태"
+  },
+  "labelLabel": {
+    "message": "라벨"
+  },
+  "labelBy": {
+    "message": "작성자"
+  },
+  "labelTool": {
+    "message": "도구"
+  },
+  "labelFile": {
+    "message": "파일"
+  },
+  "labelYourIdentity": {
+    "message": "내 신원"
+  },
+  "labelOutput": {
+    "message": "출력"
+  },
+  "aboutLinks": {
+    "message": "링크"
+  },
+  "identityBskyHandle": {
+    "message": "Bsky 핸들"
+  },
+  "identityRunWatermark": {
+    "message": "워터마크 탐지 실행"
+  },
+  "identityRequireAttested": {
+    "message": "증명됨 필수"
+  },
+  "identityHandlePh": {
+    "message": "선택 사항 · 예: creator.bsky.social 또는 did:plc:…"
+  },
+  "dropzoneTitle": {
+    "message": "검증할 파일을 여기에 끌어다 놓으세요"
+  },
+  "dropzoneSub": {
+    "message": "오디오 · 이미지 · 비디오: C2PA Content Credentials를 포함하는 모든 파일."
+  },
+  "verifyDropHint": {
+    "message": "아무것도 없이 실행해도 이 화면은 그대로 유지됩니다. 비공개: 파일은 사용자의 기기를 벗어나지 않습니다."
+  },
+  "verifyLoading": {
+    "message": "검증 중…"
+  },
+  "verifyLoadingHint": {
+    "message": "워터마크 탐지는 오디오와 비디오에서 CPU 부하가 크며 몇 분 정도 걸릴 수 있습니다. “워터마크 탐지 실행”의 선택을 해제하면 C2PA만 즉시 검증합니다."
+  },
+  "showRawManifest": {
+    "message": "원시 매니페스트 세부정보 표시"
+  },
+  "claimsHeading": {
+    "message": "클레임"
+  },
+  "wmModelsNeeded": {
+    "message": "워터마크 탐지에는 모델이 필요합니다."
+  },
+  "wmInstallAll": {
+    "message": "모든 모델 설치"
+  },
+  "wmScanFor": {
+    "message": "스캔 대상:"
+  },
+  "wmDropTitle": {
+    "message": "워터마크 탐지를 실행할 파일을 여기에 끌어다 놓으세요"
+  },
+  "wmDropHint": {
+    "message": "비공개: 파일은 사용자의 기기를 벗어나지 않습니다. 각 탐지기는 입력 파일 형식에 적용되는지 여부를 스스로 판단합니다."
+  },
+  "wmLoading": {
+    "message": "워터마크 탐지기 실행 중…"
+  },
+  "wmLoadingHint": {
+    "message": "모델 추론은 오디오와 비디오에서 CPU 부하가 크며 스캔에 몇 분 정도 걸릴 수 있습니다. 이 표시가 도는 동안에도 작업은 계속 진행 중입니다."
+  },
+  "wmResultTitle": {
+    "message": "워터마크 탐지"
+  },
+  "detectTitle": {
+    "message": "AI 콘텐츠 탐지: 탐지기는 직접 준비"
+  },
+  "detectRouteAHead": {
+    "message": "루트 A: 유료 DLC 패키지(v1.x, 계획 중)"
+  },
+  "detectRouteBHead": {
+    "message": "루트 B: 운영자 제공 래퍼(현재 사용 가능)"
+  },
+  "keysLocalIdentity": {
+    "message": "로컬 신원"
+  },
+  "keysNoIdentity": {
+    "message": "이 기기에 신원이 없습니다."
+  },
+  "keysMismatchTitle": {
+    "message": "신원 상태 불일치"
+  },
+  "keysRotateBtn": {
+    "message": "새로 발급 + 게시"
+  },
+  "keysRotateTitle": {
+    "message": "새 서명 키를 발급하여 새로운 활성 레코드로 게시합니다"
+  },
+  "keysSwitchYubikey": {
+    "message": "Yubikey 신원으로 전환…"
+  },
+  "keysSwitchYubikeyTitle": {
+    "message": "현재 신원을 Yubikey 기반 신원으로 교체합니다"
+  },
+  "keysPublishedRecords": {
+    "message": "게시된 레코드(atproto)"
+  },
+  "keysRecordsEmptyHint": {
+    "message": "[서명] 탭에서 로그인하고 로컬 핑거프린트를 게시하세요."
+  },
+  "keysNotLoggedIn": {
+    "message": "atproto에 로그인되어 있지 않습니다."
+  },
+  "keysNoSessionHint": {
+    "message": "[서명] 탭에서 로그인하면 게시된 레코드를 가져올 수 있습니다."
+  },
+  "signIdentityLabel": {
+    "message": "신원:"
+  },
+  "signNotSetUp": {
+    "message": "설정되지 않음"
+  },
+  "signSessionLabel": {
+    "message": "세션:"
+  },
+  "signDisconnected": {
+    "message": "연결 끊김"
+  },
+  "signSetupTitle": {
+    "message": "서명 신원 설정"
+  },
+  "signSetupBody": {
+    "message": "이 기기에서 암호화 키를 생성하여 OS 키체인에 저장합니다. 이 작업은 한 번만 하면 됩니다."
+  },
+  "signGenerateKey": {
+    "message": "서명 키 생성"
+  },
+  "signSetupHint": {
+    "message": "키는 사용자의 기기를 벗어나지 않습니다. 접근 확인 창은 OS가 처리합니다."
+  },
+  "signConnectTitle": {
+    "message": "bsky 신원 연결"
+  },
+  "signConnectBody": {
+    "message": "서명 키를 atproto 핸들에 연결하면 검증자가 그것이 사용자의 것임을 알 수 있습니다."
+  },
+  "signHandlePh": {
+    "message": "creator.bsky.social"
+  },
+  "signAppPassword": {
+    "message": "앱 비밀번호"
+  },
+  "signRememberDevice": {
+    "message": "이 기기에서 기억하기"
+  },
+  "signPublishTitle": {
+    "message": "서명 키 게시"
+  },
+  "signPublishBody": {
+    "message": "마지막 단계입니다. 키의 핑거프린트를 atproto에 게시하면 검증자가 사용자가 작품에 서명했음을 대조 확인할 수 있습니다. 이를 하지 않으면 검증자에게는 “알 수 없는 발행자의 유효한 서명”으로만 표시됩니다."
+  },
+  "signLabelOptional": {
+    "message": "라벨(선택 사항)"
+  },
+  "signLabelPh": {
+    "message": "예: studio mac"
+  },
+  "signPublishKey": {
+    "message": "키 게시"
+  },
+  "signStaleTitle": {
+    "message": "서명 키가 최신 상태가 아닙니다"
+  },
+  "signRecoverHeading": {
+    "message": "터미널에서 복구:"
+  },
+  "signStaleHint": {
+    "message": "이 작업은 새 키를 발급하여 새로운 활성 레코드로 게시하고, 필요한 경우 고아 레코드를 폐기하여 분실된 키로는 누구도 사용자 이름으로 서명할 수 없도록 합니다."
+  },
+  "signDropTitle": {
+    "message": "서명할 파일을 여기에 끌어다 놓으세요"
+  },
+  "signDropSub": {
+    "message": "오디오 · 이미지 · 비디오: c2pa-rs가 지원하는 모든 형식."
+  },
+  "signReadyToSign": {
+    "message": "서명 준비 완료"
+  },
+  "signChainTitle": {
+    "message": "이 파일은 이미 서명되어 있습니다."
+  },
+  "signChainSub": {
+    "message": "사용자의 서명은 파생물로서 체인에 추가됩니다. 원본 서명은 그대로 유지됩니다."
+  },
+  "signRelationshipQ": {
+    "message": "이 파일과의 관계는 무엇입니까?"
+  },
+  "signEmbedIdentity": {
+    "message": "신원 증명 삽입(권장; 검증자가 핸들 입력 단계를 건너뛸 수 있습니다)"
+  },
+  "signModelPh": {
+    "message": "예: ACE-Step v1.0"
+  },
+  "signReplaceOriginal": {
+    "message": "원본을 대체(사이드카 파일을 작성하는 대신)"
+  },
+  "signPickDifferent": {
+    "message": "다른 파일 선택"
+  },
+  "signSigning": {
+    "message": "서명 중…"
+  },
+  "signSigned": {
+    "message": "서명됨"
+  },
+  "signAnother": {
+    "message": "다른 파일 서명"
+  },
+  "signVerifyIt": {
+    "message": "검증하기"
+  },
+  "signErrorTitle": {
+    "message": "서명 상태를 불러올 수 없습니다"
+  },
+  "bfBackfireTitle": {
+    "message": "키가 적용된 Backfire 마크 읽기"
+  },
+  "bfBackfireSub": {
+    "message": "AI 출처 제거 도구가 제거하는 대신 오히려 증폭시키는 이미지별 워터마크를 검증합니다."
+  },
+  "bfReaderLabel": {
+    "message": "Backfire 리더"
+  },
+  "bfDropTitle": {
+    "message": "이미지를 여기에 끌어다 놓거나 선택하여 마크를 읽으세요"
+  },
+  "bfChooseRead": {
+    "message": "이미지 선택 및 읽기"
+  },
+  "bfHint": {
+    "message": "먼저 위에 키를 입력한 후 이미지를 끌어다 놓거나 선택하세요. 자동으로 읽히며 사용자의 기기 내에서 처리됩니다."
+  },
+  "bfLoading": {
+    "message": "Backfire 마크 읽는 중…"
+  },
+  "mlTitle": {
+    "message": "키가 적용된 Mellin 시리얼 읽기"
+  },
+  "mlSub": {
+    "message": "오디오 측 키 포렌식: 독립적인 BUSL 라이선스 provcheck-mellin 도구(비상업적 용도는 무료, provcheck와 별개)로 삽입한 사본별 64비트 시리얼을 복구합니다. 판매자의 비밀 파일과 작품 ID가 필요합니다. 모든 처리는 사용자의 기기 내에서 이루어집니다."
+  },
+  "mlReaderLabel": {
+    "message": "Mellin 리더"
+  },
+  "mlSecretNone": {
+    "message": "선택되지 않음. 비밀은 저장되지 않으므로 실행할 때마다 다시 선택해야 합니다."
+  },
+  "mlWorkidPh": {
+    "message": "삽입 시 사용한 작품 ID"
+  },
+  "mlDropTitle": {
+    "message": "시리얼을 읽을 오디오 파일 선택"
+  },
+  "mlChooseRead": {
+    "message": "오디오 선택 및 읽기"
+  },
+  "mlHint": {
+    "message": "먼저 비밀 파일을 선택하고 작품 ID를 입력한 후, 오디오를 선택하거나 이 탭의 아무 곳에나 끌어다 놓으세요. 어떤 형식이든 동작합니다(WAV, MP3, AAC, FLAC). 오디오 파일은 여기서 읽고, 이미지는 위의 Backfire 마크에서 읽습니다."
+  },
+  "mlLoading": {
+    "message": "Mellin 시리얼 읽는 중…"
+  },
+  "imTitle": {
+    "message": "키가 적용된 idmark 신원 마크 읽기"
+  },
+  "imSub": {
+    "message": "이미지 측 키 신원: 독립적인 BUSL 라이선스 provcheck-idmark 도구(비상업적 용도는 무료, provcheck와 별개)로 삽입한, 자르기·트랜스코딩·회전에 강한 사본별 마크를 읽습니다. 비밀 없이는 내장 마크를 확인합니다. 비밀 파일과 시트를 추가하면 사본의 소유자를 특정할 수 있습니다. 모든 처리는 사용자의 기기 내에서 이루어집니다."
+  },
+  "imReaderLabel": {
+    "message": "idmark 리더"
+  },
+  "imSecretNone": {
+    "message": "선택되지 않음. 비워 두면 내장 마크를 읽습니다. 비밀은 저장되지 않습니다."
+  },
+  "imDropTitle": {
+    "message": "마크를 읽을 이미지 선택"
+  },
+  "imChooseRead": {
+    "message": "이미지 선택 및 읽기"
+  },
+  "imHint": {
+    "message": "필요하다면 먼저 비밀 파일과 시트를 선택한 후 이미지를 선택하세요. PNG 또는 JPEG. 여기서는 idmark 신원 마크를 읽습니다. Backfire 마크와 Mellin 시리얼은 위 섹션에서 읽습니다."
+  },
+  "imLoading": {
+    "message": "idmark 읽는 중…"
+  },
+  "bfModalTitle": {
+    "message": "Backfire 작동 방식"
+  },
+  "vVerified": {
+    "message": "검증됨"
+  },
+  "vUnsigned": {
+    "message": "서명되지 않음"
+  },
+  "vNotVerified": {
+    "message": "검증되지 않음"
+  },
+  "attAttestedBy": {
+    "message": "$1 에 의해 증명됨"
+  },
+  "attMatchSub": {
+    "message": "서명 인증서가 이 신원으로 게시된 키와 일치합니다."
+  },
+  "attMismatch": {
+    "message": "$1 의 증명 불일치"
+  },
+  "attMismatchSub": {
+    "message": "서명 인증서가 이 신원으로 게시된 어떤 키와도 일치하지 않습니다."
+  },
+  "attNotPublished": {
+    "message": "$1 로 게시된 키가 없습니다"
+  },
+  "attNotPublishedSub": {
+    "message": "이 신원은 존재하지만 signingKey 레코드를 게시한 적이 없습니다."
+  },
+  "attResolveFailed": {
+    "message": "$1 을(를) 확인할 수 없습니다"
+  },
+  "attResolveFailedSub": {
+    "message": "신원 확인에 실패했습니다(핸들/DID에 접근할 수 없습니다)."
+  },
+  "attThisIdentity": {
+    "message": "이 신원"
+  },
+  "kvSigner": {
+    "message": "서명자"
+  },
+  "kvSignedAt": {
+    "message": "서명 시각"
+  },
+  "kvFormat": {
+    "message": "형식"
+  },
+  "kvManifest": {
+    "message": "매니페스트"
+  },
+  "kvIngredients": {
+    "message": "구성 요소"
+  },
+  "kvIngredientsVal": {
+    "message": "$1(파생 콘텐츠: 이 파일은 이전에 서명된 파일을 편집하여 만들어졌습니다)"
+  },
+  "kvValidationErrors": {
+    "message": "검증 오류"
+  },
+  "wmEmpty": {
+    "message": "실행된 탐지기 계열에서는 워터마크가 탐지되지 않았습니다."
+  },
+  "wmKeyedNote": {
+    "message": "키 마크(Backfire, Mellin)는 이 스캔에 포함되지 않습니다. 이는 [키 마크] 탭에서 사용자의 키로만 읽을 수 있습니다."
+  },
+  "wmConfidence": {
+    "message": "신뢰도 $1%"
+  },
+  "wmDegraded": {
+    "message": "신뢰도 $1%; 마크가 손상되었습니다(부분 손상 가능성)"
+  },
+  "wmNa": {
+    "message": "$1: 해당 없음"
+  },
+  "wmNoMark": {
+    "message": "$1: 마크가 탐지되지 않았습니다"
+  },
+  "wmTimelineAria": {
+    "message": "시간에 따른 워터마크 존재 여부: $1"
+  },
+  "wmUnrecognizedSource": {
+    "message": "알 수 없는 소스"
+  },
+  "btnCopied": {
+    "message": "복사됨"
+  },
+  "scanError": {
+    "message": "이 파일을 스캔할 수 없습니다: $1"
+  },
+  "autoFilled": {
+    "message": "파일에서 자동으로 채워짐"
+  },
+  "dragFileOnto": {
+    "message": "파일을 창으로 드래그하세요"
+  },
+  "aiGenerated": {
+    "message": "AI 생성"
+  },
+  "btnCopiedBang": {
+    "message": "복사했습니다!"
+  },
+  "bfCouldNotRun": {
+    "message": "Backfire를 실행할 수 없습니다"
+  },
+  "btnInstalling": {
+    "message": "설치 중…"
+  },
+  "downloadingModels": {
+    "message": "모델을 다운로드하는 중입니다. 몇 분 정도 걸릴 수 있습니다…"
+  },
+  "btnWorking": {
+    "message": "처리 중…"
+  },
+  "bfInstalling": {
+    "message": "Backfire 리더를 설치/복구하는 중…"
+  },
+  "statusCheckFailed": {
+    "message": "상태 확인에 실패했습니다: $1"
+  },
+  "readingFile": {
+    "message": "$1 읽는 중…"
+  },
+  "mlCouldNotRun": {
+    "message": "Mellin을 실행할 수 없습니다"
+  },
+  "imCouldNotRun": {
+    "message": "idmark를 실행할 수 없습니다"
+  },
+  "keysMismSuperseded": {
+    "message": "로컬 키가 새 키로 대체되었습니다"
+  },
+  "keysMismRevoked": {
+    "message": "로컬 키가 폐기되었습니다"
+  },
+  "keysMismActiveNoKey": {
+    "message": "활성 레코드가 사용자가 보유하지 않은 키를 사용하고 있습니다"
+  },
+  "thisBox": {
+    "message": "(이 기기)"
+  },
+  "btnRevoke": {
+    "message": "폐기"
+  },
+  "checkingPublishedKeys": {
+    "message": "게시된 키 확인 중…"
+  },
+  "btnGenerating": {
+    "message": "생성 중…"
+  },
+  "btnConnecting": {
+    "message": "연결 중…"
+  },
+  "btnPublishing": {
+    "message": "게시 중…"
+  },
+  "signReadyToPublish": {
+    "message": "게시 준비 완료"
+  },
+  "bfMarkFound": {
+    "message": "Backfire 마크를 찾았습니다"
+  },
+  "bfNoValidMark": {
+    "message": "유효한 Backfire 마크가 없습니다"
+  },
+  "mlSerialRecovered": {
+    "message": "Mellin 시리얼을 복구했습니다"
+  },
+  "mlNoFullSerial": {
+    "message": "완전한 Mellin 시리얼이 없습니다"
+  },
+  "imPresent": {
+    "message": "idmark 있음"
+  },
+  "imNoDetected": {
+    "message": "idmark가 탐지되지 않았습니다"
+  },
+  "fieldIdentifier": {
+    "message": "식별자"
+  },
+  "fieldConfidenceMargin": {
+    "message": "신뢰도(최소 비트 마진)"
+  },
+  "fieldValid": {
+    "message": "유효"
+  },
+  "fieldMatchesSerial": {
+    "message": "예상 시리얼과 일치"
+  },
+  "fieldTamperTripwire": {
+    "message": "변조 감지 트립와이어"
+  },
+  "fieldSerial": {
+    "message": "시리얼"
+  },
+  "fieldBitsRecovered": {
+    "message": "복구된 비트 수"
+  },
+  "fieldErasureRate": {
+    "message": "소거율"
+  },
+  "fieldMinBitVotes": {
+    "message": "최소 비트 투표 수"
+  },
+  "fieldMarkPresent": {
+    "message": "마크 있음"
+  },
+  "fieldSeat": {
+    "message": "시트"
+  },
+  "fieldMargin": {
+    "message": "마진"
+  },
+  "fieldReadVia": {
+    "message": "읽기 방식"
+  },
+  "fieldEstRotation": {
+    "message": "예상 회전"
+  },
+  "fieldError": {
+    "message": "오류"
+  },
+  "valYes": {
+    "message": "예"
+  },
+  "valNo": {
+    "message": "아니오"
+  },
+  "bfTamperDetected": {
+    "message": "노치 변조가 감지되었습니다(통계값 $1)"
+  },
+  "bfTamperClean": {
+    "message": "이상 없음(통계값 $1)"
+  }
+}

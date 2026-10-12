@@ -15,8 +15,12 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::Parser;
+use i18n_embed_fl::fl;
 use provcheck::prelude::*;
 use provcheck_platform::{AttestationOptions, verify_with_attestation};
+
+mod dlc;
+mod i18n;
 
 /// Verify C2PA Content Credentials on a file.
 #[derive(Debug, Parser)]
@@ -29,7 +33,13 @@ use provcheck_platform::{AttestationOptions, verify_with_attestation};
 struct Args {
     /// Path to the file to verify. Optional only when `--install-models` or
     /// `--install-backfire` is used.
-    #[arg(required_unless_present_any = ["install_models", "install_backfire"])]
+    #[arg(required_unless_present_any = [
+        "install_models",
+        "install_backfire",
+        "dlc_status",
+        "unlock_license",
+        "install_pack",
+    ])]
     file: Option<PathBuf>,
 
     /// Download every watermark-detection model (the manifest weights) into the
@@ -45,6 +55,39 @@ struct Args {
     /// works on a clean box with no system Python. No FILE is required.
     #[arg(long)]
     install_backfire: bool,
+
+    // ── DLC (paid keyed-watermarking pack) management ─────────────────────
+    //
+    // Run-and-exit commands, like --install-models. The Pro Watermarking pack
+    // (Backfire + Mellin keyed tools) is gated on an offline seat license that
+    // `provcheck-dlc` verifies; the same seat unlocks the pack in Lysn.fm too.
+    /// List the paid keyed-watermarking packs and whether this seat is licensed
+    /// for them / has them installed, then exit. No FILE required.
+    #[arg(long)]
+    dlc_status: bool,
+
+    /// Store a seat license (JSON from the offline issuer), verifying it is
+    /// Creative-Mayhem-signed and bound to this seat, then exit. Needs
+    /// `--seat-did` (or `$PROVCHECK_SEAT_DID`). No FILE required.
+    #[arg(long, value_name = "LICENSE_JSON")]
+    unlock_license: Option<PathBuf>,
+
+    /// Pull a license-gated, signed pack into this seat's DLC home, then exit.
+    /// Takes the pack id (e.g. `pro-watermarking`). Needs a stored license.
+    /// No FILE required.
+    #[arg(long, value_name = "PACK_ID")]
+    install_pack: Option<String>,
+
+    /// The seat's durable identity (`did:key`) a license is bound to. Falls back
+    /// to `$PROVCHECK_SEAT_DID`. Used by the DLC management flags above.
+    #[arg(long, value_name = "DID")]
+    seat_did: Option<String>,
+
+    /// Override the pack download source for `--install-pack` (an https mirror,
+    /// or a local / UNC folder for an offline install). Defaults to the catalog
+    /// mirror.
+    #[arg(long, value_name = "URL_OR_PATH", requires = "install_pack")]
+    pack_source: Option<String>,
 
     /// Emit machine-readable JSON instead of the human-readable report.
     /// Handy for CI and scripting — schema matches `provcheck::Report`.
@@ -245,9 +288,7 @@ fn run_backfire_read(
             .to_string()
     })?;
 
-    // Prefer the self-contained interpreter that `--install-backfire` builds
-    // beside backfire.py, so the read path works with no system Python. Fall
-    // back to python3 / python on PATH.
+    // Prefer the self-contained interpreter beside backfire.py (works with no system Python); fall back to python3/python on PATH.
     let mut interpreters: Vec<String> = Vec::new();
     if let Some(dir) = script.parent() {
         let bundled = if cfg!(windows) {
@@ -321,10 +362,7 @@ fn install_backfire() -> ExitCode {
     let dir = match backfire_script().and_then(|s| s.parent().map(|d| d.to_path_buf())) {
         Some(d) => d,
         None => {
-            eprintln!(
-                "provcheck: could not locate the backfire folder. Set BACKFIRE_PY to \
-                 backfire.py, or run from a directory containing backfire/backfire.py."
-            );
+            eprintln!("{}", fl!(i18n::LOADER, "backfire-folder-not-found"));
             return ExitCode::FAILURE;
         }
     };
@@ -332,8 +370,12 @@ fn install_backfire() -> ExitCode {
         let script = dir.join("setup_backfire.ps1");
         if !script.exists() {
             eprintln!(
-                "provcheck: setup_backfire.ps1 not found in {}",
-                dir.display()
+                "{}",
+                fl!(
+                    i18n::LOADER,
+                    "backfire-ps1-not-found",
+                    dir = dir.display().to_string()
+                )
             );
             return ExitCode::FAILURE;
         }
@@ -350,31 +392,42 @@ fn install_backfire() -> ExitCode {
         let script = dir.join("setup_backfire.sh");
         if !script.exists() {
             eprintln!(
-                "provcheck: setup_backfire.sh not found in {}",
-                dir.display()
+                "{}",
+                fl!(
+                    i18n::LOADER,
+                    "backfire-sh-not-found",
+                    dir = dir.display().to_string()
+                )
             );
             return ExitCode::FAILURE;
         }
         ("bash", vec![script.to_string_lossy().into_owned()])
     };
-    println!(
-        "Setting up the Backfire read environment (one-time). This downloads a self-contained Python."
-    );
+    println!("{}", fl!(i18n::LOADER, "backfire-setup-start"));
     match Command::new(prog).args(&prog_args).status() {
         Ok(s) if s.success() => {
-            println!(
-                "Backfire is ready. Verify a marked image with:  provcheck --backfire-read --backfire-key <KEY> <IMAGE>"
-            );
+            println!("{}", fl!(i18n::LOADER, "backfire-setup-ready"));
             ExitCode::SUCCESS
         }
         Ok(s) => {
-            eprintln!("provcheck: Backfire setup exited with status {s}");
+            eprintln!(
+                "{}",
+                fl!(
+                    i18n::LOADER,
+                    "backfire-setup-exit-status",
+                    status = s.to_string()
+                )
+            );
             ExitCode::FAILURE
         }
         Err(e) => {
             eprintln!(
-                "provcheck: could not run the Backfire setup script ({e}). It needs \
-                 PowerShell on Windows, or bash on Linux/macOS."
+                "{}",
+                fl!(
+                    i18n::LOADER,
+                    "backfire-setup-run-failed",
+                    err = e.to_string()
+                )
             );
             ExitCode::FAILURE
         }
@@ -405,6 +458,15 @@ fn mellin_bin() -> Option<std::path::PathBuf> {
             if cand.exists() {
                 return Some(cand);
             }
+        }
+    }
+    // The installed Pro Watermarking DLC pack (where `--install-pack pro-watermarking`
+    // lands the BUSL-licensed Mellin tool). provcheck only ever shells out to it across
+    // a process boundary; the keyed IP never links into this Apache binary.
+    if let Ok(home) = provcheck_dlc::default_home() {
+        let cand = provcheck_dlc::dlc_pack_dir(&home, "pro-watermarking").join(exe_name);
+        if cand.exists() {
+            return Some(cand);
         }
     }
     let dev = std::path::PathBuf::from("crates/provcheck-mellin/target/release").join(exe_name);
@@ -479,16 +541,43 @@ fn print_mellin_human(m: &serde_json::Value) {
         .unwrap_or(0.0);
     let votes = m.get("min_bit_votes").and_then(|v| v.as_u64()).unwrap_or(0);
     println!();
-    println!("Mellin (experimental, keyed audio forensic serial):");
+    println!("{}", fl!(i18n::LOADER, "mellin-header"));
     if full {
-        println!("  serial:   {serial} (all 64 bits recovered, min bit votes {votes})");
+        println!(
+            "  {}",
+            fl!(
+                i18n::LOADER,
+                "mellin-serial-full",
+                serial = serial,
+                votes = votes.to_string()
+            )
+        );
     } else {
-        println!("  serial:   not fully recovered ({bits}/64 bits, min bit votes {votes})");
+        println!(
+            "  {}",
+            fl!(
+                i18n::LOADER,
+                "mellin-serial-partial",
+                bits = bits.to_string(),
+                votes = votes.to_string()
+            )
+        );
     }
-    println!("  erasures: {:.1}% of positions", erasure * 100.0);
+    println!(
+        "  {}",
+        fl!(
+            i18n::LOADER,
+            "mellin-erasures",
+            pct = format!("{:.1}", erasure * 100.0)
+        )
+    );
     match m.get("match") {
-        Some(serde_json::Value::Bool(true)) => println!("  expected: MATCH"),
-        Some(serde_json::Value::Bool(false)) => println!("  expected: NO MATCH"),
+        Some(serde_json::Value::Bool(true)) => {
+            println!("  {}", fl!(i18n::LOADER, "mellin-expected-match"))
+        }
+        Some(serde_json::Value::Bool(false)) => {
+            println!("  {}", fl!(i18n::LOADER, "mellin-expected-no-match"))
+        }
         _ => {}
     }
 }
@@ -502,21 +591,48 @@ fn print_backfire_human(bf: &serde_json::Value) {
         .and_then(|v| v.as_f64())
         .unwrap_or(0.0);
     println!();
-    println!("Backfire (experimental, keyed image watermark):");
+    println!("{}", fl!(i18n::LOADER, "backfire-header"));
     if valid {
-        println!("  mark:   VALID (id {id}, margin {margin:.2})");
+        println!(
+            "  {}",
+            fl!(
+                i18n::LOADER,
+                "backfire-mark-valid",
+                id = id,
+                margin = format!("{margin:.2}")
+            )
+        );
     } else {
-        println!("  mark:   not detected (margin {margin:.2})");
+        println!(
+            "  {}",
+            fl!(
+                i18n::LOADER,
+                "backfire-mark-none",
+                margin = format!("{margin:.2}")
+            )
+        );
     }
     if let Some(t) = bf.get("notch_tamper") {
         let det = t.get("detected").and_then(|v| v.as_bool()).unwrap_or(false);
         let stat = t.get("stat").and_then(|v| v.as_f64()).unwrap_or(0.0);
         if det {
             println!(
-                "  tamper: BAND-NOTCH DETECTED (stat {stat:.2}) -- the image was very likely notch-attacked"
+                "  {}",
+                fl!(
+                    i18n::LOADER,
+                    "backfire-tamper-detected",
+                    stat = format!("{stat:.2}")
+                )
             );
         } else {
-            println!("  tamper: none (band-notch stat {stat:.2})");
+            println!(
+                "  {}",
+                fl!(
+                    i18n::LOADER,
+                    "backfire-tamper-none",
+                    stat = format!("{stat:.2}")
+                )
+            );
         }
     }
 }
@@ -529,47 +645,71 @@ fn install_all_models(quiet: bool) -> ExitCode {
     let total_mb = entries.iter().map(|e| e.size_bytes).sum::<u64>() as f64 / 1e6;
     if !quiet {
         println!(
-            "Installing {} watermark-detection model file(s) ({total_mb:.0} MB total).",
-            entries.len()
+            "{}",
+            fl!(
+                i18n::LOADER,
+                "install-models-start",
+                count = entries.len().to_string(),
+                mb = format!("{total_mb:.0}")
+            )
         );
     }
     let mut failed = 0usize;
     for e in entries {
         if !quiet {
             print!(
-                "  {}/{} ({:.0} MB) ... ",
-                e.family,
-                e.variant,
-                e.size_bytes as f64 / 1e6
+                "  {} ",
+                fl!(
+                    i18n::LOADER,
+                    "install-models-item",
+                    family = e.family,
+                    variant = e.variant,
+                    mb = format!("{:.0}", e.size_bytes as f64 / 1e6)
+                )
             );
             let _ = std::io::Write::flush(&mut std::io::stdout());
         }
         match provcheck_weights::download(e.family, e.variant) {
             Ok(_) => {
                 if !quiet {
-                    println!("ok");
+                    println!("{}", fl!(i18n::LOADER, "install-models-ok"));
                 }
             }
             Err(err) => {
                 failed += 1;
                 if !quiet {
-                    println!("FAILED: {err}");
+                    println!(
+                        "{}",
+                        fl!(
+                            i18n::LOADER,
+                            "install-models-item-failed",
+                            err = err.to_string()
+                        )
+                    );
                 }
             }
         }
     }
     if failed == 0 {
         if !quiet {
-            println!("All models installed. Watermark detection is ready.");
+            println!("{}", fl!(i18n::LOADER, "install-models-done"));
         }
         ExitCode::SUCCESS
     } else {
-        eprintln!("provcheck: {failed} model(s) failed to install (see above).");
+        eprintln!(
+            "{}",
+            fl!(
+                i18n::LOADER,
+                "install-models-summary-failed",
+                count = failed.to_string()
+            )
+        );
         ExitCode::FAILURE
     }
 }
 
 fn main() -> ExitCode {
+    i18n::init();
     let args = Args::parse();
 
     if args.install_models {
@@ -578,24 +718,34 @@ fn main() -> ExitCode {
     if args.install_backfire {
         return install_backfire();
     }
-    // Safe: clap requires FILE unless --install-models / --install-backfire,
-    // both handled above.
+    if args.dlc_status {
+        return dlc::status(args.seat_did.as_deref(), args.quiet);
+    }
+    if let Some(file) = args.unlock_license.as_deref() {
+        return dlc::unlock(file, args.seat_did.as_deref());
+    }
+    if let Some(product) = args.install_pack.as_deref() {
+        return dlc::install(
+            product,
+            args.pack_source.as_deref(),
+            args.seat_did.as_deref(),
+        );
+    }
+    // Safe: clap requires FILE unless an --install-* / DLC management flag is set,
+    // all handled above.
     let file: &std::path::Path = args
         .file
         .as_deref()
         .expect("clap enforces FILE unless an --install-* flag");
 
-    // require_attested needs an identity input. clap's `requires`
-    // only takes a single arg name, so enforce the OR here.
+    // require_attested needs an identity input; clap's `requires` takes one arg, so enforce the OR here.
     if args.require_attested
         && args.bsky_handle.is_none()
         && args.did.is_none()
         && !args.auto_identity
     {
         if !args.quiet {
-            eprintln!(
-                "provcheck: --require-attested needs --bsky-handle, --did, or --auto-identity"
-            );
+            eprintln!("{}", fl!(i18n::LOADER, "require-attested-needs-identity"));
         }
         return ExitCode::from(2);
     }
@@ -606,9 +756,13 @@ fn main() -> ExitCode {
             Err(e) => {
                 if !args.quiet {
                     eprintln!(
-                        "provcheck: could not read trust store '{}': {}",
-                        path.display(),
-                        e
+                        "{}",
+                        fl!(
+                            i18n::LOADER,
+                            "trust-store-read-failed",
+                            path = path.display().to_string(),
+                            err = e.to_string()
+                        )
                     );
                 }
                 return ExitCode::from(2);
@@ -622,21 +776,14 @@ fn main() -> ExitCode {
         require_trusted: args.require_trusted,
     };
 
-    // Resolve --auto-identity by peeking at the offline report's
-    // embedded identity assertion before dispatching. Failing here
-    // means the user asked for attestation but the file carries no
-    // claim to attest against — exit 1 with the cause spelled out.
+    // Resolve --auto-identity from the offline report's embedded assertion; no claim = exit 1 with the cause.
     let resolved_did = if args.auto_identity {
         match verify_with_options(file, &verify_opts) {
             Ok(r) => match r.identity {
                 Some(claim) => Some(claim.did),
                 None => {
                     if !args.quiet {
-                        eprintln!(
-                            "provcheck: --auto-identity was requested but the file carries no \
-                             app.provcheck.identity assertion. Sign with `provcheck-kit sign \
-                             --embed-identity` first, or pass --bsky-handle / --did directly."
-                        );
+                        eprintln!("{}", fl!(i18n::LOADER, "auto-identity-no-assertion"));
                     }
                     return ExitCode::from(1);
                 }
@@ -652,17 +799,14 @@ fn main() -> ExitCode {
         None
     };
 
-    // Dispatch: route through the platform wrapper iff the user asked
-    // for attestation. Keeps the offline path completely free of any
-    // platform-crate code paths when nobody's asked for networking.
+    // Route through the platform wrapper only when attestation is asked, keeping the offline path free of platform-crate code.
     let want_attestation =
         args.bsky_handle.is_some() || args.did.is_some() || resolved_did.is_some();
 
     let mut report = if want_attestation {
         let attest_opts = AttestationOptions {
             bsky_handle: args.bsky_handle.clone(),
-            // resolved_did (auto-identity) wins; clap's conflicts_with
-            // guarantees the user didn't also pass --did.
+            // auto-identity's did wins; conflicts_with guarantees --did wasn't also passed.
             did: resolved_did.clone().or_else(|| args.did.clone()),
             require_attested: args.require_attested,
             cache_dir: None,
@@ -689,14 +833,7 @@ fn main() -> ExitCode {
         }
     };
 
-    // Watermark detection is independent of the C2PA verdict —
-    // each enabled detector runs unconditionally unless
-    // suppressed. Errors here are never fatal: a missing file
-    // would already have surfaced above, and detectors report
-    // decoder problems via the result's `message` field rather
-    // than throwing. Adding a new FOSS detector means appending
-    // another `if let Ok(...)` block here in registration
-    // order; the Display + JSON layers iterate the vec.
+    // Independent of the C2PA verdict; errors are non-fatal (detectors report decoder issues via `message`). Add a detector by appending an `if let Ok(...)` block.
     if !args.no_watermark {
         if let Ok(w) = provcheck_watermark::detect(file) {
             report.watermarks.push(w);
@@ -707,68 +844,44 @@ fn main() -> ExitCode {
         if let Ok(w) = provcheck_wavmark::detect(file) {
             report.watermarks.push(w);
         }
-        // v0.7 phase 7b: image-modality TrustMark-B decoder.
         if let Ok(w) = provcheck_image::detect(file) {
             report.watermarks.push(w);
         }
-        // v0.9.0: video-modality dispatch (per-frame TrustMark via ffmpeg + temporal vote).
         if let Ok(w) = provcheck_video::detect(file) {
             report.watermarks.push(w);
         }
-        // v0.9.0: SynthID-text dispatch (Bayesian tournament-sampling z-score).
         if let Ok(w) = provcheck_synthid_text::detect(file) {
             report.watermarks.push(w);
         }
     }
 
-    // v0.9.73: AI-content detection slot. The verifier reads the
-    // file once and hands the bytes to every registered detector.
-    // provcheck-cli's FOSS core registers ZERO detectors — the
-    // operator wires in their own concrete detector (paid DLC pack
-    // or open-source third-party wrapper) downstream of this
-    // binary. Without a registered detector the slot is a no-op:
-    // the flag parses and the dispatch runs over an empty
-    // registry, leaving `report.detections` empty.
+    // AI-content detection slot: the FOSS core registers zero detectors, so without one the dispatch runs over an empty registry and leaves report.detections empty.
     if args.detect.is_some() {
         let registry = provcheck_detect::DetectorRegistry::new();
-        // Read the asset once. If reading fails after we've made
-        // it past the C2PA / watermark steps, that's anomalous —
-        // surface it via a NotApplicable detection row rather
-        // than blowing up. The verifier already exited cleanly
-        // above; this is best-effort.
+        // Read the asset once; best-effort, a failure here (after C2PA/watermark passed) is anomalous.
         match std::fs::read(file) {
             Ok(bytes) => {
                 report.detections = registry.run_all(&bytes);
             }
             Err(_) => {
-                // Silent: the C2PA path already produced a
-                // signed report. A read failure here means the
-                // file was modified between c2pa::Reader open
-                // and now, which is bizarre but not a verifier
-                // failure.
+                // Silent: a read failure here means the file changed since c2pa::Reader opened it — bizarre, not a verifier failure.
             }
         }
     }
 
-    // Experimental Backfire keyed-watermark verification (opt-in). Shells out
-    // to the separate BUSL-licensed tool; never linked into this Apache binary. Additive
-    // and informational: it does not change the C2PA exit code.
+    // Opt-in Backfire: shells out to the separate BUSL tool (never linked); informational, doesn't change the exit code.
     let backfire = if args.backfire_read {
         let key = match args.backfire_key.as_deref() {
             Some(k) => k,
             None => {
                 if !args.quiet {
-                    eprintln!("provcheck: --backfire-read needs --backfire-key");
+                    eprintln!("{}", fl!(i18n::LOADER, "backfire-needs-key"));
                 }
                 return ExitCode::from(2);
             }
         };
         if !args.quiet {
-            eprintln!(
-                "provcheck: Backfire is EXPERIMENTAL and BUSL-licensed (free for non-commercial \
-                 use), separate from the Apache-2.0 core. It verifies a keyed mark you embedded \
-                 and flags band-notch tampering; robustness is per-image."
-            );
+            eprintln!("{}", fl!(i18n::LOADER, "backfire-experimental-notice"));
         }
         match run_backfire_read(
             file,
@@ -779,7 +892,7 @@ fn main() -> ExitCode {
             Ok(v) => Some(v),
             Err(e) => {
                 if !args.quiet {
-                    eprintln!("provcheck: backfire read failed: {e}");
+                    eprintln!("{}", fl!(i18n::LOADER, "backfire-read-failed", err = e));
                 }
                 None
             }
@@ -788,9 +901,7 @@ fn main() -> ExitCode {
         None
     };
 
-    // Experimental Mellin keyed-serial verification (opt-in). Shells out to
-    // the separate BUSL-licensed tool; never linked into this Apache binary.
-    // Additive and informational: it does not change the C2PA exit code.
+    // Opt-in Mellin: shells out to the separate BUSL tool (never linked); informational, doesn't change the exit code.
     let mellin = if args.mellin_read {
         let (secret_file, work_id) = match (
             args.mellin_secret_file.as_deref(),
@@ -799,19 +910,13 @@ fn main() -> ExitCode {
             (Some(s), Some(w)) => (s, w),
             _ => {
                 if !args.quiet {
-                    eprintln!(
-                        "provcheck: --mellin-read needs --mellin-secret-file and --mellin-work-id"
-                    );
+                    eprintln!("{}", fl!(i18n::LOADER, "mellin-needs-args"));
                 }
                 return ExitCode::from(2);
             }
         };
         if !args.quiet {
-            eprintln!(
-                "provcheck: Mellin is EXPERIMENTAL and BUSL-licensed (free for non-commercial \
-                 use), separate from the Apache-2.0 core. It reads a keyed per-copy serial you \
-                 embedded; without your secret and work id there is nothing to read."
-            );
+            eprintln!("{}", fl!(i18n::LOADER, "mellin-experimental-notice"));
         }
         match run_mellin_read(
             file,
@@ -823,7 +928,7 @@ fn main() -> ExitCode {
             Ok(v) => Some(v),
             Err(e) => {
                 if !args.quiet {
-                    eprintln!("provcheck: mellin read failed: {e}");
+                    eprintln!("{}", fl!(i18n::LOADER, "mellin-read-failed", err = e));
                 }
                 None
             }
@@ -832,20 +937,14 @@ fn main() -> ExitCode {
         None
     };
 
-    // `--require-watermark` escalates "no detector found a
-    // mark" to exit 1, the same way `--require-attested` does.
-    // A run with multiple detectors passes if at least one
-    // returns `detected == true`.
+    // --require-watermark escalates "no mark found" to exit 1; passes if any detector reports detected.
     let watermark_failed_requirement =
         args.require_watermark && !report.watermarks.iter().any(|w| w.detected);
 
     if !args.quiet {
         if args.json {
             match report.to_json_string() {
-                // When --backfire-read or --mellin-read ran, wrap into
-                // {provcheck, backfire?, mellin?} with keys present only for the
-                // flags used, so the default schema (bare report) is unchanged
-                // unless a keyed-tool flag is passed.
+                // With backfire/mellin, wrap into {provcheck, backfire?, mellin?}; the bare-report schema is unchanged otherwise.
                 Ok(j) => {
                     if backfire.is_some() || mellin.is_some() {
                         let rv: serde_json::Value =
@@ -864,16 +963,16 @@ fn main() -> ExitCode {
                     }
                 }
                 Err(e) => {
-                    eprintln!("provcheck: failed to serialize JSON: {e}");
+                    eprintln!(
+                        "{}",
+                        fl!(i18n::LOADER, "json-serialize-failed", err = e.to_string())
+                    );
                     return ExitCode::from(2);
                 }
             }
         } else {
             print!("{}", report);
-            // If watermark detection ran but some models are not installed,
-            // give ONE clear instruction. Otherwise the user just sees a
-            // "not installed" note on every watermark line and reasonably
-            // reads it as "broken" rather than "run one setup command".
+            // If models are missing, give ONE setup instruction instead of a "not installed" note per line that reads as "broken".
             if !args.no_watermark {
                 let statuses = provcheck_weights::status();
                 let n_missing = statuses.iter().filter(|s| !s.cached.exists).count();
@@ -885,30 +984,23 @@ fn main() -> ExitCode {
                         .sum::<u64>() as f64
                         / 1e6;
                     eprintln!(
-                        "[hint] {n_missing} watermark-detection model(s) are not installed, so those \
-                         lines read \"not installed\". Enable all detection with:  provcheck \
-                         --install-models  (one-time, {missing_mb:.0} MB). C2PA verification does not \
-                         need them."
+                        "{}",
+                        fl!(
+                            i18n::LOADER,
+                            "hint-models-missing",
+                            count = n_missing.to_string(),
+                            mb = format!("{missing_mb:.0}")
+                        )
                     );
                 }
             }
-            // Hint: when the file embeds an identity claim but the
-            // user did NOT ask for any attestation, suggest the
-            // shortcut. Only emit when nothing else surfaces the
-            // claim (the human-readable Display already renders
-            // "claims identity: ..." inline; we just want to nudge
-            // about --auto-identity in this specific no-attestation
-            // case).
+            // When the file embeds an identity claim but no attestation was asked, nudge about --auto-identity.
             if !want_attestation && let Some(claim) = &report.identity {
                 let who = match &claim.handle {
                     Some(h) => format!("@{} ({})", h, claim.did),
                     None => claim.did.clone(),
                 };
-                eprintln!(
-                    "[hint] file claims identity {who}. \
-                     Re-run with --auto-identity to verify against \
-                     their published signing-key records."
-                );
+                eprintln!("{}", fl!(i18n::LOADER, "hint-claims-identity", who = who));
             }
             if let Some(bf) = &backfire {
                 print_backfire_human(bf);
@@ -919,9 +1011,7 @@ fn main() -> ExitCode {
         }
     }
 
-    // Compose final exit code: C2PA verdict OR watermark policy
-    // can each force exit 1. Either can move a 0 to 1 but neither
-    // moves a 1 back to 0.
+    // Final exit: C2PA verdict or watermark policy can each force 1; neither moves a 1 back to 0.
     let final_exit = if watermark_failed_requirement {
         1
     } else {

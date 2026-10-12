@@ -55,8 +55,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
 // --- richer manifest extraction for the right-click "Inspect C2PA provenance" panel ---
 // Byte-scan the C2PA store for recognizable markers: standard assertion labels + known generator/tool
-// strings. This is a readable summary, not the full validated manifest (that needs the c2pa WASM SDK,
-// a later addition, not in this build).
+// strings. This is a readable summary, not the full validated manifest (that is the c2pa WASM SDK, B5).
 const LABELS = ["c2pa.actions", "c2pa.hash.data", "c2pa.thumbnail", "stds.schema-org.CreativeWork",
   "c2pa.training-mining", "cawg.identity", "c2pa.metadata"];
 const GEN_HINTS = ["Adobe", "Firefly", "Photoshop", "Lightroom", "Midjourney", "DALL", "OpenAI", "Gemini",
@@ -85,33 +84,17 @@ async function inspectFull(url) {
   return { c2pa: false, ai: false, labels: [], gens: [], known: false };
 }
 
-// removeAll before create: on an extension reload onInstalled fires again, and a bare create() with the
-// same id throws "Cannot create item with duplicate id" (and logs an unchecked lastError).
-function installMenu() {
-  try {
-    chrome.contextMenus.removeAll(() => {
-      void chrome.runtime.lastError;
-      chrome.contextMenus.create({
-        id: "provcheck-inspect",
-        title: "Inspect C2PA provenance",
-        contexts: ["image", "video"],
-      });
-      void chrome.runtime.lastError;
-    });
-  } catch (_e) {
-    /* contextMenus unavailable */
-  }
-}
-chrome.runtime.onInstalled.addListener(installMenu);
-chrome.runtime.onStartup.addListener(installMenu);
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.contextMenus.create({
+    id: "provcheck-inspect",
+    title: "Inspect C2PA provenance",
+    contexts: ["image", "video"],
+  });
+});
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-  try {
-    if (info.menuItemId !== "provcheck-inspect" || !info.srcUrl || !tab) return;
-    const data = await inspectFull(info.srcUrl);
-    data.url = info.srcUrl;
-    chrome.tabs.sendMessage(tab.id, { type: "showPanel", data }, () => { void chrome.runtime.lastError; });
-  } catch (_e) {
-    /* tab gone or no content script; nothing to do */
-  }
+  if (info.menuItemId !== "provcheck-inspect" || !info.srcUrl || !tab) return;
+  const data = await inspectFull(info.srcUrl);
+  data.url = info.srcUrl;
+  chrome.tabs.sendMessage(tab.id, { type: "showPanel", data });
 });

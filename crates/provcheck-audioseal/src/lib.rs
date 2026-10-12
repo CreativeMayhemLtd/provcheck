@@ -88,14 +88,12 @@ pub enum Error {
 /// `WatermarkResult` with `status == NotDetected` and a descriptive
 /// `message`, never as an `Err`.
 pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
-    // Preflight: file must exist. Lets us surface I/O errors cleanly.
     let _ = std::fs::metadata(path)?;
 
     if !looks_like_audio(path) {
         return Ok(not_detected("not audio"));
     }
 
-    // 1. Decode container → mono 16 kHz waveform.
     let waveform = match audio::decode_to_mono_16k(path) {
         Ok(w) => w,
         Err(audio::AudioError::NotAudio) => return Ok(not_detected("not audio")),
@@ -108,13 +106,11 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
         Err(audio::AudioError::Io(e)) => return Err(Error::Io(e)),
     };
 
-    // 2. Run chunked detector.
     let result = match detect::detect(&waveform) {
         Ok(r) => r,
         Err(e) => return Ok(not_detected(&format!("model error: {e}"))),
     };
 
-    // 3. Brand classification + tiered status.
     let detection_probability = result.detection_probability;
     let status = classify(detection_probability);
     let detected = matches!(
@@ -124,8 +120,7 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
     let brand = if detection_probability >= CONFIDENCE_DEGRADED_THRESHOLD {
         brand::parse_brand(result.message)
     } else {
-        // Below detection threshold: don't pretend to recognise a
-        // brand from random-looking bits.
+        // Below threshold: don't read a brand out of random-looking bits.
         None
     };
     let payload = if detected {
@@ -219,8 +214,6 @@ mod tests {
     use super::*;
     use std::io::Write;
 
-    // ----- classify ----------
-
     #[test]
     fn classify_at_detected_threshold_is_detected() {
         assert!(matches!(
@@ -253,8 +246,6 @@ mod tests {
         ));
     }
 
-    // ----- looks_like_audio ----------
-
     #[test]
     fn looks_like_audio_accepts_documented_extensions() {
         for ext in [
@@ -276,7 +267,6 @@ mod tests {
 
     #[test]
     fn looks_like_audio_is_case_insensitive() {
-        // Windows paths can be UPPER. Pin lowercase normalisation.
         for ext in ["WAV", "MP3", "FlAc"] {
             let p = std::path::PathBuf::from(format!("/test/file.{ext}"));
             assert!(looks_like_audio(&p), "{ext} should pass case-insensitive");
@@ -288,8 +278,6 @@ mod tests {
         let p = std::path::PathBuf::from("/test/README");
         assert!(!looks_like_audio(&p));
     }
-
-    // ----- not_detected helper ----------
 
     #[test]
     fn not_detected_helper_sets_audioseal_kind_and_zero_confidence() {

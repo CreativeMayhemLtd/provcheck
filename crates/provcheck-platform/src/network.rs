@@ -21,16 +21,8 @@ const PUBLIC_BSKY: &str = "https://public.api.bsky.app";
 const PLC_DIRECTORY: &str = "https://plc.directory";
 const COLLECTION: &str = "app.provcheck.signingKey";
 
-// ---------- typed PDS records -------------------------------------------
-
-// `SigningKeyRecord` is the shared wire-format type in
-// `provcheck-attestation-spec`. Re-export here so existing
-// `crate::network::SigningKeyRecord` paths inside this crate keep
-// working without churn during the refactor; downstream consumers
-// should prefer the spec crate directly.
+// Re-exported so existing `crate::network::SigningKeyRecord` paths keep working; the shared type lives in provcheck-attestation-spec.
 pub use provcheck_attestation_spec::SigningKeyRecord;
-
-// ---------- handle resolution -------------------------------------------
 
 #[derive(Debug, Serialize, Deserialize)]
 struct HandleCacheEntry {
@@ -95,8 +87,6 @@ fn try_well_known_handle(handle: &str, config: &AttestationConfig) -> Result<Str
     Ok(did.to_string())
 }
 
-// ---------- DID document → PDS endpoint --------------------------------
-
 #[derive(Debug, Deserialize)]
 struct DidDocument {
     #[serde(default)]
@@ -128,9 +118,7 @@ pub fn resolve_pds_endpoint(did: &str, config: &AttestationConfig) -> Result<Str
 
     let doc = fetch_did_document(did, config)?;
 
-    // bsky convention: PDS service has id "#atproto_pds" and type
-    // "AtprotoPersonalDataServer". Match the canonical pair first; fall
-    // back to any service of the right type.
+    // bsky convention: match id "#atproto_pds" first, then fall back to any "AtprotoPersonalDataServer" service.
     let endpoint = doc
         .service
         .iter()
@@ -174,15 +162,12 @@ fn fetch_did_document(did: &str, config: &AttestationConfig) -> Result<DidDocume
         } else {
             "https"
         };
-        // Per did:web: a `:` (not %3A) in the suffix denotes a path
-        // segment after the host. Ports must be %3A-encoded in the
-        // DID, so a literal `:` only appears for path-style DIDs.
+        // In did:web a literal `:` denotes a path segment (ports are %3A-encoded), so it only appears for path-style DIDs.
         let url = if host.contains(':') {
             let path = host.replace(':', "/");
             format!("{scheme}://{path}/did.json")
         } else {
-            // Decode %3A back to : so a host:port works at the network
-            // layer even when the DID encodes the port.
+            // Decode %3A back to : so an encoded host:port works at the network layer.
             let decoded = host.replace("%3A", ":");
             format!("{scheme}://{decoded}/.well-known/did.json")
         };
@@ -192,8 +177,6 @@ fn fetch_did_document(did: &str, config: &AttestationConfig) -> Result<DidDocume
 
     Err(format!("unsupported DID method: {did}"))
 }
-
-// ---------- record listing ---------------------------------------------
 
 #[derive(Debug, Deserialize)]
 struct ListRecordsResponse {
@@ -253,8 +236,6 @@ pub fn list_signing_keys(
     Ok(records)
 }
 
-// ---------- HTTP layer (sync, ureq + rustls) ---------------------------
-
 fn http_get_json(url: &str) -> Result<serde_json::Value, String> {
     let mut response = ureq::get(url)
         .config()
@@ -307,8 +288,7 @@ mod url_encode_tests {
 
     #[test]
     fn rfc3986_unreserved_punctuation_passes_through() {
-        // Per RFC 3986 the "unreserved" set is alphanumeric +
-        // - _ . ~. None of those need percent-encoding.
+        // RFC 3986 unreserved set (alphanumeric + - _ . ~) needs no encoding.
         assert_eq!(url_encode("a-b_c.d~e"), "a-b_c.d~e");
     }
 
@@ -319,14 +299,13 @@ mod url_encode_tests {
 
     #[test]
     fn colon_is_percent_encoded() {
-        // Important for DID handling: did:plc:abc must encode
-        // its colons when interpolated into a URL.
+        // did:plc:abc must encode its colons when interpolated into a URL.
         assert_eq!(url_encode("did:plc:abc"), "did%3Aplc%3Aabc");
     }
 
     #[test]
     fn slash_is_percent_encoded() {
-        // We're encoding URL components, not full URLs.
+        // Encoding URL components, not full URLs.
         assert_eq!(url_encode("a/b"), "a%2Fb");
     }
 
@@ -337,15 +316,13 @@ mod url_encode_tests {
 
     #[test]
     fn percent_sign_is_percent_encoded() {
-        // Double-encoding hazard: an already-encoded string
-        // should be re-encoded, not passed through. Caller's
-        // responsibility, but pin the behaviour.
+        // An already-encoded string is re-encoded, not passed through.
         assert_eq!(url_encode("%20"), "%2520");
     }
 
     #[test]
     fn unicode_bytes_are_percent_encoded() {
-        // "é" is 2 bytes in UTF-8: 0xC3 0xA9. Each becomes %XX.
+        // "é" is UTF-8 0xC3 0xA9; each byte becomes %XX.
         assert_eq!(url_encode("café"), "caf%C3%A9");
     }
 
@@ -356,8 +333,7 @@ mod url_encode_tests {
 
     #[test]
     fn upper_hex_is_used_for_percent_encoding() {
-        // RFC 3986 says percent-encoded sequences SHOULD use
-        // upper-case hex digits. Pin the convention.
+        // RFC 3986 percent-encoded sequences use upper-case hex.
         assert_eq!(url_encode(" "), "%20");
         assert_eq!(url_encode("\n"), "%0A");
     }
@@ -376,10 +352,7 @@ mod resolve_handle_input_tests {
     use crate::AttestationConfig;
 
     fn no_network_config() -> AttestationConfig {
-        // Default config points at real bsky.social by default;
-        // for these tests we want to redirect to localhost so any
-        // accidental network call hits 127.0.0.1 and fails fast
-        // rather than reaching the public network.
+        // Redirect to localhost so any accidental network call fails fast instead of reaching the public network.
         AttestationConfig {
             bsky_api_override: Some("http://127.0.0.1:1".into()),
             plc_directory_override: Some("http://127.0.0.1:1".into()),
@@ -390,10 +363,6 @@ mod resolve_handle_input_tests {
     #[test]
     fn empty_handle_errors() {
         let cfg = no_network_config();
-        // Empty handle is meaningless; either we trigger the
-        // network and fail there, or short-circuit. Either way
-        // the result is Err, not Ok with a wrong value, and not
-        // a panic.
         let r = resolve_handle("", &cfg);
         assert!(r.is_err(), "empty handle should fail, got {r:?}");
     }

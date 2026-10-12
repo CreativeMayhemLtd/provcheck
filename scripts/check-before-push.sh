@@ -68,6 +68,13 @@ red()    { printf "\033[31m%s\033[0m\n" "$*" >&2; }
 green()  { printf "\033[32m%s\033[0m\n" "$*"; }
 yellow() { printf "\033[33m%s\033[0m\n" "$*"; }
 
+# Git's pre-push hook delivers the pushed ref list on stdin as lines of
+# `<local-ref> <local-sha> <remote-ref> <remote-sha>`. Buffer it ONCE: both the
+# public-content gate and the release-tag gate below consume it, and stdin can be
+# read only a single time. A standalone CLI run (tty on stdin) has no ref list, so
+# leave the buffer empty and let those gates keep their CLI fallback behaviour.
+if [ ! -t 0 ]; then PREPUSH_STDIN="$(cat)"; else PREPUSH_STDIN=""; fi
+
 # ---- Public-content gate (git-native; mirrors .claude/hooks/guard-public-push.sh) ----
 # Enforce the internal-content strip at the git layer so it does not depend on the
 # agent-side hook. Only engages when this pre-push targets the PUBLIC mirror (git passes
@@ -79,7 +86,26 @@ PUSH_URL="${2:-}"
 if printf '%s' "$PUSH_URL" | grep -qE 'CreativeMayhemLtd/provcheck(\.git)?$'; then
     EXCL="$REPO_ROOT/scripts/public-exclude.txt"
     DENY="$REPO_ROOT/scripts/public-term-denylist.txt"
-    pc_tracked="$(git ls-tree -r --name-only HEAD 2>/dev/null || true)"
+    pc_refs=()
+    if [ -n "$PREPUSH_STDIN" ]; then
+        while IFS=' ' read -r _lr _ls _rr _rs; do
+            [ -z "$_ls" ] && continue
+            [ "$_ls" = "0000000000000000000000000000000000000000" ] && continue
+            pc_refs+=("$_ls")
+        done <<< "$PREPUSH_STDIN"
+    else
+        pc_refs=(HEAD)
+    fi
+    pc_tracked=""
+    for _ref in "${pc_refs[@]}"; do
+        _c="$(git rev-parse --verify -q "${_ref}^{commit}" 2>/dev/null || echo "")"
+        if [ -z "$_c" ]; then
+            red "PUBLIC-CONTENT GATE: cannot resolve pushed ref '$_ref' to a commit; refusing public push."
+            exit 1
+        fi
+        pc_tracked="$pc_tracked
+$(git ls-tree -r --name-only "$_c" 2>/dev/null)"
+    done
     pc_hits=""
     if [ -f "$EXCL" ]; then
         while IFS= read -r pat || [ -n "$pat" ]; do
@@ -99,7 +125,12 @@ if printf '%s' "$PUSH_URL" | grep -qE 'CreativeMayhemLtd/provcheck(\.git)?$'; th
     if [ -f "$DENY" ] && [ -f "$EXCL" ]; then
         pc_terms="$(grep -vE '^[[:space:]]*(#|$)' "$DENY" | tr -d '\r' | paste -sd '|' - || true)"
         if [ -n "$pc_terms" ]; then
-            pc_raw="$(git grep -nEiI -e "$pc_terms" HEAD -- . 2>/dev/null || true)"
+            pc_raw=""
+            for _ref in "${pc_refs[@]}"; do
+                _c="$(git rev-parse --verify -q "${_ref}^{commit}" 2>/dev/null || echo "")"
+                [ -n "$_c" ] && pc_raw="$pc_raw
+$(git grep -nEiI -e "$pc_terms" "$_c" -- . 2>/dev/null || true)"
+            done
             pc_tviol=""
             while IFS= read -r line; do
                 [ -z "$line" ] && continue
@@ -155,10 +186,12 @@ if [[ ! -t 0 ]]; then
     NULL_SHA="0000000000000000000000000000000000000000"
     now_epoch=$(date +%s)
     twentyfour_hours_ago=$((now_epoch - 86400))
+    saw_release_tag=0
     while IFS=' ' read -r local_ref local_sha remote_ref remote_sha; do
         # Skip anything that is not a release-line tag push.
         [[ "$local_ref" =~ ^refs/tags/v[0-9]+\.[0-9]+\.0$ ]] || continue
         tag_name="${local_ref#refs/tags/}"
+        saw_release_tag=1
 
         # (2) Force-rewrite check.
         if [[ "$remote_sha" != "$NULL_SHA" ]]; then
@@ -267,6 +300,36 @@ if [[ ! -t 0 ]]; then
             fi
         done
 
+        # (3c) COLD DRY-RUN check. A v*.*.0 tag fires the paid release matrix
+        # (~EUR 30/run; macOS bills 10x). It MUST pass on its first run, and the
+        # only free guarantee is a cold local build first. pre-release-dry-run.sh
+        # writes  $(git rev-parse --git-dir)/pre-release-dry-run-ok = the HEAD it
+        # validated; refuse the tag push unless that stamp matches the tag commit.
+        # Reader and writer both use --git-dir, so this holds from a linked worktree.
+        tag_commit="$(git rev-parse "${local_ref}^{commit}" 2>/dev/null || git rev-parse "$local_sha^{commit}" 2>/dev/null || echo "")"
+        # A curated public snapshot records the dev commit it was built from (and which
+        # the dry-run validated) as a Source-Commit trailer; the stamp is for THAT commit.
+        # Fall back to the tag commit itself when there is no trailer (direct dev-tag push).
+        validated_commit="$(git log -1 --format='%B' "$tag_commit" 2>/dev/null | sed -nE 's/^Source-Commit:[[:space:]]*([0-9a-f]{7,40}).*/\1/p' | head -1)"
+        [ -z "$validated_commit" ] && validated_commit="$tag_commit"
+        stamp_file="$(git rev-parse --git-dir)/pre-release-dry-run-ok"
+        stamped="$( [ -f "$stamp_file" ] && cat "$stamp_file" || echo "" )"
+        if [[ -z "$stamped" || "$stamped" != "$validated_commit" ]]; then
+            red ""
+            red "==============================================================="
+            red " RELEASE GATE FAIL: no cold dry-run for $tag_name"
+            red "==============================================================="
+            red "  tag commit:      ${tag_commit:-unknown}"
+            red "  dry-run stamped: ${stamped:-<none>}"
+            red ""
+            red "  A v*.*.0 tag fires the paid release matrix. Prove a cold, clean"
+            red "  build locally first (free):  scripts/pre-release-dry-run.sh"
+            red "  It purges targets, runs cold clippy, stages the GUI bundle, and"
+            red "  runs a full tauri build, then stamps this commit."
+            red "==============================================================="
+            exit 1
+        fi
+
         fc_marker="docs/release-fc/${tag_name}.md"
         if ! git ls-tree -r --name-only HEAD | grep -qxF "$fc_marker"; then
             red ""
@@ -302,8 +365,12 @@ if [[ ! -t 0 ]]; then
             red "==============================================================="
             exit 1
         fi
-    done
-    green "release-tag gate: ok"
+    done <<< "$PREPUSH_STDIN"
+    if [[ "$saw_release_tag" == "1" ]]; then
+        green "release-tag gate: ok (vX.Y.0 checks passed)"
+    else
+        green "release-tag gate: no release-line (vX.Y.0) tag in this push"
+    fi
 fi
 
 # ---- License-boundary gate: BUSL code never links into the Apache binary ----
@@ -340,6 +407,19 @@ if [[ -n "$boundary_dep_offenders" ]]; then
     exit 1
 fi
 green "  OK"
+
+# ---- SHA cache: skip the heavy suite if this exact commit already passed it ----
+# The gates above (public-content, release-tag, boundary) are cheap and always run.
+# The weights + fmt/clippy/test/parity/AAC below are ~10 min; re-running them on a
+# commit that already passed is pure waste (and the temptation behind --no-verify).
+# A FULL pass stamps the tip SHA; skip here when it still matches. --skip-parity runs
+# never write the stamp, so a partial pass can never satisfy the cache.
+SUITE_STAMP="$(git rev-parse --git-dir)/check-before-push-ok"
+SUITE_HEAD="$(git rev-parse HEAD 2>/dev/null || echo none)"
+if [[ "$SKIP_PARITY" != "1" && -f "$SUITE_STAMP" && "$(cat "$SUITE_STAMP" 2>/dev/null)" == "$SUITE_HEAD" ]]; then
+    green "pre-push suite: already passed for $SUITE_HEAD (cached); skipping the ~10-min re-run"
+    exit 0
+fi
 
 # ---- 0. Pre-install detector weights -----------------------------
 #
@@ -516,5 +596,8 @@ else
     green "  audioseal AAC 192k:    conf=$as_conf OK"
 fi
 
+if [[ "$SKIP_PARITY" != "1" ]]; then
+    echo "$SUITE_HEAD" > "$SUITE_STAMP" 2>/dev/null || true
+fi
 green ""
 green "All pre-push checks passed."

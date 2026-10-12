@@ -76,10 +76,7 @@ pub struct CreatedOnDevice {
 /// specified, and by `kit status` to render "device present /
 /// absent" for an already-set-up Yubikey identity.
 pub fn list_connected() -> Result<Vec<u32>, ProviderError> {
-    // The yubikey crate exposes `Context::open()` + iter. Empty
-    // returns Ok(vec![]) so callers can branch on
-    // result.is_empty() without distinguishing "no device" from
-    // "library error."
+    // Return Ok(empty) on absence or library error so callers branch on is_empty() without distinguishing the two.
     let mut serials = Vec::new();
     let mut context = match yubikey::reader::Context::open() {
         Ok(c) => c,
@@ -140,8 +137,7 @@ pub fn create_on_device(
     let mut yk = YubiKey::open_by_serial(yubikey::Serial::from(serial))
         .map_err(|e| ProviderError::HardwareToken(format!("open Yubikey serial {serial}: {e}")))?;
 
-    // Verify PIN first — if it's wrong we bail before consuming
-    // the management-key auth slot or generating anything.
+    // Verify PIN first so a wrong PIN bails before we consume auth or generate anything.
     yk.verify_pin(pin.expose_secret().as_bytes())
         .map_err(|e| match e {
             yubikey::Error::WrongPin { tries } => {
@@ -150,9 +146,7 @@ pub fn create_on_device(
             other => ProviderError::HardwareToken(format!("verify_pin: {other}")),
         })?;
 
-    // Authenticate with the management key. PIV slot 9c
-    // generation + cert write are management-key-gated; this
-    // doesn't consume the PIN counter.
+    // Slot 9c generate + cert write are mgm-key-gated and don't consume the PIN counter.
     let key = mgm_key.unwrap_or_default();
     yk.authenticate(key).map_err(|e| {
         ProviderError::HardwareToken(format!(
@@ -161,11 +155,7 @@ pub fn create_on_device(
         ))
     })?;
 
-    // Generate the on-device keypair. PinPolicy::Always means
-    // every signature requires fresh PIN entry (correct for the
-    // signing slot). TouchPolicy::Never matches what most
-    // C2PA signing flows need — touch prompts would block the
-    // GUI Builder::sign_file call without UX wiring.
+    // PinPolicy::Always = fresh PIN per signature; TouchPolicy::Never avoids touch prompts that would block Builder::sign_file with no UX wiring.
     let spki = yubikey::piv::generate(
         &mut yk,
         SlotId::Signature,
@@ -182,12 +172,9 @@ pub fn create_on_device(
         ProviderError::SignerSetup(format!("issue leaf cert with Yubikey pubkey: {e}"))
     })?;
 
-    // Write the leaf cert into slot 9c. Optional from c2pa's POV
-    // (we read the chain from disk), but it lets ykman piv info
-    // and other PIV-aware tools show meaningful subject names.
+    // Optional for c2pa (chain read from disk), but lets ykman/PIV tools show meaningful subject names.
     if let Err(e) = write_leaf_cert_to_slot(&mut yk, &chain) {
-        // Non-fatal: identity still works because chain_pem on
-        // disk is what c2pa reads. Log and continue.
+        // Non-fatal: c2pa reads chain_pem from disk, so the identity still works.
         eprintln!("warning: couldn't write leaf cert into slot 9c (kit identity still works): {e}");
     }
 
@@ -304,10 +291,7 @@ impl KeyProvider for YubikeyProvider {
         _: &SecretString,
         _: &mut dyn FnMut(NewPassphrasePrompt) -> PassphraseResult,
     ) -> Result<(), ProviderError> {
-        // A Yubikey-backed identity can't be "stored" by handing it
-        // a software-extractable PEM — keys are generated on-device.
-        // The `kit init --backend yubikey` flow takes a different
-        // code path entirely (see `create_on_device`, P3).
+        // Yubikey keys are generated on-device; there is no software PEM to store (see create_on_device).
         Err(ProviderError::HardwareToken(
             "Yubikey backend does not accept software-extractable \
              keys. Use the create-on-device flow at \
@@ -322,9 +306,7 @@ impl KeyProvider for YubikeyProvider {
         _: &str,
         _: &mut dyn FnMut(UnlockPrompt) -> PassphraseResult,
     ) -> Result<SecretString, ProviderError> {
-        // The PIV private key never leaves the device. Callers that
-        // reach this path are using the v0.4.x PEM-returning seam;
-        // they should switch to `KeyProvider::signer()` instead.
+        // PIV key never leaves the device; callers must use KeyProvider::signer(), not the PEM seam.
         Err(ProviderError::HardwareToken(
             "Yubikey-backed identities have no extractable PEM — \
              call `KeyProvider::signer()` instead of `fetch()`."
@@ -333,10 +315,7 @@ impl KeyProvider for YubikeyProvider {
     }
 
     fn delete(&self, _: &Path, _: &str) -> Result<(), ProviderError> {
-        // Conceptually destroys the slot's content. We do NOT
-        // expose this — clearing slot 9c via the kit would be a
-        // huge footgun. Users who want to wipe the slot should run
-        // `ykman piv keys delete 9c` explicitly.
+        // Not exposed: wiping slot 9c via the kit is a footgun; users run `ykman piv keys delete 9c` explicitly.
         Err(ProviderError::HardwareToken(
             "refusing to wipe slot 9c — run `ykman piv keys delete 9c` \
              explicitly if that's really what you want."
@@ -350,10 +329,7 @@ impl KeyProvider for YubikeyProvider {
         locked: &LockedIdentity,
         prompt: &mut dyn FnMut(UnlockPrompt) -> PassphraseResult,
     ) -> Result<Box<dyn c2pa::Signer>, ProviderError> {
-        // Verify the device is reachable + read tries before any
-        // PIN entry, so the prompt can show the counter and the
-        // kit can refuse when only 1 try remains (avoiding the
-        // path to PIN lockout).
+        // Read tries before PIN entry so the prompt shows the counter and we can refuse near lockout.
         let tries = self.pin_tries_remaining()?;
         if tries == 0 {
             return Err(ProviderError::HardwareToken(format!(
@@ -363,16 +339,12 @@ impl KeyProvider for YubikeyProvider {
             )));
         }
         if tries == 1 {
-            // We let the caller decide whether to abort; some flows
-            // explicitly want to risk the final attempt. The prompt
-            // gets the tries count so it can render a warning.
+            // Empty on purpose: let the caller risk the final attempt; the prompt already has the tries count.
         }
 
         let pin = prompt(UnlockPrompt::yubikey_pin(1, tries))?;
         let slot_id = self.slot_id()?;
-        // Snapshot what the signer needs to hold so it can re-open
-        // the device on every sign() call. The signer's lifetime
-        // outlives `prompt`, so the PIN moves into it.
+        // Snapshot state (incl. the moved-in PIN) so the signer can re-open the device on each sign().
         let signer = YubikeySigner {
             serial: self.serial,
             slot: slot_id,
@@ -415,10 +387,7 @@ impl YubikeySigner {
         let der_sig = yubikey::piv::sign_data(&mut yk, &digest, AlgorithmId::EccP256, self.slot)
             .map_err(|e| format!("piv::sign_data: {e}"))?;
 
-        // Yubikey returns `SEQUENCE { r INTEGER, s INTEGER }`. COSE
-        // ES256 wants the raw P1363 concatenation `r || s` padded to
-        // 32 bytes each = 64 bytes total. Use p256 for the parse +
-        // re-encode since it already knows both shapes.
+        // Yubikey returns DER SEQUENCE{r,s}; COSE ES256 wants raw P1363 r||s (64 bytes). p256 converts.
         let parsed =
             p256::ecdsa::Signature::from_der(&der_sig).map_err(|e| format!("DER decode: {e}"))?;
         Ok(parsed.to_bytes().to_vec())
@@ -435,9 +404,7 @@ impl c2pa::Signer for YubikeySigner {
     }
 
     fn certs(&self) -> c2pa::Result<Vec<Vec<u8>>> {
-        // Parse the PEM chain into a Vec of DER blobs. c2pa expects
-        // EE-first order (the chain_pem we persist is already
-        // EE-then-CA per the existing cert.rs convention).
+        // c2pa expects EE-first DER; our persisted chain_pem is already EE-then-CA.
         let mut out: Vec<Vec<u8>> = Vec::new();
         for block in pem::parse_many(self.chain_pem.as_bytes())
             .map_err(|e| c2pa::Error::OtherError(Box::new(e)))?
@@ -448,10 +415,7 @@ impl c2pa::Signer for YubikeySigner {
     }
 
     fn reserve_size(&self) -> usize {
-        // c2pa-rs's built-in software signers reserve ~10 KB for
-        // the manifest signature payload. ES256 signatures + cert
-        // chain + timestamp easily fit; the value is a soft
-        // ceiling, not a hard cost.
+        // ~10 KB soft ceiling matching c2pa's software signers; ES256 sig + chain + timestamp fit.
         10_000
     }
 }

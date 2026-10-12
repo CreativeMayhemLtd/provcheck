@@ -1,0 +1,647 @@
+{
+  "headerSubtitle": {
+    "message": "C2PA Content Credentials aláírása és ellenőrzése"
+  },
+  "tabVerify": {
+    "message": "Ellenőrzés"
+  },
+  "tabWatermark": {
+    "message": "Vízjel"
+  },
+  "tabDetect": {
+    "message": "Felismerés"
+  },
+  "tabKeys": {
+    "message": "Kulcsok"
+  },
+  "tabSign": {
+    "message": "Aláírás"
+  },
+  "tabKeyedMarks": {
+    "message": "Kulcsos jelölések"
+  },
+  "btnChooseFile": {
+    "message": "Fájl kiválasztása…"
+  },
+  "btnVerifyAnother": {
+    "message": "Másik ellenőrzése"
+  },
+  "btnCopyJson": {
+    "message": "Másolás JSON formátumban"
+  },
+  "btnCheckAnother": {
+    "message": "Másik fájl ellenőrzése"
+  },
+  "btnReadAnother": {
+    "message": "Másik beolvasása"
+  },
+  "btnLogOut": {
+    "message": "Kijelentkezés"
+  },
+  "btnConnect": {
+    "message": "Csatlakozás"
+  },
+  "btnCopy": {
+    "message": "Másolás"
+  },
+  "btnRetry": {
+    "message": "Újra"
+  },
+  "btnSign": {
+    "message": "Aláírás"
+  },
+  "btnOK": {
+    "message": "OK"
+  },
+  "btnCancel": {
+    "message": "Mégse"
+  },
+  "btnGotIt": {
+    "message": "Értem"
+  },
+  "btnHowItWorks": {
+    "message": "Hogyan működik"
+  },
+  "btnInstallRepair": {
+    "message": "Telepítés / Javítás"
+  },
+  "btnChooseSecret": {
+    "message": "Titkos fájl kiválasztása"
+  },
+  "btnClose": {
+    "message": "Bezárás"
+  },
+  "badgeExperimental": {
+    "message": "Kísérleti"
+  },
+  "loadingGeneric": {
+    "message": "Betöltés…"
+  },
+  "statusChecking": {
+    "message": "Ellenőrzés..."
+  },
+  "statusCheckingStatus": {
+    "message": "Állapot ellenőrzése…"
+  },
+  "labelFingerprint": {
+    "message": "Ujjlenyomat"
+  },
+  "labelAlgorithm": {
+    "message": "Algoritmus"
+  },
+  "labelBackend": {
+    "message": "Háttérrendszer"
+  },
+  "labelCreated": {
+    "message": "Létrehozva"
+  },
+  "labelDID": {
+    "message": "DID"
+  },
+  "labelHandle": {
+    "message": "Felhasználónév"
+  },
+  "labelYubikey": {
+    "message": "Yubikey"
+  },
+  "labelPinTries": {
+    "message": "PIN-próbálkozások"
+  },
+  "labelStatus": {
+    "message": "Állapot"
+  },
+  "labelLabel": {
+    "message": "Címke"
+  },
+  "labelBy": {
+    "message": "Készítette"
+  },
+  "labelTool": {
+    "message": "Eszköz"
+  },
+  "labelFile": {
+    "message": "Fájl"
+  },
+  "labelYourIdentity": {
+    "message": "A saját identitásod"
+  },
+  "labelOutput": {
+    "message": "Kimenet"
+  },
+  "aboutLinks": {
+    "message": "Linkek"
+  },
+  "identityBskyHandle": {
+    "message": "Bsky felhasználónév"
+  },
+  "identityRunWatermark": {
+    "message": "Vízjel-felismerés futtatása"
+  },
+  "identityRequireAttested": {
+    "message": "Igazolt szükséges"
+  },
+  "identityHandlePh": {
+    "message": "opcionális · pl. creator.bsky.social vagy did:plc:…"
+  },
+  "dropzoneTitle": {
+    "message": "Ejtsd ide bármelyik fájlt az ellenőrzéshez"
+  },
+  "dropzoneSub": {
+    "message": "Hang · Kép · Videó: bármi, ami C2PA Content Credentials adatokat hordoz."
+  },
+  "verifyDropHint": {
+    "message": "Vagy futtasd fájl nélkül, és ez a hely megmarad. Privát: a fájlok soha nem hagyják el a géped."
+  },
+  "verifyLoading": {
+    "message": "Ellenőrzés…"
+  },
+  "verifyLoadingHint": {
+    "message": "A vízjel-felismerés processzorigényes hang és videó esetén, és néhány percig is eltarthat. Kapcsold ki a \"Vízjel-felismerés futtatása\" opciót az azonnali, csak C2PA-ellenőrzéshez."
+  },
+  "showRawManifest": {
+    "message": "Nyers manifeszt részletek megjelenítése"
+  },
+  "claimsHeading": {
+    "message": "Állítások"
+  },
+  "wmModelsNeeded": {
+    "message": "A vízjel-felismeréshez modellek szükségesek."
+  },
+  "wmInstallAll": {
+    "message": "Összes modell telepítése"
+  },
+  "wmScanFor": {
+    "message": "Keresés erre:"
+  },
+  "wmDropTitle": {
+    "message": "Ejtsd ide bármelyik fájlt a vízjel-felismerés futtatásához"
+  },
+  "wmDropHint": {
+    "message": "Privát: a fájlok soha nem hagyják el a géped. Minden detektor önállóan dönti el, hogy alkalmazható-e a bemeneti fájltípusra."
+  },
+  "wmLoading": {
+    "message": "Vízjel-detektorok futtatása…"
+  },
+  "wmLoadingHint": {
+    "message": "A modell-következtetés processzorigényes hang és videó esetén; a vizsgálat néhány percig is eltarthat. A munka folytatódik, amíg ez pörög."
+  },
+  "wmResultTitle": {
+    "message": "Vízjel-felismerés"
+  },
+  "detectTitle": {
+    "message": "AI-tartalom felismerése: hozd a saját detektorodat"
+  },
+  "detectRouteAHead": {
+    "message": "A útvonal: fizetős DLC-csomag (v1.x, tervezett)"
+  },
+  "detectRouteBHead": {
+    "message": "B útvonal: üzemeltető által biztosított wrapper (már elérhető)"
+  },
+  "keysLocalIdentity": {
+    "message": "Helyi identitás"
+  },
+  "keysNoIdentity": {
+    "message": "Nincs identitás ezen a gépen."
+  },
+  "keysMismatchTitle": {
+    "message": "Identitás-állapot eltérés"
+  },
+  "keysRotateBtn": {
+    "message": "Új létrehozása + közzététel"
+  },
+  "keysRotateTitle": {
+    "message": "Új aláíró kulcs létrehozása és közzététele mint új aktív rekord"
+  },
+  "keysSwitchYubikey": {
+    "message": "Váltás Yubikey identitásra…"
+  },
+  "keysSwitchYubikeyTitle": {
+    "message": "A jelenlegi identitás cseréje Yubikey alapúra"
+  },
+  "keysPublishedRecords": {
+    "message": "Közzétett rekordok (atproto)"
+  },
+  "keysRecordsEmptyHint": {
+    "message": "Jelentkezz be az Aláírás fülön, és tedd közzé a helyi ujjlenyomatodat."
+  },
+  "keysNotLoggedIn": {
+    "message": "Nincs bejelentkezve az atproto szolgáltatásba."
+  },
+  "keysNoSessionHint": {
+    "message": "Jelentkezz be az Aláírás fülön a közzétett rekordjaid lekéréséhez."
+  },
+  "signIdentityLabel": {
+    "message": "Identitás:"
+  },
+  "signNotSetUp": {
+    "message": "nincs beállítva"
+  },
+  "signSessionLabel": {
+    "message": "Munkamenet:"
+  },
+  "signDisconnected": {
+    "message": "leválasztva"
+  },
+  "signSetupTitle": {
+    "message": "Aláíró identitásod beállítása"
+  },
+  "signSetupBody": {
+    "message": "Ez létrehoz egy kriptográfiai kulcsot ezen a gépen, és eltárolja az operációs rendszer kulcstartójában. Ezt csak egyszer kell megtenned."
+  },
+  "signGenerateKey": {
+    "message": "Aláíró kulcs létrehozása"
+  },
+  "signSetupHint": {
+    "message": "A kulcs soha nem hagyja el a géped. Az operációs rendszered kezeli a hozzáférési kéréseket."
+  },
+  "signConnectTitle": {
+    "message": "Kapcsold össze a bsky identitásoddal"
+  },
+  "signConnectBody": {
+    "message": "Csatold az aláíró kulcsodat az atproto felhasználónevedhez, hogy az ellenőrzők tudják, hogy a tiéd."
+  },
+  "signHandlePh": {
+    "message": "creator.bsky.social"
+  },
+  "signAppPassword": {
+    "message": "Alkalmazásjelszó"
+  },
+  "signRememberDevice": {
+    "message": "Emlékezz rám ezen az eszközön"
+  },
+  "signPublishTitle": {
+    "message": "Tedd közzé az aláíró kulcsodat"
+  },
+  "signPublishBody": {
+    "message": "Egy utolsó lépés: a kulcsod ujjlenyomatának közzététele az atproto szolgáltatásban lehetővé teszi az ellenőrzőknek, hogy keresztellenőrizzék, hogy te írtad alá a munkádat. Enélkül csak azt látják: \"érvényes aláírás ismeretlentől.\""
+  },
+  "signLabelOptional": {
+    "message": "Címke (opcionális)"
+  },
+  "signLabelPh": {
+    "message": "pl. studio mac"
+  },
+  "signPublishKey": {
+    "message": "Kulcs közzététele"
+  },
+  "signStaleTitle": {
+    "message": "Az aláíró kulcsod elavult"
+  },
+  "signRecoverHeading": {
+    "message": "Helyreállítás terminálból:"
+  },
+  "signStaleHint": {
+    "message": "Ez új kulcsot hoz létre, közzéteszi mint új aktív rekordot, és (ha szükséges) visszavonja az árva rekordot, hogy senki ne írhasson alá a neveddel az elveszett kulccsal."
+  },
+  "signDropTitle": {
+    "message": "Ejtsd ide a fájlt az aláíráshoz"
+  },
+  "signDropSub": {
+    "message": "Hang · Kép · Videó: bármi, amit a c2pa-rs támogat."
+  },
+  "signReadyToSign": {
+    "message": "Aláírásra kész"
+  },
+  "signChainTitle": {
+    "message": "Ez a fájl már alá van írva."
+  },
+  "signChainSub": {
+    "message": "Az aláírásod származékként csatlakozik a lánchoz; az eredeti aláírás érintetlen marad."
+  },
+  "signRelationshipQ": {
+    "message": "Mi a kapcsolatod ezzel a fájllal?"
+  },
+  "signEmbedIdentity": {
+    "message": "Identitásállítás beágyazása (ajánlott; lehetővé teszi az ellenőrzőknek, hogy kihagyják a felhasználónév megadását)"
+  },
+  "signModelPh": {
+    "message": "pl. ACE-Step v1.0"
+  },
+  "signReplaceOriginal": {
+    "message": "Az eredeti lecserélése (sidecar írása helyett)"
+  },
+  "signPickDifferent": {
+    "message": "Másik fájl kiválasztása"
+  },
+  "signSigning": {
+    "message": "Aláírás…"
+  },
+  "signSigned": {
+    "message": "Aláírva"
+  },
+  "signAnother": {
+    "message": "Másik aláírása"
+  },
+  "signVerifyIt": {
+    "message": "Ellenőrzés"
+  },
+  "signErrorTitle": {
+    "message": "Nem sikerült betölteni az aláírási állapotot"
+  },
+  "bfBackfireTitle": {
+    "message": "Kulcsos Backfire jelölés beolvasása"
+  },
+  "bfBackfireSub": {
+    "message": "Ellenőrizz egy kép-alapú vízjelet, amelyet az AI eredetiség-eltávolítók felerősítenek eltávolítás helyett."
+  },
+  "bfReaderLabel": {
+    "message": "Backfire olvasó"
+  },
+  "bfDropTitle": {
+    "message": "Ejts ide egy képet, vagy válassz egyet, a jelölés beolvasásához"
+  },
+  "bfChooseRead": {
+    "message": "Kép kiválasztása és beolvasás"
+  },
+  "bfHint": {
+    "message": "Először add meg a kulcsodat fent, majd ejtsd ide vagy válassz ki egy képet. Automatikusan beolvassa, és a gépeden marad."
+  },
+  "bfLoading": {
+    "message": "Backfire jelölés beolvasása…"
+  },
+  "mlTitle": {
+    "message": "Kulcsos Mellin sorozatszám beolvasása"
+  },
+  "mlSub": {
+    "message": "Hang-alapú kulcsos igazságügyi elemzés: állítsd vissza a 64 bites, példányonkénti sorozatszámot, amit a különálló, BUSL-licencű provcheck-mellin eszközzel ágyaztál be (ingyenes nem kereskedelmi használatra, a provcheck-től elkülönítve). Szükséged van az eladói titkos fájlodra és a mű azonosítójára; minden a gépeden marad."
+  },
+  "mlReaderLabel": {
+    "message": "Mellin olvasó"
+  },
+  "mlSecretNone": {
+    "message": "nincs kiválasztva. A titkot soha nem tároljuk, ezért minden indítás után válaszd ki újra."
+  },
+  "mlWorkidPh": {
+    "message": "a beágyazáskor használt mű azonosító"
+  },
+  "mlDropTitle": {
+    "message": "Válassz egy hangfájlt a sorozatszám beolvasásához"
+  },
+  "mlChooseRead": {
+    "message": "Hang kiválasztása és beolvasás"
+  },
+  "mlHint": {
+    "message": "Először válaszd ki a titkos fájlodat és add meg a mű azonosítót, majd válaszd ki a hangfájlt, vagy ejtsd ide bárhova ezen a fülön. Bármilyen formátum működik (WAV, MP3, AAC, FLAC); a hangfájlokat itt olvassuk be, a képek a fenti Backfire jelölést olvassák."
+  },
+  "mlLoading": {
+    "message": "Mellin sorozatszám beolvasása…"
+  },
+  "imTitle": {
+    "message": "Kulcsos idmark identitásjelölés beolvasása"
+  },
+  "imSub": {
+    "message": "Kép-alapú kulcsos identitás: olvasd be a vágásra, átkódolásra és forgatásra toleráns, példányonkénti jelölést, amelyet a különálló, BUSL-licencű provcheck-idmark eszközzel ágyaztak be (ingyenes nem kereskedelmi használatra, a provcheck-től elkülönítve). Titok nélkül a beépített jelölést ellenőrzi; add meg a titkos fájlodat és egy helyet a példány hozzárendeléséhez. Minden a gépeden marad."
+  },
+  "imReaderLabel": {
+    "message": "idmark olvasó"
+  },
+  "imSecretNone": {
+    "message": "nincs kiválasztva. Hagyd üresen a beépített jelölés beolvasásához; a titkot soha nem tároljuk."
+  },
+  "imDropTitle": {
+    "message": "Válassz egy képet a jelölés beolvasásához"
+  },
+  "imChooseRead": {
+    "message": "Kép kiválasztása és beolvasás"
+  },
+  "imHint": {
+    "message": "Opcionálisan válaszd ki a titkos fájlodat és egy helyet először, majd válaszd ki a képet. PNG vagy JPEG. Ez az idmark identitásjelölést olvassa be; a Backfire jelölés és a Mellin sorozatszámok a fenti szakaszokban olvashatók be."
+  },
+  "imLoading": {
+    "message": "idmark beolvasása…"
+  },
+  "bfModalTitle": {
+    "message": "Hogyan működik a Backfire"
+  },
+  "vVerified": {
+    "message": "Ellenőrizve"
+  },
+  "vUnsigned": {
+    "message": "Aláíratlan"
+  },
+  "vNotVerified": {
+    "message": "Nincs ellenőrizve"
+  },
+  "attAttestedBy": {
+    "message": "Igazolta: $1"
+  },
+  "attMatchSub": {
+    "message": "Az aláíró tanúsítvány megegyezik egy ezen identitás alatt közzétett kulccsal."
+  },
+  "attMismatch": {
+    "message": "Igazolási eltérés ennél: $1"
+  },
+  "attMismatchSub": {
+    "message": "Az aláíró tanúsítvány nem egyezik egyetlen, ezen identitás alatt közzétett kulccsal sem."
+  },
+  "attNotPublished": {
+    "message": "Nincs közzétett kulcs ennél: $1"
+  },
+  "attNotPublishedSub": {
+    "message": "Ez az identitás létezik, de nem tett közzé signingKey rekordokat."
+  },
+  "attResolveFailed": {
+    "message": "Nem sikerült feloldani: $1"
+  },
+  "attResolveFailedSub": {
+    "message": "Az identitás feloldása sikertelen (a felhasználónév/DID nem elérhető)."
+  },
+  "attThisIdentity": {
+    "message": "ez az identitás"
+  },
+  "kvSigner": {
+    "message": "Aláíró"
+  },
+  "kvSignedAt": {
+    "message": "Aláírva ekkor"
+  },
+  "kvFormat": {
+    "message": "Formátum"
+  },
+  "kvManifest": {
+    "message": "Manifeszt"
+  },
+  "kvIngredients": {
+    "message": "Összetevők"
+  },
+  "kvIngredientsVal": {
+    "message": "$1 (származtatott tartalom: ez a fájl korábban aláírt fájlok szerkesztésével készült)"
+  },
+  "kvValidationErrors": {
+    "message": "Érvényesítési hibák"
+  },
+  "wmEmpty": {
+    "message": "A futtatott detektorcsaládok nem találtak vízjelet."
+  },
+  "wmKeyedNote": {
+    "message": "A kulcsos jelölések (Backfire, Mellin) nem részei ennek a vizsgálatnak. Ezek csak a kulcsoddal olvashatók be, a Kulcsos jelölések fülön."
+  },
+  "wmConfidence": {
+    "message": "$1% megbízhatóság"
+  },
+  "wmDegraded": {
+    "message": "$1% megbízhatóság; a jelölés degradált (részleges sérülés valószínű)"
+  },
+  "wmNa": {
+    "message": "$1: nincs adat"
+  },
+  "wmNoMark": {
+    "message": "$1: nem található jelölés"
+  },
+  "wmTimelineAria": {
+    "message": "Vízjel jelenléte idővel: $1"
+  },
+  "wmUnrecognizedSource": {
+    "message": "ismeretlen forrás"
+  },
+  "btnCopied": {
+    "message": "Másolva"
+  },
+  "scanError": {
+    "message": "Nem sikerült beolvasni ezt a fájlt: $1"
+  },
+  "autoFilled": {
+    "message": "automatikusan kitöltve a fájlból"
+  },
+  "dragFileOnto": {
+    "message": "Húzd a fájlt az ablakra"
+  },
+  "aiGenerated": {
+    "message": "AI által generált"
+  },
+  "btnCopiedBang": {
+    "message": "Másolva!"
+  },
+  "bfCouldNotRun": {
+    "message": "A Backfire nem futott le"
+  },
+  "btnInstalling": {
+    "message": "Telepítés…"
+  },
+  "downloadingModels": {
+    "message": "Modellek letöltése, ez eltarthat egy percig…"
+  },
+  "btnWorking": {
+    "message": "Feldolgozás…"
+  },
+  "bfInstalling": {
+    "message": "Backfire olvasó telepítése / javítása…"
+  },
+  "statusCheckFailed": {
+    "message": "Az állapotellenőrzés sikertelen: $1"
+  },
+  "readingFile": {
+    "message": "$1 beolvasása…"
+  },
+  "mlCouldNotRun": {
+    "message": "A Mellin nem futott le"
+  },
+  "imCouldNotRun": {
+    "message": "Az idmark nem futott le"
+  },
+  "keysMismSuperseded": {
+    "message": "A helyi kulcsodat lecserélték"
+  },
+  "keysMismRevoked": {
+    "message": "A helyi kulcsod vissza van vonva"
+  },
+  "keysMismActiveNoKey": {
+    "message": "Az aktív rekord olyan kulcsot használ, amellyel nem rendelkezel"
+  },
+  "thisBox": {
+    "message": "(ez a gép)"
+  },
+  "btnRevoke": {
+    "message": "Visszavonás"
+  },
+  "checkingPublishedKeys": {
+    "message": "Közzétett kulcsok ellenőrzése…"
+  },
+  "btnGenerating": {
+    "message": "Létrehozás…"
+  },
+  "btnConnecting": {
+    "message": "Csatlakozás…"
+  },
+  "btnPublishing": {
+    "message": "Közzététel…"
+  },
+  "signReadyToPublish": {
+    "message": "Közzétételre kész"
+  },
+  "bfMarkFound": {
+    "message": "Backfire jelölés található"
+  },
+  "bfNoValidMark": {
+    "message": "Nincs érvényes Backfire jelölés"
+  },
+  "mlSerialRecovered": {
+    "message": "Mellin sorozatszám visszaállítva"
+  },
+  "mlNoFullSerial": {
+    "message": "Nincs teljes Mellin sorozatszám"
+  },
+  "imPresent": {
+    "message": "idmark jelen van"
+  },
+  "imNoDetected": {
+    "message": "Nem található idmark"
+  },
+  "fieldIdentifier": {
+    "message": "Azonosító"
+  },
+  "fieldConfidenceMargin": {
+    "message": "Megbízhatóság (minimális bit margó)"
+  },
+  "fieldValid": {
+    "message": "Érvényes"
+  },
+  "fieldMatchesSerial": {
+    "message": "Megegyezik a várt sorozatszámmal"
+  },
+  "fieldTamperTripwire": {
+    "message": "Manipulációjelző"
+  },
+  "fieldSerial": {
+    "message": "Sorozatszám"
+  },
+  "fieldBitsRecovered": {
+    "message": "Visszaállított bitek"
+  },
+  "fieldErasureRate": {
+    "message": "Törlési arány"
+  },
+  "fieldMinBitVotes": {
+    "message": "Minimális bit szavazatok"
+  },
+  "fieldMarkPresent": {
+    "message": "Jelölés jelen van"
+  },
+  "fieldSeat": {
+    "message": "Hely"
+  },
+  "fieldMargin": {
+    "message": "Margó"
+  },
+  "fieldReadVia": {
+    "message": "Beolvasva ezen keresztül"
+  },
+  "fieldEstRotation": {
+    "message": "Becsült forgatás"
+  },
+  "fieldError": {
+    "message": "Hiba"
+  },
+  "valYes": {
+    "message": "igen"
+  },
+  "valNo": {
+    "message": "nem"
+  },
+  "bfTamperDetected": {
+    "message": "bevágás-manipuláció észlelve (statisztika $1)"
+  },
+  "bfTamperClean": {
+    "message": "tiszta (statisztika $1)"
+  }
+}

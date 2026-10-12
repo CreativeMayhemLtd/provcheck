@@ -2,6 +2,12 @@ use serde::{Deserialize, Serialize};
 
 pub use provcheck_attestation_spec::IdentityClaim;
 
+/// Content modality a provenance/watermark format applies to. Re-exported
+/// from `provcheck-detect` so the unified format checklist and the
+/// AI-content detectors speak the same modality vocabulary (`audio`,
+/// `image`, `video`, `text` on the wire) instead of two parallel enums.
+pub use provcheck_detect::DetectionFamily as Media;
+
 /// The outcome of verifying a single file.
 ///
 /// `verified` is the load-bearing field — everything else is
@@ -66,6 +72,18 @@ pub struct Report {
     /// (after filtering out codes that reflect trust-policy choices
     /// provcheck deliberately doesn't enforce by default).
     pub validation_errors: usize,
+
+    /// Tamper-evidence about the C2PA provenance LAYER itself, independent of
+    /// signature validation of a present manifest. `Some(reason)` when there is
+    /// positive evidence the provenance was removed or corrupted — currently a
+    /// manifest box that is present but malformed/partial (a stripper that
+    /// broke the box rather than cleanly removing it). `None` = no such
+    /// evidence. Distinct from `validation_errors` (a PRESENT, parseable
+    /// manifest failing its own hash/crypto checks) and from `unsigned` (no
+    /// box at all). Surfaced as tamper-evidence in read/verify output.
+    /// (Fork 2 F2.1: the C2PA-gap tamper detector.)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub provenance_tamper: Option<String>,
 
     /// DID-anchored attestation result. Always `None` from the offline
     /// `verify_with_options` path — populated only by
@@ -159,6 +177,210 @@ pub struct Report {
     /// with the slot disabled.
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub detections: Vec<provcheck_detect::DetectionResult>,
+
+    /// Unified format checklist: one typed row per provenance/watermark
+    /// format provcheck knows how to look for, recording — for THIS asset —
+    /// whether the format was found, absent, tampered, not-installed,
+    /// not-applicable to the media, not-checked, or errored. This is the
+    /// "check everything, click to make better" spine: it lets a caller
+    /// render a single honest surface answering "here is what I could check
+    /// on this machine, and here is what you can install to check more."
+    ///
+    /// Built by walking the capability registry (`crate::formats`) for the
+    /// asset's media modality, then upgrading rows as C2PA verification, the
+    /// watermark detectors, keyed shell-outs, and install-state resolution
+    /// run. Superset in spirit of [`watermarks`](Self::watermarks) and
+    /// [`detections`](Self::detections) (which stay populated for
+    /// back-compat) but adds the crucial "attempted vs not-checked vs
+    /// not-installed" distinction those vecs cannot express (a disabled or
+    /// uninstalled family simply leaves no row there).
+    ///
+    /// Always empty from the core `verify_with_options` path — populated
+    /// only by callers that ran the synthesis step. Omitted from JSON when
+    /// empty (and defaults to empty on deserialise) so older outputs and
+    /// builds that never synthesised a checklist produce identical output.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub checks: Vec<FormatCheck>,
+}
+
+/// One row in the unified format checklist ([`Report::checks`]). Records
+/// the typed outcome of looking for a single provenance/watermark format on
+/// one asset.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FormatCheck {
+    /// Which format this row is about.
+    pub id: FormatId,
+
+    /// Media modalities the format applies to (e.g. `[image]` for TrustMark,
+    /// `[image, video, audio]` for C2PA). Copied from the capability
+    /// registry so a renderer can group or filter without re-deriving.
+    pub media: Vec<Media>,
+
+    /// Typed outcome for THIS asset.
+    pub status: CheckStatus,
+
+    /// Human-readable detail: the "why" behind the status — e.g. "box
+    /// present but unparseable" for `Tampered`, "not audio" for
+    /// `NotApplicable`, a decoder error for `Error`. Omitted from JSON when
+    /// `None`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
+
+    /// Detector confidence in `[0.0, 1.0]` when the status came from a
+    /// probabilistic detector (watermark / AIGC). `None` for deterministic
+    /// checks (C2PA present/absent) and for statuses where confidence is
+    /// meaningless (`NotApplicable`, `NotChecked`, `NotInstalled`). Omitted
+    /// from JSON when `None`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub confidence: Option<f32>,
+
+    /// How to make this row checkable when `status == NotInstalled`: the
+    /// operator-facing install hint (e.g. `provcheck --install trustmark`,
+    /// or a note that the format is a paid DLC). Carried from the registry.
+    /// Omitted from JSON when `None`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub install_hint: Option<String>,
+}
+
+/// Typed outcome of checking one format against one asset. Deliberately
+/// richer than a boolean: the whole point of the checklist is to
+/// distinguish "checked and absent" from "could not check" from "not
+/// installed" from "wrong media". Models the same tri-state-plus-failure
+/// spirit as [`provcheck_detect::DetectionStatus`], extended with the
+/// install/checked distinctions the checklist needs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum CheckStatus {
+    /// The format was found and validated on this asset (a C2PA manifest
+    /// verified, a watermark detected, a keyed mark present).
+    Present,
+    /// The format was actively looked for and is NOT present (checked-absent
+    /// — distinct from `NotChecked`).
+    Absent,
+    /// The format is present but shows positive tamper evidence (a manifest
+    /// box present but malformed, a degraded/partial mark). Mirrors the
+    /// `Report::provenance_tamper` signal at the row level.
+    Tampered,
+    /// This machine cannot check the format because its model/weights are
+    /// not installed. `install_hint` says how to enable it. The "click to
+    /// make better" row.
+    NotInstalled,
+    /// The format does not apply to this asset's media (e.g. an audio
+    /// watermark on a still image). Not a failure — just out of scope.
+    NotApplicable,
+    /// The format applies and could be checked, but was not (user disabled
+    /// it, or synthesis has not run the detector yet). Distinct from
+    /// `Absent` (which means checked-and-not-found).
+    NotChecked,
+    /// The check was attempted but failed (decoder error, unreadable input
+    /// for this format). `detail` carries the operator-facing reason.
+    Error,
+}
+
+/// Every provenance / watermark / detector format provcheck knows how to
+/// look for. Each variant maps to one row in the capability registry
+/// (`crate::formats`). Adding a variant here plus a registry entry is how a
+/// new format joins the checklist. Wire form is `snake_case`
+/// (`c2pa`, `silent_cipher`, `synth_id_image`, …).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum FormatId {
+    /// Embedded C2PA manifest (the primary provenance layer).
+    C2pa,
+    /// C2PA soft binding — a content fingerprint / watermark pointer that
+    /// lets a stripped manifest be recovered from a manifest store (Durable
+    /// Content Credentials). Read side is FOSS; the recovery service is a
+    /// separate concern.
+    SoftBinding,
+    /// DID-anchored second-factor identity attestation
+    /// (`app.provcheck.signingKey` cross-check).
+    DidAttestation,
+    /// Sony silentcipher audio watermark.
+    SilentCipher,
+    /// Meta AudioSeal audio watermark.
+    AudioSeal,
+    /// WavMark audio watermark.
+    WavMark,
+    /// Adobe/CAI TrustMark image watermark.
+    TrustMark,
+    /// TrustMark applied per-frame to video with a temporal vote.
+    TrustMarkVideo,
+    /// Meta VideoSeal native (temporal) video watermark.
+    VideoSeal,
+    /// Meta PixelSeal / ChunkySeal image watermark.
+    PixelSeal,
+    /// Google SynthID text watermark.
+    SynthIdText,
+    /// Google SynthID image watermark (detector access gated).
+    SynthIdImage,
+    /// Google SynthID audio watermark (detector access gated).
+    SynthIdAudio,
+    /// Google SynthID video watermark (detector access gated).
+    SynthIdVideo,
+    /// Backfire keyed image mark (BUSL; presence read via shell-out).
+    Backfire,
+    /// Mellin keyed audio serial (BUSL; presence read via shell-out).
+    Mellin,
+    /// AI-content / deepfake detection (paid DLC; probabilistic signal).
+    AigcDetect,
+}
+
+impl FormatId {
+    /// Stable lowercase identifier used in the human-readable checklist and
+    /// as the argument to `provcheck --install <id>`. Matches the JSON wire
+    /// form (`snake_case`).
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            FormatId::C2pa => "c2pa",
+            FormatId::SoftBinding => "soft_binding",
+            FormatId::DidAttestation => "did_attestation",
+            FormatId::SilentCipher => "silent_cipher",
+            FormatId::AudioSeal => "audio_seal",
+            FormatId::WavMark => "wav_mark",
+            FormatId::TrustMark => "trust_mark",
+            FormatId::TrustMarkVideo => "trust_mark_video",
+            FormatId::VideoSeal => "video_seal",
+            FormatId::PixelSeal => "pixel_seal",
+            FormatId::SynthIdText => "synth_id_text",
+            FormatId::SynthIdImage => "synth_id_image",
+            FormatId::SynthIdAudio => "synth_id_audio",
+            FormatId::SynthIdVideo => "synth_id_video",
+            FormatId::Backfire => "backfire",
+            FormatId::Mellin => "mellin",
+            FormatId::AigcDetect => "aigc_detect",
+        }
+    }
+}
+
+impl CheckStatus {
+    /// Short human-readable label for the CLI `[formats]` section.
+    pub fn label(&self) -> &'static str {
+        match self {
+            CheckStatus::Present => "present",
+            CheckStatus::Absent => "absent",
+            CheckStatus::Tampered => "TAMPERED",
+            CheckStatus::NotInstalled => "not installed",
+            CheckStatus::NotApplicable => "n/a",
+            CheckStatus::NotChecked => "not checked",
+            CheckStatus::Error => "error",
+        }
+    }
+
+    /// Single-character glyph column for the checklist. ASCII only so the
+    /// line stays paste-safe and legible in an 80-column terminal.
+    pub fn glyph(&self) -> char {
+        match self {
+            CheckStatus::Present => '+',
+            CheckStatus::Absent => '-',
+            CheckStatus::Tampered => '!',
+            CheckStatus::NotInstalled => ' ',
+            CheckStatus::NotApplicable => '.',
+            CheckStatus::NotChecked => '?',
+            CheckStatus::Error => 'x',
+        }
+    }
 }
 
 /// A single parent manifest in the active manifest's chain. Each
@@ -227,7 +449,7 @@ pub struct DidAttestation {
 }
 
 /// Outcome of a neural-watermark detection pass, populated on
-/// [`Report::watermark`] when the caller invoked the
+/// [`Report::watermarks`] when the caller invoked the
 /// `provcheck-watermark` detector. The check is independent of
 /// C2PA — its purpose is to corroborate (or contradict) the
 /// manifest using a signal that doesn't share the C2PA trust
@@ -312,6 +534,7 @@ pub struct WatermarkResult {
 /// admission rule and current pass/fail survey.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum WatermarkKind {
     /// Sony's silentcipher (Interspeech 2024). MIT-licensed
     /// code + weights. Implemented in `provcheck-watermark`.
@@ -346,6 +569,7 @@ pub enum WatermarkKind {
 /// [`WatermarkResult::status`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum WatermarkStatus {
     /// Confidence ≥ 0.70 and the recovered message is
     /// structurally valid. The watermark is present and the
@@ -370,6 +594,7 @@ pub enum WatermarkStatus {
 /// interpreted; today only schema 1 is in production use.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(tag = "code", rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum WatermarkBrand {
     /// rAIdio.bot — payload `RAI` (`[82, 65, 73]`).
     Raidio,
@@ -409,6 +634,7 @@ pub enum WatermarkBrand {
 /// Tri-state-plus-failure status for DID-anchored attestation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum AttestationStatus {
     /// Signing certificate's fingerprint matches an active record
     /// under the resolved DID.
@@ -476,17 +702,11 @@ impl Display for Report {
                 let _ = writeln!(f, "  trust: signer is NOT in the configured trust store");
             }
             None => {
-                // No trust-store configured — stay quiet. The absence of
-                // this line means "trust was not evaluated", which matches
-                // the default CLI invocation.
+                // No trust-store configured: stay quiet so the absent line reads as "not evaluated".
             }
         }
         if let Some(claim) = &self.identity {
-            // Self-asserted identity from the asset's
-            // app.provcheck.identity assertion. Render with an
-            // explicit "claims" word so a reader doesn't confuse
-            // it with the cryptographically-anchored did_attestation
-            // below — the claim alone is never trust-anchoring.
+            // Say "claims" — this self-asserted identity is never trust-anchoring, unlike did_attestation below.
             match &claim.handle {
                 Some(h) => {
                     let _ = writeln!(f, "  claims identity: @{} ({})", h, claim.did);
@@ -497,9 +717,6 @@ impl Display for Report {
             }
         }
         if let Some(att) = &self.did_attestation {
-            // Identity label: prefer the handle for readability; fall
-            // back to the DID. Both can be present; show DID alongside
-            // when handle is also there.
             let label = match (&att.handle, att.did.as_str()) {
                 (Some(h), did) if !did.is_empty() => format!("@{} ({})", h, did),
                 (Some(h), _) => format!("@{}", h),
@@ -550,10 +767,10 @@ impl Display for Report {
                 let pct = (wm.confidence.clamp(0.0, 1.0) * 100.0).round() as u32;
                 match wm.status {
                     WatermarkStatus::Detected | WatermarkStatus::Degraded => {
-                        let qualifier = match wm.status {
-                            WatermarkStatus::Detected => "detected",
-                            WatermarkStatus::Degraded => "detected (degraded)",
-                            WatermarkStatus::NotDetected => unreachable!(),
+                        let qualifier = if matches!(wm.status, WatermarkStatus::Degraded) {
+                            "detected (degraded)"
+                        } else {
+                            "detected"
                         };
                         let brand_label = wm
                             .brand
@@ -568,8 +785,11 @@ impl Display for Report {
                         if let Some(payload) = &wm.payload
                             && !payload.is_empty()
                         {
-                            let hex: String =
-                                payload.iter().map(|b| format!("{:02x}", b)).collect();
+                            let mut hex = String::with_capacity(payload.len() * 2);
+                            for b in payload {
+                                use std::fmt::Write as _;
+                                let _ = write!(hex, "{b:02x}");
+                            }
                             let _ = writeln!(f, "    payload: {}", hex);
                         }
                         if let Some(regions) = &wm.marked_regions
@@ -603,6 +823,42 @@ impl Display for Report {
         }
         if self.validation_errors > 0 {
             let _ = writeln!(f, "  validation errors: {}", self.validation_errors);
+        }
+        if let Some(tamper) = &self.provenance_tamper {
+            let _ = writeln!(f, "  tamper-evidence: {}", tamper);
+        }
+
+        if !self.checks.is_empty() {
+            let _ = writeln!(f, "[formats]");
+            let width = self
+                .checks
+                .iter()
+                .map(|c| c.id.as_str().len())
+                .max()
+                .unwrap_or(0);
+            for check in &self.checks {
+                let _ = write!(
+                    f,
+                    "  [{}] {:width$}  {}",
+                    check.status.glyph(),
+                    check.id.as_str(),
+                    check.status.label(),
+                    width = width
+                );
+                if let Some(conf) = check.confidence {
+                    let pct = (conf.clamp(0.0, 1.0) * 100.0).round() as u32;
+                    let _ = write!(f, " ({}%)", pct);
+                }
+                let _ = writeln!(f);
+                // A not-installed row shows its install hint on the sub-line; others show detail.
+                if check.status == CheckStatus::NotInstalled
+                    && let Some(hint) = &check.install_hint
+                {
+                    let _ = writeln!(f, "      install: {}", hint);
+                } else if let Some(detail) = &check.detail {
+                    let _ = writeln!(f, "      {}", detail);
+                }
+            }
         }
 
         if !self.assertions.is_null() {
@@ -656,19 +912,12 @@ fn format_brand_label(brand: &WatermarkBrand) -> String {
             format!("unknown brand (id 0x{id:04x})")
         }
         WatermarkBrand::UnknownAscii { letters } => {
-            // Schema-1 brand triplet whose ASCII isn't in the
-            // known registry. Surface the three letters so the
-            // user can recognise a new product even before our
-            // registry catches up — the payload bytes are still
-            // shown verbatim on the line below for forensics.
+            // Surface the raw triplet so a new product is recognisable before the registry catches up.
             let s = std::str::from_utf8(letters).unwrap_or("???");
             format!("unrecognized source \"{}\"", s)
         }
         WatermarkBrand::UnknownSchema { schema } => {
-            // Schema byte isn't 1 — the rest of the payload's
-            // structure is opaque to this build of provcheck.
-            // Detection itself is still valid; we just can't
-            // identify the issuer or its conventions.
+            // Detection is valid but a non-1 schema leaves the issuer unidentifiable.
             format!("unrecognized payload schema (v{})", schema)
         }
     }
@@ -680,11 +929,13 @@ fn process_assertions(assertions: &serde_json::Value) -> String {
     match assertions {
         serde_json::Value::Object(map) => {
             for (k, v) in map {
-                let v_short = v.to_string();
-                let v_short = if v_short.len() > 200 {
-                    format!("{}…", &v_short[..200])
+                let v_full = v.to_string();
+                // Truncate on a char boundary: assertion values are arbitrary
+                // UTF-8, so a byte-index slice could split a codepoint and panic.
+                let v_short = if v_full.chars().count() > 200 {
+                    format!("{}…", v_full.chars().take(200).collect::<String>())
                 } else {
-                    v_short
+                    v_full
                 };
                 let _ = writeln!(s, "  {} = {}", k, v_short);
             }
@@ -714,9 +965,7 @@ mod tests {
 
     #[test]
     fn format_regions_uses_en_dash_not_hyphen() {
-        // Pin the en-dash (U+2013) — display convention across
-        // every region range. A future maintainer who "normalises"
-        // it to a hyphen would invalidate downstream parsers.
+        // Pin the en-dash (U+2013): downstream parsers rely on it, so don't "normalise" to a hyphen.
         let regs = vec![(2.0, 14.0)];
         let s = format_regions(&regs);
         assert!(s.contains('\u{2013}'), "expected en-dash in {s}");
@@ -824,21 +1073,17 @@ mod watermark_result_serialization_tests {
 
     #[test]
     fn watermark_status_uses_snake_case_on_wire() {
-        // Pin the snake_case rename — automation downstream may
-        // match on the string values.
+        // Pin the snake_case rename: downstream automation matches on these string values.
         let r = minimal_watermark_result();
         let json = serde_json::to_string(&r).expect("ser");
         assert!(
             json.contains("\"detected\""),
             "expected snake_case status, got: {json}"
         );
-        // Now degraded path.
         let mut r2 = r.clone();
         r2.status = WatermarkStatus::Degraded;
         let json = serde_json::to_string(&r2).expect("ser");
         assert!(json.contains("\"status\":\"degraded\""), "got: {json}");
-        // Now not_detected — must use underscore, not camelCase
-        // or kebab-case.
         let mut r3 = r.clone();
         r3.status = WatermarkStatus::NotDetected;
         let json = serde_json::to_string(&r3).expect("ser");
@@ -861,8 +1106,7 @@ mod watermark_result_serialization_tests {
         let mut r = minimal_watermark_result();
         r.brand = Some(WatermarkBrand::Raidio);
         let json = serde_json::to_string(&r).expect("ser");
-        // The `tag = "code"` serde attr means brand serialises as
-        // {"code": "raidio"} not as a bare string.
+        // `tag = "code"` serialises brand as {"code": "raidio"}, not a bare string.
         assert!(
             json.contains("\"code\":\"raidio\""),
             "expected code-tagged brand, got: {json}"
@@ -886,9 +1130,7 @@ mod watermark_result_serialization_tests {
 
     #[test]
     fn watermark_result_marked_regions_defaults_to_none_on_legacy_input() {
-        // Backward-compat: older verifier outputs lacked the
-        // marked_regions field. Deserialise must default it to
-        // None rather than failing.
+        // Back-compat: older outputs lack marked_regions; deserialise must default it to None.
         let legacy = r#"{
             "kind": "silent_cipher",
             "status": "detected",
@@ -918,11 +1160,13 @@ mod report_serialization_tests {
             ingredient_count: 0,
             format: None,
             validation_errors: 0,
+            provenance_tamper: None,
             did_attestation: None,
             identity: None,
             parents: Vec::new(),
             watermarks: Vec::new(),
             detections: Vec::new(),
+            checks: Vec::new(),
         }
     }
 
@@ -931,6 +1175,34 @@ mod report_serialization_tests {
         let mut r = minimal_unsigned_report();
         r.verified = true;
         assert_eq!(r.exit_code(), 0);
+    }
+
+    #[test]
+    fn provenance_tamper_surfaces_in_display_and_json() {
+        let mut r = minimal_unsigned_report();
+        assert!(!format!("{r}").contains("tamper-evidence"));
+        assert!(
+            !r.to_json_string()
+                .expect("ser")
+                .contains("provenance_tamper")
+        );
+        r.provenance_tamper = Some("box present but unparseable".into());
+        let text = format!("{r}");
+        assert!(
+            text.contains("tamper-evidence:"),
+            "human output shows the flag: {text}"
+        );
+        assert!(text.contains("box present but unparseable"));
+        let json = r.to_json_string().expect("ser");
+        assert!(
+            json.contains("\"provenance_tamper\""),
+            "JSON carries the flag: {json}"
+        );
+        let back: Report = serde_json::from_str(&json).expect("de");
+        assert_eq!(
+            back.provenance_tamper.as_deref(),
+            Some("box present but unparseable")
+        );
     }
 
     #[test]
@@ -943,7 +1215,6 @@ mod report_serialization_tests {
     fn to_json_string_produces_pretty_indented_output() {
         let r = minimal_unsigned_report();
         let json = r.to_json_string().expect("ser");
-        // Pretty-printed → contains newlines + indentation.
         assert!(json.contains('\n'));
         assert!(json.contains("  "));
     }
@@ -957,8 +1228,6 @@ mod report_serialization_tests {
 
     #[test]
     fn to_json_string_omits_empty_watermarks_vec() {
-        // watermarks: skip_serializing_if = "Vec::is_empty" per
-        // the field doc — empty vec must not produce a key.
         let r = minimal_unsigned_report();
         let json = r.to_json_string().expect("ser");
         assert!(
@@ -979,8 +1248,6 @@ mod report_serialization_tests {
 
     #[test]
     fn to_json_string_omits_empty_detections_vec() {
-        // v0.9.72: detections is empty for the offline verify
-        // path. Pin the skip_serializing_if invariant.
         let r = minimal_unsigned_report();
         let json = r.to_json_string().expect("ser");
         assert!(
@@ -1005,15 +1272,12 @@ mod report_serialization_tests {
         let json = r.to_json_string().expect("ser");
         assert!(json.contains("\"detections\""));
         assert!(json.contains("test-detector"));
-        // family snake_case pinned
         assert!(json.contains("\"audio\""));
     }
 
     #[test]
     fn detections_default_deserialises_to_empty_on_legacy_report() {
-        // Backward-compat: a JSON Report from before v0.9.72
-        // (no `detections` field) must deserialise with an
-        // empty detections vec.
+        // Back-compat: a Report JSON without the detections field must deserialise to empty.
         let legacy = r#"{
             "verified": false,
             "unsigned": true,
@@ -1077,5 +1341,165 @@ mod report_serialization_tests {
         r.failure_reason = Some("test failure reason".into());
         let s = format!("{r}");
         assert!(s.contains("test failure reason"), "got: {s}");
+    }
+}
+
+#[cfg(test)]
+mod format_check_tests {
+    use super::*;
+
+    fn minimal_report() -> Report {
+        Report {
+            verified: false,
+            unsigned: true,
+            trusted: None,
+            failure_reason: None,
+            active_manifest: None,
+            signer: None,
+            signed_at: None,
+            claim_generator: None,
+            assertions: serde_json::Value::Null,
+            ingredient_count: 0,
+            format: None,
+            validation_errors: 0,
+            provenance_tamper: None,
+            did_attestation: None,
+            identity: None,
+            parents: Vec::new(),
+            watermarks: Vec::new(),
+            detections: Vec::new(),
+            checks: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn empty_checks_omitted_from_json() {
+        // Back-compat: an empty checklist must produce no `checks` key, matching old output byte-for-byte.
+        let r = minimal_report();
+        let json = r.to_json_string().expect("ser");
+        assert!(
+            !json.contains("\"checks\""),
+            "empty checks must be omitted: {json}"
+        );
+    }
+
+    #[test]
+    fn checks_default_to_empty_on_legacy_input() {
+        // Back-compat: a Report JSON without the checks field must deserialise to empty, not fail.
+        let legacy = r#"{
+            "verified": false,
+            "unsigned": true,
+            "trusted": null,
+            "failure_reason": null,
+            "active_manifest": null,
+            "signer": null,
+            "signed_at": null,
+            "claim_generator": null,
+            "assertions": null,
+            "ingredient_count": 0,
+            "format": null,
+            "validation_errors": 0
+        }"#;
+        let r: Report = serde_json::from_str(legacy).expect("legacy parse");
+        assert!(r.checks.is_empty());
+    }
+
+    fn sample_check(id: FormatId, status: CheckStatus) -> FormatCheck {
+        FormatCheck {
+            id,
+            media: vec![Media::Image],
+            status,
+            detail: None,
+            confidence: None,
+            install_hint: None,
+        }
+    }
+
+    #[test]
+    fn populated_checks_serialise_with_snake_case_ids() {
+        let mut r = minimal_report();
+        r.checks = vec![sample_check(FormatId::TrustMark, CheckStatus::Present)];
+        let json = r.to_json_string().expect("ser");
+        assert!(json.contains("\"checks\""));
+        assert!(json.contains("\"trust_mark\""), "id snake_case: {json}");
+        assert!(json.contains("\"present\""), "status snake_case: {json}");
+    }
+
+    #[test]
+    fn format_id_wire_form_matches_as_str() {
+        // JSON rename and as_str() must agree, or `provcheck --install <id>` won't match the JSON row.
+        let json = serde_json::to_string(&FormatId::SynthIdImage).expect("ser");
+        assert_eq!(json, "\"synth_id_image\"");
+        assert_eq!(FormatId::SynthIdImage.as_str(), "synth_id_image");
+    }
+
+    #[test]
+    fn check_status_wire_form_is_snake_case() {
+        assert_eq!(
+            serde_json::to_string(&CheckStatus::NotInstalled).expect("ser"),
+            "\"not_installed\""
+        );
+        assert_eq!(
+            serde_json::to_string(&CheckStatus::NotApplicable).expect("ser"),
+            "\"not_applicable\""
+        );
+    }
+
+    #[test]
+    fn format_check_round_trips() {
+        let mut c = sample_check(FormatId::AudioSeal, CheckStatus::NotInstalled);
+        c.media = vec![Media::Audio];
+        c.detail = Some("weights not cached".into());
+        c.confidence = Some(0.0);
+        c.install_hint = Some("provcheck --install audio_seal".into());
+        let json = serde_json::to_string(&c).expect("ser");
+        let back: FormatCheck = serde_json::from_str(&json).expect("de");
+        assert_eq!(back, c);
+    }
+
+    #[test]
+    fn display_renders_formats_section() {
+        let mut r = minimal_report();
+        r.checks = vec![
+            sample_check(FormatId::C2pa, CheckStatus::Present),
+            {
+                let mut c = sample_check(FormatId::TrustMark, CheckStatus::NotInstalled);
+                c.install_hint = Some("provcheck --install trust_mark".into());
+                c
+            },
+            {
+                let mut c = sample_check(FormatId::SilentCipher, CheckStatus::NotApplicable);
+                c.detail = Some("not audio".into());
+                c
+            },
+        ];
+        let s = format!("{r}");
+        assert!(s.contains("[formats]"), "section header missing: {s}");
+        assert!(s.contains("c2pa"));
+        assert!(s.contains("present"));
+        assert!(
+            s.contains("install: provcheck --install trust_mark"),
+            "got: {s}"
+        );
+        assert!(s.contains("not audio"), "got: {s}");
+        assert!(s.contains("[+]"), "present glyph: {s}");
+        assert!(s.contains("[.]"), "n/a glyph: {s}");
+    }
+
+    #[test]
+    fn display_omits_formats_section_when_empty() {
+        let r = minimal_report();
+        let s = format!("{r}");
+        assert!(!s.contains("[formats]"), "no section for empty checks: {s}");
+    }
+
+    #[test]
+    fn display_renders_confidence_when_present() {
+        let mut r = minimal_report();
+        let mut c = sample_check(FormatId::TrustMark, CheckStatus::Present);
+        c.confidence = Some(0.87);
+        r.checks = vec![c];
+        let s = format!("{r}");
+        assert!(s.contains("(87%)"), "confidence rendered: {s}");
     }
 }

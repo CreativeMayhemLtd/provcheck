@@ -613,6 +613,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "block"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0d8c1fef690941d3e7788d328517591fecc684c084084702d6ff1641e993699a"
+
+[[package]]
 name = "block-buffer"
 version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2251,6 +2257,7 @@ dependencies = [
  "fluent-syntax",
  "i18n-embed-impl",
  "intl-memoizer",
+ "locale_config",
  "log",
  "parking_lot",
  "rust-embed",
@@ -2859,6 +2866,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
 
 [[package]]
+name = "locale_config"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "08d2c35b16f4483f6c26f0e4e9550717a2f6575bcd6f12a53ff0c490a94a6934"
+dependencies = [
+ "lazy_static",
+ "objc",
+ "objc-foundation",
+ "regex",
+ "winapi",
+]
+
+[[package]]
 name = "lock_api"
 version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2880,6 +2900,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f66e8d5d03f609abc3a39e6f08e4164ebf1447a732906d39eb9b99b7919ef39"
 dependencies = [
  "hashbrown 0.16.1",
+]
+
+[[package]]
+name = "malloc_buf"
+version = "0.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "62bb907fe88d54d8d9ce32a3cceab4218ed2f6b7d35617cafe9adf84e43919cb"
+dependencies = [
+ "libc",
 ]
 
 [[package]]
@@ -3206,6 +3235,35 @@ checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
  "autocfg",
  "libm",
+]
+
+[[package]]
+name = "objc"
+version = "0.2.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "915b1b472bc21c53464d6c8461c9d3af805ba1ef837e1cac254428f4a77177b1"
+dependencies = [
+ "malloc_buf",
+]
+
+[[package]]
+name = "objc-foundation"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1add1b659e36c9607c7aab864a76c7a4c2760cd0cd2e120f3fb8b952c7e22bf9"
+dependencies = [
+ "block",
+ "objc",
+ "objc_id",
+]
+
+[[package]]
+name = "objc_id"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c92d4ddb4bd7b50d730c215ff871754d0da6b2178849f8a2a2ab69712d0c073b"
+dependencies = [
+ "objc",
 ]
 
 [[package]]
@@ -3803,7 +3861,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "c2pa",
  "hound",
@@ -3818,7 +3876,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-attestation-spec"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "pem",
  "serde",
@@ -3829,7 +3887,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-audioseal"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "anyhow",
  "hound",
@@ -3847,12 +3905,16 @@ dependencies = [
 
 [[package]]
 name = "provcheck-cli"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "clap",
+ "i18n-embed",
+ "i18n-embed-fl",
+ "once_cell",
  "provcheck",
  "provcheck-audioseal",
  "provcheck-detect",
+ "provcheck-dlc",
  "provcheck-image",
  "provcheck-platform",
  "provcheck-synthid-text",
@@ -3860,13 +3922,15 @@ dependencies = [
  "provcheck-watermark",
  "provcheck-wavmark",
  "provcheck-weights",
+ "rust-embed",
  "serde_json",
  "tempfile",
+ "unic-langid",
 ]
 
 [[package]]
 name = "provcheck-detect"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -3874,8 +3938,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "provcheck-dlc"
+version = "1.5.0"
+dependencies = [
+ "bs58",
+ "dirs",
+ "ed25519-dalek",
+ "rand 0.8.6",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 2.0.19",
+ "ureq 2.12.1",
+]
+
+[[package]]
 name = "provcheck-examples"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "anyhow",
  "c2pa",
@@ -3885,7 +3965,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-image"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "image",
  "ndarray",
@@ -3900,7 +3980,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-kit"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "age",
  "anyhow",
@@ -3928,7 +4008,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-platform"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "c2pa",
  "dirs",
@@ -3948,7 +4028,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-publish"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "atrium-api",
  "atrium-identity",
@@ -3965,7 +4045,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-sign"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "age",
  "c2pa",
@@ -3991,7 +4071,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-stream-detect"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "provcheck-detect",
  "serde",
@@ -4001,7 +4081,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-synthid-text"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "provcheck",
  "serde",
@@ -4012,7 +4092,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-video"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "provcheck",
  "provcheck-image",
@@ -4025,7 +4105,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-watermark"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "anyhow",
  "hound",
@@ -4047,7 +4127,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-wavmark"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "anyhow",
  "hound",
@@ -4065,7 +4145,7 @@ dependencies = [
 
 [[package]]
 name = "provcheck-weights"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "dirs",
  "sha2",
@@ -4624,9 +4704,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.23.39"
+version = "0.23.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c2c118cb077cca2822033836dfb1b975355dfb784b5e8da48f7b6c5db74e60e"
+checksum = "0d41d731c7d2f962d1ccc364cec258de3c0e93b38c2fb3ba97ac74513048d634"
 dependencies = [
  "log",
  "once_cell",
@@ -4648,9 +4728,9 @@ dependencies = [
 
 [[package]]
 name = "rustls-webpki"
-version = "0.103.13"
+version = "0.103.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61c429a8649f110dddef65e2a5ad240f747e85f7758a6bccc7e5777bd33f756e"
+checksum = "f3c3cf1d8b1e7d4927e2d154c3fcb02979afb9939629c62cd9048d4f07b60ac2"
 dependencies = [
  "ring",
  "rustls-pki-types",
@@ -6389,6 +6469,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "winapi"
+version = "0.3.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c839a674fcd7a98952e593242ea400abe93992746761e38641405d28b00f419"
+dependencies = [
+ "winapi-i686-pc-windows-gnu",
+ "winapi-x86_64-pc-windows-gnu",
+]
+
+[[package]]
+name = "winapi-i686-pc-windows-gnu"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac3b87c63620426dd9b991e5ce0329eff545bccbbb34f3be09ff6fb6ab51b7b6"
+
+[[package]]
 name = "winapi-util"
 version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6396,6 +6492,12 @@ checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
  "windows-sys 0.59.0",
 ]
+
+[[package]]
+name = "winapi-x86_64-pc-windows-gnu"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
 name = "windows-core"

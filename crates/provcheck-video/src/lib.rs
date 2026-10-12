@@ -70,10 +70,7 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
         return Ok(missing_ffmpeg());
     }
 
-    // v0.9.0 audit §2.5 + §3: tempfile::TempDir uses O_EXCL +
-    // random suffix — no collision across concurrent processes,
-    // no symlink-overwrite risk on shared /tmp, and Drop-on-panic
-    // cleanup.
+    // TempDir (O_EXCL + random suffix) avoids collisions and shared-/tmp symlink attacks, with Drop-on-panic cleanup (audit §2.5, §3).
     let tmp: TempDir = match TempDir::with_prefix("provcheck-video-frames-") {
         Ok(t) => t,
         Err(e) => return Err(Error::Io(e)),
@@ -108,8 +105,6 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
         }
     }
 
-    // tmp dropped here regardless of return path (including panics
-    // inside the loop above).
     drop(tmp);
 
     if per_frame_confs.is_empty() {
@@ -242,9 +237,7 @@ fn extract_frames(src: &Path, dst: &Path) -> Result<Vec<PathBuf>, Error> {
             "-hide_banner",
             "-loglevel",
             "error",
-            // v0.9.0 audit §3: wall-clock cap so a fuzzed
-            // container can't chew CPU/RAM before the first
-            // sampled frame lands.
+            // Wall-clock cap so a fuzzed container can't chew CPU/RAM before the first frame (audit §3).
             "-t",
             &format!("{FFMPEG_TIME_CAP_SECS}"),
             "-i",
@@ -290,8 +283,6 @@ mod tests {
         assert_send_sync::<WatermarkStatus>();
     }
 
-    // ----- looks_like_video ----------
-
     #[test]
     fn looks_like_video_accepts_documented_extensions() {
         for ext in ["mp4", "mov", "mkv", "webm", "avi", "m4v"] {
@@ -302,8 +293,7 @@ mod tests {
 
     #[test]
     fn looks_like_video_is_case_insensitive() {
-        // Operators pass paths from the filesystem; on Windows
-        // the extension can be UPPER. Pin lowercase-normalisation.
+        // Windows filesystems can hand back UPPER-case extensions.
         for ext in ["MP4", "MOV", "Mkv", "WEBM", "Avi", "M4V"] {
             let p = std::path::PathBuf::from(format!("/test/file.{ext}"));
             assert!(looks_like_video(&p), "{ext} should look like video");
@@ -326,14 +316,9 @@ mod tests {
 
     #[test]
     fn looks_like_video_rejects_empty_extension() {
-        // Path like "/test/file." has an extension that's the
-        // empty string per Rust's Path::extension semantics —
-        // but actually returns None. Cover the edge.
         let p = std::path::PathBuf::from("/test/file.");
         assert!(!looks_like_video(&p));
     }
-
-    // ----- not_video / missing_ffmpeg early-return paths ----------
 
     #[test]
     fn not_video_returns_trustmark_video_kind() {
@@ -350,26 +335,19 @@ mod tests {
         assert!(matches!(r.kind, WatermarkKind::TrustMarkVideo));
         assert!(!r.detected);
         let msg = r.message.expect("must have message");
-        // The message must name every supported install path so
-        // the operator can copy-paste the right one. Pin them.
         assert!(msg.contains("ffmpeg"));
         assert!(msg.contains("apt") || msg.contains("brew") || msg.contains("winget"));
     }
 
-    // ----- MIN_DETECTED_FRAMES + MIN_DEGRADED_FRAMES thresholds ----------
-
     #[test]
     fn min_detected_frames_is_three() {
-        // Bumping this silently shifts every video detection
-        // verdict. Pin explicitly.
+        // Bumping this silently shifts every video detection verdict.
         assert_eq!(MIN_DETECTED_FRAMES, 3);
     }
 
     #[test]
     fn min_degraded_frames_is_below_detected() {
-        // Tier ordering invariant — degraded must be a less strict
-        // bar than detected. Compile-time visible constants need
-        // black_box wrapping so clippy doesn't fold and complain.
+        // black_box keeps clippy from const-folding the comparison of two visible constants.
         let degraded = std::hint::black_box(MIN_DEGRADED_FRAMES);
         let detected = std::hint::black_box(MIN_DETECTED_FRAMES);
         assert!(degraded < detected);
@@ -396,7 +374,7 @@ mod tests {
 
     #[test]
     fn classify_votes_single_vote_returns_not_detected() {
-        // 1 vote: below MIN_DEGRADED_FRAMES = 2 → no signal yet.
+        // 1 vote: below MIN_DEGRADED_FRAMES = 2.
         let mut votes = BTreeMap::new();
         votes.insert(WatermarkBrand::Raidio, 1);
         let (status, brand) = classify_votes(&votes);
@@ -406,8 +384,7 @@ mod tests {
 
     #[test]
     fn classify_votes_two_votes_returns_degraded() {
-        // 2 votes: clears MIN_DEGRADED_FRAMES = 2, below
-        // MIN_DETECTED_FRAMES = 3.
+        // 2 votes: clears MIN_DEGRADED_FRAMES = 2, below MIN_DETECTED_FRAMES = 3.
         let mut votes = BTreeMap::new();
         votes.insert(WatermarkBrand::Raidio, 2);
         let (status, brand) = classify_votes(&votes);
@@ -427,7 +404,6 @@ mod tests {
 
     #[test]
     fn classify_votes_thirty_votes_returns_detected() {
-        // Saturated: 30 votes for one brand → Detected.
         let mut votes = BTreeMap::new();
         votes.insert(WatermarkBrand::Vaideo, 30);
         let (status, brand) = classify_votes(&votes);
@@ -437,7 +413,6 @@ mod tests {
 
     #[test]
     fn classify_votes_picks_majority_winner() {
-        // Two brands with different counts: majority wins.
         let mut votes = BTreeMap::new();
         votes.insert(WatermarkBrand::Raidio, 5);
         votes.insert(WatermarkBrand::Doomscroll, 2);
@@ -448,8 +423,7 @@ mod tests {
 
     #[test]
     fn classify_votes_split_below_threshold_returns_not_detected() {
-        // Two brands each with 1 vote: neither clears the
-        // Degraded threshold individually → NotDetected.
+        // Two brands at 1 vote each: neither clears the Degraded threshold individually.
         let mut votes = BTreeMap::new();
         votes.insert(WatermarkBrand::Raidio, 1);
         votes.insert(WatermarkBrand::Doomscroll, 1);
@@ -460,10 +434,7 @@ mod tests {
 
     #[test]
     fn classify_votes_tiebreak_is_deterministic() {
-        // Both brands have the same count → BTreeMap ordering
-        // (WatermarkBrand variant order) picks. Run twice and
-        // confirm we get the same winner — guards against
-        // accidental HashMap reintroduction.
+        // Equal counts: BTreeMap variant ordering must pick the same winner every run (guards against a HashMap regression).
         let mut votes = BTreeMap::new();
         votes.insert(WatermarkBrand::Doomscroll, 3);
         votes.insert(WatermarkBrand::Raidio, 3);
@@ -476,16 +447,11 @@ mod tests {
 
     #[test]
     fn video_extension_without_ffmpeg_surfaces_clear_hint() {
-        // We can't UNINSTALL ffmpeg for the test, so this test
-        // is best-effort: if ffmpeg is on PATH, the test exercises
-        // the "ffmpeg failed on empty file" path instead, which
-        // still surfaces a message. Both branches return
-        // NotDetected without crashing.
+        // Best-effort: with ffmpeg present this exercises the "failed on empty file" path instead; both return NotDetected without crashing.
         let f = tempfile::Builder::new()
             .suffix(".mp4")
             .tempfile()
             .expect("tempfile");
-        // Empty file, no valid video container.
         let r = detect(f.path()).expect("detect");
         assert!(!r.detected);
         assert!(r.message.is_some());

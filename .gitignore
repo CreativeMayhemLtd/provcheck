@@ -66,12 +66,17 @@ app/src-tauri/onnxruntime.dll
 app/src-tauri/backfire/
 # in-project staged copy of the mellin tool for GUI resource bundling (build artifact)
 app/src-tauri/mellin/
+# in-project staged copy of the idmark tool for GUI resource bundling (build artifact)
+app/src-tauri/idmark/
 # in-project staged sample/test files for GUI resource bundling (build artifact;
 # rAIdio.bot-derived content is operator-curated before it lands here)
 app/src-tauri/test-files/
 
 # operator-curated rAIdio.bot source audio for sample packaging (never committed)
 radiobot_examples/
+
+# Private agent working notes — never committed or mirrored.
+.worklog/
 
 __pycache__/
 *.pyc

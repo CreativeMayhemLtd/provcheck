@@ -1,0 +1,57 @@
+# provcheck-dlc — the DLC framework (Apache-2.0, in-workspace, permissive-clean).
+#
+# This is the license VERIFIER and the pack PULLER, not watermark IP. It ships
+# inside the Apache-2.0 provcheck binary so provcheck can gate the paid keyed
+# tools (Backfire + Mellin) on an offline-verifiable seat license. Every dep is
+# permissive (ed25519-dalek BSD-3, bs58 MIT/Apache, sha2/ureq/dirs MIT/Apache),
+# so it satisfies WATERMARK_LICENSE_POLICY.md's bundling rule.
+#
+# Ported from Lysn.fm's `lysn-dlc` (+ the minimal `lysn-sign`/`lysn-jcs` it needs
+# and the signed-pack pull from `lysn-desktop-core`). The ProLicense wire format
+# is byte-identical to lysn's, so ONE seat license issued by the offline
+# `dlc-issue` tool verifies in BOTH apps. Any change to the license bytes,
+# domain tags, did:key/base58 codecs, or JCS canonicalization MUST land in both
+# repos together — the cross-repo golden test in `src/sign.rs` locks it.
+[package]
+name = "provcheck-dlc"
+description = "provcheck DLC framework: offline-verifiable Pro (seat) licenses + add-on pack metadata. Apache-2.0 framework; packs carry their own license (the Pro Watermarking pack bundles the BUSL-1.1 Backfire + Mellin tools). Ported from Lysn.fm; the license wire format is byte-identical so one seat verifies in either app."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+
+[lib]
+name = "provcheck_dlc"
+
+[features]
+default = ["install"]
+# The install surface: the signed-manifest pack pull + the on-disk license
+# store/status/unlock. Pulls in ureq + dirs. Turn it off for a verify-only
+# dependency (just the ProLicense + catalog types), e.g. a headless checker.
+install = ["dep:ureq", "dep:dirs"]
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+# Signature primitive for the license + pack manifest. BSD-3-Clause.
+ed25519-dalek = "2"
+# base58btc for did:key + signatures (the Lysn.fm codec). MIT/Apache-2.0.
+bs58 = "0.5"
+# SHA-256 for the pack manifest + content ids. MIT/Apache-2.0.
+sha2 = "0.10"
+# Blocking HTTPS pull for the signed pack. Same 2.10 pin provcheck-weights uses,
+# so no new ureq major enters the tree. Optional (only the `install` feature).
+ureq = { version = "2.10", default-features = false, features = ["tls"], optional = true }
+# OS-conventional data dir for the per-user DLC home. Optional (`install`).
+dirs = { version = "6", optional = true }
+
+[dev-dependencies]
+# Deterministic + OS-random keys for the sign/verify + cross-repo golden tests.
+rand = "0.8"
+# Filesystem isolation for the install-surface tests.
+tempfile = "3"

@@ -78,12 +78,7 @@ async fn main() -> ExitCode {
         Ok(()) => ExitCode::from(0),
         Err(e) => {
             eprintln!("provcheck-kit: {e:#}");
-            // Surface session-expired as its own exit code so CI
-            // pipelines can `kit publish || kit login && kit publish`
-            // without parsing error messages. The check walks the
-            // error chain so it catches deeply-wrapped SessionError
-            // and RecordsError variants, not just direct
-            // KitError::SessionExpired emissions.
+            // Dedicated exit code for session-expired so CI can retry without parsing messages; walks the error chain to catch wrapped variants.
             if commands::is_session_expired(&e) {
                 return ExitCode::from(3);
             }

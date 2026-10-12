@@ -132,11 +132,7 @@ impl AtprotoClient {
         let agent = AtpAgent::new(xrpc, store);
 
         let session_output = agent.login(handle, app_password).await.map_err(|e| {
-            // atrium's Error<E> formats with the lexicon's
-            // specific error variant + an HTTP detail. The
-            // distinction between "login rejected" and "the
-            // network is broken" is in the message body; for
-            // v1 we keep one error path.
+            // Distinguish "login rejected" from "network broken" by substring on atrium's message body.
             let msg = e.to_string();
             if msg.to_lowercase().contains("invalid") || msg.to_lowercase().contains("auth") {
                 SessionError::LoginRejected(msg)
@@ -310,13 +306,8 @@ mod tests {
         }
     }
 
-    // ----- SessionError Display ----------
-
     #[test]
     fn session_expired_display_directs_user_to_kit_login() {
-        // The CLI maps SessionExpired to exit code 3; the user's
-        // only debugging hint is the error message. Pin that it
-        // names the command.
         let s = format!("{}", SessionError::SessionExpired);
         assert!(
             s.contains("kit login"),
@@ -349,7 +340,6 @@ mod tests {
 
     #[test]
     fn io_from_std_io_error_works() {
-        // The #[from] impl must compile and dispatch correctly.
         let io = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "denied");
         let _e: SessionError = io.into();
     }
@@ -378,11 +368,7 @@ mod tests {
 
     #[test]
     fn session_file_uses_snake_case_field_names_on_wire() {
-        // Locks in the format. atproto itself uses camelCase, but
-        // *our* session.json is internal — we use snake_case so
-        // Serde defaults Just Work. If anyone is tempted to switch
-        // to camelCase to "match atproto," that's a breaking
-        // change to existing session.json files.
+        // session.json is internal snake_case; switching to camelCase would break existing files.
         let f = fake_session_file();
         let json = serde_json::to_string(&f).expect("ser");
         assert!(json.contains("\"access_jwt\""));
@@ -416,11 +402,6 @@ mod tests {
         );
     }
 
-    // ----- normalise_pds_url tests ----------
-    //
-    // normalise_pds_url is the input pipe between operator CLI
-    // strings and our atrium agent. Pin every documented case.
-
     #[test]
     fn normalise_pds_url_drops_leading_whitespace() {
         assert_eq!(normalise_pds_url("  bsky.social"), "https://bsky.social");
@@ -433,17 +414,14 @@ mod tests {
 
     #[test]
     fn normalise_pds_url_drops_multiple_trailing_slashes() {
-        // Only ONE trailing slash is trimmed per the function;
-        // pin the actual contract so a future "make it strict"
-        // refactor doesn't silently change behaviour.
+        // Only one trailing slash is trimmed.
         let result = normalise_pds_url("https://bsky.social/");
         assert_eq!(result, "https://bsky.social");
     }
 
     #[test]
     fn normalise_pds_url_preserves_path_components() {
-        // A self-hosted PDS at a subpath must NOT have its path
-        // stripped. Only the trailing slash gets removed.
+        // A self-hosted PDS at a subpath must keep its path; only the trailing slash is removed.
         assert_eq!(
             normalise_pds_url("https://example.com/pds"),
             "https://example.com/pds"
@@ -458,12 +436,6 @@ mod tests {
         );
     }
 
-    // ----- write_session_file tests ----------
-    //
-    // The atomic-write contract: tmp file written first, renamed
-    // over the destination on success. The on-disk format is the
-    // SessionFile serde representation.
-
     #[test]
     fn write_session_file_creates_session_json_in_target_dir() {
         let dir = TempDir::new().unwrap();
@@ -475,8 +447,7 @@ mod tests {
 
     #[test]
     fn write_session_file_writes_pretty_json() {
-        // Operators sometimes hand-edit session.json. Pretty-print
-        // is the documented format. Pin it.
+        // Pretty-print is the documented format, since operators sometimes hand-edit session.json.
         let dir = TempDir::new().unwrap();
         let file = fake_session_file();
         write_session_file(dir.path(), &file).expect("write");
@@ -487,22 +458,17 @@ mod tests {
 
     #[test]
     fn write_session_file_creates_parent_directory() {
-        // The atomic-write must create any missing parent dirs,
-        // so a fresh data-dir bootstrap works.
+        // The atomic write must create missing parent dirs for a fresh data-dir bootstrap.
         let parent = TempDir::new().unwrap();
         let nested = parent.path().join("nested").join("dirs");
         let file = fake_session_file();
-        // nested dir doesn't exist yet — write_session_file must
-        // create it.
         write_session_file(&nested, &file).expect("write through nested dirs");
         assert!(session_path(&nested).is_file());
     }
 
     #[test]
     fn write_session_file_then_read_preserves_jwts() {
-        // SessionFile serde MUST preserve the JWT bytes verbatim
-        // for the resume-session path to work. (Redaction
-        // happens in the Debug impl, NOT serde.)
+        // serde must preserve JWT bytes verbatim for resume-session; redaction lives in the Debug impl only.
         let dir = TempDir::new().unwrap();
         let file = fake_session_file();
         write_session_file(dir.path(), &file).expect("write");
@@ -512,13 +478,7 @@ mod tests {
         assert_eq!(parsed.refresh_jwt, file.refresh_jwt);
     }
 
-    // ----- AtprotoClient::Debug redaction tests ----------
-    //
-    // The Debug impl on AtprotoClient is the only safe way to
-    // log the client. Access + refresh JWTs MUST be redacted —
-    // an accidental field unmasking would leak credentials to
-    // every log aggregator the operator runs. Pin the redaction
-    // contract with format-string assertions.
+    // The Debug impl must redact access + refresh JWTs; unmasking would leak credentials to every log aggregator.
 
     fn fake_atproto_client_for_debug_test() -> SessionFile {
         SessionFile {
@@ -532,11 +492,7 @@ mod tests {
 
     #[test]
     fn session_file_serde_does_not_redact_jwts() {
-        // SessionFile itself is the at-rest representation —
-        // serialised to disk, JWTs must round-trip. This is NOT
-        // the same as the Debug redaction (which protects log
-        // output). Pin the distinction so a future maintainer
-        // doesn't conflate the two by redacting in serde.
+        // serde is the at-rest form and must round-trip JWTs; only Debug redacts. Don't conflate the two.
         let f = fake_atproto_client_for_debug_test();
         let json = serde_json::to_string(&f).expect("ser");
         assert!(
@@ -546,17 +502,12 @@ mod tests {
         );
     }
 
-    // ----- SessionError variant message tests ----------
-    //
-    // CLI exit-code mapping depends on these messages. Pin the
-    // surface so a future maintainer can't silently regress the
-    // user-facing diagnostic.
+    // CLI exit-code mapping depends on these Display messages.
 
     #[test]
     fn session_error_expired_directs_user_to_login() {
         let e = SessionError::SessionExpired;
         let s = format!("{e}");
-        // exit code 3 in the CLI maps to "kit login" — pin it.
         assert!(
             s.contains("kit login"),
             "SessionExpired must direct user to `kit login`, got: {s}"
@@ -597,9 +548,6 @@ mod tests {
 
     #[test]
     fn session_error_io_from_std_io_error_works() {
-        // The `#[from]` impl on Io must compile + dispatch. If a
-        // future refactor breaks the From bound, this test fails
-        // at compile time.
         let io = std::io::Error::new(std::io::ErrorKind::NotFound, "session.json");
         let _e: SessionError = io.into();
     }

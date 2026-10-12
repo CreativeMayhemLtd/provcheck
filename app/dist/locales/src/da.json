@@ -1,0 +1,647 @@
+{
+  "headerSubtitle": {
+    "message": "Signer og verificer C2PA Content Credentials"
+  },
+  "tabVerify": {
+    "message": "Verificer"
+  },
+  "tabWatermark": {
+    "message": "Vandmærke"
+  },
+  "tabDetect": {
+    "message": "Registrer"
+  },
+  "tabKeys": {
+    "message": "Nøgler"
+  },
+  "tabSign": {
+    "message": "Signer"
+  },
+  "tabKeyedMarks": {
+    "message": "Nøglebaserede mærker"
+  },
+  "btnChooseFile": {
+    "message": "Vælg fil…"
+  },
+  "btnVerifyAnother": {
+    "message": "Verificer en til"
+  },
+  "btnCopyJson": {
+    "message": "Kopier som JSON"
+  },
+  "btnCheckAnother": {
+    "message": "Kontroller en anden fil"
+  },
+  "btnReadAnother": {
+    "message": "Læs en til"
+  },
+  "btnLogOut": {
+    "message": "Log ud"
+  },
+  "btnConnect": {
+    "message": "Forbind"
+  },
+  "btnCopy": {
+    "message": "Kopier"
+  },
+  "btnRetry": {
+    "message": "Prøv igen"
+  },
+  "btnSign": {
+    "message": "Signer"
+  },
+  "btnOK": {
+    "message": "OK"
+  },
+  "btnCancel": {
+    "message": "Annuller"
+  },
+  "btnGotIt": {
+    "message": "Forstået"
+  },
+  "btnHowItWorks": {
+    "message": "Sådan fungerer det"
+  },
+  "btnInstallRepair": {
+    "message": "Installer/reparer"
+  },
+  "btnChooseSecret": {
+    "message": "Vælg hemmelig fil"
+  },
+  "btnClose": {
+    "message": "Luk"
+  },
+  "badgeExperimental": {
+    "message": "Eksperimentel"
+  },
+  "loadingGeneric": {
+    "message": "Indlæser…"
+  },
+  "statusChecking": {
+    "message": "Kontrollerer..."
+  },
+  "statusCheckingStatus": {
+    "message": "Kontrollerer status…"
+  },
+  "labelFingerprint": {
+    "message": "Fingeraftryk"
+  },
+  "labelAlgorithm": {
+    "message": "Algoritme"
+  },
+  "labelBackend": {
+    "message": "Backend"
+  },
+  "labelCreated": {
+    "message": "Oprettet"
+  },
+  "labelDID": {
+    "message": "DID"
+  },
+  "labelHandle": {
+    "message": "Handle"
+  },
+  "labelYubikey": {
+    "message": "Yubikey"
+  },
+  "labelPinTries": {
+    "message": "PIN-forsøg"
+  },
+  "labelStatus": {
+    "message": "Status"
+  },
+  "labelLabel": {
+    "message": "Etiket"
+  },
+  "labelBy": {
+    "message": "Af"
+  },
+  "labelTool": {
+    "message": "Værktøj"
+  },
+  "labelFile": {
+    "message": "Fil"
+  },
+  "labelYourIdentity": {
+    "message": "Din identitet"
+  },
+  "labelOutput": {
+    "message": "Output"
+  },
+  "aboutLinks": {
+    "message": "Links"
+  },
+  "identityBskyHandle": {
+    "message": "Bsky-handle"
+  },
+  "identityRunWatermark": {
+    "message": "Kør vandmærkedetektion"
+  },
+  "identityRequireAttested": {
+    "message": "Kræv attesteret"
+  },
+  "identityHandlePh": {
+    "message": "valgfrit · f.eks. creator.bsky.social eller did:plc:…"
+  },
+  "dropzoneTitle": {
+    "message": "Slip en vilkårlig fil her for at verificere"
+  },
+  "dropzoneSub": {
+    "message": "Lyd · Billede · Video: alt der bærer C2PA Content Credentials."
+  },
+  "verifyDropHint": {
+    "message": "Eller kør uden noget, og dette forbliver som det er. Privat: filer forlader aldrig din computer."
+  },
+  "verifyLoading": {
+    "message": "Verificerer…"
+  },
+  "verifyLoadingHint": {
+    "message": "Vandmærkedetektion er CPU-tung ved lyd og video og kan tage nogle minutter. Fjern markeringen af \"Kør vandmærkedetektion\" for en øjeblikkelig verifikation, der kun tjekker C2PA."
+  },
+  "showRawManifest": {
+    "message": "Vis rå manifestdetaljer"
+  },
+  "claimsHeading": {
+    "message": "Claims"
+  },
+  "wmModelsNeeded": {
+    "message": "Vandmærkedetektion kræver modeller."
+  },
+  "wmInstallAll": {
+    "message": "Installer alle modeller"
+  },
+  "wmScanFor": {
+    "message": "Scan efter:"
+  },
+  "wmDropTitle": {
+    "message": "Slip en vilkårlig fil her for at køre vandmærkedetektion"
+  },
+  "wmDropHint": {
+    "message": "Privat: filer forlader aldrig din computer. Hver detektor afgør selv, om den gælder for den pågældende filtype."
+  },
+  "wmLoading": {
+    "message": "Kører vandmærkedetektorer…"
+  },
+  "wmLoadingHint": {
+    "message": "Modelinferens er CPU-tung ved lyd og video; en scanning kan tage nogle minutter. Der arbejdes stadig, mens dette kører."
+  },
+  "wmResultTitle": {
+    "message": "Vandmærkedetektion"
+  },
+  "detectTitle": {
+    "message": "AI-indholdsdetektion: medbring din egen detektor"
+  },
+  "detectRouteAHead": {
+    "message": "Vej A: betalt DLC-pakke (v1.x, planlagt)"
+  },
+  "detectRouteBHead": {
+    "message": "Vej B: operatørleveret wrapper (tilgængelig nu)"
+  },
+  "keysLocalIdentity": {
+    "message": "Lokal identitet"
+  },
+  "keysNoIdentity": {
+    "message": "Ingen identitet på denne computer."
+  },
+  "keysMismatchTitle": {
+    "message": "Identitetstilstand stemmer ikke overens"
+  },
+  "keysRotateBtn": {
+    "message": "Opret ny + udgiv"
+  },
+  "keysRotateTitle": {
+    "message": "Opret en ny signeringsnøgle og udgiv den som den nye aktive post"
+  },
+  "keysSwitchYubikey": {
+    "message": "Skift til Yubikey-identitet…"
+  },
+  "keysSwitchYubikeyTitle": {
+    "message": "Erstat den nuværende identitet med en Yubikey-baseret identitet"
+  },
+  "keysPublishedRecords": {
+    "message": "Udgivne poster (atproto)"
+  },
+  "keysRecordsEmptyHint": {
+    "message": "Log ind på fanen Signer, og udgiv dit lokale fingeraftryk."
+  },
+  "keysNotLoggedIn": {
+    "message": "Ikke logget ind på atproto."
+  },
+  "keysNoSessionHint": {
+    "message": "Log ind på fanen Signer for at hente dine udgivne poster."
+  },
+  "signIdentityLabel": {
+    "message": "Identitet:"
+  },
+  "signNotSetUp": {
+    "message": "ikke konfigureret"
+  },
+  "signSessionLabel": {
+    "message": "Session:"
+  },
+  "signDisconnected": {
+    "message": "afbrudt"
+  },
+  "signSetupTitle": {
+    "message": "Konfigurer din signeringsidentitet"
+  },
+  "signSetupBody": {
+    "message": "Dette genererer en kryptografisk nøgle på denne computer og gemmer den i dit operativsystems nøglering. Du skal kun gøre dette én gang."
+  },
+  "signGenerateKey": {
+    "message": "Generer signeringsnøgle"
+  },
+  "signSetupHint": {
+    "message": "Nøglen forlader aldrig din computer. Dit operativsystem håndterer adgangsanmodninger."
+  },
+  "signConnectTitle": {
+    "message": "Forbind din bsky-identitet"
+  },
+  "signConnectBody": {
+    "message": "Knyt din signeringsnøgle til din atproto-handle, så verifikatorer ved, at den er din."
+  },
+  "signHandlePh": {
+    "message": "creator.bsky.social"
+  },
+  "signAppPassword": {
+    "message": "App-adgangskode"
+  },
+  "signRememberDevice": {
+    "message": "Husk mig på denne enhed"
+  },
+  "signPublishTitle": {
+    "message": "Udgiv din signeringsnøgle"
+  },
+  "signPublishBody": {
+    "message": "Et sidste trin: at udgive din nøgles fingeraftryk til atproto lader verifikatorer krydstjekke, at du har signeret dit værk. Uden dette ser de kun \"gyldig signatur af ukendt.\""
+  },
+  "signLabelOptional": {
+    "message": "Etiket (valgfrit)"
+  },
+  "signLabelPh": {
+    "message": "f.eks. studio mac"
+  },
+  "signPublishKey": {
+    "message": "Udgiv nøgle"
+  },
+  "signStaleTitle": {
+    "message": "Din signeringsnøgle er forældet"
+  },
+  "signRecoverHeading": {
+    "message": "Gendan fra en terminal:"
+  },
+  "signStaleHint": {
+    "message": "Dette opretter en ny nøgle, udgiver den som den nye aktive post og (om nødvendigt) tilbagekalder den forældreløse post, så ingen kan signere i dit navn med den mistede nøgle."
+  },
+  "signDropTitle": {
+    "message": "Slip en fil her for at signere"
+  },
+  "signDropSub": {
+    "message": "Lyd · Billede · Video: alt hvad c2pa-rs understøtter."
+  },
+  "signReadyToSign": {
+    "message": "Klar til at signere"
+  },
+  "signChainTitle": {
+    "message": "Denne fil er allerede signeret."
+  },
+  "signChainSub": {
+    "message": "Din signatur føjes til kæden som en afledning; den originale signatur forbliver intakt."
+  },
+  "signRelationshipQ": {
+    "message": "Hvad er dit forhold til denne fil?"
+  },
+  "signEmbedIdentity": {
+    "message": "Integrer identitetspåstand (anbefales; lader verifikatorer springe trinnet med indtastning af handle over)"
+  },
+  "signModelPh": {
+    "message": "f.eks. ACE-Step v1.0"
+  },
+  "signReplaceOriginal": {
+    "message": "Erstat originalen (i stedet for at skrive en sidecar)"
+  },
+  "signPickDifferent": {
+    "message": "Vælg en anden fil"
+  },
+  "signSigning": {
+    "message": "Signerer…"
+  },
+  "signSigned": {
+    "message": "Signeret"
+  },
+  "signAnother": {
+    "message": "Signer en til"
+  },
+  "signVerifyIt": {
+    "message": "Verificer det"
+  },
+  "signErrorTitle": {
+    "message": "Kunne ikke indlæse din signeringsstatus"
+  },
+  "bfBackfireTitle": {
+    "message": "Læs et nøglebaseret Backfire-mærke"
+  },
+  "bfBackfireSub": {
+    "message": "Verificer et vandmærke pr. billede, som AI-herkomststrippere forstærker i stedet for at fjerne."
+  },
+  "bfReaderLabel": {
+    "message": "Backfire-læser"
+  },
+  "bfDropTitle": {
+    "message": "Slip et billede her, eller vælg et, for at læse dets mærke"
+  },
+  "bfChooseRead": {
+    "message": "Vælg billede og læs"
+  },
+  "bfHint": {
+    "message": "Indtast din nøgle ovenfor først, og slip eller vælg derefter et billede. Det læses automatisk og forbliver på din computer."
+  },
+  "bfLoading": {
+    "message": "Læser Backfire-mærke…"
+  },
+  "mlTitle": {
+    "message": "Læs et nøglebaseret Mellin-serienummer"
+  },
+  "mlSub": {
+    "message": "Lydsidens nøglebaserede forensik: gendan det 64-bit serienummer pr. eksemplar, du indlejrede med det selvstændige, BUSL-licenserede værktøj provcheck-mellin (gratis til ikke-kommerciel brug, adskilt fra provcheck). Kræver din sælgers hemmelige fil og værk-id; alt forbliver på din computer."
+  },
+  "mlReaderLabel": {
+    "message": "Mellin-læser"
+  },
+  "mlSecretNone": {
+    "message": "ingen valgt. Hemmeligheden gemmes aldrig, så vælg den igen efter hver opstart."
+  },
+  "mlWorkidPh": {
+    "message": "værk-id'et brugt ved indlejring"
+  },
+  "mlDropTitle": {
+    "message": "Vælg en lydfil for at læse dens serienummer"
+  },
+  "mlChooseRead": {
+    "message": "Vælg lyd og læs"
+  },
+  "mlHint": {
+    "message": "Vælg din hemmelige fil, og indtast værk-id'et først, vælg derefter lyden, eller slip den et vilkårligt sted på denne fane. Ethvert format fungerer (WAV, MP3, AAC, FLAC); lydfiler læses her, billeder læser Backfire-mærket ovenfor."
+  },
+  "mlLoading": {
+    "message": "Læser Mellin-serienummer…"
+  },
+  "imTitle": {
+    "message": "Læs et nøglebaseret idmark-identitetsmærke"
+  },
+  "imSub": {
+    "message": "Billedsidens nøglebaserede identitet: læs det beskærings-, transkoderings- og rotationstolerante mærke pr. eksemplar, der er indlejret med det selvstændige, BUSL-licenserede værktøj provcheck-idmark (gratis til ikke-kommerciel brug, adskilt fra provcheck). Uden hemmelighed tjekkes det indbyggede mærke; tilføj din hemmelige fil og en seat for at tilskrive et eksemplar. Alt forbliver på din computer."
+  },
+  "imReaderLabel": {
+    "message": "idmark-læser"
+  },
+  "imSecretNone": {
+    "message": "ingen valgt. Lad stå tomt for at læse det indbyggede mærke; hemmeligheden gemmes aldrig."
+  },
+  "imDropTitle": {
+    "message": "Vælg et billede for at læse dets mærke"
+  },
+  "imChooseRead": {
+    "message": "Vælg billede og læs"
+  },
+  "imHint": {
+    "message": "Vælg eventuelt din hemmelige fil og en seat først, og vælg derefter billedet. PNG eller JPEG. Dette læser idmark-identitetsmærket; Backfire-mærket og Mellin-serienumre læses i afsnittene ovenfor."
+  },
+  "imLoading": {
+    "message": "Læser idmark…"
+  },
+  "bfModalTitle": {
+    "message": "Sådan fungerer Backfire"
+  },
+  "vVerified": {
+    "message": "Verificeret"
+  },
+  "vUnsigned": {
+    "message": "Usigneret"
+  },
+  "vNotVerified": {
+    "message": "Ikke verificeret"
+  },
+  "attAttestedBy": {
+    "message": "Attesteret af $1"
+  },
+  "attMatchSub": {
+    "message": "Signeringscertifikatet matcher en nøgle udgivet under denne identitet."
+  },
+  "attMismatch": {
+    "message": "Attesteringsuoverensstemmelse for $1"
+  },
+  "attMismatchSub": {
+    "message": "Signeringscertifikatet matcher ingen nøgle udgivet under denne identitet."
+  },
+  "attNotPublished": {
+    "message": "Ingen nøgler udgivet under $1"
+  },
+  "attNotPublishedSub": {
+    "message": "Denne identitet findes, men har ikke udgivet nogen signingKey-poster."
+  },
+  "attResolveFailed": {
+    "message": "Kunne ikke slå $1 op"
+  },
+  "attResolveFailedSub": {
+    "message": "Identitetsopslag mislykkedes (handle/DID utilgængelig)."
+  },
+  "attThisIdentity": {
+    "message": "denne identitet"
+  },
+  "kvSigner": {
+    "message": "Underskriver"
+  },
+  "kvSignedAt": {
+    "message": "Signeret den"
+  },
+  "kvFormat": {
+    "message": "Format"
+  },
+  "kvManifest": {
+    "message": "Manifest"
+  },
+  "kvIngredients": {
+    "message": "Ingredienser"
+  },
+  "kvIngredientsVal": {
+    "message": "$1 (afledt indhold: denne fil blev lavet ved at redigere tidligere signerede filer)"
+  },
+  "kvValidationErrors": {
+    "message": "Valideringsfejl"
+  },
+  "wmEmpty": {
+    "message": "Ingen vandmærker registreret af de detektorfamilier, der kørte."
+  },
+  "wmKeyedNote": {
+    "message": "Nøglebaserede mærker (Backfire, Mellin) er ikke en del af denne scanning. De kan kun læses med din nøgle, på fanen Nøglebaserede mærker."
+  },
+  "wmConfidence": {
+    "message": "$1% sikkerhed"
+  },
+  "wmDegraded": {
+    "message": "$1% sikkerhed; mærket er forringet (delvis beskadigelse sandsynlig)"
+  },
+  "wmNa": {
+    "message": "$1: n/a"
+  },
+  "wmNoMark": {
+    "message": "$1: intet mærke registreret"
+  },
+  "wmTimelineAria": {
+    "message": "Vandmærkets tilstedeværelse over tid: $1"
+  },
+  "wmUnrecognizedSource": {
+    "message": "ikke-genkendt kilde"
+  },
+  "btnCopied": {
+    "message": "Kopieret"
+  },
+  "scanError": {
+    "message": "Kunne ikke scanne denne fil: $1"
+  },
+  "autoFilled": {
+    "message": "automatisk udfyldt fra fil"
+  },
+  "dragFileOnto": {
+    "message": "Træk filen ind i vinduet"
+  },
+  "aiGenerated": {
+    "message": "AI-genereret"
+  },
+  "btnCopiedBang": {
+    "message": "Kopieret!"
+  },
+  "bfCouldNotRun": {
+    "message": "Backfire kunne ikke køre"
+  },
+  "btnInstalling": {
+    "message": "Installerer…"
+  },
+  "downloadingModels": {
+    "message": "Downloader modeller, det kan tage et minut…"
+  },
+  "btnWorking": {
+    "message": "Arbejder…"
+  },
+  "bfInstalling": {
+    "message": "Installerer/reparerer Backfire-læseren…"
+  },
+  "statusCheckFailed": {
+    "message": "Statuskontrol mislykkedes: $1"
+  },
+  "readingFile": {
+    "message": "Læser $1…"
+  },
+  "mlCouldNotRun": {
+    "message": "Mellin kunne ikke køre"
+  },
+  "imCouldNotRun": {
+    "message": "idmark kunne ikke køre"
+  },
+  "keysMismSuperseded": {
+    "message": "Din lokale nøgle er blevet erstattet"
+  },
+  "keysMismRevoked": {
+    "message": "Din lokale nøgle er tilbagekaldt"
+  },
+  "keysMismActiveNoKey": {
+    "message": "Aktiv post bruger en nøgle, du ikke har"
+  },
+  "thisBox": {
+    "message": "(denne computer)"
+  },
+  "btnRevoke": {
+    "message": "Tilbagekald"
+  },
+  "checkingPublishedKeys": {
+    "message": "Kontrollerer udgivne nøgler…"
+  },
+  "btnGenerating": {
+    "message": "Genererer…"
+  },
+  "btnConnecting": {
+    "message": "Forbinder…"
+  },
+  "btnPublishing": {
+    "message": "Udgiver…"
+  },
+  "signReadyToPublish": {
+    "message": "Klar til at udgive"
+  },
+  "bfMarkFound": {
+    "message": "Backfire-mærke fundet"
+  },
+  "bfNoValidMark": {
+    "message": "Intet gyldigt Backfire-mærke"
+  },
+  "mlSerialRecovered": {
+    "message": "Mellin-serienummer gendannet"
+  },
+  "mlNoFullSerial": {
+    "message": "Intet fuldt Mellin-serienummer"
+  },
+  "imPresent": {
+    "message": "idmark til stede"
+  },
+  "imNoDetected": {
+    "message": "Ingen idmark registreret"
+  },
+  "fieldIdentifier": {
+    "message": "Identifikator"
+  },
+  "fieldConfidenceMargin": {
+    "message": "Sikkerhed (min-bit-margin)"
+  },
+  "fieldValid": {
+    "message": "Gyldig"
+  },
+  "fieldMatchesSerial": {
+    "message": "Matcher forventet serienummer"
+  },
+  "fieldTamperTripwire": {
+    "message": "Manipulationsalarm"
+  },
+  "fieldSerial": {
+    "message": "Serienummer"
+  },
+  "fieldBitsRecovered": {
+    "message": "Bits gendannet"
+  },
+  "fieldErasureRate": {
+    "message": "Bortfaldsrate"
+  },
+  "fieldMinBitVotes": {
+    "message": "Min. bit-stemmer"
+  },
+  "fieldMarkPresent": {
+    "message": "Mærke til stede"
+  },
+  "fieldSeat": {
+    "message": "Seat"
+  },
+  "fieldMargin": {
+    "message": "Margin"
+  },
+  "fieldReadVia": {
+    "message": "Læst via"
+  },
+  "fieldEstRotation": {
+    "message": "Anslået rotation"
+  },
+  "fieldError": {
+    "message": "Fejl"
+  },
+  "valYes": {
+    "message": "ja"
+  },
+  "valNo": {
+    "message": "nej"
+  },
+  "bfTamperDetected": {
+    "message": "notch-manipulation registreret (stat $1)"
+  },
+  "bfTamperClean": {
+    "message": "ren (stat $1)"
+  }
+}

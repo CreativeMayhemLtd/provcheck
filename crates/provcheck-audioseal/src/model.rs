@@ -16,12 +16,6 @@ use std::sync::OnceLock;
 
 use tract_onnx::prelude::*;
 
-// v0.7 phase 8a: audioseal detector + generator ONNX migrated
-// from include_bytes!() to the provcheck-weights DLC pattern.
-// Kit binary drops by ~89 MB (the biggest single drop). First
-// detect()/embed() lazily pulls from the public mirror's
-// weights-v1 release; subsequent calls hit cache.
-
 /// Fixed input length for both ONNX files. Audio shorter than this
 /// must be zero-padded; longer audio must be chunked. Equal to
 /// `SAMPLE_RATE * CHUNK_SECONDS = 16_000 * 10`. Matches

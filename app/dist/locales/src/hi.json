@@ -1,0 +1,647 @@
+{
+  "headerSubtitle": {
+    "message": "C2PA Content Credentials पर हस्ताक्षर करें और सत्यापित करें"
+  },
+  "tabVerify": {
+    "message": "सत्यापित करें"
+  },
+  "tabWatermark": {
+    "message": "वॉटरमार्क"
+  },
+  "tabDetect": {
+    "message": "पहचानें"
+  },
+  "tabKeys": {
+    "message": "कुंजियाँ"
+  },
+  "tabSign": {
+    "message": "हस्ताक्षर"
+  },
+  "tabKeyedMarks": {
+    "message": "कीड मार्क्स"
+  },
+  "btnChooseFile": {
+    "message": "फ़ाइल चुनें…"
+  },
+  "btnVerifyAnother": {
+    "message": "दूसरी फ़ाइल सत्यापित करें"
+  },
+  "btnCopyJson": {
+    "message": "JSON के रूप में कॉपी करें"
+  },
+  "btnCheckAnother": {
+    "message": "दूसरी फ़ाइल जाँचें"
+  },
+  "btnReadAnother": {
+    "message": "दूसरी पढ़ें"
+  },
+  "btnLogOut": {
+    "message": "लॉग आउट करें"
+  },
+  "btnConnect": {
+    "message": "कनेक्ट करें"
+  },
+  "btnCopy": {
+    "message": "कॉपी करें"
+  },
+  "btnRetry": {
+    "message": "पुनः प्रयास करें"
+  },
+  "btnSign": {
+    "message": "हस्ताक्षर करें"
+  },
+  "btnOK": {
+    "message": "ठीक है"
+  },
+  "btnCancel": {
+    "message": "रद्द करें"
+  },
+  "btnGotIt": {
+    "message": "समझ गया"
+  },
+  "btnHowItWorks": {
+    "message": "यह कैसे काम करता है"
+  },
+  "btnInstallRepair": {
+    "message": "इंस्टॉल करें / मरम्मत करें"
+  },
+  "btnChooseSecret": {
+    "message": "सीक्रेट फ़ाइल चुनें"
+  },
+  "btnClose": {
+    "message": "बंद करें"
+  },
+  "badgeExperimental": {
+    "message": "प्रायोगिक"
+  },
+  "loadingGeneric": {
+    "message": "लोड हो रहा है…"
+  },
+  "statusChecking": {
+    "message": "जाँच हो रही है..."
+  },
+  "statusCheckingStatus": {
+    "message": "स्थिति जाँची जा रही है…"
+  },
+  "labelFingerprint": {
+    "message": "फ़िंगरप्रिंट"
+  },
+  "labelAlgorithm": {
+    "message": "एल्गोरिथम"
+  },
+  "labelBackend": {
+    "message": "बैकएंड"
+  },
+  "labelCreated": {
+    "message": "बनाया गया"
+  },
+  "labelDID": {
+    "message": "DID"
+  },
+  "labelHandle": {
+    "message": "हैंडल"
+  },
+  "labelYubikey": {
+    "message": "Yubikey"
+  },
+  "labelPinTries": {
+    "message": "PIN प्रयास"
+  },
+  "labelStatus": {
+    "message": "स्थिति"
+  },
+  "labelLabel": {
+    "message": "लेबल"
+  },
+  "labelBy": {
+    "message": "द्वारा"
+  },
+  "labelTool": {
+    "message": "टूल"
+  },
+  "labelFile": {
+    "message": "फ़ाइल"
+  },
+  "labelYourIdentity": {
+    "message": "आपकी पहचान"
+  },
+  "labelOutput": {
+    "message": "आउटपुट"
+  },
+  "aboutLinks": {
+    "message": "लिंक"
+  },
+  "identityBskyHandle": {
+    "message": "Bsky हैंडल"
+  },
+  "identityRunWatermark": {
+    "message": "वॉटरमार्क पहचान चलाएँ"
+  },
+  "identityRequireAttested": {
+    "message": "प्रमाणित होना आवश्यक"
+  },
+  "identityHandlePh": {
+    "message": "वैकल्पिक · जैसे creator.bsky.social या did:plc:…"
+  },
+  "dropzoneTitle": {
+    "message": "सत्यापित करने के लिए यहाँ कोई भी फ़ाइल छोड़ें"
+  },
+  "dropzoneSub": {
+    "message": "ऑडियो · इमेज · वीडियो: कोई भी फ़ाइल जो C2PA Content Credentials रखती है।"
+  },
+  "verifyDropHint": {
+    "message": "या कुछ भी दिए बिना चलाएँ, यह वैसे ही बना रहेगा। निजी: फ़ाइलें आपकी मशीन कभी नहीं छोड़तीं।"
+  },
+  "verifyLoading": {
+    "message": "सत्यापित किया जा रहा है…"
+  },
+  "verifyLoadingHint": {
+    "message": "ऑडियो और वीडियो पर वॉटरमार्क पहचान CPU-गहन है और इसमें कुछ मिनट लग सकते हैं। तुरंत केवल-C2PA सत्यापन के लिए \"वॉटरमार्क पहचान चलाएँ\" को अनचेक करें।"
+  },
+  "showRawManifest": {
+    "message": "कच्चे मैनिफेस्ट विवरण दिखाएँ"
+  },
+  "claimsHeading": {
+    "message": "दावे"
+  },
+  "wmModelsNeeded": {
+    "message": "वॉटरमार्क पहचान के लिए मॉडल चाहिए।"
+  },
+  "wmInstallAll": {
+    "message": "सभी मॉडल इंस्टॉल करें"
+  },
+  "wmScanFor": {
+    "message": "इसके लिए स्कैन करें:"
+  },
+  "wmDropTitle": {
+    "message": "वॉटरमार्क पहचान चलाने के लिए यहाँ कोई भी फ़ाइल छोड़ें"
+  },
+  "wmDropHint": {
+    "message": "निजी: फ़ाइलें आपकी मशीन कभी नहीं छोड़तीं। प्रत्येक डिटेक्टर इस बारे में अधिकृत है कि क्या वह इनपुट फ़ाइल प्रकार पर लागू होता है।"
+  },
+  "wmLoading": {
+    "message": "वॉटरमार्क डिटेक्टर चलाए जा रहे हैं…"
+  },
+  "wmLoadingHint": {
+    "message": "ऑडियो और वीडियो पर मॉडल इनफ़रेंस CPU-गहन है; स्कैन में कुछ मिनट लग सकते हैं। यह घूमते समय भी काम जारी रहता है।"
+  },
+  "wmResultTitle": {
+    "message": "वॉटरमार्क पहचान"
+  },
+  "detectTitle": {
+    "message": "AI-सामग्री पहचान: अपना खुद का डिटेक्टर लाएँ"
+  },
+  "detectRouteAHead": {
+    "message": "रूट A: सशुल्क DLC पैक (v1.x, योजनाबद्ध)"
+  },
+  "detectRouteBHead": {
+    "message": "रूट B: ऑपरेटर-प्रदत्त रैपर (अभी उपलब्ध)"
+  },
+  "keysLocalIdentity": {
+    "message": "स्थानीय पहचान"
+  },
+  "keysNoIdentity": {
+    "message": "इस मशीन पर कोई पहचान नहीं है।"
+  },
+  "keysMismatchTitle": {
+    "message": "पहचान स्थिति बेमेल"
+  },
+  "keysRotateBtn": {
+    "message": "नई बनाएँ + प्रकाशित करें"
+  },
+  "keysRotateTitle": {
+    "message": "एक नई हस्ताक्षर कुंजी बनाएँ और उसे नए सक्रिय रिकॉर्ड के रूप में प्रकाशित करें"
+  },
+  "keysSwitchYubikey": {
+    "message": "Yubikey पहचान पर स्विच करें…"
+  },
+  "keysSwitchYubikeyTitle": {
+    "message": "मौजूदा पहचान को Yubikey-समर्थित पहचान से बदलें"
+  },
+  "keysPublishedRecords": {
+    "message": "प्रकाशित रिकॉर्ड (atproto)"
+  },
+  "keysRecordsEmptyHint": {
+    "message": "Sign टैब पर लॉग इन करें + अपना स्थानीय फ़िंगरप्रिंट प्रकाशित करें।"
+  },
+  "keysNotLoggedIn": {
+    "message": "atproto में लॉग इन नहीं है।"
+  },
+  "keysNoSessionHint": {
+    "message": "अपने प्रकाशित रिकॉर्ड प्राप्त करने के लिए Sign टैब पर लॉग इन करें।"
+  },
+  "signIdentityLabel": {
+    "message": "पहचान:"
+  },
+  "signNotSetUp": {
+    "message": "सेट अप नहीं है"
+  },
+  "signSessionLabel": {
+    "message": "सत्र:"
+  },
+  "signDisconnected": {
+    "message": "डिस्कनेक्टेड"
+  },
+  "signSetupTitle": {
+    "message": "अपनी हस्ताक्षर पहचान सेट करें"
+  },
+  "signSetupBody": {
+    "message": "यह इस मशीन पर एक क्रिप्टोग्राफिक कुंजी बनाता है और उसे आपके OS कीचेन में संग्रहीत करता है। आपको यह केवल एक बार करना होगा।"
+  },
+  "signGenerateKey": {
+    "message": "हस्ताक्षर कुंजी बनाएँ"
+  },
+  "signSetupHint": {
+    "message": "कुंजी कभी आपकी मशीन नहीं छोड़ती। आपका OS एक्सेस प्रॉम्प्ट संभालता है।"
+  },
+  "signConnectTitle": {
+    "message": "अपनी bsky पहचान कनेक्ट करें"
+  },
+  "signConnectBody": {
+    "message": "अपनी हस्ताक्षर कुंजी को अपने atproto हैंडल से जोड़ें ताकि सत्यापनकर्ता जान सकें कि यह आपकी है।"
+  },
+  "signHandlePh": {
+    "message": "creator.bsky.social"
+  },
+  "signAppPassword": {
+    "message": "ऐप पासवर्ड"
+  },
+  "signRememberDevice": {
+    "message": "मुझे इस डिवाइस पर याद रखें"
+  },
+  "signPublishTitle": {
+    "message": "अपनी हस्ताक्षर कुंजी प्रकाशित करें"
+  },
+  "signPublishBody": {
+    "message": "एक आखिरी कदम: अपनी कुंजी का फ़िंगरप्रिंट atproto पर प्रकाशित करने से सत्यापनकर्ता क्रॉस-चेक कर पाते हैं कि आपने अपना काम हस्ताक्षरित किया है। इसके बिना उन्हें केवल \"अज्ञात द्वारा मान्य हस्ताक्षर\" दिखाई देता है।"
+  },
+  "signLabelOptional": {
+    "message": "लेबल (वैकल्पिक)"
+  },
+  "signLabelPh": {
+    "message": "जैसे studio mac"
+  },
+  "signPublishKey": {
+    "message": "कुंजी प्रकाशित करें"
+  },
+  "signStaleTitle": {
+    "message": "आपकी हस्ताक्षर कुंजी पुरानी हो चुकी है"
+  },
+  "signRecoverHeading": {
+    "message": "टर्मिनल से पुनर्प्राप्त करें:"
+  },
+  "signStaleHint": {
+    "message": "यह एक नई कुंजी बनाता है, उसे नए सक्रिय रिकॉर्ड के रूप में प्रकाशित करता है, और (आवश्यकता होने पर) अनाथ रिकॉर्ड को रद्द कर देता है ताकि कोई भी खोई हुई कुंजी से आपके नाम पर हस्ताक्षर न कर सके।"
+  },
+  "signDropTitle": {
+    "message": "हस्ताक्षर करने के लिए यहाँ एक फ़ाइल छोड़ें"
+  },
+  "signDropSub": {
+    "message": "ऑडियो · इमेज · वीडियो: जो कुछ भी c2pa-rs समर्थित करता है।"
+  },
+  "signReadyToSign": {
+    "message": "हस्ताक्षर के लिए तैयार"
+  },
+  "signChainTitle": {
+    "message": "यह फ़ाइल पहले से ही हस्ताक्षरित है।"
+  },
+  "signChainSub": {
+    "message": "आपका हस्ताक्षर एक व्युत्पन्न के रूप में श्रृंखला में जुड़ेगा; मूल हस्ताक्षर बरकरार रहता है।"
+  },
+  "signRelationshipQ": {
+    "message": "इस फ़ाइल से आपका क्या संबंध है?"
+  },
+  "signEmbedIdentity": {
+    "message": "पहचान दावा एम्बेड करें (अनुशंसित; सत्यापनकर्ताओं को हैंडल दर्ज करने का चरण छोड़ने देता है)"
+  },
+  "signModelPh": {
+    "message": "जैसे ACE-Step v1.0"
+  },
+  "signReplaceOriginal": {
+    "message": "मूल फ़ाइल को बदलें (साइडकार लिखने के बजाय)"
+  },
+  "signPickDifferent": {
+    "message": "कोई दूसरी फ़ाइल चुनें"
+  },
+  "signSigning": {
+    "message": "हस्ताक्षर किया जा रहा है…"
+  },
+  "signSigned": {
+    "message": "हस्ताक्षरित"
+  },
+  "signAnother": {
+    "message": "दूसरी हस्ताक्षरित करें"
+  },
+  "signVerifyIt": {
+    "message": "इसे सत्यापित करें"
+  },
+  "signErrorTitle": {
+    "message": "आपकी हस्ताक्षर स्थिति लोड नहीं हो सकी"
+  },
+  "bfBackfireTitle": {
+    "message": "एक कीड Backfire मार्क पढ़ें"
+  },
+  "bfBackfireSub": {
+    "message": "एक प्रति-इमेज वॉटरमार्क सत्यापित करें जिसे AI प्रोवेनन्स स्ट्रिपर हटाने के बजाय बढ़ा देते हैं।"
+  },
+  "bfReaderLabel": {
+    "message": "Backfire रीडर"
+  },
+  "bfDropTitle": {
+    "message": "इसका मार्क पढ़ने के लिए यहाँ एक इमेज छोड़ें, या एक चुनें"
+  },
+  "bfChooseRead": {
+    "message": "इमेज चुनें और पढ़ें"
+  },
+  "bfHint": {
+    "message": "पहले ऊपर अपनी कुंजी दर्ज करें, फिर एक इमेज छोड़ें या चुनें। यह अपने आप पढ़ता है, और आपकी मशीन पर ही रहता है।"
+  },
+  "bfLoading": {
+    "message": "Backfire मार्क पढ़ा जा रहा है…"
+  },
+  "mlTitle": {
+    "message": "एक कीड Mellin सीरियल पढ़ें"
+  },
+  "mlSub": {
+    "message": "ऑडियो-साइड कीड फोरेंसिक्स: वह 64-बिट प्रति-प्रति सीरियल पुनर्प्राप्त करें जिसे आपने स्टैंडअलोन, BUSL-लाइसेंस प्राप्त provcheck-mellin टूल (गैर-व्यावसायिक उपयोग के लिए मुफ़्त, provcheck से अलग) से एम्बेड किया था। आपकी विक्रेता सीक्रेट फ़ाइल और वर्क आईडी चाहिए; सब कुछ आपकी मशीन पर ही रहता है।"
+  },
+  "mlReaderLabel": {
+    "message": "Mellin रीडर"
+  },
+  "mlSecretNone": {
+    "message": "कोई नहीं चुनी गई। सीक्रेट कभी संग्रहीत नहीं होता, इसलिए हर लॉन्च के बाद इसे फिर से चुनें।"
+  },
+  "mlWorkidPh": {
+    "message": "एम्बेड के समय उपयोग की गई वर्क आईडी"
+  },
+  "mlDropTitle": {
+    "message": "इसका सीरियल पढ़ने के लिए एक ऑडियो फ़ाइल चुनें"
+  },
+  "mlChooseRead": {
+    "message": "ऑडियो चुनें और पढ़ें"
+  },
+  "mlHint": {
+    "message": "पहले अपनी सीक्रेट फ़ाइल चुनें और वर्क आईडी दर्ज करें, फिर ऑडियो चुनें या इसे इस टैब पर कहीं भी छोड़ें। कोई भी फ़ॉर्मेट काम करता है (WAV, MP3, AAC, FLAC); ऑडियो फ़ाइलें यहाँ पढ़ी जाती हैं, इमेज ऊपर Backfire मार्क में पढ़ी जाती हैं।"
+  },
+  "mlLoading": {
+    "message": "Mellin सीरियल पढ़ा जा रहा है…"
+  },
+  "imTitle": {
+    "message": "एक कीड idmark पहचान मार्क पढ़ें"
+  },
+  "imSub": {
+    "message": "इमेज-साइड कीड पहचान: क्रॉप, ट्रांसकोड, और रोटेशन-सहिष्णु प्रति-प्रति मार्क पढ़ें जो स्टैंडअलोन, BUSL-लाइसेंस प्राप्त provcheck-idmark टूल (गैर-व्यावसायिक उपयोग के लिए मुफ़्त, provcheck से अलग) से एम्बेड किया गया था। बिना सीक्रेट के यह बिल्ट-इन मार्क जाँचता है; किसी प्रति का श्रेय देने के लिए अपनी सीक्रेट फ़ाइल और एक सीट जोड़ें। सब कुछ आपकी मशीन पर ही रहता है।"
+  },
+  "imReaderLabel": {
+    "message": "idmark रीडर"
+  },
+  "imSecretNone": {
+    "message": "कोई नहीं चुनी गई। बिल्ट-इन मार्क पढ़ने के लिए खाली छोड़ें; सीक्रेट कभी संग्रहीत नहीं होता।"
+  },
+  "imDropTitle": {
+    "message": "इसका मार्क पढ़ने के लिए एक इमेज चुनें"
+  },
+  "imChooseRead": {
+    "message": "इमेज चुनें और पढ़ें"
+  },
+  "imHint": {
+    "message": "वैकल्पिक रूप से पहले अपनी सीक्रेट फ़ाइल और एक सीट चुनें, फिर इमेज चुनें। PNG या JPEG। यह idmark पहचान मार्क पढ़ता है; Backfire मार्क और Mellin सीरियल ऊपर के सेक्शन में पढ़े जाते हैं।"
+  },
+  "imLoading": {
+    "message": "idmark पढ़ा जा रहा है…"
+  },
+  "bfModalTitle": {
+    "message": "Backfire कैसे काम करता है"
+  },
+  "vVerified": {
+    "message": "सत्यापित"
+  },
+  "vUnsigned": {
+    "message": "हस्ताक्षर रहित"
+  },
+  "vNotVerified": {
+    "message": "सत्यापित नहीं"
+  },
+  "attAttestedBy": {
+    "message": "$1 द्वारा प्रमाणित"
+  },
+  "attMatchSub": {
+    "message": "हस्ताक्षर प्रमाणपत्र इस पहचान के तहत प्रकाशित एक कुंजी से मेल खाता है।"
+  },
+  "attMismatch": {
+    "message": "$1 के लिए प्रमाणीकरण बेमेल"
+  },
+  "attMismatchSub": {
+    "message": "हस्ताक्षर प्रमाणपत्र इस पहचान के तहत प्रकाशित किसी भी कुंजी से मेल नहीं खाता।"
+  },
+  "attNotPublished": {
+    "message": "$1 के तहत कोई कुंजी प्रकाशित नहीं"
+  },
+  "attNotPublishedSub": {
+    "message": "यह पहचान मौजूद है लेकिन इसने कोई signingKey रिकॉर्ड प्रकाशित नहीं किया है।"
+  },
+  "attResolveFailed": {
+    "message": "$1 को हल नहीं किया जा सका"
+  },
+  "attResolveFailedSub": {
+    "message": "पहचान समाधान विफल रहा (हैंडल/DID अप्राप्य)।"
+  },
+  "attThisIdentity": {
+    "message": "यह पहचान"
+  },
+  "kvSigner": {
+    "message": "हस्ताक्षरकर्ता"
+  },
+  "kvSignedAt": {
+    "message": "हस्ताक्षर किया गया"
+  },
+  "kvFormat": {
+    "message": "फ़ॉर्मेट"
+  },
+  "kvManifest": {
+    "message": "मैनिफेस्ट"
+  },
+  "kvIngredients": {
+    "message": "सामग्री"
+  },
+  "kvIngredientsVal": {
+    "message": "$1 (व्युत्पन्न सामग्री, यह फ़ाइल पहले से हस्ताक्षरित फ़ाइलों को संपादित करके बनाई गई थी)"
+  },
+  "kvValidationErrors": {
+    "message": "सत्यापन त्रुटियाँ"
+  },
+  "wmEmpty": {
+    "message": "चलाए गए डिटेक्टर परिवारों द्वारा कोई वॉटरमार्क नहीं पाया गया।"
+  },
+  "wmKeyedNote": {
+    "message": "कीड मार्क्स (Backfire, Mellin) इस स्कैन का हिस्सा नहीं हैं। इन्हें केवल आपकी कुंजी से, Keyed marks टैब पर पढ़ा जा सकता है।"
+  },
+  "wmConfidence": {
+    "message": "$1% विश्वास"
+  },
+  "wmDegraded": {
+    "message": "$1% विश्वास; मार्क क्षतिग्रस्त है (आंशिक भ्रष्टाचार की संभावना)"
+  },
+  "wmNa": {
+    "message": "$1: लागू नहीं"
+  },
+  "wmNoMark": {
+    "message": "$1: कोई मार्क नहीं मिला"
+  },
+  "wmTimelineAria": {
+    "message": "समय के साथ वॉटरमार्क उपस्थिति: $1"
+  },
+  "wmUnrecognizedSource": {
+    "message": "अपरिचित स्रोत"
+  },
+  "btnCopied": {
+    "message": "कॉपी हो गया"
+  },
+  "scanError": {
+    "message": "इस फ़ाइल को स्कैन नहीं किया जा सका: $1"
+  },
+  "autoFilled": {
+    "message": "फ़ाइल से स्वतः भरा गया"
+  },
+  "dragFileOnto": {
+    "message": "फ़ाइल को विंडो पर खींचें"
+  },
+  "aiGenerated": {
+    "message": "AI-जनित"
+  },
+  "btnCopiedBang": {
+    "message": "कॉपी हो गया!"
+  },
+  "bfCouldNotRun": {
+    "message": "Backfire नहीं चल सका"
+  },
+  "btnInstalling": {
+    "message": "इंस्टॉल हो रहा है…"
+  },
+  "downloadingModels": {
+    "message": "मॉडल डाउनलोड हो रहे हैं, इसमें एक मिनट लग सकता है…"
+  },
+  "btnWorking": {
+    "message": "काम हो रहा है…"
+  },
+  "bfInstalling": {
+    "message": "Backfire रीडर इंस्टॉल / मरम्मत हो रही है…"
+  },
+  "statusCheckFailed": {
+    "message": "स्थिति जाँच विफल: $1"
+  },
+  "readingFile": {
+    "message": "$1 पढ़ा जा रहा है…"
+  },
+  "mlCouldNotRun": {
+    "message": "Mellin नहीं चल सका"
+  },
+  "imCouldNotRun": {
+    "message": "idmark नहीं चल सका"
+  },
+  "keysMismSuperseded": {
+    "message": "आपकी स्थानीय कुंजी अधिक्रमित हो चुकी है"
+  },
+  "keysMismRevoked": {
+    "message": "आपकी स्थानीय कुंजी रद्द कर दी गई है"
+  },
+  "keysMismActiveNoKey": {
+    "message": "सक्रिय रिकॉर्ड एक ऐसी कुंजी का उपयोग करता है जो आपके पास नहीं है"
+  },
+  "thisBox": {
+    "message": "(यह बॉक्स)"
+  },
+  "btnRevoke": {
+    "message": "रद्द करें"
+  },
+  "checkingPublishedKeys": {
+    "message": "प्रकाशित कुंजियाँ जाँची जा रही हैं…"
+  },
+  "btnGenerating": {
+    "message": "बनाया जा रहा है…"
+  },
+  "btnConnecting": {
+    "message": "कनेक्ट हो रहा है…"
+  },
+  "btnPublishing": {
+    "message": "प्रकाशित हो रहा है…"
+  },
+  "signReadyToPublish": {
+    "message": "प्रकाशित करने के लिए तैयार"
+  },
+  "bfMarkFound": {
+    "message": "Backfire मार्क मिला"
+  },
+  "bfNoValidMark": {
+    "message": "कोई मान्य Backfire मार्क नहीं"
+  },
+  "mlSerialRecovered": {
+    "message": "Mellin सीरियल पुनर्प्राप्त"
+  },
+  "mlNoFullSerial": {
+    "message": "कोई पूर्ण Mellin सीरियल नहीं"
+  },
+  "imPresent": {
+    "message": "idmark मौजूद है"
+  },
+  "imNoDetected": {
+    "message": "कोई idmark नहीं मिला"
+  },
+  "fieldIdentifier": {
+    "message": "पहचानकर्ता"
+  },
+  "fieldConfidenceMargin": {
+    "message": "विश्वास (न्यूनतम-बिट मार्जिन)"
+  },
+  "fieldValid": {
+    "message": "मान्य"
+  },
+  "fieldMatchesSerial": {
+    "message": "अपेक्षित सीरियल से मेल खाता है"
+  },
+  "fieldTamperTripwire": {
+    "message": "छेड़छाड़ ट्रिपवायर"
+  },
+  "fieldSerial": {
+    "message": "सीरियल"
+  },
+  "fieldBitsRecovered": {
+    "message": "पुनर्प्राप्त बिट्स"
+  },
+  "fieldErasureRate": {
+    "message": "मिटाव दर"
+  },
+  "fieldMinBitVotes": {
+    "message": "न्यूनतम बिट वोट"
+  },
+  "fieldMarkPresent": {
+    "message": "मार्क मौजूद है"
+  },
+  "fieldSeat": {
+    "message": "सीट"
+  },
+  "fieldMargin": {
+    "message": "मार्जिन"
+  },
+  "fieldReadVia": {
+    "message": "इसके माध्यम से पढ़ा गया"
+  },
+  "fieldEstRotation": {
+    "message": "अनुमानित रोटेशन"
+  },
+  "fieldError": {
+    "message": "त्रुटि"
+  },
+  "valYes": {
+    "message": "हाँ"
+  },
+  "valNo": {
+    "message": "नहीं"
+  },
+  "bfTamperDetected": {
+    "message": "नॉच छेड़छाड़ का पता चला (stat $1)"
+  },
+  "bfTamperClean": {
+    "message": "स्वच्छ (stat $1)"
+  }
+}

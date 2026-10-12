@@ -1,0 +1,647 @@
+{
+  "headerSubtitle": {
+    "message": "Υπογραφή και επαλήθευση C2PA Content Credentials"
+  },
+  "tabVerify": {
+    "message": "Επαλήθευση"
+  },
+  "tabWatermark": {
+    "message": "Υδατογράφημα"
+  },
+  "tabDetect": {
+    "message": "Ανίχνευση"
+  },
+  "tabKeys": {
+    "message": "Κλειδιά"
+  },
+  "tabSign": {
+    "message": "Υπογραφή"
+  },
+  "tabKeyedMarks": {
+    "message": "Σημάνσεις με κλειδί"
+  },
+  "btnChooseFile": {
+    "message": "Επιλογή αρχείου…"
+  },
+  "btnVerifyAnother": {
+    "message": "Επαλήθευση άλλου"
+  },
+  "btnCopyJson": {
+    "message": "Αντιγραφή ως JSON"
+  },
+  "btnCheckAnother": {
+    "message": "Έλεγχος άλλου αρχείου"
+  },
+  "btnReadAnother": {
+    "message": "Ανάγνωση άλλου"
+  },
+  "btnLogOut": {
+    "message": "Αποσύνδεση"
+  },
+  "btnConnect": {
+    "message": "Σύνδεση"
+  },
+  "btnCopy": {
+    "message": "Αντιγραφή"
+  },
+  "btnRetry": {
+    "message": "Επανάληψη"
+  },
+  "btnSign": {
+    "message": "Υπογραφή"
+  },
+  "btnOK": {
+    "message": "OK"
+  },
+  "btnCancel": {
+    "message": "Ακύρωση"
+  },
+  "btnGotIt": {
+    "message": "Το κατάλαβα"
+  },
+  "btnHowItWorks": {
+    "message": "Πώς λειτουργεί"
+  },
+  "btnInstallRepair": {
+    "message": "Εγκατάσταση / Επιδιόρθωση"
+  },
+  "btnChooseSecret": {
+    "message": "Επιλογή μυστικού αρχείου"
+  },
+  "btnClose": {
+    "message": "Κλείσιμο"
+  },
+  "badgeExperimental": {
+    "message": "Πειραματικό"
+  },
+  "loadingGeneric": {
+    "message": "Φόρτωση…"
+  },
+  "statusChecking": {
+    "message": "Έλεγχος..."
+  },
+  "statusCheckingStatus": {
+    "message": "Έλεγχος κατάστασης…"
+  },
+  "labelFingerprint": {
+    "message": "Αποτύπωμα"
+  },
+  "labelAlgorithm": {
+    "message": "Αλγόριθμος"
+  },
+  "labelBackend": {
+    "message": "Σύστημα υποστήριξης"
+  },
+  "labelCreated": {
+    "message": "Δημιουργήθηκε"
+  },
+  "labelDID": {
+    "message": "DID"
+  },
+  "labelHandle": {
+    "message": "Όνομα χρήστη"
+  },
+  "labelYubikey": {
+    "message": "Yubikey"
+  },
+  "labelPinTries": {
+    "message": "Προσπάθειες PIN"
+  },
+  "labelStatus": {
+    "message": "Κατάσταση"
+  },
+  "labelLabel": {
+    "message": "Ετικέτα"
+  },
+  "labelBy": {
+    "message": "Από"
+  },
+  "labelTool": {
+    "message": "Εργαλείο"
+  },
+  "labelFile": {
+    "message": "Αρχείο"
+  },
+  "labelYourIdentity": {
+    "message": "Η ταυτότητά σου"
+  },
+  "labelOutput": {
+    "message": "Έξοδος"
+  },
+  "aboutLinks": {
+    "message": "Σύνδεσμοι"
+  },
+  "identityBskyHandle": {
+    "message": "Όνομα χρήστη Bsky"
+  },
+  "identityRunWatermark": {
+    "message": "Εκτέλεση ανίχνευσης υδατογραφήματος"
+  },
+  "identityRequireAttested": {
+    "message": "Απαίτηση πιστοποιημένου"
+  },
+  "identityHandlePh": {
+    "message": "προαιρετικό · π.χ. creator.bsky.social ή did:plc:…"
+  },
+  "dropzoneTitle": {
+    "message": "Άφησε οποιοδήποτε αρχείο εδώ για επαλήθευση"
+  },
+  "dropzoneSub": {
+    "message": "Ήχος · Εικόνα · Βίντεο: οτιδήποτε φέρει C2PA Content Credentials."
+  },
+  "verifyDropHint": {
+    "message": "Ή εκτέλεσε χωρίς τίποτα και αυτό θα παραμείνει εδώ. Ιδιωτικό: τα αρχεία δεν εγκαταλείπουν ποτέ τον υπολογιστή σου."
+  },
+  "verifyLoading": {
+    "message": "Επαλήθευση…"
+  },
+  "verifyLoadingHint": {
+    "message": "Η ανίχνευση υδατογραφήματος επιβαρύνει σημαντικά τον επεξεργαστή σε ήχο και βίντεο και μπορεί να διαρκέσει μερικά λεπτά. Αποεπίλεξε το \"Εκτέλεση ανίχνευσης υδατογραφήματος\" για άμεση επαλήθευση μόνο C2PA."
+  },
+  "showRawManifest": {
+    "message": "Εμφάνιση ακατέργαστων στοιχείων manifest"
+  },
+  "claimsHeading": {
+    "message": "Ισχυρισμοί"
+  },
+  "wmModelsNeeded": {
+    "message": "Η ανίχνευση υδατογραφήματος χρειάζεται μοντέλα."
+  },
+  "wmInstallAll": {
+    "message": "Εγκατάσταση όλων των μοντέλων"
+  },
+  "wmScanFor": {
+    "message": "Σάρωση για:"
+  },
+  "wmDropTitle": {
+    "message": "Άφησε οποιοδήποτε αρχείο εδώ για εκτέλεση ανίχνευσης υδατογραφήματος"
+  },
+  "wmDropHint": {
+    "message": "Ιδιωτικό: τα αρχεία δεν εγκαταλείπουν ποτέ τον υπολογιστή σου. Κάθε ανιχνευτής αποφασίζει μόνος του αν εφαρμόζεται στον τύπο του αρχείου εισόδου."
+  },
+  "wmLoading": {
+    "message": "Εκτέλεση ανιχνευτών υδατογραφήματος…"
+  },
+  "wmLoadingHint": {
+    "message": "Η εξαγωγή συμπερασμάτων μοντέλου επιβαρύνει σημαντικά τον επεξεργαστή σε ήχο και βίντεο· η σάρωση μπορεί να διαρκέσει μερικά λεπτά. Η εργασία συνεχίζεται όσο αυτό περιστρέφεται."
+  },
+  "wmResultTitle": {
+    "message": "Ανίχνευση υδατογραφήματος"
+  },
+  "detectTitle": {
+    "message": "Ανίχνευση περιεχομένου AI: χρησιμοποίησε τον δικό σου ανιχνευτή"
+  },
+  "detectRouteAHead": {
+    "message": "Διαδρομή Α: επί πληρωμή πακέτο DLC (v1.x, σχεδιάζεται)"
+  },
+  "detectRouteBHead": {
+    "message": "Διαδρομή Β: περιτύλιγμα από τον χειριστή (διαθέσιμο τώρα)"
+  },
+  "keysLocalIdentity": {
+    "message": "Τοπική ταυτότητα"
+  },
+  "keysNoIdentity": {
+    "message": "Δεν υπάρχει ταυτότητα σε αυτόν τον υπολογιστή."
+  },
+  "keysMismatchTitle": {
+    "message": "Ασυμφωνία κατάστασης ταυτότητας"
+  },
+  "keysRotateBtn": {
+    "message": "Δημιουργία νέου + δημοσίευση"
+  },
+  "keysRotateTitle": {
+    "message": "Δημιούργησε ένα νέο κλειδί υπογραφής και δημοσίευσέ το ως τη νέα ενεργή εγγραφή"
+  },
+  "keysSwitchYubikey": {
+    "message": "Εναλλαγή σε ταυτότητα Yubikey…"
+  },
+  "keysSwitchYubikeyTitle": {
+    "message": "Αντικατάσταση της τρέχουσας ταυτότητας με μία βασισμένη σε Yubikey"
+  },
+  "keysPublishedRecords": {
+    "message": "Δημοσιευμένες εγγραφές (atproto)"
+  },
+  "keysRecordsEmptyHint": {
+    "message": "Συνδέσου στην καρτέλα Υπογραφή και δημοσίευσε το τοπικό σου αποτύπωμα."
+  },
+  "keysNotLoggedIn": {
+    "message": "Δεν είσαι συνδεδεμένος στο atproto."
+  },
+  "keysNoSessionHint": {
+    "message": "Συνδέσου στην καρτέλα Υπογραφή για να ανακτήσεις τις δημοσιευμένες εγγραφές σου."
+  },
+  "signIdentityLabel": {
+    "message": "Ταυτότητα:"
+  },
+  "signNotSetUp": {
+    "message": "δεν έχει ρυθμιστεί"
+  },
+  "signSessionLabel": {
+    "message": "Συνεδρία:"
+  },
+  "signDisconnected": {
+    "message": "αποσυνδεδεμένο"
+  },
+  "signSetupTitle": {
+    "message": "Ρύθμισε την ταυτότητα υπογραφής σου"
+  },
+  "signSetupBody": {
+    "message": "Αυτό δημιουργεί ένα κρυπτογραφικό κλειδί σε αυτόν τον υπολογιστή και το αποθηκεύει στην κλειδοθήκη του OS σου. Θα χρειαστεί να το κάνεις μόνο μία φορά."
+  },
+  "signGenerateKey": {
+    "message": "Δημιουργία κλειδιού υπογραφής"
+  },
+  "signSetupHint": {
+    "message": "Το κλειδί δεν εγκαταλείπει ποτέ τον υπολογιστή σου. Το OS σου διαχειρίζεται τα αιτήματα πρόσβασης."
+  },
+  "signConnectTitle": {
+    "message": "Σύνδεσε την ταυτότητα bsky σου"
+  },
+  "signConnectBody": {
+    "message": "Σύνδεσε το κλειδί υπογραφής σου με το όνομα χρήστη atproto σου, ώστε οι επαληθευτές να ξέρουν ότι είναι δικό σου."
+  },
+  "signHandlePh": {
+    "message": "creator.bsky.social"
+  },
+  "signAppPassword": {
+    "message": "Κωδικός εφαρμογής"
+  },
+  "signRememberDevice": {
+    "message": "Να με θυμάσαι σε αυτή τη συσκευή"
+  },
+  "signPublishTitle": {
+    "message": "Δημοσίευσε το κλειδί υπογραφής σου"
+  },
+  "signPublishBody": {
+    "message": "Ένα τελευταίο βήμα: η δημοσίευση του αποτυπώματος του κλειδιού σου στο atproto επιτρέπει στους επαληθευτές να επιβεβαιώσουν ότι εσύ υπέγραψες τη δουλειά σου. Χωρίς αυτό βλέπουν μόνο \"έγκυρη υπογραφή από άγνωστο.\""
+  },
+  "signLabelOptional": {
+    "message": "Ετικέτα (προαιρετικό)"
+  },
+  "signLabelPh": {
+    "message": "π.χ. studio mac"
+  },
+  "signPublishKey": {
+    "message": "Δημοσίευση κλειδιού"
+  },
+  "signStaleTitle": {
+    "message": "Το κλειδί υπογραφής σου είναι ξεπερασμένο"
+  },
+  "signRecoverHeading": {
+    "message": "Ανάκτηση από τερματικό:"
+  },
+  "signStaleHint": {
+    "message": "Αυτό δημιουργεί ένα νέο κλειδί, το δημοσιεύει ως τη νέα ενεργή εγγραφή και (όταν χρειάζεται) ανακαλεί την ορφανή εγγραφή, ώστε κανείς να μην μπορεί να υπογράψει στο όνομά σου με το χαμένο κλειδί."
+  },
+  "signDropTitle": {
+    "message": "Άφησε ένα αρχείο εδώ για υπογραφή"
+  },
+  "signDropSub": {
+    "message": "Ήχος · Εικόνα · Βίντεο: οτιδήποτε υποστηρίζει το c2pa-rs."
+  },
+  "signReadyToSign": {
+    "message": "Έτοιμο για υπογραφή"
+  },
+  "signChainTitle": {
+    "message": "Αυτό το αρχείο είναι ήδη υπογεγραμμένο."
+  },
+  "signChainSub": {
+    "message": "Η υπογραφή σου θα προστεθεί στην αλυσίδα ως παράγωγο· η αρχική υπογραφή παραμένει ανέπαφη."
+  },
+  "signRelationshipQ": {
+    "message": "Ποια είναι η σχέση σου με αυτό το αρχείο;"
+  },
+  "signEmbedIdentity": {
+    "message": "Ενσωμάτωση δήλωσης ταυτότητας (συνιστάται· επιτρέπει στους επαληθευτές να παραλείψουν το βήμα εισαγωγής ονόματος χρήστη)"
+  },
+  "signModelPh": {
+    "message": "π.χ. ACE-Step v1.0"
+  },
+  "signReplaceOriginal": {
+    "message": "Αντικατάσταση του πρωτότυπου (αντί για εγγραφή sidecar)"
+  },
+  "signPickDifferent": {
+    "message": "Επιλογή διαφορετικού αρχείου"
+  },
+  "signSigning": {
+    "message": "Υπογραφή…"
+  },
+  "signSigned": {
+    "message": "Υπογεγραμμένο"
+  },
+  "signAnother": {
+    "message": "Υπογραφή άλλου"
+  },
+  "signVerifyIt": {
+    "message": "Επαλήθευσέ το"
+  },
+  "signErrorTitle": {
+    "message": "Δεν ήταν δυνατή η φόρτωση της κατάστασης υπογραφής σου"
+  },
+  "bfBackfireTitle": {
+    "message": "Ανάγνωση σήμανσης Backfire με κλειδί"
+  },
+  "bfBackfireSub": {
+    "message": "Επαλήθευσε ένα υδατογράφημα ανά εικόνα που οι αφαιρέτες προέλευσης AI ενισχύουν αντί να αφαιρούν."
+  },
+  "bfReaderLabel": {
+    "message": "Αναγνώστης Backfire"
+  },
+  "bfDropTitle": {
+    "message": "Άφησε μια εικόνα εδώ, ή επίλεξε μία, για να διαβάσεις τη σήμανσή της"
+  },
+  "bfChooseRead": {
+    "message": "Επιλογή εικόνας και ανάγνωση"
+  },
+  "bfHint": {
+    "message": "Εισήγαγε πρώτα το κλειδί σου παραπάνω, μετά άφησε ή επίλεξε μια εικόνα. Διαβάζεται αυτόματα και παραμένει στον υπολογιστή σου."
+  },
+  "bfLoading": {
+    "message": "Ανάγνωση σήμανσης Backfire…"
+  },
+  "mlTitle": {
+    "message": "Ανάγνωση σειριακού αριθμού Mellin με κλειδί"
+  },
+  "mlSub": {
+    "message": "Δικανική ανάλυση ήχου με κλειδί: ανάκτησε τον 64-bit σειριακό αριθμό ανά αντίγραφο που ενσωμάτωσες με το αυτόνομο εργαλείο provcheck-mellin με άδεια BUSL (δωρεάν για μη εμπορική χρήση, ξεχωριστό από το provcheck). Χρειάζεται το μυστικό αρχείο του πωλητή σου και το αναγνωριστικό έργου· όλα παραμένουν στον υπολογιστή σου."
+  },
+  "mlReaderLabel": {
+    "message": "Αναγνώστης Mellin"
+  },
+  "mlSecretNone": {
+    "message": "δεν έχει επιλεγεί. Το μυστικό δεν αποθηκεύεται ποτέ, οπότε επίλεξέ το ξανά μετά από κάθε εκκίνηση."
+  },
+  "mlWorkidPh": {
+    "message": "το αναγνωριστικό έργου που χρησιμοποιήθηκε κατά την ενσωμάτωση"
+  },
+  "mlDropTitle": {
+    "message": "Επίλεξε ένα αρχείο ήχου για να διαβάσεις τον σειριακό του αριθμό"
+  },
+  "mlChooseRead": {
+    "message": "Επιλογή ήχου και ανάγνωση"
+  },
+  "mlHint": {
+    "message": "Επίλεξε πρώτα το μυστικό αρχείο σου και εισήγαγε το αναγνωριστικό έργου, μετά επίλεξε τον ήχο ή άφησέ τον οπουδήποτε σε αυτή την καρτέλα. Λειτουργεί οποιαδήποτε μορφή (WAV, MP3, AAC, FLAC)· τα αρχεία ήχου διαβάζονται εδώ, οι εικόνες διαβάζουν τη σήμανση Backfire παραπάνω."
+  },
+  "mlLoading": {
+    "message": "Ανάγνωση σειριακού αριθμού Mellin…"
+  },
+  "imTitle": {
+    "message": "Ανάγνωση σήμανσης ταυτότητας idmark με κλειδί"
+  },
+  "imSub": {
+    "message": "Ταυτότητα εικόνας με κλειδί: διάβασε τη σήμανση ανά αντίγραφο, ανθεκτική σε περικοπή, επανακωδικοποίηση και περιστροφή, που ενσωματώθηκε με το αυτόνομο εργαλείο provcheck-idmark με άδεια BUSL (δωρεάν για μη εμπορική χρήση, ξεχωριστό από το provcheck). Χωρίς μυστικό ελέγχει την ενσωματωμένη σήμανση· πρόσθεσε το μυστικό αρχείο σου και μια θέση για να αποδώσεις ένα αντίγραφο. Όλα παραμένουν στον υπολογιστή σου."
+  },
+  "imReaderLabel": {
+    "message": "Αναγνώστης idmark"
+  },
+  "imSecretNone": {
+    "message": "δεν έχει επιλεγεί. Άφησέ το κενό για να διαβάσεις την ενσωματωμένη σήμανση· το μυστικό δεν αποθηκεύεται ποτέ."
+  },
+  "imDropTitle": {
+    "message": "Επίλεξε μια εικόνα για να διαβάσεις τη σήμανσή της"
+  },
+  "imChooseRead": {
+    "message": "Επιλογή εικόνας και ανάγνωση"
+  },
+  "imHint": {
+    "message": "Προαιρετικά επίλεξε πρώτα το μυστικό αρχείο σου και μια θέση, μετά επίλεξε την εικόνα. PNG ή JPEG. Αυτό διαβάζει τη σήμανση ταυτότητας idmark· η σήμανση Backfire και οι σειριακοί αριθμοί Mellin διαβάζονται στις παραπάνω ενότητες."
+  },
+  "imLoading": {
+    "message": "Ανάγνωση idmark…"
+  },
+  "bfModalTitle": {
+    "message": "Πώς λειτουργεί το Backfire"
+  },
+  "vVerified": {
+    "message": "Επαληθευμένο"
+  },
+  "vUnsigned": {
+    "message": "Ανυπόγραφο"
+  },
+  "vNotVerified": {
+    "message": "Μη επαληθευμένο"
+  },
+  "attAttestedBy": {
+    "message": "Πιστοποιήθηκε από $1"
+  },
+  "attMatchSub": {
+    "message": "Το πιστοποιητικό υπογραφής αντιστοιχεί σε κλειδί δημοσιευμένο υπό αυτή την ταυτότητα."
+  },
+  "attMismatch": {
+    "message": "Ασυμφωνία πιστοποίησης για $1"
+  },
+  "attMismatchSub": {
+    "message": "Το πιστοποιητικό υπογραφής δεν αντιστοιχεί σε κανένα κλειδί δημοσιευμένο υπό αυτή την ταυτότητα."
+  },
+  "attNotPublished": {
+    "message": "Δεν έχουν δημοσιευτεί κλειδιά υπό $1"
+  },
+  "attNotPublishedSub": {
+    "message": "Αυτή η ταυτότητα υπάρχει αλλά δεν έχει δημοσιεύσει εγγραφές signingKey."
+  },
+  "attResolveFailed": {
+    "message": "Δεν ήταν δυνατή η επίλυση του $1"
+  },
+  "attResolveFailedSub": {
+    "message": "Η επίλυση ταυτότητας απέτυχε (το όνομα χρήστη/DID δεν είναι προσβάσιμο)."
+  },
+  "attThisIdentity": {
+    "message": "αυτή η ταυτότητα"
+  },
+  "kvSigner": {
+    "message": "Υπογράφων"
+  },
+  "kvSignedAt": {
+    "message": "Υπογράφηκε στις"
+  },
+  "kvFormat": {
+    "message": "Μορφή"
+  },
+  "kvManifest": {
+    "message": "Manifest"
+  },
+  "kvIngredients": {
+    "message": "Συστατικά"
+  },
+  "kvIngredientsVal": {
+    "message": "$1 (παράγωγο περιεχόμενο: αυτό το αρχείο δημιουργήθηκε με επεξεργασία προηγουμένως υπογεγραμμένων αρχείων)"
+  },
+  "kvValidationErrors": {
+    "message": "Σφάλματα επικύρωσης"
+  },
+  "wmEmpty": {
+    "message": "Δεν εντοπίστηκαν υδατογραφήματα από τις οικογένειες ανιχνευτών που εκτελέστηκαν."
+  },
+  "wmKeyedNote": {
+    "message": "Οι σημάνσεις με κλειδί (Backfire, Mellin) δεν αποτελούν μέρος αυτής της σάρωσης. Μπορούν να διαβαστούν μόνο με το κλειδί σου, στην καρτέλα Σημάνσεις με κλειδί."
+  },
+  "wmConfidence": {
+    "message": "$1% βεβαιότητα"
+  },
+  "wmDegraded": {
+    "message": "$1% βεβαιότητα· η σήμανση είναι υποβαθμισμένη (πιθανή μερική αλλοίωση)"
+  },
+  "wmNa": {
+    "message": "$1: μη διαθέσιμο"
+  },
+  "wmNoMark": {
+    "message": "$1: δεν εντοπίστηκε σήμανση"
+  },
+  "wmTimelineAria": {
+    "message": "Παρουσία υδατογραφήματος στο χρόνο: $1"
+  },
+  "wmUnrecognizedSource": {
+    "message": "μη αναγνωρισμένη πηγή"
+  },
+  "btnCopied": {
+    "message": "Αντιγράφηκε"
+  },
+  "scanError": {
+    "message": "Δεν ήταν δυνατή η σάρωση αυτού του αρχείου: $1"
+  },
+  "autoFilled": {
+    "message": "συμπληρώθηκε αυτόματα από το αρχείο"
+  },
+  "dragFileOnto": {
+    "message": "Σύρε το αρχείο πάνω στο παράθυρο"
+  },
+  "aiGenerated": {
+    "message": "Δημιουργήθηκε από AI"
+  },
+  "btnCopiedBang": {
+    "message": "Αντιγράφηκε!"
+  },
+  "bfCouldNotRun": {
+    "message": "Το Backfire δεν μπόρεσε να εκτελεστεί"
+  },
+  "btnInstalling": {
+    "message": "Εγκατάσταση…"
+  },
+  "downloadingModels": {
+    "message": "Λήψη μοντέλων, αυτό μπορεί να διαρκέσει ένα λεπτό…"
+  },
+  "btnWorking": {
+    "message": "Επεξεργασία…"
+  },
+  "bfInstalling": {
+    "message": "Εγκατάσταση / επιδιόρθωση του αναγνώστη Backfire…"
+  },
+  "statusCheckFailed": {
+    "message": "Ο έλεγχος κατάστασης απέτυχε: $1"
+  },
+  "readingFile": {
+    "message": "Ανάγνωση $1…"
+  },
+  "mlCouldNotRun": {
+    "message": "Το Mellin δεν μπόρεσε να εκτελεστεί"
+  },
+  "imCouldNotRun": {
+    "message": "Το idmark δεν μπόρεσε να εκτελεστεί"
+  },
+  "keysMismSuperseded": {
+    "message": "Το τοπικό σου κλειδί έχει αντικατασταθεί"
+  },
+  "keysMismRevoked": {
+    "message": "Το τοπικό σου κλειδί έχει ανακληθεί"
+  },
+  "keysMismActiveNoKey": {
+    "message": "Η ενεργή εγγραφή χρησιμοποιεί ένα κλειδί που δεν έχεις"
+  },
+  "thisBox": {
+    "message": "(αυτός ο υπολογιστής)"
+  },
+  "btnRevoke": {
+    "message": "Ανάκληση"
+  },
+  "checkingPublishedKeys": {
+    "message": "Έλεγχος δημοσιευμένων κλειδιών…"
+  },
+  "btnGenerating": {
+    "message": "Δημιουργία…"
+  },
+  "btnConnecting": {
+    "message": "Σύνδεση…"
+  },
+  "btnPublishing": {
+    "message": "Δημοσίευση…"
+  },
+  "signReadyToPublish": {
+    "message": "Έτοιμο για δημοσίευση"
+  },
+  "bfMarkFound": {
+    "message": "Βρέθηκε σήμανση Backfire"
+  },
+  "bfNoValidMark": {
+    "message": "Δεν υπάρχει έγκυρη σήμανση Backfire"
+  },
+  "mlSerialRecovered": {
+    "message": "Ανακτήθηκε σειριακός αριθμός Mellin"
+  },
+  "mlNoFullSerial": {
+    "message": "Δεν υπάρχει πλήρης σειριακός αριθμός Mellin"
+  },
+  "imPresent": {
+    "message": "Υπάρχει idmark"
+  },
+  "imNoDetected": {
+    "message": "Δεν εντοπίστηκε idmark"
+  },
+  "fieldIdentifier": {
+    "message": "Αναγνωριστικό"
+  },
+  "fieldConfidenceMargin": {
+    "message": "Βεβαιότητα (ελάχιστο περιθώριο bit)"
+  },
+  "fieldValid": {
+    "message": "Έγκυρο"
+  },
+  "fieldMatchesSerial": {
+    "message": "Αντιστοιχεί στον αναμενόμενο σειριακό αριθμό"
+  },
+  "fieldTamperTripwire": {
+    "message": "Δείκτης παραποίησης"
+  },
+  "fieldSerial": {
+    "message": "Σειριακός αριθμός"
+  },
+  "fieldBitsRecovered": {
+    "message": "Ανακτημένα bit"
+  },
+  "fieldErasureRate": {
+    "message": "Ποσοστό διαγραφής"
+  },
+  "fieldMinBitVotes": {
+    "message": "Ελάχιστες ψήφοι bit"
+  },
+  "fieldMarkPresent": {
+    "message": "Παρουσία σήμανσης"
+  },
+  "fieldSeat": {
+    "message": "Θέση"
+  },
+  "fieldMargin": {
+    "message": "Περιθώριο"
+  },
+  "fieldReadVia": {
+    "message": "Αναγνώστηκε μέσω"
+  },
+  "fieldEstRotation": {
+    "message": "Εκτιμώμενη περιστροφή"
+  },
+  "fieldError": {
+    "message": "Σφάλμα"
+  },
+  "valYes": {
+    "message": "ναι"
+  },
+  "valNo": {
+    "message": "όχι"
+  },
+  "bfTamperDetected": {
+    "message": "εντοπίστηκε παραποίηση εγκοπής (στατιστικό $1)"
+  },
+  "bfTamperClean": {
+    "message": "καθαρό (στατιστικό $1)"
+  }
+}

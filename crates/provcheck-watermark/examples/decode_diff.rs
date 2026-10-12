@@ -80,7 +80,9 @@ fn read_f32(f: &mut File, spec: &ArraySpec) -> anyhow::Result<Vec<f32>> {
     let mut buf = vec![0u8; spec.count * 4];
     f.read_exact(&mut buf)?;
     Ok(buf
-        .chunks_exact(4)
+        .as_chunks::<4>()
+        .0
+        .iter()
         .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
         .collect())
 }

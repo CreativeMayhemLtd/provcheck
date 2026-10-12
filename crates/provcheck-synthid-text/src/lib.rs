@@ -125,8 +125,7 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
     }
 
     let bytes = std::fs::read(path)?;
-    // v0.9.0 audit §3: validate UTF-8 explicitly instead of
-    // lossy-converting a binary file into gigabytes of U+FFFD.
+    // Validate UTF-8 explicitly; lossy-converting a binary file yields gigabytes of U+FFFD (audit §3).
     let text = match std::str::from_utf8(&bytes) {
         Ok(s) => s.to_owned(),
         Err(_) => {
@@ -168,10 +167,7 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
     let (mean_g, z, conf) = score(&tokens, DEFAULT_SALT);
     let (status, brand) = classify(conf);
 
-    // v0.9.0 audit §2.8: report the actual g-sample size (tokens
-    // less context-window prefix), not the raw token count, since
-    // the z-statistic is computed over the sample size, not the
-    // total token count.
+    // Report the g-sample size (over which z is computed), not the raw token count (audit §2.8).
     let g_samples = tokens.len().saturating_sub(CONTEXT_WINDOW);
 
     Ok(WatermarkResult {
@@ -245,10 +241,7 @@ fn looks_like_text(path: &Path, meta: &std::fs::Metadata) -> bool {
     {
         return true;
     }
-    // No extension OR an extension we do not recognise: sniff the
-    // first chunk for valid UTF-8 with a high printable-ratio. We
-    // don't want to false-positive on a binary file that happens
-    // to be valid UTF-8 by coincidence.
+    // Unrecognised/absent extension: require a high printable-ratio so a coincidentally-UTF-8 binary isn't a false positive.
     if meta.len() == 0 || meta.len() > MAX_FILE_BYTES {
         return false;
     }
@@ -303,8 +296,7 @@ pub(crate) fn score(tokens: &[String], salt: u64) -> (f32, f32, f32) {
         return (0.5, 0.0, 0.5);
     }
     let mean = g_sum / count as f64;
-    // Standard error of mean of uniform(0,1) random variables:
-    // sqrt(Var / N) where Var = 1/12.
+    // Standard error of mean of uniform(0,1): sqrt(Var/N), Var = 1/12.
     let std_err = (1.0_f64 / 12.0 / count as f64).sqrt();
     let z = (mean - 0.5) / std_err;
     let conf = standard_normal_cdf(z);
@@ -323,9 +315,7 @@ fn compute_g_value(context: &[String], token: &str, salt: u64) -> f64 {
     hasher.update(b"|");
     hasher.update(salt.to_le_bytes());
     let h = hasher.finalize();
-    // SHA-256 output is always 32 bytes; the first 8 bytes always
-    // fit in a u64. Named binding instead of `try_into().unwrap()`
-    // per v0.9.0 audit §3.
+    // Named binding over `try_into().unwrap()`: SHA-256 is always 32 bytes (audit §3).
     let mut head = [0u8; 8];
     head.copy_from_slice(&h[..8]);
     let bits = u64::from_le_bytes(head);
@@ -357,10 +347,7 @@ fn erf(x: f64) -> f64 {
 
 fn classify(conf: f32) -> (WatermarkStatus, Option<WatermarkBrand>) {
     if conf >= DETECTED_THRESHOLD {
-        // SynthID-text doesn't carry a brand payload (the
-        // watermark is over token choices, not embedded bytes).
-        // Brand stays None; the dispatch metadata identifies the
-        // watermark family.
+        // No brand payload: the mark is over token choices, not embedded bytes.
         (WatermarkStatus::Detected, None)
     } else if conf >= DEGRADED_THRESHOLD {
         (WatermarkStatus::Degraded, None)
@@ -373,8 +360,6 @@ fn classify(conf: f32) -> (WatermarkStatus, Option<WatermarkBrand>) {
 mod tests {
     use super::*;
 
-    // ----- tokenize ----------
-
     #[test]
     fn tokenize_lowercases() {
         let toks = tokenize("Hello World FOO");
@@ -383,16 +368,12 @@ mod tests {
 
     #[test]
     fn tokenize_strips_punctuation_but_keeps_hyphens_and_underscores() {
-        // Identifiers and hyphenated words must survive — the
-        // marker may legitimately produce them.
         let toks = tokenize("hello, world! it's a-b_c.");
         assert_eq!(toks, vec!["hello", "world", "its", "a-b_c"]);
     }
 
     #[test]
     fn tokenize_drops_empty_tokens() {
-        // Pure-punctuation chunks ("?!" "...") strip to empty
-        // strings; they must NOT appear in the token list.
         let toks = tokenize("hello ?! ... world");
         assert_eq!(toks, vec!["hello", "world"]);
     }
@@ -405,22 +386,18 @@ mod tests {
 
     #[test]
     fn tokenize_preserves_alphanumerics() {
-        // Digits must survive (e.g. "v1.0" → "v10").
         let toks = tokenize("v1.0 build 42a");
         assert_eq!(toks, vec!["v10", "build", "42a"]);
     }
 
-    // ----- erf math invariants ----------
-
     #[test]
     fn erf_at_zero_is_zero() {
-        // erf(0) = 0 exactly.
         assert!(erf(0.0).abs() < 1e-9);
     }
 
     #[test]
     fn erf_is_odd_function() {
-        // erf(-x) = -erf(x). Pin the symmetry.
+        // erf(-x) = -erf(x).
         for x in [0.1, 0.5, 1.0, 2.0, 3.0] {
             let pos = erf(x);
             let neg = erf(-x);
@@ -442,8 +419,7 @@ mod tests {
 
     #[test]
     fn erf_at_one_matches_known_value() {
-        // erf(1) ≈ 0.8427007929 (textbook value). Pin within
-        // the A&S approximation's documented precision.
+        // erf(1) ~= 0.8427007929 (textbook), within the A&S approximation's precision.
         let r = erf(1.0);
         assert!(
             (r - 0.842_700_79_f64).abs() < 1e-5,
@@ -451,11 +427,8 @@ mod tests {
         );
     }
 
-    // ----- standard_normal_cdf ----------
-
     #[test]
     fn standard_normal_cdf_at_zero_is_half() {
-        // Φ(0) = 0.5 by symmetry.
         let r = standard_normal_cdf(0.0);
         assert!((r - 0.5).abs() < 1e-6);
     }
@@ -479,12 +452,8 @@ mod tests {
         }
     }
 
-    // ----- classify ----------
-
     #[test]
     fn classify_returns_none_brand_always() {
-        // SynthID-text never carries a brand payload — the mark
-        // is in token choices, not embedded bytes. Pin the contract.
         for conf in [0.0, 0.5, 0.7, 0.9, 1.0] {
             let (_, brand) = classify(conf);
             assert!(brand.is_none(), "expected None brand at conf={conf}");
@@ -493,9 +462,6 @@ mod tests {
 
     #[test]
     fn classify_uses_canonical_thresholds() {
-        // SynthID-text classify must use the canonical
-        // provcheck::confidence thresholds. Pin to catch any
-        // drift from a per-detector threshold override.
         let (status_low, _) = classify(DEGRADED_THRESHOLD - 0.01);
         let (status_mid, _) = classify(DEGRADED_THRESHOLD);
         let (status_high, _) = classify(DETECTED_THRESHOLD);
@@ -517,9 +483,7 @@ mod tests {
         let tokens = tokenize(text);
         assert!(tokens.len() >= MIN_TOKENS);
         let (mean_g, _z, conf) = score(&tokens, DEFAULT_SALT);
-        // For random text under our salt, mean_g should be roughly
-        // 0.5 and confidence should not be > DETECTED_THRESHOLD.
-        // Allow slack since the sample is small.
+        // Random text should sit near baseline; slack allowed for the small sample.
         assert!(
             (mean_g - 0.5).abs() < 0.15,
             "mean_g = {mean_g} drifted far from baseline 0.5"
@@ -532,22 +496,15 @@ mod tests {
 
     #[test]
     fn below_min_tokens_returns_not_detected_with_clear_message() {
-        // Synthetically tokenise via the public helper to bypass
-        // file I/O; the message-formation logic still wires up.
         let tokens = tokenize("only a handful of words here");
         assert!(tokens.len() < MIN_TOKENS);
-        // The detect() path uses tokens.len() to gate; we can
-        // exercise the gate by simulating its effect.
         let confidence = if tokens.len() < MIN_TOKENS { 0.0 } else { 1.0 };
         assert_eq!(confidence, 0.0);
     }
 
     #[test]
     fn single_repeated_word_scores_degenerately() {
-        // Pathological case: every token identical → context
-        // window also constant → every g_i is the same value.
-        // The std_err computation still produces a finite z;
-        // confirm the function does not panic or NaN.
+        // Every token identical makes every g_i equal; confirm z stays finite, no panic or NaN.
         let tokens: Vec<String> = std::iter::repeat_n("word".to_string(), 100).collect();
         let (mean_g, z, conf) = score(&tokens, DEFAULT_SALT);
         assert!(mean_g.is_finite());
@@ -558,9 +515,7 @@ mod tests {
 
     #[test]
     fn round_trip_constructed_watermarked_text_scores_high() {
-        // Generate a "watermarked" sequence by greedily picking
-        // tokens that maximise g-value from a small vocabulary.
-        // This mimics what tournament sampling would produce.
+        // Mimic tournament sampling: greedily pick the g-maximising token from a small vocabulary.
         let vocab: Vec<&str> = vec![
             "the",
             "quick",
@@ -623,9 +578,6 @@ mod tests {
             tokens.push((*best).to_string());
         }
         let (mean_g, z, conf) = score(&tokens, DEFAULT_SALT);
-        // Constructed watermarked text should score well above
-        // baseline; mean_g far higher than 0.5 and confidence
-        // very close to 1.0.
         assert!(mean_g > 0.7, "mean_g {mean_g} not elevated");
         assert!(z > 3.0, "z {z} not elevated");
         assert!(
@@ -647,19 +599,11 @@ mod _send_sync_assertions {
     }
 }
 
-// v0.9.68: pin that the operator-facing detection result message
-// does NOT include a "follow-up item" hand-wave. The pre-v0.9.68
-// message ended with "Default word-level tokenizer; HF subword
-// tokenizer support for higher accuracy against real LLM output is
-// a follow-up item." — a known-incomplete-feature notice surfaced
-// on every successful detection, which reads as "this isn't
-// finished" rather than describing what the detector actually did.
 #[cfg(test)]
 mod no_stale_follow_up_promise_tests {
     #[test]
     fn detection_message_source_does_not_promise_a_follow_up_item() {
-        // Build the stale string by concatenation so the test
-        // itself doesn't match its own source.
+        // Build the stale string by concatenation so the test's own source doesn't match it.
         let stale = ["is", "a", "follow-up", "item"].join(" ");
         let source = include_str!("lib.rs");
         assert!(
@@ -670,8 +614,6 @@ mod no_stale_follow_up_promise_tests {
 
     #[test]
     fn detection_message_describes_word_level_tokenization_as_a_feature() {
-        // The replacement message should describe the tokeniser
-        // as a feature (positively, not as a partial scaffold).
         let source = include_str!("lib.rs");
         assert!(
             source.contains("Word-level tokenizer"),

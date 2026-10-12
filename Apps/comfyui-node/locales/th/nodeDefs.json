@@ -1,0 +1,67 @@
+{
+  "ProvcheckC2PA": {
+    "display_name": "Provcheck (ลายน้ำ C2PA ฟรี) • Creative Mayhem",
+    "description": "provcheck ฟรีและโอเพนซอร์ส (Apache-2.0) สำหรับ ComfyUI — โหนดเดียวสำหรับภาพ เสียง และวิดีโอ WRITE: ฝังลายน้ำฟรี (TrustMark บนภาพ, silentcipher บนแทร็กเสียงของเสียง/วิดีโอ) และ/หรือเซ็น C2PA ด้วยคีย์เฉพาะเครื่องของคุณ + ตัวตน atproto/Bluesky โดยสามารถบันทึกกราฟการสร้างได้ตามต้องการ; ไฟล์ที่เซ็นแล้วจะถูกเขียนไปยังไดเรกทอรีเอาต์พุตของคุณ READ: ตรวจจับ/ยืนยันเครื่องหมาย provcheck บนอินพุตที่เชื่อมต่อแต่ละรายการ เชื่อมต่อภาพ เสียง วิดีโอ หรือผสมกันแบบใดก็ได้ ทุกตัวเลือกเป็นวิดเจ็ตที่คุณสามารถเชื่อมต่อจากโหนดอื่นได้เช่นกัน รวมถึงชื่อไฟล์เอาต์พุตด้วย Creative Mayhem ยังสร้าง Backfire ซึ่งเป็นเครื่องหมายแบบมีคีย์ที่การลบด้วย AI จะขยายแทนที่จะลบออก (ส่วนเสริมเชิงพาณิชย์ ไม่รวมอยู่ในแพ็กฟรีนี้): https://provcheck.ai/backfire เพิ่มเติม: https://provcheck.ai",
+    "inputs": {
+      "mode": {
+        "name": "mode",
+        "tooltip": "write = ใส่ลายน้ำและ/หรือเซ็น C2PA ให้กับอินพุตที่เชื่อมต่อแต่ละรายการ (พบบ่อยที่สุด) read = ตรวจจับ/ยืนยันเครื่องหมาย provcheck ที่มีอยู่แล้ว",
+        "options": {
+          "write": "เขียน",
+          "read": "อ่าน"
+        }
+      },
+      "image": {
+        "name": "ภาพ",
+        "tooltip": "ชุดภาพเสริมสำหรับเขียนไปยัง/อ่านจาก"
+      },
+      "audio": {
+        "name": "เสียง",
+        "tooltip": "เสียงเสริมสำหรับเขียนไปยัง/อ่านจาก"
+      },
+      "video": {
+        "name": "วิดีโอ",
+        "tooltip": "วิดีโอเสริม ลายน้ำจะอยู่บนแทร็กเสียง (เฟรมยังคงสภาพเดิม); คอนเทนเนอร์จะถูกเซ็น C2PA"
+      },
+      "watermark": {
+        "name": "watermark",
+        "tooltip": "[write] ฝังลายน้ำ FOSS ฟรี (TrustMark สำหรับภาพ / silentcipher สำหรับเสียง)"
+      },
+      "c2pa_sign": {
+        "name": "c2pa_sign",
+        "tooltip": "[write] เซ็น C2PA ด้วยคีย์ลงนามเฉพาะเครื่องของคุณ ไฟล์ที่เซ็นแล้วจะถูกเขียนไปยังไดเรกทอรีเอาต์พุตของ ComfyUI"
+      },
+      "embed_identity": {
+        "name": "embed_identity",
+        "tooltip": "[write] ฝังตัวตน atproto/Bluesky ของคุณ (DID + handle) ในแมนิเฟสต์ เพื่อให้ผู้ตรวจสอบเห็นว่าใครเป็นผู้เซ็น ต้องเข้าสู่ระบบ kit"
+      },
+      "record_provenance": {
+        "name": "record_provenance",
+        "tooltip": "[write] บันทึกสรุปกราฟการสร้างที่คัดสรรแล้ว (model, seed, sampler, prompts) ลงในแมนิเฟสต์ที่เซ็นแล้ว"
+      },
+      "include_full_workflow": {
+        "name": "include_full_workflow",
+        "tooltip": "[write] เมื่อใช้ร่วมกับ record_provenance: ฝัง workflow แบบเต็ม (ที่ปกปิดข้อมูลแล้ว) ไม่ใช่แค่สรุป ปิดไว้เป็นค่าเริ่มต้นเพื่อป้องกันการรั่วไหลของ prompts/paths"
+      },
+      "brand_id": {
+        "name": "brand_id",
+        "tooltip": "[write] brand id แบบ 5 บิตของคุณจาก atproto brand registry (0-31) ค่าเริ่มต้น 2 คือ id ของ rAIdio.bot สาธารณะ; ใช้ของคุณเอง"
+      },
+      "filename_prefix": {
+        "name": "filename_prefix",
+        "tooltip": "[write, เมื่อมีการเขียนไฟล์] คำนำหน้าชื่อไฟล์เอาต์พุตสำหรับไฟล์ที่เซ็น/ใส่ลายน้ำแล้ว แก้ไขได้ และสามารถเชื่อมต่อจากโหนดอื่นได้ (คลิกขวา -> Convert to input)"
+      },
+      "timeout_secs": {
+        "name": "timeout_secs",
+        "tooltip": "การหมดเวลาของ subprocess ต่อรายการ เป็นวินาที"
+      }
+    },
+    "outputs": {
+      "0": { "name": "ภาพ" },
+      "1": { "name": "เสียง" },
+      "2": { "name": "วิดีโอ" },
+      "3": { "name": "รายงาน" },
+      "4": { "name": "ตรวจพบ" }
+    }
+  }
+}

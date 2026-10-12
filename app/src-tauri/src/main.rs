@@ -3,6 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
+use i18n_embed_fl::fl;
 use provcheck::prelude::*;
 use provcheck_attestation_spec::{IdentityClaim, SigningKeyRecord};
 use provcheck_platform::{AttestationOptions, verify_with_attestation};
@@ -19,13 +20,12 @@ use provcheck_sign::sign::{
 use provcheck_sign::types::{KeyProviderKind, LockedIdentity, UnlockedIdentity};
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
+use tauri::Emitter;
 use tauri::Manager;
 use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
 
-// ============================================================================
-// Tab-specific commands (v1.1.0)
-// ============================================================================
+mod i18n;
 
 /// Watermark tab entry point. Runs every one of the six detector
 /// families the workspace ships against the input file. Reuses the
@@ -34,13 +34,14 @@ use time::format_description::well_known::Rfc3339;
 /// this keeps the JSON envelope byte-identical to what
 /// `verify_file` returns so the frontend can share render code.
 #[tauri::command]
-async fn watermark_only(path: String, families: Option<Vec<String>>) -> VerifyResponse {
+async fn watermark_only(
+    app: tauri::AppHandle,
+    path: String,
+    families: Option<Vec<String>>,
+) -> VerifyResponse {
     let path = PathBuf::from(path);
     tauri::async_runtime::spawn_blocking(move || {
-        // A file the C2PA parser rejects (plain text, an exotic container)
-        // still deserves the watermark pass — SynthID-text targets exactly
-        // those. Failing the whole scan here rendered "no watermarks
-        // detected" on files where no detector ever ran.
+        // A file the C2PA parser rejects still deserves the watermark pass — SynthID-text targets exactly those.
         let mut report = match verify(&path) {
             Ok(r) => r,
             Err(e) => Report {
@@ -56,16 +57,18 @@ async fn watermark_only(path: String, families: Option<Vec<String>>) -> VerifyRe
                 ingredient_count: 0,
                 format: None,
                 validation_errors: 0,
+                provenance_tamper: None,
                 did_attestation: None,
                 identity: None,
                 parents: Vec::new(),
                 watermarks: Vec::new(),
                 detections: Vec::new(),
+                checks: Vec::new(),
             },
         };
         match families {
-            Some(f) => push_selected_watermarks(&path, &mut report, &f),
-            None => push_all_watermarks(&path, &mut report),
+            Some(f) => push_selected_watermarks(Some(&app), &path, &mut report, &f),
+            None => push_all_watermarks(Some(&app), &path, &mut report),
         }
         VerifyResponse {
             ok: true,
@@ -99,7 +102,7 @@ async fn backfire_read(
     let resource = app.path().resource_dir().ok();
     tauri::async_runtime::spawn_blocking(move || {
         if key.trim().is_empty() {
-            return ApiResult::err("A key is required to read a Backfire mark.".to_string());
+            return ApiResult::err(fl!(i18n::LOADER, "backfire-read-needs-key"));
         }
         let script = match locate_backfire_py(resource.as_deref()) {
             Some(p) => p,
@@ -179,9 +182,17 @@ fn log_line(msg: &str) {
 /// spinner spins forever and nothing anywhere says why.
 #[tauri::command]
 fn frontend_log(msg: String) {
-    let mut m = msg;
-    m.truncate(500);
+    // Char-boundary cut: msg is arbitrary UTF-8 from the webview, so a byte
+    // truncate could split a codepoint and panic.
+    let m: String = msg.chars().take(500).collect();
     log_line(&format!("ui: {m}"));
+}
+
+/// The app version (Cargo package version, workspace-pinned), for the GUI to show in the corner.
+/// Single source of truth — never hardcode the version in the frontend.
+#[tauri::command]
+fn app_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
 }
 
 /// The log path as a display string for surfacing in UI error messages.
@@ -288,8 +299,7 @@ fn copy_backfire_tree(src: &Path, dst: &Path) -> std::io::Result<()> {
         if from.is_dir() {
             copy_backfire_tree(&from, &to)?;
         } else if let Err(e) = std::fs::copy(&from, &to) {
-            // Name the exact file so a lock (antivirus, indexer, lingering
-            // process) is diagnosable from the log instead of a bare os error.
+            // Name the exact file so a lock (antivirus, indexer) is diagnosable from the log.
             log_line(&format!(
                 "backfire seed: copy FAILED {} -> {}: {e}",
                 from.display(),
@@ -436,17 +446,14 @@ fn refresh_backfire_code(app: &tauri::AppHandle) {
     let Some(home) = backfire_home() else {
         return;
     };
-    // Only refresh an existing install; do not auto-create one on launch.
+    // Only refresh an existing install; never auto-create one on launch.
     if !home.join("backfire.py").exists() {
         log_line("launch: no per-user backfire home; nothing to refresh (bundled copy is used)");
         return;
     }
     let resource = app.path().resource_dir().ok();
     if let Some(src) = backfire_seed_source(resource.as_deref()) {
-        // With the NSIS per-user default, the install dir IS
-        // %LOCALAPPDATA%\provcheck, so the "home" and the bundled copy are the
-        // same directory. Copying a file onto itself fails with a sharing
-        // violation (os error 32); there is nothing to refresh in that layout.
+        // When install dir IS the home (NSIS per-user default), src and home are one directory; copying a file onto itself fails (os error 32), so skip.
         if same_dir(&src, &home) {
             log_line(
                 "launch: backfire home IS the bundled copy (same directory); no refresh needed",
@@ -521,9 +528,7 @@ async fn install_backfire(app: tauri::AppHandle) -> ApiResult<String> {
         use std::process::Command;
         let Some(home) = backfire_home() else {
             log_line("backfire install: FAILED, LOCALAPPDATA unset");
-            return ApiResult::err(
-                "Could not resolve a writable Backfire folder (LOCALAPPDATA unset).".to_string(),
-            );
+            return ApiResult::err(fl!(i18n::LOADER, "backfire-folder-unresolved"));
         };
         log_line(&format!(
             "backfire install: start (home={}, resource={})",
@@ -533,22 +538,14 @@ async fn install_backfire(app: tauri::AppHandle) -> ApiResult<String> {
                 .map(|p| p.display().to_string())
                 .unwrap_or_else(|| "none".into())
         ));
-        // The reader ships inside the app's resources, so if that (or any other)
-        // interpreter is present, the app is ALREADY functional and nothing below
-        // may fail the install. Check first.
+        // If any interpreter is present the app is already functional, so nothing below may fail the install.
         let have_interpreter = resource
             .as_deref()
             .and_then(|r| pyembed_in(&r.join("backfire")))
             .is_some()
             || pyembed_in(&home).is_some()
             || exe_backfire_dir().and_then(|d| pyembed_in(&d)).is_some();
-        // Best-effort: refresh the per-user home's code from the bundled copy
-        // (copy_backfire_tree skips pyembed). When the install dir IS the home
-        // (NSIS per-user default installs to %LOCALAPPDATA%\provcheck) they are
-        // the same directory and there is nothing to copy. A locked file here
-        // (antivirus, indexer, a lingering python process) must never break a
-        // working app, so with an interpreter present a copy failure is
-        // reported, not fatal.
+        // Best-effort refresh of the per-user home from the bundled copy; a locked file must never break a working app, so with an interpreter present a copy failure is reported, not fatal.
         let seed_err = match backfire_seed_source(resource.as_deref()) {
             Some(src) if same_dir(&src, &home) => {
                 log_line(
@@ -565,10 +562,7 @@ async fn install_backfire(app: tauri::AppHandle) -> ApiResult<String> {
                 seed_err
             ));
             return ApiResult::ok(match seed_err {
-                None => {
-                    "Backfire is ready (bundled reader present). Enter a key and drop an image."
-                        .to_string()
-                }
+                None => fl!(i18n::LOADER, "backfire-ready-bundled"),
                 Some(e) => format!(
                     "Backfire is ready (bundled reader present). Note: refreshing the optional \
                      per-user copy was skipped ({e}); the app uses its built-in copy. \
@@ -587,10 +581,7 @@ async fn install_backfire(app: tauri::AppHandle) -> ApiResult<String> {
         }
         if !home.join("backfire.py").exists() {
             log_line("backfire install: FAILED, no seed source and no existing home copy");
-            return ApiResult::err(
-                "Backfire files not found to install. Reinstall provcheck, or set BACKFIRE_PY."
-                    .to_string(),
-            );
+            return ApiResult::err(fl!(i18n::LOADER, "backfire-files-missing"));
         }
         log_line("backfire install: no bundled interpreter; falling back to network setup script");
         let (prog, args): (&str, Vec<String>) = if cfg!(windows) {
@@ -628,7 +619,7 @@ async fn install_backfire(app: tauri::AppHandle) -> ApiResult<String> {
         match Command::new(prog).args(&args).output() {
             Ok(out) if out.status.success() => {
                 log_line("backfire install: network setup script succeeded");
-                ApiResult::ok("Backfire is ready. Enter a key and drop an image.".to_string())
+                ApiResult::ok(fl!(i18n::LOADER, "backfire-ready"))
             }
             Ok(out) => {
                 let stderr = String::from_utf8_lossy(&out.stderr);
@@ -733,14 +724,10 @@ async fn mellin_read(
     tauri::async_runtime::spawn_blocking(move || {
         use std::process::Command;
         if secret_file.trim().is_empty() || work_id.trim().is_empty() {
-            return ApiResult::err(
-                "A secret file and a work id are required to read a Mellin serial.".to_string(),
-            );
+            return ApiResult::err(fl!(i18n::LOADER, "mellin-needs-secret-and-work-id"));
         }
         if !Path::new(&secret_file).exists() {
-            return ApiResult::err(
-                "The chosen secret file does not exist (or is not readable).".to_string(),
-            );
+            return ApiResult::err(fl!(i18n::LOADER, "mellin-secret-file-missing"));
         }
         let Some(bin) = locate_mellin_bin(resource.as_deref()) else {
             log_line("mellin read: FAILED, no provcheck-mellin binary found anywhere");
@@ -878,9 +865,7 @@ async fn pick_image() -> Option<String> {
                 "Images",
                 &["png", "jpg", "jpeg", "webp", "bmp", "tif", "tiff"],
             )
-            // ALWAYS give the user a way out of the filter. A filter with no
-            // all-files fallback hides everything else in the folder and reads
-            // as "the app refuses to show my files".
+            // ALWAYS give a way out of the filter — no all-files fallback reads as "the app refuses to show my files".
             .add_filter("All files", &["*"])
             .set_title("Choose an image")
             .pick_file()
@@ -960,16 +945,7 @@ async fn detect_only(path: String) -> VerifyResponse {
     let path = PathBuf::from(path);
     tauri::async_runtime::spawn_blocking(move || match verify(&path) {
         Ok(report) => {
-            // Registry construction lives here so an operator-supplied
-            // wrapper crate can grow this file with detector registrations
-            // without touching the tab wiring:
-            //   let mut reg = provcheck_detect::DetectorRegistry::new();
-            //   reg.register(Box::new(SomeDetector::default()));
-            //   let bytes = std::fs::read(&path).unwrap_or_default();
-            //   report.detections = reg.run_all(&bytes);
-            // FOSS core: zero detectors registered → detections stays
-            // empty, frontend renders the "bring your own" educational
-            // empty-state.
+            // FOSS core registers zero detectors — an operator wrapper crate grows this arm; empty detections render the "bring your own" empty-state.
             VerifyResponse {
                 ok: true,
                 error: None,
@@ -997,21 +973,12 @@ async fn detect_only(path: String) -> VerifyResponse {
 /// (Windows: `cmd /c start`, macOS: `open`, Linux: `xdg-open`).
 #[tauri::command]
 fn open_url(url: String) -> Result<(), String> {
-    // Defensive check: refuse anything that isn't http/https so a
-    // malicious frontend can't shell-exec `file:///` or a data-URL
-    // via this path. The GUI's own copy uses http(s) links only.
+    // Security: refuse non-http(s) so a malicious frontend can't shell-exec `file:///` or a data-URL via this path.
     if !(url.starts_with("http://") || url.starts_with("https://")) {
         return Err(format!("refusing to open non-http(s) URL: {url}"));
     }
     open::that(url.as_str()).map_err(|e| format!("open failed: {e}"))
 }
-
-// ============================================================================
-// Shared: run every watermark detector family the workspace ships and
-// push each Ok() into the report. Used by verify_file (as one part of
-// the CLI-parity verify flow) and by watermark_only (as the entire
-// dispatch of the dedicated Watermark tab).
-// ============================================================================
 
 /// The six shipped detector families, keyed the way the Watermark tab's
 /// family selector names them.
@@ -1024,51 +991,107 @@ const ALL_FAMILIES: &[&str] = &[
     "synthid-text",
 ];
 
+/// Progress event for the GUI's determinate scan bar. `current` counts the
+/// detector family about to run (1-based); `total` is how many will run for
+/// this file; `label` is the family's display name.
+#[derive(Clone, serde::Serialize)]
+struct VerifyProgress {
+    current: u32,
+    total: u32,
+    label: String,
+}
+
+/// Best-effort progress emit. Never fails or blocks the scan — a dropped event
+/// only means the bar does not advance for that stage; the result still arrives.
+fn emit_progress(app: Option<&tauri::AppHandle>, current: u32, total: u32, label: &str) {
+    if let Some(app) = app {
+        let _ = app.emit(
+            "verify:progress",
+            VerifyProgress {
+                current,
+                total,
+                label: label.to_string(),
+            },
+        );
+    }
+}
+
 /// Run the SELECTED detector families and push each Ok() into the report.
 /// Every family is real model inference, so scanning only what the user
 /// asked for turns a minutes-long six-family audio pass into one fast one.
-fn push_selected_watermarks(path: &Path, report: &mut Report, families: &[String]) {
+///
+/// When `app` is `Some`, a `verify:progress` event is emitted before each
+/// family runs so the GUI can show a determinate "step N of M" bar. Progress
+/// is honest-by-count: a family that does not apply to the file (e.g. an audio
+/// detector on an image) still counts as one fast step, so the bar jumps past
+/// it rather than pretending smooth time-based motion.
+fn push_selected_watermarks(
+    app: Option<&tauri::AppHandle>,
+    path: &Path,
+    report: &mut Report,
+    families: &[String],
+) {
     let want = |k: &str| families.iter().any(|f| f == k);
+    // (key, display label) in run order — drives the progress total and labels.
+    const FAM: &[(&str, &str)] = &[
+        ("silentcipher", "SilentCipher (audio)"),
+        ("audioseal", "AudioSeal (audio)"),
+        ("wavmark", "WavMark (audio)"),
+        ("trustmark", "TrustMark (image)"),
+        ("trustmark-video", "TrustMark (video)"),
+        ("synthid-text", "SynthID (text)"),
+    ];
+    let total = FAM.iter().filter(|(k, _)| want(k)).count() as u32;
+    let mut current = 0u32;
+
     if want("silentcipher") {
+        current += 1;
+        emit_progress(app, current, total, "SilentCipher (audio)");
         if let Ok(w) = provcheck_watermark::detect(path) {
             report.watermarks.push(w);
         }
     }
     if want("audioseal") {
+        current += 1;
+        emit_progress(app, current, total, "AudioSeal (audio)");
         if let Ok(w) = provcheck_audioseal::detect(path) {
             report.watermarks.push(w);
         }
     }
     if want("wavmark") {
+        current += 1;
+        emit_progress(app, current, total, "WavMark (audio)");
         if let Ok(w) = provcheck_wavmark::detect(path) {
             report.watermarks.push(w);
         }
     }
     if want("trustmark") {
+        current += 1;
+        emit_progress(app, current, total, "TrustMark (image)");
         if let Ok(w) = provcheck_image::detect(path) {
             report.watermarks.push(w);
         }
     }
     if want("trustmark-video") {
+        current += 1;
+        emit_progress(app, current, total, "TrustMark (video)");
         if let Ok(w) = provcheck_video::detect(path) {
             report.watermarks.push(w);
         }
     }
     if want("synthid-text") {
+        current += 1;
+        emit_progress(app, current, total, "SynthID (text)");
         if let Ok(w) = provcheck_synthid_text::detect(path) {
             report.watermarks.push(w);
         }
     }
 }
 
-fn push_all_watermarks(path: &Path, report: &mut Report) {
+fn push_all_watermarks(app: Option<&tauri::AppHandle>, path: &Path, report: &mut Report) {
     let all: Vec<String> = ALL_FAMILIES.iter().map(|s| s.to_string()).collect();
-    push_selected_watermarks(path, report, &all);
+    push_selected_watermarks(app, path, report, &all);
 }
-
-// ============================================================================
-// verify_file — existing CLI-parity verify (UNCHANGED contract)
-// ============================================================================
 
 /// JSON-friendly wrapper around provcheck::Report.
 #[derive(Serialize)]
@@ -1093,6 +1116,7 @@ struct VerifyResponse {
 /// reads as hung to anyone watching.
 #[tauri::command]
 async fn verify_file(
+    app: tauri::AppHandle,
     path: String,
     handle: Option<String>,
     did: Option<String>,
@@ -1121,16 +1145,7 @@ async fn verify_file(
         match verify_result {
             Ok(mut report) => {
                 if run_watermark {
-                    // Run every one of the six detector families the
-                    // workspace ships (v1.1.0). Each detector's
-                    // `detect(&path)` is authoritative about whether
-                    // it applies to the input file — audio detectors
-                    // return Err on a PNG, image detector returns Err
-                    // on WAV, etc. The `if let Ok` shape keeps
-                    // successes; errors drop with their own diagnostics
-                    // upstream. Called from both `verify_file` and
-                    // `watermark_only` — see the shared helper below.
-                    push_all_watermarks(&path, &mut report);
+                    push_all_watermarks(Some(&app), &path, &mut report);
                 }
                 VerifyResponse {
                     ok: true,
@@ -1152,14 +1167,6 @@ async fn verify_file(
         report: None,
     })
 }
-
-// ============================================================================
-// Sign-tab commands. These compose provcheck-sign + provcheck-publish into the
-// same flows the kit binary exposes, but driven by webview UI instead of
-// rpassword prompts. Backend selection: OS keychain (KeychainProvider) by
-// default — matches `kit init`. The age-file backend is reachable too via
-// `kit_init` but not exposed in the GUI's first pass.
-// ============================================================================
 
 /// Identity panel data for the Sign + Keys tabs. Mirrors `kit status`'s
 /// identity block.
@@ -1271,8 +1278,6 @@ fn record_status(r: &SigningKeyRecord) -> &'static str {
     }
 }
 
-// -------- kit_status -----------------------------------------------------
-
 #[tauri::command]
 async fn kit_status(data_dir: Option<String>) -> ApiResult<KitStatus> {
     let dir = match resolve_dir(data_dir) {
@@ -1281,12 +1286,7 @@ async fn kit_status(data_dir: Option<String>) -> ApiResult<KitStatus> {
     };
 
     let identity = load_locked(&dir).ok().map(|locked| {
-        // For Yubikey identities, query the live device state so the
-        // GUI can render "device present + N PIN tries" without a
-        // separate command round-trip. Soft-failure: an unreachable
-        // device produces yubikey_present = Some(false) so the GUI
-        // shows a clear "Insert Yubikey" affordance rather than
-        // hard-failing the whole status.
+        // Soft-failure: an unreachable Yubikey yields yubikey_present = Some(false) so the GUI shows "Insert Yubikey" rather than hard-failing status.
         let (yk_serial, yk_slot, yk_present, pin_tries) = match locked.key_provider {
             KeyProviderKind::Yubikey { serial, slot } => {
                 let provider = provcheck_sign::providers::YubikeyProvider::new(serial, slot);
@@ -1333,8 +1333,6 @@ async fn kit_status(data_dir: Option<String>) -> ApiResult<KitStatus> {
     ApiResult::ok(KitStatus { identity, session })
 }
 
-// -------- kit_init -------------------------------------------------------
-
 /// Generate a fresh ES256 identity and persist it. Backend defaults to
 /// the OS keychain (no passphrase prompt needed — the OS handles its own
 /// auth flow on first read).
@@ -1346,11 +1344,7 @@ async fn kit_init(data_dir: Option<String>, force: Option<bool>) -> ApiResult<Id
     };
 
     if !force.unwrap_or(false) && load_locked(&dir).is_ok() {
-        return ApiResult::err(
-            "an identity already exists at this data directory; pass force=true \
-             to regenerate (this orphans any previously-published atproto records)"
-                .to_string(),
-        );
+        return ApiResult::err(fl!(i18n::LOADER, "identity-already-exists"));
     }
 
     let kp = match generate(&SubjectInfo::default()) {
@@ -1369,8 +1363,7 @@ async fn kit_init(data_dir: Option<String>, force: Option<bool>) -> ApiResult<Id
         recovery_recipients: vec![],
     };
 
-    // No passphrase prompt — the keychain provider stashes via the OS
-    // backend, which has its own auth surface.
+    // No passphrase prompt — the keychain provider stashes via the OS backend, which has its own auth surface.
     let mut prompt = |_: NewPassphrasePrompt| -> Result<SecretString, ProviderError> {
         Ok(SecretString::from(String::new()))
     };
@@ -1403,8 +1396,6 @@ async fn kit_init(data_dir: Option<String>, force: Option<bool>) -> ApiResult<Id
     })
 }
 
-// -------- kit_login -------------------------------------------------------
-
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct LoginArgs {
@@ -1430,9 +1421,7 @@ async fn kit_login(args: LoginArgs) -> ApiResult<SessionSnapshot> {
         return ApiResult::err(format!("persist session: {e}"));
     }
 
-    // Stamp did + handle on identity.json so subsequent sign --embed-identity
-    // has them without round-tripping login. Best-effort: if no identity
-    // is present locally, skip silently.
+    // Stamp did + handle on identity.json so subsequent sign --embed-identity has them without round-tripping login; best-effort.
     if let Ok(mut locked) = load_locked(&dir) {
         let snap = client.snapshot();
         locked.did = Some(snap.did.clone());
@@ -1448,8 +1437,6 @@ async fn kit_login(args: LoginArgs) -> ApiResult<SessionSnapshot> {
     })
 }
 
-// -------- kit_logout ------------------------------------------------------
-
 #[tauri::command]
 async fn kit_logout(data_dir: Option<String>) -> ApiResult<()> {
     let dir = match resolve_dir(data_dir) {
@@ -1462,21 +1449,7 @@ async fn kit_logout(data_dir: Option<String>) -> ApiResult<()> {
     }
 }
 
-// -------- kit_remember_password / kit_recall_password / kit_forget_password ------
-//
-// "Remember me" on the Sign tab. The bsky app password is stashed in
-// the OS keychain (Keychain Services on macOS, Credential Manager on
-// Windows, Secret Service on Linux). Service namespace is
-// `app.provcheck.bsky`, distinct from provcheck-sign's
-// `app.provcheck.kit` so password material and signing-key material
-// never share an entry. Account is the bsky handle so multiple
-// accounts can coexist on one device without colliding.
-//
-// Errors here surface as ApiResult::err to the UI, but they should
-// always be soft: prefill that fails simply leaves the field empty
-// and the user types the password. Login flow never depends on
-// successful keychain access.
-
+// Distinct keychain namespace from provcheck-sign's app.provcheck.kit so password and signing-key material never share an entry; account is the handle so accounts don't collide.
 const KEYCHAIN_SERVICE: &str = "app.provcheck.bsky";
 
 #[derive(Deserialize)]
@@ -1525,8 +1498,6 @@ fn kit_forget_password(handle: String) -> ApiResult<()> {
     }
 }
 
-// -------- kit_publish -----------------------------------------------------
-
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct PublishArgs {
@@ -1556,8 +1527,7 @@ async fn kit_publish(args: PublishArgs) -> ApiResult<PublishResult> {
     };
     let writer = provcheck_publish::RecordWriter::new(&client);
 
-    // Guard against duplicates: refuse if a record with this fingerprint
-    // is already in the repo (rotate is the path for a fresh fingerprint).
+    // Refuse duplicates: rotate is the path for a fresh fingerprint.
     let existing = match writer.list_signing_keys().await {
         Ok(v) => v,
         Err(e) => return ApiResult::err(format!("atproto list: {e}")),
@@ -1596,8 +1566,6 @@ async fn kit_publish(args: PublishArgs) -> ApiResult<PublishResult> {
     })
 }
 
-// -------- kit_list --------------------------------------------------------
-
 #[tauri::command]
 async fn kit_list(data_dir: Option<String>) -> ApiResult<Vec<RecordSnapshot>> {
     let dir = match resolve_dir(data_dir) {
@@ -1633,14 +1601,6 @@ async fn kit_list(data_dir: Option<String>) -> ApiResult<Vec<RecordSnapshot>> {
     ApiResult::ok(snapshots)
 }
 
-// -------- kit_revoke ------------------------------------------------------
-//
-// Stamp `validUntil = now()` on an atproto signing-key record. The kit's
-// CLI surface has this as `kit revoke <fingerprint>`; the GUI wraps it so
-// the Keys-tab "revoke this orphan" action can call it without dropping
-// to a terminal. Only needs the bsky session — no private key required,
-// no Yubikey interaction, so the API surface is intentionally small.
-
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RevokeArgs {
@@ -1672,8 +1632,6 @@ async fn kit_revoke(args: RevokeArgs) -> ApiResult<RevokeResult> {
     };
     let writer = provcheck_publish::RecordWriter::new(&client);
 
-    // Find the record by fingerprint. Walk the user's published
-    // records to pick out the matching rkey.
     let records = match writer.list_signing_keys().await {
         Ok(r) => r,
         Err(e) => return ApiResult::err(format!("list signing keys: {e}")),
@@ -1695,7 +1653,6 @@ async fn kit_revoke(args: RevokeArgs) -> ApiResult<RevokeResult> {
         None => return ApiResult::err(format!("at-uri {} has no rkey", uri.as_str())),
     };
 
-    // Mutate: set validUntil = now, optionally set supersededBy.
     let mut updated = current.clone();
     let now_iso = match OffsetDateTime::now_utc().format(&Rfc3339) {
         Ok(s) => s,
@@ -1712,14 +1669,6 @@ async fn kit_revoke(args: RevokeArgs) -> ApiResult<RevokeResult> {
 
     ApiResult::ok(RevokeResult { rkey })
 }
-
-// -------- kit_rotate ------------------------------------------------------
-//
-// Mint a fresh keypair on the recorded backend, publish it as a new active
-// record, and revoke the previous record with a `supersededBy` link.
-// Software-backend rotation only in v0.5.0 P4 — Yubikey rotation would
-// need a separate `kit_rotate_yubikey` taking a fresh PIN through a
-// callback, which the Keys-tab UI doesn't surface yet.
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -1747,16 +1696,9 @@ async fn kit_rotate(args: RotateArgs) -> ApiResult<RotateResult> {
         Err(e) => return ApiResult::err(format!("load current identity: {e}")),
     };
 
-    // Refuse Yubikey rotation cleanly — the in-process flow can't
-    // collect a fresh PIN through this API surface. Users must run
-    // `provcheck-kit init --yubikey --force` from a terminal.
+    // Refuse Yubikey rotation — the in-process flow can't collect a fresh PIN; users run `provcheck-kit init --yubikey --force` from a terminal.
     if matches!(old.key_provider, KeyProviderKind::Yubikey { .. }) {
-        return ApiResult::err(
-            "GUI rotation of a Yubikey-backed identity isn't supported yet. \
-             Run `provcheck-kit init --yubikey --force` from a terminal, \
-             then come back here to publish + revoke."
-                .to_string(),
-        );
+        return ApiResult::err(fl!(i18n::LOADER, "rotate-yubikey-unsupported"));
     }
 
     let client = match AtprotoClient::load_session(&dir).await {
@@ -1765,7 +1707,6 @@ async fn kit_rotate(args: RotateArgs) -> ApiResult<RotateResult> {
     };
     let writer = provcheck_publish::RecordWriter::new(&client);
 
-    // Mint fresh software keypair.
     let kp = match provcheck_sign::cert::generate(&provcheck_sign::cert::SubjectInfo::default()) {
         Ok(kp) => kp,
         Err(e) => return ApiResult::err(format!("generate keypair: {e}")),
@@ -1773,8 +1714,7 @@ async fn kit_rotate(args: RotateArgs) -> ApiResult<RotateResult> {
     let new_fingerprint = kp.fingerprint.clone();
     let new_key_secret = SecretString::from(kp.key_pem.clone());
 
-    // Store the new key under the SAME backend the old identity used
-    // (Yubikey case is refused above, so this is keychain or age).
+    // Store the new key under the SAME backend the old identity used (Yubikey refused above).
     let mut store_prompt =
         |_: provcheck_sign::providers::NewPassphrasePrompt| -> Result<SecretString, ProviderError> {
             Ok(SecretString::from(String::new()))
@@ -1787,19 +1727,18 @@ async fn kit_rotate(args: RotateArgs) -> ApiResult<RotateResult> {
             &mut store_prompt,
         ),
         KeyProviderKind::EncryptedFile => {
+            return ApiResult::err(fl!(i18n::LOADER, "rotate-agefile-unsupported"));
+        }
+        KeyProviderKind::Yubikey { .. } => {
             return ApiResult::err(
-                "GUI rotation of age-file-backed identities isn't wired yet. \
-                 Use `provcheck-kit rotate` from a terminal."
-                    .to_string(),
+                "key rotation is not supported for YubiKey-backed keys".to_string(),
             );
         }
-        KeyProviderKind::Yubikey { .. } => unreachable!("refused above"),
     };
     if let Err(e) = store_result {
         return ApiResult::err(format!("store new key in backend: {e}"));
     }
 
-    // Persist the new public artefacts (overwrites identity.json).
     let now = OffsetDateTime::now_utc();
     let new_locked = provcheck_sign::types::LockedIdentity {
         chain_pem: kp.chain_pem,
@@ -1815,7 +1754,6 @@ async fn kit_rotate(args: RotateArgs) -> ApiResult<RotateResult> {
         return ApiResult::err(format!("save new identity.json: {e}"));
     }
 
-    // Publish the new record on atproto.
     let created_at_iso = match now.format(&Rfc3339) {
         Ok(s) => s,
         Err(e) => return ApiResult::err(format!("format created_at: {e}")),
@@ -1834,7 +1772,6 @@ async fn kit_rotate(args: RotateArgs) -> ApiResult<RotateResult> {
         Err(e) => return ApiResult::err(format!("publish new record: {e}")),
     };
 
-    // Revoke the previous record IF it's still active on atproto.
     let existing_records = writer.list_signing_keys().await.unwrap_or_default();
     let old_fp = old.fingerprint.clone();
     if let Some((old_uri, old_rec)) = existing_records
@@ -1848,8 +1785,7 @@ async fn kit_rotate(args: RotateArgs) -> ApiResult<RotateResult> {
                 Err(e) => return ApiResult::err(format!("format revoke timestamp: {e}")),
             });
             revoked.superseded_by = Some(new_uri.as_str().to_string());
-            // Best-effort: a failure here leaves both records active
-            // on atproto. The user can manually revoke later.
+            // Best-effort: a failure here leaves both records active; the user can revoke later.
             let _ = writer.update_signing_key(rkey, &revoked).await;
         }
     }
@@ -1860,12 +1796,6 @@ async fn kit_rotate(args: RotateArgs) -> ApiResult<RotateResult> {
         old_fingerprint: old_fp,
     })
 }
-
-// -------- kit_list_yubikeys -----------------------------------------------
-//
-// Enumerate connected Yubikeys. Used by the Keys-tab "Switch to
-// Yubikey-backed identity" affordance to render the device-selection
-// step (or skip it when only one device is connected).
 
 #[derive(Serialize)]
 struct YubikeyDeviceInfo {
@@ -1884,8 +1814,6 @@ fn kit_list_yubikeys() -> ApiResult<Vec<YubikeyDeviceInfo>> {
         Err(e) => ApiResult::err(format!("enumerate Yubikeys: {e}")),
     }
 }
-
-// -------- kit_sign --------------------------------------------------------
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -1973,10 +1901,7 @@ async fn kit_sign(args: SignArgs) -> ApiResult<SignResultDto> {
         Err(e) => return ApiResult::err(format!("load identity: {e}")),
     };
 
-    // Unlock — keychain backend has no passphrase prompt from our side
-    // (OS handles it). EncryptedFile backend would need a passphrase UI
-    // which is a follow-up — for v1 we only run the GUI flow against
-    // keychain-backed identities.
+    // Keychain backend has no passphrase prompt from our side (OS handles it); EncryptedFile/Yubikey unlock is unsupported in the GUI flow.
     let mut prompt = |_: UnlockPrompt| -> Result<SecretString, ProviderError> {
         Ok(SecretString::from(String::new()))
     };
@@ -1988,27 +1913,16 @@ async fn kit_sign(args: SignArgs) -> ApiResult<SignResultDto> {
             }
         }
         KeyProviderKind::EncryptedFile => {
-            return ApiResult::err(
-                "GUI signing currently supports OS-keychain identities only. \
-                 Use `provcheck-kit sign` from the CLI for age-file identities."
-                    .to_string(),
-            );
+            return ApiResult::err(fl!(i18n::LOADER, "sign-keychain-only"));
         }
         KeyProviderKind::Yubikey { .. } => {
-            return ApiResult::err(
-                "GUI signing of Yubikey-backed identities lands in v0.5.0 P3 + P4. \
-                 For now, sign via `provcheck-kit sign` from a terminal — the kit \
-                 prompts for the PIV PIN on each signature."
-                    .to_string(),
-            );
+            return ApiResult::err(fl!(i18n::LOADER, "sign-yubikey-unsupported"));
         }
     };
     let unlocked = UnlockedIdentity::new(locked.clone(), key_pem);
 
     let src = PathBuf::from(&args.file);
-    // Replace-in-place signs to a temp sibling (keeping the extension so the
-    // signer's format detection still works), then overwrites the source on
-    // success below.
+    // Replace-in-place signs to a temp sibling (keeping the extension so the signer's format detection works), then overwrites the source on success below.
     let replace = args.replace_original.unwrap_or(false);
     let dst = if replace {
         let mut name = src
@@ -2031,9 +1945,7 @@ async fn kit_sign(args: SignArgs) -> ApiResult<SignResultDto> {
         }
     };
 
-    // Inspect the source for prior provenance so we can pick the
-    // right default action AND echo the chain into the returned
-    // SignResultDto for the GUI's done card.
+    // Inspect the source for prior provenance to pick the default action and echo the chain into SignResultDto.
     let provenance = inspect_source(&src);
     let action = match args.action.as_deref() {
         Some(s) => match SignAction::parse(s) {
@@ -2079,10 +1991,7 @@ async fn kit_sign(args: SignArgs) -> ApiResult<SignResultDto> {
     };
 
     let output_path = if replace {
-        // Overwrite the original with the signed temp, then drop the temp.
-        // fs::copy rather than rename: Windows rename refuses to clobber an
-        // existing file. On failure the signed temp is left for recovery and
-        // the error names it.
+        // fs::copy rather than rename: Windows rename refuses to clobber an existing file; on failure the signed temp is left for recovery.
         if let Err(e) = std::fs::copy(&dst, &src) {
             return ApiResult::err(format!(
                 "signed OK but could not replace the original ({e}); the signed \
@@ -2138,10 +2047,7 @@ fn default_manifest(
     let mut action_obj = serde_json::json!({"action": action.as_c2pa_label()});
     if let Some(model) = ai_artist_model {
         let trimmed = model.trim();
-        // Mark the action as AI-generated regardless of whether the
-        // model string is empty — the digitalSourceType is the
-        // verifier-readable signal; softwareAgent is decoration that
-        // only appears when the user gave us a name.
+        // Mark AI-generated regardless of empty model string — digitalSourceType is the verifier-readable signal; softwareAgent only appears when named.
         action_obj["digitalSourceType"] = serde_json::Value::String(
             "http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia".to_string(),
         );
@@ -2149,10 +2055,7 @@ fn default_manifest(
             action_obj["softwareAgent"] = serde_json::Value::String(trimmed.to_string());
         }
     }
-    // Bind the claim_generator strings to CARGO_PKG_VERSION so they
-    // stay in sync with the Cargo.toml + tauri.conf.json on every
-    // release. Previously hardcoded to "0.3.1", which drifted four
-    // versions before anyone noticed.
+    // Bind claim_generator to CARGO_PKG_VERSION so it stays in sync with Cargo.toml on every release.
     const CG: &str = concat!("provcheck-app/", env!("CARGO_PKG_VERSION"));
     let v = serde_json::json!({
         "claim_generator": CG,
@@ -2189,19 +2092,13 @@ fn format_from_extension(p: &Path) -> Option<&'static str> {
     })
 }
 
-// ============================================================================
-// main
-// ============================================================================
-
 fn main() {
-    // resolve_recovery_recipients is unused in pass 1 but pulled in by the
-    // backup module's surface — silence the dead-code warning. Drops naturally
-    // when the backup UI lands.
+    // resolve_recovery_recipients is unused yet — silence the dead-code warning until the backup UI lands.
     let _ = resolve_recovery_recipients as fn(&[provcheck_sign::types::RecoveryRecipient]) -> _;
     tauri::Builder::default()
         .setup(|app| {
-            // Launch banner in the diagnostic log: version + the paths every
-            // Backfire decision derives from.
+            // Select the OS/desktop locale once before any command emits a localized message.
+            i18n::init();
             let res = app
                 .path()
                 .resource_dir()
@@ -2214,35 +2111,24 @@ fn main() {
                 "launch: provcheck-app v{} exe={exe} resource_dir={res}",
                 env!("CARGO_PKG_VERSION")
             ));
-            // Self-heal any stale/broken Backfire code from a prior install so the
-            // read path always runs the bundled (current) backfire.py.
             refresh_backfire_code(app.handle());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             verify_file,
-            // v1.1.0: dedicated Watermark + Detect tabs.
             watermark_only,
             detect_only,
-            // Experimental keyed-marks tab (Backfire + Mellin, both shell out
-            // to their standalone BUSL tools; never linked).
             backfire_read,
             backfire_status,
             install_backfire,
             mellin_read,
             mellin_status,
-            // Frontend errors and flow traces land in the diagnostic log.
             frontend_log,
-            // Native "choose file" dialogs shared by the tabs.
+            app_version,
             pick_image,
             pick_any_file,
-            // Watermark-detection model management (download-on-demand weights).
             install_models,
             models_status,
-            // v1.1.0: Tauri 2 webview sandboxes `<a href target="_blank">`
-            // — brand links in the top bar were silent no-ops. This
-            // command shells out to the platform URL handler via the
-            // `open` crate. Called from a delegated JS click handler.
             open_url,
             kit_status,
             kit_init,

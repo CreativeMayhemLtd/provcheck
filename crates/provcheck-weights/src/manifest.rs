@@ -33,13 +33,7 @@ pub struct WeightEntry {
 /// (`weights-v2`) + a new manifest constant; binaries built
 /// against v1 continue to pull from the immutable v1 release.
 pub const MANIFEST: &[WeightEntry] = &[
-    // Adobe TrustMark-B decoder. Released under MIT per
-    // github.com/adobe/trustmark's repo-wide LICENSE (the weights
-    // themselves do not carry a separate license file; the MIT
-    // statement covers the artifact set). Originally hosted at
-    // cai-watermark.adobe.net/watermarking/trustmark-models/ on
-    // Adobe's S3; mirrored to our public GH release for stability
-    // and SHA-pinned distribution. Source captured 2026-06-28.
+    // Adobe TrustMark-B decoder. MIT (github.com/adobe/trustmark repo-wide LICENSE); mirrored from Adobe's S3 for SHA-pinned distribution.
     WeightEntry {
         family: "trustmark",
         variant: "b-decoder",
@@ -57,9 +51,7 @@ pub const MANIFEST: &[WeightEntry] = &[
         sha256: hex32!("31e2fc73deba043de3b2ed0cbd4b0ec38fcc69dc112d3c4b6e52364a0921a65d"),
         size_bytes: 17_312_208,
     },
-    // Sony silentcipher encoder (MIT, weights via huggingface
-    // sony/silentcipher). v0.6 included via include_bytes!();
-    // migrated to DLC in the v0.7 phase 8a batch.
+    // Sony silentcipher encoder (MIT, weights via huggingface sony/silentcipher).
     WeightEntry {
         family: "silentcipher",
         variant: "encoder",
@@ -113,8 +105,7 @@ pub const MANIFEST: &[WeightEntry] = &[
         sha256: hex32!("78d101db31a180a6927a6170d9bbf4b22008554c50695a87f52440568831a4c7"),
         size_bytes: 5_861_768,
     },
-    // WavMark forward FC weights (used by stft.rs's apply_watermark_fc).
-    // The matching bias is small enough (64 KB) to keep embedded.
+    // WavMark forward FC weights (apply_watermark_fc); the matching 64 KB bias stays embedded.
     WeightEntry {
         family: "wavmark",
         variant: "fc-weights",
@@ -176,10 +167,7 @@ mod manifest_invariants {
 
     #[test]
     fn every_entry_has_consistent_filename_and_url_tail() {
-        // Convention: the URL's last path segment must equal the
-        // entry's filename. Without this invariant a caller can
-        // pull from a URL but cache it under a different name,
-        // and subsequent loads miss the cache silently.
+        // The URL's last segment must equal filename, or a download caches under a name later loads miss.
         for e in MANIFEST {
             let tail = e
                 .url
@@ -196,8 +184,7 @@ mod manifest_invariants {
 
     #[test]
     fn every_entry_has_https_url_to_the_public_mirror() {
-        // Defence in depth: weights MUST come from the public
-        // mirror's release asset URL, not from a random host.
+        // Defence in depth: weights must come from the public mirror's release asset URL, not a random host.
         for e in MANIFEST {
             assert!(
                 e.url.starts_with(
@@ -213,8 +200,7 @@ mod manifest_invariants {
 
     #[test]
     fn every_entry_has_a_nonzero_sha256() {
-        // All-zero SHA is the placeholder-not-populated signal;
-        // catch it before it ships.
+        // All-zero SHA is the not-yet-populated placeholder; catch it before it ships.
         for e in MANIFEST {
             assert_ne!(
                 e.sha256, [0u8; 32],
@@ -238,10 +224,7 @@ mod manifest_invariants {
 
     #[test]
     fn every_entry_url_targets_same_release_tag() {
-        // All manifest entries must point at the SAME release tag
-        // (currently weights-v1). Mismatched tags mean some
-        // weights upgrade while others lag, breaking model
-        // compatibility silently.
+        // All entries must share one release tag; mismatched tags let some weights upgrade while others lag.
         let tags: std::collections::HashSet<_> = MANIFEST
             .iter()
             .filter_map(|e| {
@@ -258,11 +241,7 @@ mod manifest_invariants {
 
     #[test]
     fn every_entry_filename_includes_family_name() {
-        // Convention: the filename starts with the family name
-        // (e.g. `silentcipher-encoder-v1.onnx` for the
-        // `silentcipher/encoder` entry). Catches a future
-        // refactor that renames a file without updating the
-        // family.
+        // Filename must mention the family, catching a rename that drifts from the family field.
         for e in MANIFEST {
             assert!(
                 e.filename.contains(e.family),
@@ -300,9 +279,7 @@ mod manifest_invariants {
 
     #[test]
     fn every_entry_family_uses_lowercase_kebab_or_alpha() {
-        // Defensive: family names appear in CLI subcommand args,
-        // cache paths, and error messages. Pin lowercase ASCII +
-        // hyphen so a future entry with mixed case can't slip in.
+        // Family names appear in CLI args, cache paths, and errors; pin lowercase-ASCII-kebab.
         for e in MANIFEST {
             for c in e.family.chars() {
                 assert!(
@@ -316,9 +293,7 @@ mod manifest_invariants {
 
     #[test]
     fn family_variant_tuples_are_unique() {
-        // Two entries with the same (family, variant) would mean
-        // `entry()` returns the first one and the second is dead;
-        // detector calls would silently load the wrong file.
+        // A duplicate (family, variant) makes `entry()` return the first and silently load the wrong file.
         let mut seen = std::collections::HashSet::new();
         for e in MANIFEST {
             let key = (e.family, e.variant);
@@ -331,8 +306,7 @@ mod manifest_invariants {
 
     #[test]
     fn filenames_are_unique() {
-        // Two entries with the same filename land at the same
-        // cache path → cache collision, wrong bytes loaded.
+        // Duplicate filenames collide at the same cache path, loading the wrong bytes.
         let mut seen = std::collections::HashSet::new();
         for e in MANIFEST {
             assert!(
@@ -345,9 +319,7 @@ mod manifest_invariants {
 
     #[test]
     fn trustmark_family_has_both_decoder_and_encoder_variants() {
-        // The image-modality detect AND embed paths both need
-        // a trustmark weight; missing one means the modality
-        // half-works.
+        // Image detect and embed each need a trustmark weight; missing one half-works the modality.
         let families: Vec<_> = MANIFEST
             .iter()
             .filter(|e| e.family == "trustmark")

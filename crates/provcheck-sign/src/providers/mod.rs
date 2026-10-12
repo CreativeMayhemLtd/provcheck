@@ -85,8 +85,7 @@ mod default_signer_tests {
 
     #[test]
     fn default_signer_wraps_software_pem_into_c2pa_signer() {
-        // Generate a real ES256 keypair via the cert module so the
-        // chain + key are mutually consistent.
+        // Real ES256 keypair so chain + key are mutually consistent.
         let kp = generate(&SubjectInfo::default()).expect("generate");
         let locked = LockedIdentity {
             chain_pem: kp.chain_pem,
@@ -127,8 +126,7 @@ mod default_signer_tests {
         let mut prompt =
             |_: UnlockPrompt| -> PassphraseResult { Ok(SecretString::from(String::new())) };
         let tempdir = tempfile::tempdir().expect("tempdir");
-        // Box<dyn c2pa::Signer> doesn't impl Debug; can't use
-        // .expect_err. Match on the result instead.
+        // Box<dyn c2pa::Signer> has no Debug, so match instead of .expect_err.
         match provider.signer(tempdir.path(), &locked, &mut prompt) {
             Ok(_) => panic!("expected unknown-algorithm error, got success"),
             Err(ProviderError::SignerSetup(msg)) => {

@@ -176,8 +176,7 @@ mod cache_envelope_tests {
         let cfg = cfg_with_cache(dir.path().to_path_buf());
         let path = cache_path(&cfg, "ns", "stale").expect("cache path");
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-        // Write an envelope with a fetched_at that is well past
-        // CACHE_TTL ago — read should reject as expired.
+        // fetched_at well past CACHE_TTL: the read must reject it as expired.
         let old = now_secs().saturating_sub(CACHE_TTL.as_secs() * 2);
         let envelope = CacheEnvelope {
             fetched_at: old,
@@ -220,13 +219,11 @@ mod cache_envelope_tests {
         let dir = tempfile::TempDir::new().unwrap();
         let cfg = cfg_with_cache(dir.path().to_path_buf());
         let p = cache_path(&cfg, "did-cache", "did:plc:abc").expect("cache path");
-        // namespace must be a directory level above the file
         let parent = p.parent().expect("parent");
         assert_eq!(
             parent.file_name().and_then(|s| s.to_str()),
             Some("did-cache")
         );
-        // The file name must use the sanitized key.
         assert_eq!(
             p.file_name().and_then(|s| s.to_str()),
             Some("did_plc_abc.json")
@@ -249,9 +246,6 @@ mod cache_envelope_tests {
 
     #[test]
     fn cache_ttl_is_one_day() {
-        // Pin the documented TTL value so a future maintainer
-        // can't silently shorten / lengthen it without a test
-        // failure. 24 hours per the rustdoc.
         assert_eq!(CACHE_TTL, Duration::from_secs(24 * 60 * 60));
     }
 }
@@ -267,33 +261,23 @@ mod sanitize_key_tests {
 
     #[test]
     fn preserves_safe_punctuation() {
-        // Dash, underscore, and dot are filesystem-safe and
-        // common in DID method-specific identifiers.
         assert_eq!(sanitize_key("a-b_c.d"), "a-b_c.d");
     }
 
     #[test]
     fn replaces_did_colon() {
-        // The motivating case: did:plc:abc123 must round-trip.
-        // The `:` becomes `_`.
+        // Motivating case: did:plc:abc123 round-trips with `:` -> `_`.
         assert_eq!(sanitize_key("did:plc:abc123"), "did_plc_abc123");
     }
 
     #[test]
     fn neutralises_path_traversal() {
-        // An attacker-controlled key cannot escape the namespace
-        // directory because '/' and '\\' are replaced with '_'.
-        // Dots are preserved (DIDs commonly include them), so
-        // '..' survives as literal dots, but no path separator
-        // remains — meaning the result cannot be a directory
-        // traversal token any filesystem will honour.
+        // Replacing '/' and '\\' with '_' stops an attacker-controlled key escaping the namespace dir (dots are kept, but no separator remains).
         assert_eq!(sanitize_key("../../etc/passwd"), ".._.._etc_passwd");
         assert_eq!(
             sanitize_key("..\\..\\Windows\\System32"),
             ".._.._Windows_System32"
         );
-        // Confirm the load-bearing invariant: no path separators
-        // appear in any sanitised string.
         for input in ["../../etc/passwd", "..\\..\\Windows\\System32"] {
             let out = sanitize_key(input);
             assert!(!out.contains('/'), "slash survived in {out}");
@@ -303,7 +287,6 @@ mod sanitize_key_tests {
 
     #[test]
     fn neutralises_null_byte() {
-        // Null byte and other control bytes are also stripped.
         assert_eq!(sanitize_key("file\0name"), "file_name");
     }
 
@@ -315,7 +298,6 @@ mod sanitize_key_tests {
 
     #[test]
     fn replaces_unicode_with_underscore() {
-        // Non-ASCII characters are not in the allowlist.
         assert_eq!(sanitize_key("café"), "caf_");
     }
 

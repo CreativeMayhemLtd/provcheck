@@ -1,0 +1,67 @@
+{
+  "ProvcheckC2PA": {
+    "display_name": "Provcheck (Filigrane C2PA Gratuit) • Creative Mayhem",
+    "description": "Provcheck gratuit et ouvert (Apache-2.0) pour ComfyUI, un seul nœud pour image, audio et video. ECRIRE : integre le filigrane gratuit (TrustMark sur les images, silentcipher sur la piste audio des fichiers audio/video) et/ou signe avec C2PA a l'aide de votre cle locale et de votre identite atproto/Bluesky, en enregistrant optionnellement le graphe de generation ; le fichier signe est ecrit dans votre repertoire de sortie. LIRE : detecte/verifie une marque provcheck sur chaque entree connectee. Connectez une image, de l'audio, une video, ou n'importe quelle combinaison. Chaque option est un widget que vous pouvez aussi connecter depuis un autre nœud, y compris le nom de fichier de sortie. Creative Mayhem propose aussi Backfire, une marque chiffree que le retrait par IA amplifie au lieu de la supprimer (module complementaire commercial, non inclus dans ce pack gratuit) : https://provcheck.ai/backfire . Plus d'infos : https://provcheck.ai",
+    "inputs": {
+      "mode": {
+        "name": "mode",
+        "tooltip": "write = filigrane et/ou signature C2PA pour chaque entree connectee (le plus courant). read = detecte/verifie une marque provcheck existante.",
+        "options": {
+          "write": "ecrire",
+          "read": "lire"
+        }
+      },
+      "image": {
+        "name": "image",
+        "tooltip": "Lot d'images optionnel a ecrire ou lire."
+      },
+      "audio": {
+        "name": "audio",
+        "tooltip": "Audio optionnel a ecrire ou lire."
+      },
+      "video": {
+        "name": "video",
+        "tooltip": "Video optionnelle. Le filigrane est porte par la piste audio (les images sont preservees) ; le conteneur est signe avec C2PA."
+      },
+      "watermark": {
+        "name": "watermark",
+        "tooltip": "[write] Integre le filigrane FOSS gratuit (TrustMark pour l'image / silentcipher pour l'audio)."
+      },
+      "c2pa_sign": {
+        "name": "c2pa_sign",
+        "tooltip": "[write] Signe avec C2PA a l'aide de votre cle de signature locale. Le fichier signe est ecrit dans votre repertoire de sortie ComfyUI."
+      },
+      "embed_identity": {
+        "name": "embed_identity",
+        "tooltip": "[write] Integre votre identite atproto/Bluesky (DID + handle) dans le manifeste afin qu'un verificateur voie qui a signe. Necessite une connexion au kit."
+      },
+      "record_provenance": {
+        "name": "record_provenance",
+        "tooltip": "[write] Enregistre un resume selectionne du graphe de generation (modele, seed, sampler, prompts) dans le manifeste signe."
+      },
+      "include_full_workflow": {
+        "name": "include_full_workflow",
+        "tooltip": "[write] Avec record_provenance : integre le workflow COMPLET (expurge), pas seulement le resume. Desactive par defaut pour eviter de divulguer des prompts/chemins."
+      },
+      "brand_id": {
+        "name": "brand_id",
+        "tooltip": "[write] Votre id de marque sur 5 bits issu du registre de marques atproto (0-31). La valeur par defaut 2 est l'id public de rAIdio.bot ; utilisez le vôtre."
+      },
+      "filename_prefix": {
+        "name": "filename_prefix",
+        "tooltip": "[write, quand un fichier est ecrit] Prefixe du nom de fichier de sortie pour les fichiers signes/filigranes. Modifiable, et peut etre connecte depuis un autre nœud (clic droit -> Convertir en entree)."
+      },
+      "timeout_secs": {
+        "name": "timeout_secs",
+        "tooltip": "Delai d'attente du sous-processus par element, en secondes."
+      }
+    },
+    "outputs": {
+      "0": { "name": "image" },
+      "1": { "name": "audio" },
+      "2": { "name": "video" },
+      "3": { "name": "rapport" },
+      "4": { "name": "detecte" }
+    }
+  }
+}

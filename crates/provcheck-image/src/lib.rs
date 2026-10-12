@@ -89,9 +89,7 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
     // Preflight: file must exist. Same convention as the audio crates.
     let _ = std::fs::metadata(path)?;
 
-    // Fast-path: reject obviously-non-image extensions so the kit's
-    // multi-detector run does not waste time spinning up an image
-    // decoder on a WAV file.
+    // Fast-path: reject obviously-non-image extensions before spinning up the decoder.
     if !looks_like_image(path) {
         return Ok(WatermarkResult {
             kind: WatermarkKind::TrustMark,
@@ -105,9 +103,7 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
         });
     }
 
-    // v0.7 phase 8a "always respect the user": surface a clean
-    // install-needed message if weights are absent. Detect / CLI
-    // layer prompts for consent — never the model layer.
+    // Surface a clean install-needed message if weights are absent; consent is prompted at the CLI layer, never here.
     match provcheck_weights::load_if_cached("trustmark", "b-decoder") {
         Ok(_) => {}
         Err(provcheck_weights::Error::NotCached {
@@ -132,7 +128,6 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
         Err(e) => return Err(Error::Weights(e)),
     }
 
-    // v0.7 phase 7b: real TrustMark-B decoder inference.
     let decoded = image::decode(path).map_err(|e| match e {
         image::ImageError::NotImage => {
             // Caught above by `looks_like_image`, but defend.
@@ -174,10 +169,7 @@ pub fn detect(path: &Path) -> Result<WatermarkResult, Error> {
         }
     };
 
-    // BCH-5 ecosystem interop with the upstream Python TrustMark.
-    // `classify_bch5` runs the proper shortened-codeword reconstruction
-    // and finite-field decode, then gates the verdict on the
-    // recovered magic byte and version bits.
+    // classify_bch5 reconstructs the shortened codeword, finite-field decodes, and gates on magic byte + version bits.
     let (status, brand) = classify_bch5(&result.bits);
     Ok(WatermarkResult {
         kind: WatermarkKind::TrustMark,
@@ -241,8 +233,7 @@ fn classify_bch5(bits: &[u8]) -> (WatermarkStatus, Option<WatermarkBrand>) {
     let Ok((data, _errs)) = crate::bch::decode(&received) else {
         return (WatermarkStatus::NotDetected, None);
     };
-    // `data` is the 92-bit BCH input that was encoded. Strip the
-    // 31 leading zero pads to get the 61 data bits.
+    // Strip the 31 leading zero pads from the 92-bit BCH input to get the 61 data bits.
     let payload = &data[31..];
 
     // Magic byte at the head.
@@ -281,25 +272,14 @@ fn looks_like_image(path: &Path) -> bool {
     )
 }
 
-// v0.9.69: pin that the TrustMark runtime-error message does not
-// reference the old prior-backend name. The 7b-followup landed
-// long ago; we ship ort. The stale message once shipped real
-// status to operators on every runtime error path. A future
-// maintainer who rebases an old branch or copy-pastes from
-// history could reintroduce it — this test guards against that.
-//
-// The sentinel strings are constructed at test time via
-// concatenation so neither this comment nor the test bodies
-// contain the literal strings (otherwise the test would match
-// its own source).
+// Guards against a rebase reintroducing the stale prior-backend name in the runtime-error
+// message. Sentinels are built by concatenation so this source can't match itself.
 #[cfg(test)]
 mod no_stale_backend_promise_tests {
     #[test]
     fn runtime_error_message_does_not_reference_prior_backend_name() {
         let source = include_str!("lib.rs");
-        // The prior backend was named "tract" (lowercase). Build
-        // the sentinel by concatenation so this test's own source
-        // doesn't contain the literal substring.
+        // Built by concatenation so this test's own source can't contain the literal substring.
         let prior_backend_name = format!("{}{}{}{}{}", 't', 'r', 'a', 'c', 't');
         let prior_with_version = format!("{prior_backend_name} 0.21");
         let followup_promise = format!("{}{}", "7b-followup", " switches the backend");
@@ -314,9 +294,7 @@ mod no_stale_backend_promise_tests {
     #[test]
     fn runtime_error_message_describes_actual_backend() {
         let source = include_str!("lib.rs");
-        // The replacement message names the actual backend (ort)
-        // and the operator's recovery action (uninstall/install
-        // weights). Positive description, not future-promise.
+        // Message must name the actual backend and a recovery action, not a future-promise.
         assert!(
             source.contains("via ort"),
             "expected runtime-error message to name the actual ort backend"
@@ -370,7 +348,7 @@ mod classify_bch5_tests {
     #[test]
     fn wrong_version_bits_returns_not_detected() {
         let mut bits = build_clean_bits(2);
-        // Corrupt version bits → no longer 0b0001.
+        // Corrupt version bits so they're no longer 0b0001.
         bits[96] = 1;
         bits[97] = 1;
         bits[98] = 1;
@@ -418,9 +396,7 @@ mod classify_bch5_tests {
 
     #[test]
     fn unknown_brand_id_returns_detected_with_no_brand() {
-        // brand_id 4 isn't in the known set (1/2/3). Magic byte
-        // passes → status=Detected; brand=None per the registry
-        // fall-through arm.
+        // brand_id 4 isn't in the known set (1/2/3): magic passes -> Detected, brand None.
         let bits = build_clean_bits(4);
         let (status, brand) = classify_bch5(&bits);
         assert_eq!(status, WatermarkStatus::Detected);
@@ -429,8 +405,7 @@ mod classify_bch5_tests {
 
     #[test]
     fn single_bit_error_in_data_is_corrected_by_bch() {
-        // BCH(127, 92, t=5) corrects up to 5 errors. Flipping
-        // one bit in the data half must NOT change the verdict.
+        // BCH(127,92,t=5) corrects up to 5 errors; one data-bit flip must not change the verdict.
         let mut bits = build_clean_bits(2);
         bits[3] ^= 1;
         let (status, brand) = classify_bch5(&bits);
@@ -452,10 +427,7 @@ mod classify_bch5_tests {
 
     #[test]
     fn six_bit_errors_exceed_bch_capacity_and_return_not_detected() {
-        // t+1=6 errors exceed the BCH correction capacity. The
-        // decoder either returns TooManyErrors (→ NotDetected) or
-        // miscorrects into a wrong-magic-byte payload
-        // (→ NotDetected). Either way, no false Detected.
+        // 6 > t errors: decoder returns TooManyErrors or a wrong-magic payload, either way NotDetected (no false Detected).
         let mut bits = build_clean_bits(2);
         for &pos in &[3usize, 17, 40, 61, 80, 95] {
             bits[pos] ^= 1;
@@ -466,18 +438,8 @@ mod classify_bch5_tests {
 
     #[test]
     fn corrupted_magic_byte_in_clean_codeword_returns_not_detected() {
-        // Construct a codeword where the BCH decodes cleanly but
-        // the data-portion's magic byte isn't 0xA5. classify_bch5
-        // must reject. We achieve this by encoding a payload
-        // where the first byte is 0xFF (not the magic).
-        //
-        // The simplest way: take a clean codeword and flip the
-        // magic byte AFTER encoding. BCH may correct some bits
-        // back, but with enough flips the recovered magic ≠ 0xA5.
+        // Flip all 8 magic-byte bits: BCH corrects at most 5, so recovered magic != 0xA5 and classify_bch5 rejects.
         let mut bits = build_clean_bits(2);
-        // Flip all 8 bits of the magic byte. BCH can correct at
-        // most 5 of them, so the recovered magic will differ
-        // from 0xA5 in at least 3 bits.
         for bit in bits.iter_mut().take(8) {
             *bit ^= 1;
         }
@@ -500,8 +462,6 @@ mod tests {
         f
     }
 
-    // ----- looks_like_image extension allowlist ----------
-
     #[test]
     fn looks_like_image_accepts_documented_extensions() {
         for ext in ["png", "jpg", "jpeg", "webp", "bmp", "gif", "tiff", "tif"] {
@@ -512,8 +472,7 @@ mod tests {
 
     #[test]
     fn looks_like_image_rejects_audio_extensions() {
-        // Audio extensions must NOT pass the image gate. Catches
-        // an accidental allowlist merge with the audio crate.
+        // Audio extensions must NOT pass the image gate (guards against an allowlist merge with the audio crate).
         for ext in ["mp3", "wav", "flac", "aac", "ogg", "m4a"] {
             let p = std::path::PathBuf::from(format!("/test/file.{ext}"));
             assert!(!looks_like_image(&p), "{ext} should NOT look like image");
@@ -543,12 +502,7 @@ mod tests {
 
     #[test]
     fn looks_like_image_extension_list_matches_image_decode_allowlist() {
-        // The detect-side allowlist (looks_like_image) MUST be a
-        // strict subset of (or equal to) the decode-side allowlist
-        // in image::decode. An asymmetry would mean detect accepts
-        // a file that decode then rejects with NotImage. Walk every
-        // extension we accept and confirm the decode-side accepts
-        // it too (no NotImage — body is junk but the gate must pass).
+        // looks_like_image must be a subset of image::decode's allowlist, else detect accepts a file decode then rejects as NotImage.
         use std::io::Write;
         for ext in ["png", "jpg", "jpeg", "webp", "bmp", "gif", "tiff", "tif"] {
             let mut f = tempfile::Builder::new()
@@ -575,11 +529,7 @@ mod tests {
     #[test]
     #[ignore = "needs trustmark weights cached locally; gated to skip on CI"]
     fn image_extension_surfaces_not_cached_when_weights_absent() {
-        // Without the trustmark weights installed the detector
-        // returns a NotCached error message rather than running
-        // the ONNX inference. This is the "respect the user"
-        // behavior — no surprise downloads, clean instruction
-        // for the operator on what to install.
+        // Without cached weights the detector returns a NotCached install message, not a surprise download.
         let f = tempfile_with_ext("png", b"\x89PNG\r\n\x1a\nfake");
         let r = detect(f.path()).expect("detect");
         let msg = r.message.as_deref().unwrap_or("");

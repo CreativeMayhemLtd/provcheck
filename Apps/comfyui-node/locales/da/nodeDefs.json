@@ -1,0 +1,67 @@
+{
+  "ProvcheckC2PA": {
+    "display_name": "Provcheck (Gratis C2PA-vandmærke) • Creative Mayhem",
+    "description": "Gratis, åben (Apache-2.0) provcheck til ComfyUI — én node til billede, lyd og video. SKRIV: indlejrer det gratis vandmærke (TrustMark på billeder, silentcipher på lydsporet ved lyd/video) og/eller C2PA-signerer med din lokale nøgle + atproto/Bluesky-identitet, valgfrit med registrering af genereringsgrafen; den signerede fil skrives til din outputmappe. LÆS: registrerer/verificerer et provcheck-mærke på hvert tilsluttet input. Tilslut et billede, lyd, video eller en vilkårlig blanding. Hver indstilling er en widget, som også kan tilsluttes fra en anden node, inklusive outputfilnavnet. Creative Mayhem laver også Backfire, et nøglebaseret mærke, som AI-fjernelse forstærker i stedet for at fjerne (kommercielt tilkøb, ikke i denne gratis pakke): https://provcheck.ai/backfire . Mere: https://provcheck.ai",
+    "inputs": {
+      "mode": {
+        "name": "mode",
+        "tooltip": "skriv = tilføj vandmærke og/eller C2PA-signer hvert tilsluttet input (mest almindeligt). læs = registrer/verificer et eksisterende provcheck-mærke.",
+        "options": {
+          "write": "skriv",
+          "read": "læs"
+        }
+      },
+      "image": {
+        "name": "Billede",
+        "tooltip": "Valgfri billedbatch at skrive til / læse fra."
+      },
+      "audio": {
+        "name": "Lyd",
+        "tooltip": "Valgfri lyd at skrive til / læse fra."
+      },
+      "video": {
+        "name": "Video",
+        "tooltip": "Valgfri video. Vandmærket ligger på lydsporet (billederne bevares); beholderen C2PA-signeres."
+      },
+      "watermark": {
+        "name": "watermark",
+        "tooltip": "[skriv] Indlejrer det gratis FOSS-vandmærke (TrustMark billede / silentcipher lyd)."
+      },
+      "c2pa_sign": {
+        "name": "c2pa_sign",
+        "tooltip": "[skriv] C2PA-signerer med din lokale signeringsnøgle. Den signerede fil skrives til din ComfyUI-outputmappe."
+      },
+      "embed_identity": {
+        "name": "embed_identity",
+        "tooltip": "[skriv] Indlejrer din atproto/Bluesky-identitet (DID + handle) i manifestet, så en verifikator kan se, hvem der har signeret det. Kræver kit-login."
+      },
+      "record_provenance": {
+        "name": "record_provenance",
+        "tooltip": "[skriv] Registrerer et kurateret resumé af genereringsgrafen (model, seed, sampler, prompts) i det signerede manifest."
+      },
+      "include_full_workflow": {
+        "name": "include_full_workflow",
+        "tooltip": "[skriv] Sammen med record_provenance: indlejrer den FULDE (redigerede) workflow, ikke kun resuméet. Slået fra som standard for at undgå at prompts/stier lækker."
+      },
+      "brand_id": {
+        "name": "brand_id",
+        "tooltip": "[skriv] Dit 5-bit brand-id fra atproto-mærkeregistret (0-31). Standard 2 er det offentlige rAIdio.bot-id; brug dit eget."
+      },
+      "filename_prefix": {
+        "name": "filename_prefix",
+        "tooltip": "[skriv, når der skrives en fil] Præfiks for outputfilnavnet på de signerede/vandmærkede filer. Redigerbart, og kan tilsluttes fra en anden node (højreklik -> Konverter til input)."
+      },
+      "timeout_secs": {
+        "name": "timeout_secs",
+        "tooltip": "Timeout pr. element for underprocessen, i sekunder."
+      }
+    },
+    "outputs": {
+      "0": { "name": "Billede" },
+      "1": { "name": "Lyd" },
+      "2": { "name": "Video" },
+      "3": { "name": "Rapport" },
+      "4": { "name": "Registreret" }
+    }
+  }
+}

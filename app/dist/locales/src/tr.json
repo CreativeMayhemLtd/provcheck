@@ -1,0 +1,647 @@
+{
+  "headerSubtitle": {
+    "message": "C2PA Content Credentials imzala ve doğrula"
+  },
+  "tabVerify": {
+    "message": "Doğrula"
+  },
+  "tabWatermark": {
+    "message": "Filigran"
+  },
+  "tabDetect": {
+    "message": "Tespit Et"
+  },
+  "tabKeys": {
+    "message": "Anahtarlar"
+  },
+  "tabSign": {
+    "message": "İmzala"
+  },
+  "tabKeyedMarks": {
+    "message": "Anahtarlı işaretler"
+  },
+  "btnChooseFile": {
+    "message": "Dosya seç…"
+  },
+  "btnVerifyAnother": {
+    "message": "Başka bir dosya doğrula"
+  },
+  "btnCopyJson": {
+    "message": "JSON olarak kopyala"
+  },
+  "btnCheckAnother": {
+    "message": "Başka bir dosya kontrol et"
+  },
+  "btnReadAnother": {
+    "message": "Başka bir dosya oku"
+  },
+  "btnLogOut": {
+    "message": "Çıkış yap"
+  },
+  "btnConnect": {
+    "message": "Bağlan"
+  },
+  "btnCopy": {
+    "message": "Kopyala"
+  },
+  "btnRetry": {
+    "message": "Tekrar dene"
+  },
+  "btnSign": {
+    "message": "İmzala"
+  },
+  "btnOK": {
+    "message": "Tamam"
+  },
+  "btnCancel": {
+    "message": "İptal"
+  },
+  "btnGotIt": {
+    "message": "Anladım"
+  },
+  "btnHowItWorks": {
+    "message": "Nasıl çalışır"
+  },
+  "btnInstallRepair": {
+    "message": "Kur / Onar"
+  },
+  "btnChooseSecret": {
+    "message": "Gizli dosyayı seç"
+  },
+  "btnClose": {
+    "message": "Kapat"
+  },
+  "badgeExperimental": {
+    "message": "Deneysel"
+  },
+  "loadingGeneric": {
+    "message": "Yükleniyor…"
+  },
+  "statusChecking": {
+    "message": "Kontrol ediliyor..."
+  },
+  "statusCheckingStatus": {
+    "message": "Durum kontrol ediliyor…"
+  },
+  "labelFingerprint": {
+    "message": "Parmak izi"
+  },
+  "labelAlgorithm": {
+    "message": "Algoritma"
+  },
+  "labelBackend": {
+    "message": "Arka uç"
+  },
+  "labelCreated": {
+    "message": "Oluşturulma"
+  },
+  "labelDID": {
+    "message": "DID"
+  },
+  "labelHandle": {
+    "message": "Kullanıcı adı"
+  },
+  "labelYubikey": {
+    "message": "Yubikey"
+  },
+  "labelPinTries": {
+    "message": "PIN denemeleri"
+  },
+  "labelStatus": {
+    "message": "Durum"
+  },
+  "labelLabel": {
+    "message": "Etiket"
+  },
+  "labelBy": {
+    "message": "Kime ait"
+  },
+  "labelTool": {
+    "message": "Araç"
+  },
+  "labelFile": {
+    "message": "Dosya"
+  },
+  "labelYourIdentity": {
+    "message": "Kimliğiniz"
+  },
+  "labelOutput": {
+    "message": "Çıktı"
+  },
+  "aboutLinks": {
+    "message": "Bağlantılar"
+  },
+  "identityBskyHandle": {
+    "message": "Bsky kullanıcı adı"
+  },
+  "identityRunWatermark": {
+    "message": "Filigran tespiti çalıştır"
+  },
+  "identityRequireAttested": {
+    "message": "Onaylanmış olmasını gerektir"
+  },
+  "identityHandlePh": {
+    "message": "isteğe bağlı · örn. creator.bsky.social veya did:plc:…"
+  },
+  "dropzoneTitle": {
+    "message": "Doğrulamak için herhangi bir dosyayı buraya bırakın"
+  },
+  "dropzoneSub": {
+    "message": "Ses · Görüntü · Video: C2PA Content Credentials taşıyan her şey."
+  },
+  "verifyDropHint": {
+    "message": "Ya da hiçbir şey vermeden çalıştırın, bu alan öyle kalır. Gizli: dosyalar hiçbir zaman makinenizden çıkmaz."
+  },
+  "verifyLoading": {
+    "message": "Doğrulanıyor…"
+  },
+  "verifyLoadingHint": {
+    "message": "Filigran tespiti ses ve videoda CPU açısından ağırdır ve birkaç dakika sürebilir. Anında yalnızca C2PA doğrulaması için \"Filigran tespiti çalıştır\" seçeneğinin işaretini kaldırın."
+  },
+  "showRawManifest": {
+    "message": "Ham manifest ayrıntılarını göster"
+  },
+  "claimsHeading": {
+    "message": "İddialar"
+  },
+  "wmModelsNeeded": {
+    "message": "Filigran tespiti modellere ihtiyaç duyar."
+  },
+  "wmInstallAll": {
+    "message": "Tüm modelleri kur"
+  },
+  "wmScanFor": {
+    "message": "Şunun için tara:"
+  },
+  "wmDropTitle": {
+    "message": "Filigran tespiti çalıştırmak için herhangi bir dosyayı buraya bırakın"
+  },
+  "wmDropHint": {
+    "message": "Gizli: dosyalar hiçbir zaman makinenizden çıkmaz. Her dedektör, girdi dosya türüne uygulanıp uygulanmadığı konusunda yetkilidir."
+  },
+  "wmLoading": {
+    "message": "Filigran dedektörleri çalıştırılıyor…"
+  },
+  "wmLoadingHint": {
+    "message": "Model çıkarımı ses ve videoda CPU açısından ağırdır; bir tarama birkaç dakika sürebilir. Bu dönerken çalışma devam ediyor."
+  },
+  "wmResultTitle": {
+    "message": "Filigran tespiti"
+  },
+  "detectTitle": {
+    "message": "Yapay zeka içerik tespiti: kendi dedektörünüzü getirin"
+  },
+  "detectRouteAHead": {
+    "message": "Rota A: ücretli DLC paketi (v1.x, planlanıyor)"
+  },
+  "detectRouteBHead": {
+    "message": "Rota B: operatör tarafından sağlanan sarmalayıcı (şu anda mevcut)"
+  },
+  "keysLocalIdentity": {
+    "message": "Yerel kimlik"
+  },
+  "keysNoIdentity": {
+    "message": "Bu makinede kimlik yok."
+  },
+  "keysMismatchTitle": {
+    "message": "Kimlik durumu uyuşmazlığı"
+  },
+  "keysRotateBtn": {
+    "message": "Yeni oluştur + yayınla"
+  },
+  "keysRotateTitle": {
+    "message": "Yeni bir imzalama anahtarı oluştur ve yeni etkin kayıt olarak yayınla"
+  },
+  "keysSwitchYubikey": {
+    "message": "Yubikey kimliğine geç…"
+  },
+  "keysSwitchYubikeyTitle": {
+    "message": "Mevcut kimliği Yubikey destekli bir kimlikle değiştir"
+  },
+  "keysPublishedRecords": {
+    "message": "Yayınlanan kayıtlar (atproto)"
+  },
+  "keysRecordsEmptyHint": {
+    "message": "İmzala sekmesinde oturum açın ve yerel parmak izinizi yayınlayın."
+  },
+  "keysNotLoggedIn": {
+    "message": "atproto'da oturum açılmadı."
+  },
+  "keysNoSessionHint": {
+    "message": "Yayınlanan kayıtlarınızı almak için İmzala sekmesinde oturum açın."
+  },
+  "signIdentityLabel": {
+    "message": "Kimlik:"
+  },
+  "signNotSetUp": {
+    "message": "kurulmadı"
+  },
+  "signSessionLabel": {
+    "message": "Oturum:"
+  },
+  "signDisconnected": {
+    "message": "bağlantı kesildi"
+  },
+  "signSetupTitle": {
+    "message": "İmzalama kimliğinizi kurun"
+  },
+  "signSetupBody": {
+    "message": "Bu, bu makinede bir kriptografik anahtar oluşturur ve işletim sisteminizin anahtarlığında saklar. Bunu yalnızca bir kez yapmanız gerekir."
+  },
+  "signGenerateKey": {
+    "message": "İmzalama anahtarı oluştur"
+  },
+  "signSetupHint": {
+    "message": "Anahtar hiçbir zaman makinenizden çıkmaz. Erişim istemlerini işletim sisteminiz yönetir."
+  },
+  "signConnectTitle": {
+    "message": "Bsky kimliğinizi bağlayın"
+  },
+  "signConnectBody": {
+    "message": "İmzalama anahtarınızı atproto kullanıcı adınıza bağlayın, böylece doğrulayanlar bunun size ait olduğunu bilsin."
+  },
+  "signHandlePh": {
+    "message": "creator.bsky.social"
+  },
+  "signAppPassword": {
+    "message": "Uygulama parolası"
+  },
+  "signRememberDevice": {
+    "message": "Bu cihazda beni hatırla"
+  },
+  "signPublishTitle": {
+    "message": "İmzalama anahtarınızı yayınlayın"
+  },
+  "signPublishBody": {
+    "message": "Son bir adım: anahtarınızın parmak izini atproto'ya yayınlamak, doğrulayanların işinizi imzaladığınızı çapraz kontrol etmesini sağlar. Bu olmadan yalnızca \"bilinmeyen tarafından geçerli imza\" görürler."
+  },
+  "signLabelOptional": {
+    "message": "Etiket (isteğe bağlı)"
+  },
+  "signLabelPh": {
+    "message": "örn. stüdyo mac"
+  },
+  "signPublishKey": {
+    "message": "Anahtarı yayınla"
+  },
+  "signStaleTitle": {
+    "message": "İmzalama anahtarınız güncel değil"
+  },
+  "signRecoverHeading": {
+    "message": "Terminalden kurtar:"
+  },
+  "signStaleHint": {
+    "message": "Bu, yeni bir anahtar oluşturur, onu yeni etkin kayıt olarak yayınlar ve (gerekirse) kimsenin kayıp anahtarla sizin adınıza imza atamaması için yetim kaydı iptal eder."
+  },
+  "signDropTitle": {
+    "message": "İmzalamak için buraya bir dosya bırakın"
+  },
+  "signDropSub": {
+    "message": "Ses · Görüntü · Video: c2pa-rs'nin desteklediği her şey."
+  },
+  "signReadyToSign": {
+    "message": "İmzalamaya hazır"
+  },
+  "signChainTitle": {
+    "message": "Bu dosya zaten imzalanmış."
+  },
+  "signChainSub": {
+    "message": "İmzanız zincire türev olarak katılacak; orijinal imza sağlam kalır."
+  },
+  "signRelationshipQ": {
+    "message": "Bu dosyayla ilişkiniz nedir?"
+  },
+  "signEmbedIdentity": {
+    "message": "Kimlik onayını göm (önerilir; doğrulayanların kullanıcı adı girme adımını atlamasını sağlar)"
+  },
+  "signModelPh": {
+    "message": "örn. ACE-Step v1.0"
+  },
+  "signReplaceOriginal": {
+    "message": "Orijinali değiştir (yan dosya yazmak yerine)"
+  },
+  "signPickDifferent": {
+    "message": "Farklı bir dosya seç"
+  },
+  "signSigning": {
+    "message": "İmzalanıyor…"
+  },
+  "signSigned": {
+    "message": "İmzalandı"
+  },
+  "signAnother": {
+    "message": "Başka bir dosya imzala"
+  },
+  "signVerifyIt": {
+    "message": "Doğrula"
+  },
+  "signErrorTitle": {
+    "message": "İmzalama durumunuz yüklenemedi"
+  },
+  "bfBackfireTitle": {
+    "message": "Anahtarlı bir Backfire işaretini oku"
+  },
+  "bfBackfireSub": {
+    "message": "Yapay zeka kaynak sıyırıcılarının kaldırmak yerine güçlendirdiği görüntü başına bir filigranı doğrula."
+  },
+  "bfReaderLabel": {
+    "message": "Backfire okuyucu"
+  },
+  "bfDropTitle": {
+    "message": "İşaretini okumak için buraya bir görüntü bırakın veya bir tane seçin"
+  },
+  "bfChooseRead": {
+    "message": "Görüntü seç ve oku"
+  },
+  "bfHint": {
+    "message": "Önce yukarıya anahtarınızı girin, ardından bir görüntü bırakın veya seçin. Otomatik olarak okunur ve makinenizde kalır."
+  },
+  "bfLoading": {
+    "message": "Backfire işareti okunuyor…"
+  },
+  "mlTitle": {
+    "message": "Anahtarlı bir Mellin seri numarasını oku"
+  },
+  "mlSub": {
+    "message": "Ses tarafında anahtarlı adli analiz: bağımsız, BUSL lisanslı provcheck-mellin aracıyla gömdüğünüz 64 bitlik kopya başına seri numarasını kurtarın (ticari olmayan kullanım için ücretsiz, provcheck'ten ayrı). Satıcı gizli dosyanıza ve iş kimliğinize ihtiyaç duyar; her şey makinenizde kalır."
+  },
+  "mlReaderLabel": {
+    "message": "Mellin okuyucu"
+  },
+  "mlSecretNone": {
+    "message": "hiçbiri seçilmedi. Gizli dosya hiçbir zaman saklanmaz, bu yüzden her başlatmadan sonra tekrar seçin."
+  },
+  "mlWorkidPh": {
+    "message": "gömme sırasında kullanılan iş kimliği"
+  },
+  "mlDropTitle": {
+    "message": "Seri numarasını okumak için bir ses dosyası seçin"
+  },
+  "mlChooseRead": {
+    "message": "Ses seç ve oku"
+  },
+  "mlHint": {
+    "message": "Önce gizli dosyanızı seçin ve iş kimliğini girin, ardından sesi seçin veya bu sekmenin herhangi bir yerine bırakın. Her format çalışır (WAV, MP3, AAC, FLAC); ses dosyaları burada okunur, görüntüler yukarıdaki Backfire işaretini okur."
+  },
+  "mlLoading": {
+    "message": "Mellin seri numarası okunuyor…"
+  },
+  "imTitle": {
+    "message": "Anahtarlı bir idmark kimlik işaretini oku"
+  },
+  "imSub": {
+    "message": "Görüntü tarafında anahtarlı kimlik: bağımsız, BUSL lisanslı provcheck-idmark aracıyla gömülen, kırpma, yeniden kodlama ve döndürmeye dayanıklı kopya başına işareti okuyun (ticari olmayan kullanım için ücretsiz, provcheck'ten ayrı). Gizli dosya olmadan yerleşik işareti kontrol eder; bir kopyayı ilişkilendirmek için gizli dosyanızı ve bir koltuğu ekleyin. Her şey makinenizde kalır."
+  },
+  "imReaderLabel": {
+    "message": "idmark okuyucu"
+  },
+  "imSecretNone": {
+    "message": "hiçbiri seçilmedi. Yerleşik işareti okumak için boş bırakın; gizli dosya hiçbir zaman saklanmaz."
+  },
+  "imDropTitle": {
+    "message": "İşaretini okumak için bir görüntü seçin"
+  },
+  "imChooseRead": {
+    "message": "Görüntü seç ve oku"
+  },
+  "imHint": {
+    "message": "İsteğe bağlı olarak önce gizli dosyanızı ve bir koltuk seçin, ardından görüntüyü seçin. PNG veya JPEG. Bu, idmark kimlik işaretini okur; Backfire işareti ve Mellin seri numaraları yukarıdaki bölümlerde okunur."
+  },
+  "imLoading": {
+    "message": "idmark okunuyor…"
+  },
+  "bfModalTitle": {
+    "message": "Backfire nasıl çalışır"
+  },
+  "vVerified": {
+    "message": "Doğrulandı"
+  },
+  "vUnsigned": {
+    "message": "İmzasız"
+  },
+  "vNotVerified": {
+    "message": "Doğrulanmadı"
+  },
+  "attAttestedBy": {
+    "message": "$1 tarafından onaylandı"
+  },
+  "attMatchSub": {
+    "message": "İmzalama sertifikası bu kimlik altında yayınlanan bir anahtarla eşleşiyor."
+  },
+  "attMismatch": {
+    "message": "$1 için onay uyuşmazlığı"
+  },
+  "attMismatchSub": {
+    "message": "İmzalama sertifikası bu kimlik altında yayınlanan hiçbir anahtarla eşleşmiyor."
+  },
+  "attNotPublished": {
+    "message": "$1 altında yayınlanmış anahtar yok"
+  },
+  "attNotPublishedSub": {
+    "message": "Bu kimlik var ancak herhangi bir signingKey kaydı yayınlamamış."
+  },
+  "attResolveFailed": {
+    "message": "$1 çözümlenemedi"
+  },
+  "attResolveFailedSub": {
+    "message": "Kimlik çözümlemesi başarısız oldu (kullanıcı adı/DID erişilemez)."
+  },
+  "attThisIdentity": {
+    "message": "bu kimlik"
+  },
+  "kvSigner": {
+    "message": "İmzalayan"
+  },
+  "kvSignedAt": {
+    "message": "İmzalanma tarihi"
+  },
+  "kvFormat": {
+    "message": "Biçim"
+  },
+  "kvManifest": {
+    "message": "Manifest"
+  },
+  "kvIngredients": {
+    "message": "Bileşenler"
+  },
+  "kvIngredientsVal": {
+    "message": "$1 (türetilmiş içerik: bu dosya daha önce imzalanmış dosyaların düzenlenmesiyle oluşturuldu)"
+  },
+  "kvValidationErrors": {
+    "message": "Doğrulama hataları"
+  },
+  "wmEmpty": {
+    "message": "Çalışan dedektör aileleri tarafından hiçbir filigran tespit edilmedi."
+  },
+  "wmKeyedNote": {
+    "message": "Anahtarlı işaretler (Backfire, Mellin) bu taramanın parçası değildir. Yalnızca Anahtarlı işaretler sekmesinde anahtarınızla okunabilir."
+  },
+  "wmConfidence": {
+    "message": "%$1 güven"
+  },
+  "wmDegraded": {
+    "message": "%$1 güven; işaret bozulmuş (kısmi bozulma olası)"
+  },
+  "wmNa": {
+    "message": "$1: yok"
+  },
+  "wmNoMark": {
+    "message": "$1: işaret tespit edilmedi"
+  },
+  "wmTimelineAria": {
+    "message": "Zaman içinde filigran varlığı: $1"
+  },
+  "wmUnrecognizedSource": {
+    "message": "tanınmayan kaynak"
+  },
+  "btnCopied": {
+    "message": "Kopyalandı"
+  },
+  "scanError": {
+    "message": "Bu dosya taranamadı: $1"
+  },
+  "autoFilled": {
+    "message": "dosyadan otomatik dolduruldu"
+  },
+  "dragFileOnto": {
+    "message": "Dosyayı pencerenin üzerine sürükleyin"
+  },
+  "aiGenerated": {
+    "message": "Yapay zeka tarafından oluşturuldu"
+  },
+  "btnCopiedBang": {
+    "message": "Kopyalandı!"
+  },
+  "bfCouldNotRun": {
+    "message": "Backfire çalıştırılamadı"
+  },
+  "btnInstalling": {
+    "message": "Kuruluyor…"
+  },
+  "downloadingModels": {
+    "message": "Modeller indiriliyor, bu bir dakika sürebilir…"
+  },
+  "btnWorking": {
+    "message": "Çalışıyor…"
+  },
+  "bfInstalling": {
+    "message": "Backfire okuyucu kuruluyor / onarılıyor…"
+  },
+  "statusCheckFailed": {
+    "message": "Durum kontrolü başarısız oldu: $1"
+  },
+  "readingFile": {
+    "message": "$1 okunuyor…"
+  },
+  "mlCouldNotRun": {
+    "message": "Mellin çalıştırılamadı"
+  },
+  "imCouldNotRun": {
+    "message": "idmark çalıştırılamadı"
+  },
+  "keysMismSuperseded": {
+    "message": "Yerel anahtarınızın yerini yenisi aldı"
+  },
+  "keysMismRevoked": {
+    "message": "Yerel anahtarınız iptal edildi"
+  },
+  "keysMismActiveNoKey": {
+    "message": "Etkin kayıt sahip olmadığınız bir anahtarı kullanıyor"
+  },
+  "thisBox": {
+    "message": "(bu kutu)"
+  },
+  "btnRevoke": {
+    "message": "İptal et"
+  },
+  "checkingPublishedKeys": {
+    "message": "Yayınlanan anahtarlar kontrol ediliyor…"
+  },
+  "btnGenerating": {
+    "message": "Oluşturuluyor…"
+  },
+  "btnConnecting": {
+    "message": "Bağlanıyor…"
+  },
+  "btnPublishing": {
+    "message": "Yayınlanıyor…"
+  },
+  "signReadyToPublish": {
+    "message": "Yayınlamaya hazır"
+  },
+  "bfMarkFound": {
+    "message": "Backfire işareti bulundu"
+  },
+  "bfNoValidMark": {
+    "message": "Geçerli Backfire işareti yok"
+  },
+  "mlSerialRecovered": {
+    "message": "Mellin seri numarası kurtarıldı"
+  },
+  "mlNoFullSerial": {
+    "message": "Tam Mellin seri numarası yok"
+  },
+  "imPresent": {
+    "message": "idmark mevcut"
+  },
+  "imNoDetected": {
+    "message": "idmark tespit edilmedi"
+  },
+  "fieldIdentifier": {
+    "message": "Tanımlayıcı"
+  },
+  "fieldConfidenceMargin": {
+    "message": "Güven (min-bit marjı)"
+  },
+  "fieldValid": {
+    "message": "Geçerli"
+  },
+  "fieldMatchesSerial": {
+    "message": "Beklenen seri numarasıyla eşleşiyor"
+  },
+  "fieldTamperTripwire": {
+    "message": "Kurcalama tuzağı"
+  },
+  "fieldSerial": {
+    "message": "Seri numarası"
+  },
+  "fieldBitsRecovered": {
+    "message": "Kurtarılan bitler"
+  },
+  "fieldErasureRate": {
+    "message": "Silme oranı"
+  },
+  "fieldMinBitVotes": {
+    "message": "Min bit oyları"
+  },
+  "fieldMarkPresent": {
+    "message": "İşaret mevcut"
+  },
+  "fieldSeat": {
+    "message": "Koltuk"
+  },
+  "fieldMargin": {
+    "message": "Marj"
+  },
+  "fieldReadVia": {
+    "message": "Şununla okundu"
+  },
+  "fieldEstRotation": {
+    "message": "Tah. döndürme"
+  },
+  "fieldError": {
+    "message": "Hata"
+  },
+  "valYes": {
+    "message": "evet"
+  },
+  "valNo": {
+    "message": "hayır"
+  },
+  "bfTamperDetected": {
+    "message": "çentik kurcalaması tespit edildi (istatistik $1)"
+  },
+  "bfTamperClean": {
+    "message": "temiz (istatistik $1)"
+  }
+}

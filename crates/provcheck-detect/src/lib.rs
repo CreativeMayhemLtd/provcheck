@@ -359,8 +359,6 @@ mod tests {
         }
     }
 
-    // ----- DetectionFamily serde ----------
-
     #[test]
     fn detection_family_serialises_snake_case() {
         let s = serde_json::to_string(&DetectionFamily::Audio).expect("ser");
@@ -371,15 +369,12 @@ mod tests {
 
     #[test]
     fn detection_family_is_copy_eq_hash() {
-        // Compile-time assertion via trait bounds.
         fn assert_traits<T: Copy + Eq + std::hash::Hash>() {}
         assert_traits::<DetectionFamily>();
         let a = DetectionFamily::Audio;
-        let b = a; // Copy
+        let b = a;
         assert_eq!(a, b);
     }
-
-    // ----- DetectionStatus serde ----------
 
     #[test]
     fn detection_status_serialises_snake_case() {
@@ -390,8 +385,6 @@ mod tests {
         let s = serde_json::to_string(&DetectionStatus::NotDetected).expect("ser");
         assert_eq!(s, "\"not_detected\"");
     }
-
-    // ----- DetectionResult serde ----------
 
     #[test]
     fn detection_result_omits_none_fields() {
@@ -428,8 +421,6 @@ mod tests {
         assert_eq!(back, r);
     }
 
-    // ----- DetectorError display ----------
-
     #[test]
     fn model_not_installed_display_includes_detector_and_hint() {
         let e = DetectorError::ModelNotInstalled {
@@ -464,8 +455,6 @@ mod tests {
         assert!(s.contains("io"));
         assert!(s.contains("missing"));
     }
-
-    // ----- DetectorRegistry ----------
 
     #[test]
     fn registry_starts_empty() {
@@ -514,9 +503,6 @@ mod tests {
 
     #[test]
     fn registry_projects_detector_errors_onto_error_status() {
-        // A detector that returns Err must surface as
-        // DetectionResult { status: Error, ... } in the
-        // dispatch output. The registry NEVER short-circuits.
         let mut r = DetectorRegistry::new();
         r.register(Box::new(AlwaysModelMissing { name: "missing" }));
         r.register(Box::new(AlwaysNegative {
@@ -536,15 +522,11 @@ mod tests {
                 .unwrap()
                 .contains("model not installed")
         );
-        // The second detector still runs.
         assert_eq!(results[1].status, DetectionStatus::NotDetected);
     }
 
     #[test]
     fn detector_trait_is_object_safe() {
-        // The trait MUST be object-safe so Vec<Box<dyn Detector>>
-        // compiles. Pin via a constructor that exercises the
-        // boxed-dyn form.
         let _: Box<dyn Detector> = Box::new(AlwaysNegative {
             name: "test",
             families: vec![DetectionFamily::Audio],

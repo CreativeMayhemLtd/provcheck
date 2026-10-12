@@ -25,11 +25,7 @@ use provcheck::verification::{VerifyOptions, verify_with_options};
 
 use crate::network::{SigningKeyRecord, list_signing_keys, resolve_handle, resolve_pds_endpoint};
 
-// Re-export the canonical fingerprint computation from the shared
-// spec crate under the original name so existing public API consumers
-// (and the integration tests below) keep compiling without rename
-// churn. New code should reach for `provcheck_attestation_spec::
-// fingerprint_pem_chain` directly.
+// Re-exported under the original name so existing public-API consumers keep compiling without rename churn.
 pub use provcheck_attestation_spec::fingerprint_pem_chain as fingerprint_leaf_cert;
 
 /// Per-call attestation transport configuration. Tests use the
@@ -253,8 +249,6 @@ fn parse_rfc3339(s: &str) -> Option<SystemTime> {
     UNIX_EPOCH.checked_add(Duration::new(unix_seconds as u64, nanos))
 }
 
-// ---------- orchestration: combined verify + attest ---------------------
-
 /// Verify a file AND check DID-anchored attestation in one call.
 /// Wraps [`verify_with_options`] (offline core) and adds the network
 /// step. The returned [`Report`] has `did_attestation` populated.
@@ -272,18 +266,14 @@ pub fn verify_with_attestation(
 ) -> Result<Report, Error> {
     let mut report = verify_with_options(path, verify_opts)?;
 
-    // Skip attestation cleanly if neither identity was provided —
-    // matches what the CLI dispatch does, but defensive in case a
-    // library caller passes empty AttestationOptions.
+    // Defensive against a library caller passing empty AttestationOptions.
     if attest.bsky_handle.is_none() && attest.did.is_none() {
         return Ok(report);
     }
 
     let config: AttestationConfig = attest.into();
 
-    // Re-extract the signing cert chain from the file. Independent of
-    // verify_with_options — it builds its own Reader. Trust-store
-    // settings don't affect cert_chain, so a default Reader is fine.
+    // A default Reader is fine here: trust-store settings don't affect cert_chain.
     let cert_chain: Option<String> = match c2pa::Reader::from_file(path) {
         Ok(reader) => reader
             .active_manifest()
@@ -324,9 +314,6 @@ pub fn verify_with_attestation(
 
 fn attestation_failure_reason(att: &DidAttestation) -> String {
     match att.status {
-        AttestationStatus::Match => {
-            unreachable!("attestation_failure_reason called on Match")
-        }
         AttestationStatus::Mismatch => {
             "signing certificate not attested by the requested DID".into()
         }
@@ -336,14 +323,14 @@ fn attestation_failure_reason(att: &DidAttestation) -> String {
         AttestationStatus::ResolutionFailed => {
             "DID resolution failed; attestation could not be checked".into()
         }
+        // Match and any future variant get a neutral reason rather than a panic.
+        _ => "attestation did not succeed".into(),
     }
 }
 
 #[cfg(test)]
 mod attestation_config_tests {
     use super::*;
-
-    // ----- AttestationConfig defaults ----------
 
     #[test]
     fn default_attestation_config_has_no_overrides() {
@@ -365,11 +352,7 @@ mod attestation_config_tests {
         assert!(!opts.no_cache);
     }
 
-    // ----- From<&AttestationOptions> for AttestationConfig ----------
-    //
-    // The CLI's options struct converts to the transport config.
-    // Pin the field mapping so a future maintainer can't silently
-    // drop a relevant option during the conversion.
+    // Pin the AttestationOptions->AttestationConfig field mapping against a silently dropped option.
 
     #[test]
     fn options_to_config_preserves_cache_dir() {
@@ -400,10 +383,7 @@ mod attestation_config_tests {
 
     #[test]
     fn options_to_config_does_not_set_test_overrides() {
-        // The CLI options must NEVER set bsky_api_override /
-        // plc_directory_override / use_http_for_well_known —
-        // those are test-only fields. If a future maintainer
-        // accidentally plumbs them through, this test catches it.
+        // The CLI options must never plumb through the test-only override fields.
         let opts = AttestationOptions {
             bsky_handle: Some("creator.bsky.social".into()),
             did: Some("did:plc:abc".into()),
@@ -425,8 +405,6 @@ mod attestation_config_tests {
             "test-only override leaked into production config"
         );
     }
-
-    // ----- attestation_failure_reason ----------
 
     #[test]
     fn failure_reason_for_mismatch_names_signing_cert() {

@@ -49,8 +49,7 @@ pub struct DecodeResult {
 pub fn decode_logits(logits: &[f32], t_frames: usize) -> DecodeResult {
     debug_assert_eq!(logits.len(), MESSAGE_DIM * t_frames);
 
-    // 1. Argmax across the MESSAGE_DIM channels at each time
-    //    frame. The python code reads `argmax(logits[0,0], axis=0)`.
+    // 1. Argmax across the MESSAGE_DIM channels per frame.
     let mut pred_per_frame = Vec::with_capacity(t_frames);
     for t in 0..t_frames {
         let mut best_dim = 0;
@@ -65,9 +64,7 @@ pub fn decode_logits(logits: &[f32], t_frames: usize) -> DecodeResult {
         pred_per_frame.push(best_dim as u8);
     }
 
-    // 2. Truncate to a multiple of MESSAGE_LEN and reshape
-    //    into a [n_tiles, MESSAGE_LEN] matrix. Each row is one
-    //    decoded copy of the cyclically-tiled message.
+    // 2. Truncate to a multiple of MESSAGE_LEN; each MESSAGE_LEN row is one tiled copy.
     let n_tiles = t_frames / MESSAGE_LEN;
     if n_tiles == 0 {
         return DecodeResult {
@@ -80,19 +77,15 @@ pub fn decode_logits(logits: &[f32], t_frames: usize) -> DecodeResult {
     let usable = n_tiles * MESSAGE_LEN;
     let pred = &pred_per_frame[..usable];
 
-    // 3. Per-position mode across the n_tiles copies. mode_per_pos[p] is
-    //    the symbol most-frequently seen at position p across all tiles.
+    // 3. Per-position mode across the n_tiles copies.
     let mut mode_per_pos = [0u8; MESSAGE_LEN];
     for p in 0..MESSAGE_LEN {
-        // MESSAGE_DIM == 5 so this counter is fine fixed-size.
         let mut counts = [0u32; MESSAGE_DIM];
         for tile in 0..n_tiles {
             let v = pred[tile * MESSAGE_LEN + p] as usize;
             counts[v] += 1;
         }
-        // numpy / scipy.stats.mode tiebreaks by returning the
-        // smallest value in case of a tie — match that behaviour
-        // by scanning low-to-high and only updating on strict >.
+        // Match scipy.stats.mode tie-break (smallest value): scan low->high, update only on strict >.
         let mut best = 0u8;
         let mut best_count = counts[0];
         for (v, &count) in counts.iter().enumerate().skip(1) {
@@ -104,12 +97,8 @@ pub fn decode_logits(logits: &[f32], t_frames: usize) -> DecodeResult {
         mode_per_pos[p] = best;
     }
 
-    // 4. Confidence = fraction of (tile, position) pairs where
-    //    the tile's symbol equals the per-position mode.
-    //    Also record the per-tile match count so the caller can
-    //    derive marked_regions: a tile fully matching the mode
-    //    sits inside a watermarked stretch, a tile near 1/5
-    //    matches sits in clean audio.
+    // 4. Confidence = fraction of (tile, position) pairs matching the per-position mode;
+    //    per-tile match fraction feeds marked_regions (high = inside a marked stretch, ~1/5 = clean).
     let mut matches = 0u32;
     let mut tile_quality = Vec::with_capacity(n_tiles);
     for tile in 0..n_tiles {
@@ -124,10 +113,7 @@ pub fn decode_logits(logits: &[f32], t_frames: usize) -> DecodeResult {
     }
     let confidence = matches as f32 / (n_tiles * MESSAGE_LEN) as f32;
 
-    // 5. Structural validity: find the terminator (symbol 0) in
-    //    the mode-voted message. If none, the bits don't form a
-    //    valid silentcipher message → not detected. Pick the
-    //    smallest index, matching numpy's `np.nonzero(...)[0].min()`.
+    // 5. Structural validity: find the terminator (symbol 0, smallest index); absence => not a valid message.
     let end_char = match mode_per_pos.iter().position(|&s| s == 0) {
         Some(i) => i,
         None => {
@@ -140,20 +126,16 @@ pub fn decode_logits(logits: &[f32], t_frames: usize) -> DecodeResult {
         }
     };
 
-    // 6. Cyclic-roll past the terminator and drop it. The
-    //    surviving 20 positions are the payload symbols in
-    //    encoder order.
+    // 6. Cyclic-roll past the terminator and drop it; the 20 survivors are payload symbols in encoder order.
     let mut payload_symbols = [0u8; MESSAGE_LEN - 1]; // 20
     for (out_idx, in_idx) in (end_char + 1..MESSAGE_LEN).chain(0..end_char).enumerate() {
         payload_symbols[out_idx] = mode_per_pos[in_idx];
     }
 
-    // 7. Undo the encoder's +1: symbols are now in {0..3}, each
-    //    carrying 2 bits.
+    // 7. Undo the encoder's +1: symbols are now in {0..3}, each carrying 2 bits.
     for s in payload_symbols.iter_mut() {
         if *s == 0 {
-            // Defensive: a second terminator inside the 20-payload
-            // window means the decoded structure is inconsistent.
+            // Defensive: a second terminator inside the payload window means inconsistent structure.
             return DecodeResult {
                 payload: [0; 5],
                 confidence: 0.0,
@@ -164,10 +146,7 @@ pub fn decode_logits(logits: &[f32], t_frames: usize) -> DecodeResult {
         *s -= 1;
     }
 
-    // 8. Pack 20 base-4 symbols MSB-first into 5 bytes. Each
-    //    byte holds 4 consecutive symbols; within each symbol
-    //    the 2 bits land MSB-first too. So symbol order
-    //    [a, b, c, d] → byte = (a<<6) | (b<<4) | (c<<2) | d.
+    // 8. Pack 20 base-4 symbols MSB-first into 5 bytes: [a,b,c,d] -> (a<<6)|(b<<4)|(c<<2)|d.
     let mut payload = [0u8; 5];
     for (byte_idx, slot) in payload.iter_mut().enumerate() {
         let base = byte_idx * 4;
@@ -214,18 +193,12 @@ mod tests {
         for s in &mut symbols[..MESSAGE_LEN - 1] {
             *s += 1;
         }
-        // The terminator was appended last in the encoder's
-        // tile. Apply the cyclic roll requested by the test
-        // (rotates positions, so the terminator can land
-        // anywhere from index 0 to MESSAGE_LEN-1).
+        // Apply the requested cyclic roll so the terminator can land at any index.
         let mut rolled = [0u8; MESSAGE_LEN];
         for (i, slot) in rolled.iter_mut().enumerate() {
             *slot = symbols[(i + roll) % MESSAGE_LEN];
         }
-        // Tile rolled across the time axis n_tiles times. The
-        // logits tensor is [MESSAGE_DIM][T], so for each tile-t
-        // we set the "chosen" dim to a strong positive logit
-        // and all others to a small negative.
+        // Tile across time; set the chosen dim to a strong positive logit, the rest negative.
         let t_frames = n_tiles * MESSAGE_LEN;
         let mut logits = vec![-10.0_f32; MESSAGE_DIM * t_frames];
         for tile in 0..n_tiles {
@@ -271,7 +244,6 @@ mod tests {
 
     #[test]
     fn round_trips_vai_payload() {
-        // Cover the third registered brand alongside RAI + DFM.
         let payload = [86, 65, 73, 1, 0]; // VAI + schema=1 + reserved=0
         let (logits, t) = synth_logits(payload, 30, 0);
         let r = decode_logits(&logits, t);
@@ -301,8 +273,7 @@ mod tests {
 
     #[test]
     fn confidence_is_perfect_on_clean_synth_logits() {
-        // synth_logits builds a clean tile-aligned tensor where
-        // every tile matches the per-position mode → conf = 1.0.
+        // Clean tile-aligned synth: every tile matches the mode -> conf = 1.0.
         let payload = [82, 65, 73, 1, 0];
         let (logits, t) = synth_logits(payload, 30, 0);
         let r = decode_logits(&logits, t);
@@ -316,8 +287,6 @@ mod tests {
 
     #[test]
     fn tile_quality_length_matches_n_tiles_on_valid_input() {
-        // tile_quality is per-tile; length must equal the number
-        // of complete tiles in the input.
         let payload = [82, 65, 73, 1, 0];
         let n_tiles = 17;
         let (logits, t) = synth_logits(payload, n_tiles, 0);
@@ -328,8 +297,7 @@ mod tests {
 
     #[test]
     fn tile_quality_is_empty_on_invalid_input() {
-        // Below 1 tile worth of input → invalid → tile_quality
-        // must be empty (not panicked, not a stale buffer).
+        // Below one tile: invalid -> tile_quality empty (no panic, no stale buffer).
         let logits = vec![0.0_f32; MESSAGE_DIM * (MESSAGE_LEN - 1)];
         let r = decode_logits(&logits, MESSAGE_LEN - 1);
         assert!(!r.valid);
@@ -352,9 +320,7 @@ mod tests {
 
     #[test]
     fn rejects_input_with_no_terminator() {
-        // Build logits where every position prefers symbol 1
-        // (a payload-only message with no terminator). Decoder
-        // must reject as not-detected.
+        // Every position prefers symbol 1 (no terminator): decoder must reject.
         let n_tiles = 30;
         let t_frames = n_tiles * MESSAGE_LEN;
         let mut logits = vec![-10.0_f32; MESSAGE_DIM * t_frames];
@@ -368,14 +334,12 @@ mod tests {
 
     #[test]
     fn rejects_too_short_audio() {
-        // Only one MESSAGE_LEN's worth of frames — produces
-        // exactly 1 tile, which is enough structurally but
-        // matches the python behaviour: must have at least 1.
+        // One MESSAGE_LEN = exactly 1 tile, the accepted minimum.
         let payload = [82, 65, 73, 1, 0];
         let (logits, t) = synth_logits(payload, 1, 0);
         let r = decode_logits(&logits, t);
         assert!(r.valid); // 1 tile is the minimum; decoder accepts it
-        // Now strictly below MESSAGE_LEN: not enough for any tiles.
+        // Below MESSAGE_LEN: not enough for any tile.
         let logits_short = vec![0.0_f32; MESSAGE_DIM * (MESSAGE_LEN - 1)];
         let r2 = decode_logits(&logits_short, MESSAGE_LEN - 1);
         assert!(!r2.valid);
@@ -384,17 +348,7 @@ mod tests {
 
     #[test]
     fn degraded_input_yields_sub_unit_confidence() {
-        // Two payloads picked to differ at every payload
-        // symbol so 20 of the 21 positions per tile will
-        // disagree between the two voting blocs (position 20
-        // is the terminator, identical for any valid message).
-        //
-        // 255 = 0b11111111 → base-4 [3,3,3,3], same in all 3 brand bytes.
-        // 0   = 0b00000000 → base-4 [0,0,0,0], same in all 3 brand bytes.
-        // So bytes 0..3 differ at every base-4 position (12 positions).
-        // Bytes 3 and 4 of the payload are common to both (schema=1, reserved=0),
-        // contributing 8 more identical positions. Net: 12 differing positions,
-        // 9 matching positions out of 21.
+        // Two blocs differing in the 3 brand bytes (255->[3,3,3,3], 0->[0,0,0,0]): 12 of 21 positions per tile disagree.
         let majority = [255, 255, 255, 1, 0];
         let minority = [0, 0, 0, 1, 0];
         let n_majority = 15;
@@ -417,8 +371,7 @@ mod tests {
         let r = decode_logits(&combined, t_frames);
         assert!(r.valid);
         assert_eq!(r.payload, majority, "majority bloc should win");
-        // Confidence noticeably below 1.0 — split decisions on
-        // 12 of 21 positions per tile.
+        // Confidence below 1.0: split decisions on 12 of 21 positions per tile.
         assert!(
             r.confidence < 0.95,
             "expected sub-unit confidence on split vote, got {}",

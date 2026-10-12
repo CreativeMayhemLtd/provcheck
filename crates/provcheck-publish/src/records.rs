@@ -41,8 +41,7 @@ impl AtUri {
     /// at-uri. Returns `None` when the input is malformed (not
     /// at-uri-shaped, no rkey segment, etc.).
     pub fn rkey(&self) -> Option<&str> {
-        // at://<did>/<collection>/<rkey>
-        // After the scheme, three path segments. Take the last.
+        // at://<did>/<collection>/<rkey>: take the last path segment.
         self.0.rsplit('/').next().filter(|s| !s.is_empty())
     }
 }
@@ -274,9 +273,6 @@ impl<'a> RecordWriter<'a> {
             .did()
             .await
             .ok_or(RecordsError::NoSession)?;
-        // `Did` → `AtIdentifier` is a direct, infallible
-        // conversion in atrium 0.25 — both types share the same
-        // string-newtype shape.
         Ok(AtIdentifier::from(did))
     }
 }
@@ -343,27 +339,17 @@ mod tests {
         }
     }
 
-    // ----- COLLECTION_NSID pin ----------
-
     #[test]
     fn collection_nsid_matches_lexicon_path() {
-        // The on-wire collection NSID. This is the at-proto collection
-        // name verifiers query to find a creator's signing-key records.
-        // A silent change here invalidates every existing published
-        // record under the old name.
+        // Verifiers query this collection name; a silent change invalidates every published record.
         assert_eq!(COLLECTION_NSID, "app.provcheck.signingKey");
     }
 
     #[test]
     fn collection_nsid_is_reverse_dns_form() {
-        // at-proto NSIDs are reverse-DNS form. Pin the structure
-        // explicitly so a future refactor can't silently switch
-        // to a flat or kebab-case name.
         assert!(COLLECTION_NSID.starts_with("app.provcheck."));
         assert_eq!(COLLECTION_NSID.matches('.').count(), 2);
     }
-
-    // ----- AtUri shape + edge cases ----------
 
     #[test]
     fn at_uri_rkey_returns_none_for_empty_string() {
@@ -374,9 +360,7 @@ mod tests {
     #[test]
     fn at_uri_rkey_returns_none_for_input_with_no_slash() {
         let u = AtUri("not-a-uri".into());
-        // rsplit('/').next() on a string with no '/' returns the
-        // whole string. Our filter accepts non-empty, so a bare
-        // string passes — pin this behaviour.
+        // With no '/', rsplit returns the whole string, which the non-empty filter accepts.
         let r = u.rkey();
         assert_eq!(r, Some("not-a-uri"));
     }
@@ -390,8 +374,6 @@ mod tests {
         assert_ne!(a, c);
     }
 
-    // ----- RecordsError Display ----------
-
     #[test]
     fn pds_rejected_display_includes_inner_message() {
         let e = RecordsError::PdsRejected("rate limited".into());
@@ -402,9 +384,6 @@ mod tests {
 
     #[test]
     fn no_session_display_directs_user_to_kit_login() {
-        // The CLI maps NoSession to exit code 3; the error
-        // message is what the user actually sees. Pin that it
-        // names the command they need to run.
         let e = RecordsError::NoSession;
         let s = format!("{e}");
         assert!(s.contains("kit login"), "expected kit login hint, got: {s}");
@@ -451,9 +430,7 @@ mod tests {
 
     #[test]
     fn at_uri_rkey_handles_trailing_slash_gracefully() {
-        // A trailing slash makes the final split-segment empty.
-        // We filter for non-empty so the caller gets None
-        // instead of an empty string they'd then have to check.
+        // A trailing slash yields an empty final segment; the non-empty filter maps it to None.
         let u = AtUri("at://did/coll/".into());
         assert_eq!(u.rkey(), None);
     }
@@ -470,11 +447,8 @@ mod tests {
         let r = fake_record();
         let typed = typed_record(&r);
         let json = serde_json::to_string(&typed).expect("ser");
-        // The `$type` discriminator must be present — atproto
-        // PDSes reject records that omit it.
+        // atproto PDSes reject records missing the `$type` discriminator.
         assert!(json.contains("\"$type\":\"app.provcheck.signingKey\""));
-        // The flattened SigningKeyRecord fields are at the same
-        // level (not nested under "inner" or similar).
         assert!(json.contains("\"createdAt\":\"2026-06-14T12:00:00Z\""));
         assert!(json.contains("\"fingerprint\":"));
         assert!(json.contains("\"algorithm\":\"ES256\""));
@@ -492,12 +466,7 @@ mod tests {
 
     #[test]
     fn typed_record_round_trips_through_atrium_unknown() {
-        // The wire path: SigningKeyRecord → TypedSigningKeyRecord
-        // → Unknown (via TryIntoUnknown) → JSON over the wire
-        // → Unknown (via the server) → TypedSigningKeyRecord
-        // (via TryFromUnknown) → SigningKeyRecord. The load-bearing
-        // shape assertion is that all six conversions preserve the
-        // exact record value.
+        // The full Unknown round-trip (TryIntoUnknown then TryFromUnknown) must preserve the exact record value.
         let r = fake_record();
         let typed = typed_record(&r);
 
@@ -510,28 +479,17 @@ mod tests {
 
     #[test]
     fn collection_nsid_matches_the_lexicon() {
-        // If this assertion ever changes, every existing record
-        // in the wild becomes invisible to this build (we'd be
-        // listing a different collection). Lock it in here so a
-        // typo can't sneak past code review.
+        // A change here makes every existing record invisible to this build.
         assert_eq!(COLLECTION_NSID, "app.provcheck.signingKey");
     }
 
     #[test]
     fn at_uri_extracts_rkey_from_canonical_layout() {
-        // Sanity: a real at-uri has three meaningful path
-        // segments after `at://` — DID, collection, rkey. The
-        // rkey() helper should always find the third.
         let u = AtUri(format!("at://did:plc:test/{COLLECTION_NSID}/3jzfcijpj2z2a"));
         assert_eq!(u.rkey(), Some("3jzfcijpj2z2a"));
     }
 
-    // ----- RecordsError variant message tests ----------
-    //
-    // The audit identified all four RecordsError variants as
-    // having no Display test. The CLI maps these to user-facing
-    // exit-code messages; an accidental message edit would ship
-    // confusing diagnostics. Pin each variant's surface here.
+    // Pin each RecordsError Display surface: the CLI maps these to user-facing exit-code messages.
 
     #[test]
     fn records_error_pds_rejected_message_includes_inner() {
@@ -569,22 +527,14 @@ mod tests {
     fn records_error_no_session_message_directs_to_login() {
         let e = RecordsError::NoSession;
         let s = format!("{e}");
-        // The CLI's exit-code-3 mapping depends on this message
-        // pointing the user at `kit login`. Pin the contract.
+        // The CLI's exit-code-3 mapping depends on this message naming `kit login`.
         assert!(
             s.contains("kit login"),
             "NoSession message must direct user to `kit login`, got: {s}"
         );
     }
 
-    // ----- map_xrpc_err substring routing ----------
-    //
-    // map_xrpc_err is the bridge from atrium's generic XRPC
-    // Error<E> to our typed RecordsError. It substring-matches
-    // on common patterns to surface meaningful distinctions to
-    // the CLI. Pin each documented routing branch so a future
-    // tightening doesn't accidentally re-route a session-
-    // expired error to a 400-rejected bucket.
+    // Pin map_xrpc_err's substring routing so a session-expired error can't get re-routed to the 400-rejected bucket.
 
     #[test]
     fn map_xrpc_err_invalid_token_routes_to_http_with_session_hint() {
@@ -631,17 +581,14 @@ mod tests {
 
     #[test]
     fn map_xrpc_err_unknown_message_routes_to_http() {
-        // Default branch — anything not matching the documented
-        // substrings becomes generic Http.
+        // Default branch: anything unmatched becomes generic Http.
         let e = super::map_xrpc_err("DNS resolution failed");
         assert!(matches!(e, RecordsError::Http(_)));
     }
 
     #[test]
     fn map_xrpc_err_is_case_insensitive() {
-        // The function lowercases the message before checking.
-        // Pin so a future "strip lowercase" optimisation can't
-        // silently break the mapping on a mixed-case provider.
+        // The function lowercases before matching, so mixed-case providers still route correctly.
         let e1 = super::map_xrpc_err("Invalid_Token");
         let e2 = super::map_xrpc_err("INVALID_TOKEN");
         let e3 = super::map_xrpc_err("invalid_token");

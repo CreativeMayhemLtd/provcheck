@@ -95,12 +95,7 @@ pub fn classify(valid: bool, confidence: f32) -> WatermarkStatus {
 mod tests {
     use super::*;
 
-    // ----- Brand payload constants ----------
-    //
-    // Pin every PAYLOAD_* constant exactly. These are the
-    // production payloads the embedder writes; a typo here
-    // (e.g. a `b'V' -> b'B'` slip) silently breaks every
-    // downstream verifier.
+    // Wire-format pins: a typo in a PAYLOAD_* constant silently breaks every downstream verifier.
 
     #[test]
     fn payload_raidio_is_rai_schema1_reserved0() {
@@ -119,9 +114,7 @@ mod tests {
 
     #[test]
     fn payload_constants_round_trip_through_parse_brand() {
-        // PAYLOAD_RAIDIO → parse_brand → Raidio. Symmetric for
-        // each constant. Catches an accidental drift between
-        // the PAYLOAD_* table and the parser's BRAND_* table.
+        // Catches drift between the PAYLOAD_* table and the parser's BRAND_* table.
         assert_eq!(parse_brand(PAYLOAD_RAIDIO), Some(WatermarkBrand::Raidio));
         assert_eq!(
             parse_brand(PAYLOAD_DOOMSCROLL),
@@ -132,9 +125,7 @@ mod tests {
 
     #[test]
     fn payload_constants_all_use_schema_byte_one() {
-        // The PAYLOAD_* table's [3] is the schema version. Pin
-        // that every shipped constant lives in schema 1 (the
-        // only currently-documented schema).
+        // Every shipped constant lives in schema 1 (the only documented schema).
         for (name, payload) in [
             ("RAIDIO", PAYLOAD_RAIDIO),
             ("DOOMSCROLL", PAYLOAD_DOOMSCROLL),
@@ -161,12 +152,9 @@ mod tests {
 
     #[test]
     fn schema_byte_index_is_three() {
-        // The tagged-union key position. Pin so a future
-        // schema-2 work doesn't accidentally shift it.
+        // The tagged-union key position; pin against a future schema-2 shift.
         assert_eq!(SCHEMA_BYTE_INDEX, 3);
     }
-
-    // ----- parse_brand edge cases ----------
 
     #[test]
     fn parse_brand_lowercase_ascii_is_unknown_not_a_known_brand() {
@@ -182,16 +170,14 @@ mod tests {
 
     #[test]
     fn parse_brand_zero_schema_returns_unknown_schema() {
-        // Schema 0 is reserved / not yet a real schema. Must
-        // surface as UnknownSchema.
+        // Schema 0 is reserved; must surface as UnknownSchema.
         let r = parse_brand([b'R', b'A', b'I', 0, 0]);
         assert_eq!(r, Some(WatermarkBrand::UnknownSchema { schema: 0 }));
     }
 
     #[test]
     fn parse_brand_max_schema_byte_returns_unknown_schema() {
-        // 0xFF must not silently fall through to schema-1
-        // behaviour.
+        // 0xFF must not fall through to schema-1 behaviour.
         let r = parse_brand([b'R', b'A', b'I', 0xFF, 0]);
         assert_eq!(r, Some(WatermarkBrand::UnknownSchema { schema: 0xFF }));
     }
@@ -228,9 +214,7 @@ mod tests {
 
     #[test]
     fn unknown_schema_short_circuits_brand_lookup() {
-        // Even if bytes 0..3 happen to be 'R','A','I', a non-1
-        // schema means we don't know what they mean and must
-        // report as UnknownSchema.
+        // A non-1 schema reports UnknownSchema even when bytes 0..3 spell a known triplet.
         let brand = parse_brand([82, 65, 73, 9, 0]).unwrap();
         assert_eq!(brand, WatermarkBrand::UnknownSchema { schema: 9 });
     }

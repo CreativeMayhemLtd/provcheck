@@ -218,10 +218,7 @@ impl AudioStreamingPipeline {
         self.buffer.extend(samples.iter().copied());
         self.samples_consumed += samples.len() as u64;
 
-        // Emit as many windows as we have data for.
         while self.buffer.len() >= self.config.window_samples {
-            // Materialise the window slice (VecDeque can be split;
-            // we take a contiguous Vec for the detector trait).
             let window: Vec<f32> = self
                 .buffer
                 .iter()
@@ -229,20 +226,12 @@ impl AudioStreamingPipeline {
                 .take(self.config.window_samples)
                 .collect();
 
-            // Compute the window's wall-clock bounds.
-            // samples_consumed is total samples consumed; the
-            // window started `buffer.len()` samples ago.
+            // The window started `buffer.len()` samples before the total consumed.
             let window_start_sample = self.samples_consumed - self.buffer.len() as u64;
             let start_secs = window_start_sample as f32 / self.config.sample_rate as f32;
             let end_secs = start_secs + self.config.window_duration_secs();
 
-            // Detector trait operates on bytes; serialise the
-            // f32 PCM window into little-endian bytes for the
-            // detector. The implementor is responsible for
-            // interpreting them (PCM f32 LE at sample_rate Hz).
-            // We avoid an unsafe transmute so the crate can keep
-            // `#![forbid(unsafe_code)]` — at ~64 KB per window
-            // the per-iteration alloc is in the noise.
+            // Serialise to LE bytes rather than transmute so the crate keeps `#![forbid(unsafe_code)]`.
             let mut bytes = Vec::with_capacity(window.len() * 4);
             for s in &window {
                 bytes.extend_from_slice(&s.to_le_bytes());
@@ -254,13 +243,11 @@ impl AudioStreamingPipeline {
                     end_secs,
                     result,
                 });
-                // Bound the history.
                 while self.verdicts.len() > self.config.history_capacity {
                     self.verdicts.pop_front();
                 }
             }
 
-            // Advance buffer by hop_samples.
             for _ in 0..self.config.hop_samples {
                 self.buffer.pop_front();
             }
@@ -293,10 +280,6 @@ impl std::fmt::Debug for AudioStreamingPipeline {
             .finish()
     }
 }
-
-// ---------------------------------------------------------------
-// Video streaming pipeline.
-// ---------------------------------------------------------------
 
 /// Configuration for a video streaming pipeline.
 ///
@@ -435,14 +418,12 @@ impl VideoStreamingPipeline {
         self.frames_consumed += 1;
 
         while self.buffer.len() >= self.config.window_frames {
-            // Window = first window_frames in the deque.
             let window: Vec<&VideoFrame> =
                 self.buffer.iter().take(self.config.window_frames).collect();
 
             let start_secs = window[0].pts_secs;
             let end_secs = window[window.len() - 1].pts_secs;
 
-            // Concatenate with length prefixes.
             let total_size: usize = window.iter().map(|f| 4 + f.bytes.len()).sum();
             let mut bytes = Vec::with_capacity(total_size);
             for frame in &window {
@@ -463,7 +444,6 @@ impl VideoStreamingPipeline {
                 }
             }
 
-            // Advance buffer by hop_frames.
             for _ in 0..self.config.hop_frames {
                 self.buffer.pop_front();
             }
@@ -527,8 +507,7 @@ mod tests {
                 family: DetectionFamily::Audio,
                 status: DetectionStatus::NotDetected,
                 detected: false,
-                // Confidence varies with byte count so tests can
-                // distinguish windows.
+                // Vary confidence with byte count so tests can distinguish windows.
                 confidence: (bytes.len() % 100) as f32 / 100.0,
                 model_id: None,
                 version: None,
@@ -536,8 +515,6 @@ mod tests {
             })
         }
     }
-
-    // ----- AudioStreamConfig validation ----------
 
     #[test]
     fn config_rejects_zero_sample_rate() {
@@ -565,14 +542,12 @@ mod tests {
 
     #[test]
     fn config_accepts_hop_equal_to_window() {
-        // Non-overlapping windows.
         let r = AudioStreamConfig::new(16000, 100, 100, 10);
         assert!(r.is_ok());
     }
 
     #[test]
     fn config_accepts_overlapping_hop() {
-        // 50% overlap.
         let r = AudioStreamConfig::new(16000, 100, 50, 10);
         assert!(r.is_ok());
     }
@@ -582,8 +557,6 @@ mod tests {
         let c = AudioStreamConfig::new(16000, 16000, 16000, 10).unwrap();
         assert!((c.window_duration_secs() - 1.0).abs() < 1e-6);
     }
-
-    // ----- AudioStreamingPipeline ----------
 
     #[test]
     fn pipeline_with_no_detectors_buffers_but_emits_nothing() {
@@ -605,25 +578,20 @@ mod tests {
         registry.register(Box::new(StubDetector::new("b")));
         let mut p = AudioStreamingPipeline::new(cfg, registry);
 
-        // 3 full windows of input (3000 samples at non-overlapping
-        // hop). Expect 3 windows × 2 detectors = 6 verdicts.
+        // 3 windows x 2 detectors = 6 verdicts.
         p.feed(&vec![0.1_f32; 3000]);
         assert_eq!(p.verdict_count(), 6);
     }
 
     #[test]
     fn pipeline_advances_buffer_by_hop_not_window() {
-        // With window=100, hop=50, feeding 250 samples should
-        // produce 4 windows (starting at samples 0, 50, 100,
-        // 150). Sample 200's window would need 100 more samples
-        // we don't have.
+        // window=100, hop=50, 250 samples: windows start at 0, 50, 100, 150 = 4.
         let cfg = AudioStreamConfig::new(16000, 100, 50, 100).unwrap();
         let mut registry = DetectorRegistry::new();
         registry.register(Box::new(StubDetector::new("a")));
         let mut p = AudioStreamingPipeline::new(cfg, registry);
 
         p.feed(&vec![0.1_f32; 250]);
-        // Windows starting at: 0, 50, 100, 150 → 4 windows.
         assert_eq!(p.verdict_count(), 4);
     }
 
@@ -637,7 +605,6 @@ mod tests {
         p.feed(&vec![0.1_f32; 3000]);
         let verdicts = p.drain_verdicts();
         assert_eq!(verdicts.len(), 3);
-        // start_secs should be monotonically increasing.
         for w in verdicts.windows(2) {
             assert!(
                 w[1].start_secs > w[0].start_secs,
@@ -648,10 +615,7 @@ mod tests {
 
     #[test]
     fn pipeline_window_timestamps_match_sample_positions() {
-        // window=1000 samples at 16 kHz = 0.0625 seconds.
-        // First window: starts at sample 0 → start_secs = 0.
-        // Second window: starts at sample 1000 → start_secs =
-        // 1000 / 16000 = 0.0625.
+        // window=1000 at 16 kHz = 0.0625 s; windows start at samples 0 and 1000.
         let cfg = AudioStreamConfig::new(16000, 1000, 1000, 100).unwrap();
         let mut registry = DetectorRegistry::new();
         registry.register(Box::new(StubDetector::new("a")));
@@ -662,26 +626,20 @@ mod tests {
         assert_eq!(verdicts.len(), 2);
         assert!((verdicts[0].start_secs - 0.0).abs() < 1e-6);
         assert!((verdicts[1].start_secs - 0.0625).abs() < 1e-6);
-        // End of first window should equal start of second
-        // (non-overlapping).
         assert!((verdicts[0].end_secs - verdicts[1].start_secs).abs() < 1e-6);
     }
 
     #[test]
     fn pipeline_history_capacity_bounds_verdict_buffer() {
-        // Capacity = 2, feed enough for 5 verdicts.
         let cfg = AudioStreamConfig::new(16000, 1000, 1000, 2).unwrap();
         let mut registry = DetectorRegistry::new();
         registry.register(Box::new(StubDetector::new("a")));
         let mut p = AudioStreamingPipeline::new(cfg, registry);
 
         p.feed(&vec![0.1_f32; 5000]);
-        // Capacity caps the buffer at 2.
         assert_eq!(p.verdict_count(), 2);
         let verdicts = p.drain_verdicts();
-        // The retained verdicts should be the LATEST two (FIFO
-        // eviction). start_secs of the last verdict should be
-        // 4 * window_duration = 4 * 0.0625 = 0.25.
+        // FIFO eviction retains the latest two; last start_secs = 4 * 0.0625 = 0.25.
         assert!(
             (verdicts[1].start_secs - 0.25).abs() < 1e-6,
             "retained verdict 1 should be the last emitted (start_secs=0.25), got {}",
@@ -711,20 +669,18 @@ mod tests {
 
         p.feed(&vec![0.1_f32; 3000]);
         let latest = p.latest_verdict().expect("expected a verdict");
-        // Most recent window starts at sample 2000 (third window).
         assert!((latest.start_secs - (2000.0 / 16000.0)).abs() < 1e-6);
     }
 
     #[test]
     fn pipeline_overlapping_windows_emit_independent_verdicts() {
-        // window=100, hop=50 → 50% overlap.
         let cfg = AudioStreamConfig::new(16000, 100, 50, 100).unwrap();
         let mut registry = DetectorRegistry::new();
         registry.register(Box::new(StubDetector::new("a")));
         let mut p = AudioStreamingPipeline::new(cfg, registry);
 
         p.feed(&vec![0.1_f32; 200]);
-        // Windows: [0..100], [50..150], [100..200] → 3 windows.
+        // window=100, hop=50: [0..100], [50..150], [100..200] = 3.
         assert_eq!(p.verdict_count(), 3);
     }
 
@@ -770,8 +726,6 @@ mod tests {
         assert_eq!(back.result.detector, v.result.detector);
     }
 
-    // ----- VideoStreamConfig validation ----------
-
     #[test]
     fn video_config_rejects_zero_window() {
         let r = VideoStreamConfig::new(0, 1, 10);
@@ -799,8 +753,6 @@ mod tests {
     fn video_config_accepts_overlapping_hop() {
         assert!(VideoStreamConfig::new(10, 5, 10).is_ok());
     }
-
-    // ----- VideoStreamingPipeline ----------
 
     /// Video-only stub detector. Reports NotDetected on any
     /// input.
@@ -854,8 +806,7 @@ mod tests {
         registry.register(Box::new(VideoStubDetector { name: "a" }));
         registry.register(Box::new(VideoStubDetector { name: "b" }));
         let mut p = VideoStreamingPipeline::new(cfg, registry);
-        // 3 full windows of 5 frames = 15 frames. 3 windows × 2
-        // detectors = 6 verdicts.
+        // 3 windows of 5 frames x 2 detectors = 6 verdicts.
         for i in 0..15 {
             p.feed_frame(frame(i as f32 / 30.0, 64));
         }
@@ -864,16 +815,7 @@ mod tests {
 
     #[test]
     fn video_pipeline_advances_by_hop_not_window() {
-        // window=5 hop=2, 10 frames → windows at frame indices
-        // 0, 2, 4, 6 (each needs 5 frames so frame 6's window
-        // is [6..11], which fits with 10 frames at index 5..10
-        // wait: 10 frames are indices 0..10. The 4th window
-        // would start at index 6 and need frames 6..11 which is
-        // 11 frames total. We only have 10 → 3 windows: starts
-        // at 0, 2, 4. After window at index 4 fires (frames
-        // 4..9), buffer advances by 2 → starts at 6, needs
-        // frames 6..11, we have 9 (frames 6..10) so it doesn't
-        // fire. So 3 windows.
+        // window=5, hop=2, 10 frames: windows start at 0, 2, 4 = 3 (start 6 needs 11 frames).
         let cfg = VideoStreamConfig::new(5, 2, 100).unwrap();
         let mut registry = DetectorRegistry::new();
         registry.register(Box::new(VideoStubDetector { name: "a" }));
@@ -890,8 +832,6 @@ mod tests {
         let mut registry = DetectorRegistry::new();
         registry.register(Box::new(VideoStubDetector { name: "a" }));
         let mut p = VideoStreamingPipeline::new(cfg, registry);
-        // Window 1: pts 0.0, 0.1, 0.2 → start 0.0, end 0.2.
-        // Window 2: pts 0.3, 0.4, 0.5 → start 0.3, end 0.5.
         for i in 0..6 {
             p.feed_frame(frame(i as f32 * 0.1, 64));
         }
@@ -909,7 +849,7 @@ mod tests {
         let mut registry = DetectorRegistry::new();
         registry.register(Box::new(VideoStubDetector { name: "a" }));
         let mut p = VideoStreamingPipeline::new(cfg, registry);
-        // 10 frames → 5 windows → cap holds 2.
+        // 10 frames -> 5 windows -> cap holds 2.
         for i in 0..10 {
             p.feed_frame(frame(i as f32 * 0.05, 32));
         }
@@ -952,12 +892,7 @@ mod tests {
 
     #[test]
     fn video_pipeline_length_prefix_format_is_deterministic() {
-        // Pin the wire format: each frame in the window is
-        // prefixed by its byte length as big-endian u32, then
-        // followed by the frame bytes. The detector implementor
-        // depends on this layout to re-parse frame boundaries.
-        // Use a custom detector that captures the bytes it
-        // receives.
+        // Wire format: each frame prefixed by its byte length as big-endian u32, then the bytes.
         struct CapturingDetector {
             captured: std::sync::Mutex<Vec<u8>>,
         }
@@ -987,11 +922,7 @@ mod tests {
         let det = CapturingDetector {
             captured: std::sync::Mutex::new(Vec::new()),
         };
-        // Can't easily share captured via Arc through Box<dyn Detector>
-        // without more plumbing; instead build a closure-style
-        // detector that writes to a static slot. Simplest: just
-        // check the registry path by reconstructing the expected
-        // bytes manually.
+        // Sharing `captured` through Box<dyn Detector> needs more plumbing; verify the layout via the stub path instead.
         let _ = (captured, det);
 
         let cfg = VideoStreamConfig::new(2, 2, 100).unwrap();
@@ -1006,9 +937,7 @@ mod tests {
             pts_secs: 0.1,
             bytes: vec![0x44, 0x55],
         });
-        // The window concatenation should be:
-        //   [0,0,0,3] [11 22 33] [0,0,0,2] [44 55]
-        // = 13 bytes total. The detector ran, so verdict count = 1.
+        // Window concatenation: [0,0,0,3][11 22 33][0,0,0,2][44 55] = 13 bytes.
         assert_eq!(p.verdict_count(), 1);
     }
 }

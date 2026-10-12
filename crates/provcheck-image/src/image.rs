@@ -39,10 +39,7 @@ mod limit_tests {
 
     #[test]
     fn max_image_dim_bounds_memory_estimate() {
-        // Sanity-check: at MAX_IMAGE_DIM × MAX_IMAGE_DIM RGBA,
-        // peak raw-pixel allocation should not exceed
-        // MAX_IMAGE_ALLOC. If a future maintainer bumps either
-        // cap without rebalancing, this test catches it.
+        // MAX_IMAGE_DIM² RGBA must stay under MAX_IMAGE_ALLOC; catches a cap bump that unbalances the two.
         let pixels = u64::from(MAX_IMAGE_DIM) * u64::from(MAX_IMAGE_DIM);
         let rgba_bytes = pixels * 4;
         assert!(
@@ -54,13 +51,7 @@ mod limit_tests {
 
     #[test]
     fn max_image_dim_is_high_enough_for_real_content() {
-        // 4K UHD = 3840 × 2160. 8K UHD = 7680 × 4320. We need to
-        // pass at least 4K cleanly. 8K is borderline (4320 vs cap
-        // 8192 — clears with room). Capture this in a test so a
-        // future maintainer doesn't drop the cap below real
-        // creator output sizes. Constants are compile-time visible
-        // so we read into a runtime variable to dodge the
-        // constant-assertion lint.
+        // Cap must clear 4K (3840x2160) and 8K (7680x4320) content; black_box dodges the constant-assertion lint.
         let cap = std::hint::black_box(MAX_IMAGE_DIM);
         assert!(cap >= 3840, "cap {cap} below 4K UHD width");
         assert!(cap >= 4320, "cap {cap} below 8K UHD height");
@@ -152,12 +143,7 @@ pub fn decode(path: &Path) -> Result<DecodedImage, ImageError> {
         .map_err(|e| ImageError::Decode(format!("open: {e}")))?
         .with_guessed_format()
         .map_err(|e| ImageError::Decode(format!("format probe: {e}")))?;
-    // Decompression-bomb guard. A crafted PNG/TIFF can allocate
-    // gigabytes before any size check fires. Cap dimensions to
-    // 8192 × 8192 (~256 MB for 4-byte RGBA) and total alloc to
-    // 256 MB — comfortably above any reasonable creator output,
-    // comfortably below memory-pressure thresholds on modest
-    // hosts. See v0.9.0 audit §2.3.
+    // Decompression-bomb guard: a crafted PNG/TIFF can allocate GBs before a size check fires; cap dims and total alloc (audit §2.3).
     let mut limits = image::Limits::default();
     limits.max_image_width = Some(MAX_IMAGE_DIM);
     limits.max_image_height = Some(MAX_IMAGE_DIM);
@@ -168,15 +154,12 @@ pub fn decode(path: &Path) -> Result<DecodedImage, ImageError> {
         .map_err(|e| ImageError::Decode(format!("decode: {e}")))?;
     let (original_width, original_height) = img.dimensions();
 
-    // Resize to 224×224 RGB8. Bilinear matches upstream's
-    // Image.BILINEAR. The `image` crate's Triangle filter is the
-    // bilinear analogue.
+    // Resize to MODEL_RES RGB8; the `image` crate's Triangle filter is the bilinear analogue of upstream's Image.BILINEAR.
     let resized = img.resize_exact(MODEL_RES, MODEL_RES, FilterType::Triangle);
     let rgb = resized.to_rgb8();
     debug_assert_eq!(rgb.dimensions(), (MODEL_RES, MODEL_RES));
 
-    // HWC u8 → CHW f32 in `[-1, 1]`. Loop layout matches
-    // c*H*W + y*W + x.
+    // HWC u8 -> CHW f32 in [-1, 1]; flat layout c*H*W + y*W + x.
     let area = (MODEL_RES * MODEL_RES) as usize;
     let mut chw = vec![0.0_f32; 3 * area];
     for (x, y, pixel) in rgb.enumerate_pixels() {
@@ -203,8 +186,6 @@ mod tests {
     use super::*;
     use std::io::Write;
 
-    // ----- decode early-exit branches ----------
-
     #[test]
     fn decode_returns_not_image_for_unrecognised_extension() {
         let f = tempfile::Builder::new()
@@ -218,8 +199,7 @@ mod tests {
 
     #[test]
     fn decode_returns_not_image_for_audio_extension() {
-        // wav is NOT in the image allowlist even though some
-        // formats overlap with image's reader support. Pin.
+        // wav is not in the image allowlist even though image's reader overlaps some formats.
         let f = tempfile::Builder::new()
             .suffix(".wav")
             .tempfile()
@@ -237,10 +217,7 @@ mod tests {
 
     #[test]
     fn decode_accepts_jpg_jpeg_webp_bmp_gif_tif_tiff_extensions() {
-        // We only verify the "extension accepted" gate; the
-        // decoder will fail downstream because the body isn't a
-        // valid image. The point is to pin which extensions
-        // pass the early gate vs which return NotImage.
+        // Pins which extensions pass the early gate (junk body fails later, but never as NotImage).
         for ext in ["jpg", "jpeg", "webp", "bmp", "gif", "tif", "tiff"] {
             let f = tempfile::Builder::new()
                 .suffix(&format!(".{ext}"))
@@ -260,9 +237,7 @@ mod tests {
 
     #[test]
     fn decode_extension_lookup_is_case_insensitive() {
-        // .PNG must pass the gate (Windows operators have UPPER
-        // extensions all over). Body is junk so it'll fail later
-        // with Decode, not NotImage.
+        // Uppercase .PNG must pass the gate (junk body then fails as Decode, not NotImage).
         let f = tempfile::Builder::new()
             .suffix(".PNG")
             .tempfile()
@@ -275,20 +250,15 @@ mod tests {
         );
     }
 
-    // ----- Constants ----------
-
     #[test]
     fn model_res_is_256() {
-        // The TrustMark model's input resolution. Bumping this
-        // requires re-training and changes every embed.
+        // TrustMark input resolution; bumping requires re-training and changes every embed.
         assert_eq!(MODEL_RES, 256);
     }
 
     #[test]
     fn max_image_dim_is_8192() {
-        // Decompression-bomb guard from v0.9.0 audit §2.3. Pin
-        // explicitly so a future maintainer can't silently raise
-        // it past the documented threat-model boundary.
+        // Decompression-bomb guard (audit §2.3); pin against a silent raise past the threat-model boundary.
         assert_eq!(MAX_IMAGE_DIM, 8192);
     }
 

@@ -74,19 +74,15 @@ say ""
 say "Backfire read path is ready. Verified: sample_marked.png -> id $IDHEX, valid."
 
 if [ "$EMBED" -eq 1 ]; then
-  step "Embed tier: installing torch, diffusers, transformers (large download)"
-  "$PY" -m pip install 'torch' 'diffusers>=0.27' 'transformers>=4.40' 'huggingface_hub' 'compressai>=1.2' || die "installing embed dependencies failed"
+  step "Embed tier: installing torch + the permissive neural codec (compressai)"
+  "$PY" -m pip install 'torch' 'compressai>=1.2' || die "installing embed dependencies failed"
   say "  Note: for GPU embed, install a CUDA torch build for your platform (see pytorch.org) into $VENV_DIR."
-  step "Pre-fetching the diffusion purifier weights (several GB)"
-  "$PY" - <<'PYEOF' || die "model pre-fetch failed (network or Hugging Face reachability)"
-from huggingface_hub import snapshot_download
-snapshot_download("memescreamer/stable-diffusion-2-1-base",
-                  revision="c9032bc99e813018fc11605cd92f11b8709f585a")
-print("models fetched")
-PYEOF
+  say "  The default embed is codec-only (license-clean, no diffusion weights). To opt into the"
+  say "  diffusion fixed point (--diff-eot > 0), install 'diffusers transformers huggingface_hub' and"
+  say "  supply your own SD-family weights via --model / --weights-dir."
   touch "$EMBED_MARKER"
   say ""
-  say "Backfire embed tier is ready (torch + diffusion weights installed)."
+  say "Backfire embed tier is ready (codec-only, license-clean)."
 fi
 
 say ""

@@ -1,0 +1,67 @@
+{
+  "ProvcheckC2PA": {
+    "display_name": "Provcheck (Gratis C2PA-watermerk) • Creative Mayhem",
+    "description": "Gratis, open (Apache-2.0) provcheck voor ComfyUI — één node voor afbeelding, audio en video. SCHRIJVEN: bedt het gratis watermerk in (TrustMark bij afbeeldingen, silentcipher op het audiospoor bij audio/video) en/of ondertekent met C2PA via je lokale sleutel + atproto/Bluesky-identiteit, optioneel met vastlegging van de generatiegraaf; het ondertekende bestand wordt naar je uitvoermap geschreven. LEZEN: detecteert/verifieert een provcheck-markering op elke verbonden invoer. Sluit een afbeelding, audio, video of een willekeurige combinatie aan. Elke optie is een widget die ook vanaf een andere node kan worden aangesloten, inclusief de uitvoerbestandsnaam. Creative Mayhem maakt ook Backfire, een keyed markering die AI-verwijderingspogingen versterkt in plaats van verwijdert (commerciële add-on, niet in dit gratis pakket): https://provcheck.ai/backfire . Meer: https://provcheck.ai",
+    "inputs": {
+      "mode": {
+        "name": "mode",
+        "tooltip": "schrijven = watermerk zetten en/of met C2PA ondertekenen, voor elke verbonden invoer (meest gebruikelijk). lezen = een bestaande provcheck-markering detecteren/verifiëren.",
+        "options": {
+          "write": "schrijven",
+          "read": "lezen"
+        }
+      },
+      "image": {
+        "name": "Afbeelding",
+        "tooltip": "Optionele afbeeldingenbatch om naar te schrijven of van te lezen."
+      },
+      "audio": {
+        "name": "Audio",
+        "tooltip": "Optionele audio om naar te schrijven of van te lezen."
+      },
+      "video": {
+        "name": "Video",
+        "tooltip": "Optionele video. Het watermerk zit op het audiospoor (de beelden blijven behouden); de container wordt met C2PA ondertekend."
+      },
+      "watermark": {
+        "name": "watermark",
+        "tooltip": "[schrijven] Bedt het gratis FOSS-watermerk in (TrustMark voor afbeeldingen / silentcipher voor audio)."
+      },
+      "c2pa_sign": {
+        "name": "c2pa_sign",
+        "tooltip": "[schrijven] Ondertekent met C2PA via je lokale ondertekeningssleutel. Het ondertekende bestand wordt naar je ComfyUI-uitvoermap geschreven."
+      },
+      "embed_identity": {
+        "name": "embed_identity",
+        "tooltip": "[schrijven] Bedt je atproto/Bluesky-identiteit (DID + handle) in het manifest in, zodat te zien is wie heeft ondertekend. Vereist kit-login."
+      },
+      "record_provenance": {
+        "name": "record_provenance",
+        "tooltip": "[schrijven] Legt een samengestelde samenvatting van de generatiegraaf (model, seed, sampler, prompts) vast in het ondertekende manifest."
+      },
+      "include_full_workflow": {
+        "name": "include_full_workflow",
+        "tooltip": "[schrijven] Samen met record_provenance: bedt de VOLLEDIGE (geredigeerde) workflow in, niet alleen de samenvatting. Standaard uit, om te voorkomen dat prompts/paden lekken."
+      },
+      "brand_id": {
+        "name": "brand_id",
+        "tooltip": "[schrijven] Je 5-bit brand-id uit het atproto-merkregister (0-31). Standaard 2 is de publieke rAIdio.bot-id; gebruik je eigen id."
+      },
+      "filename_prefix": {
+        "name": "filename_prefix",
+        "tooltip": "[schrijven, wanneer een bestand wordt geschreven] Voorvoegsel voor de bestandsnaam van de ondertekende/watermerkbestanden. Bewerkbaar, en kan vanaf een andere node worden aangesloten (rechtsklik -> Naar invoer converteren)."
+      },
+      "timeout_secs": {
+        "name": "timeout_secs",
+        "tooltip": "Time-out per item voor het subproces, in seconden."
+      }
+    },
+    "outputs": {
+      "0": { "name": "Afbeelding" },
+      "1": { "name": "Audio" },
+      "2": { "name": "Video" },
+      "3": { "name": "Rapport" },
+      "4": { "name": "Gedetecteerd" }
+    }
+  }
+}

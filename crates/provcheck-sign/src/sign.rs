@@ -116,16 +116,14 @@ pub fn sign_asset(
     dst: &Path,
     manifest_json: &str,
 ) -> Result<SignResult, SignError> {
-    // Software-backed convenience entry: build the c2pa signer from
-    // the in-memory PEM, then defer to the signer-only path so the
-    // builder / chain / sign_file plumbing lives in exactly one place.
+    // Defer to the signer-only path so builder/chain/sign_file plumbing lives in one place.
     let alg = parse_algorithm(&identity.locked.algorithm)
         .ok_or_else(|| SignError::UnknownAlgorithm(identity.locked.algorithm.clone()))?;
     let signer = c2pa::create_signer::from_keys(
         identity.locked.chain_pem.as_bytes(),
         identity.key_pem().expose_secret().as_bytes(),
         alg,
-        None, // No TSA URL — Phase 6 followup if anyone needs trusted timestamps
+        None, // no TSA URL (no trusted timestamps)
     )
     .map_err(|e| SignError::SignerSetup(e.to_string()))?;
 
@@ -152,19 +150,7 @@ pub fn sign_asset_with_signer(
     let mut builder = c2pa::Builder::from_json(manifest_json)
         .map_err(|e| SignError::ManifestJson(e.to_string()))?;
 
-    // Auto-chain: if the source already has a C2PA manifest, declare
-    // it as a parent ingredient so the new signature explicitly
-    // sits IN the lineage rather than alongside it. c2pa-rs would
-    // preserve the prior manifest store either way, but the
-    // ingredient declaration is what makes the parent relationship
-    // visible at the active-manifest level — which is what most
-    // verifiers and renderers walk.
-    //
-    // We only add the ingredient when the source has provenance
-    // worth declaring (an unsigned source becomes a "parent of
-    // some unsigned blob" which is noise, not signal). Failures
-    // of either the inspect or the add are non-fatal — we fall
-    // back to signing without the chain.
+    // Chain an existing source manifest as a parent ingredient so the new signature sits in the lineage verifiers walk; only when the source has provenance, non-fatal on failure.
     if c2pa::Reader::from_file(src).is_ok() {
         let title = src
             .file_name()
@@ -256,18 +242,13 @@ mod parse_algorithm_tests {
 
     #[test]
     fn rejects_lowercase_es256() {
-        // The lexicon (and ALLOWED_ALGORITHMS) is case-sensitive.
-        // A lowercase variant must not silently work.
+        // ALLOWED_ALGORITHMS is case-sensitive; a lowercase variant must not silently work.
         assert_eq!(parse_algorithm("es256"), None);
     }
 
     #[test]
     fn rejects_rs256() {
-        // RS256 is in ALLOWED_ALGORITHMS per the lexicon but c2pa
-        // does not expose it as a SigningAlg yet. Pin that
-        // parse_algorithm returns None for it, surfacing the gap
-        // as an explicit failure rather than a silent
-        // fallthrough.
+        // RS256 is allow-listed but c2pa has no SigningAlg for it yet; pin None so the gap is explicit.
         assert_eq!(parse_algorithm("RS256"), None);
     }
 
@@ -284,9 +265,7 @@ mod parse_algorithm_tests {
 
     #[test]
     fn every_parsable_value_is_in_attestation_spec_allowlist() {
-        // The 7 names we parse must be a subset of the lexicon's
-        // ALLOWED_ALGORITHMS. Silent drift would let the kit sign
-        // with an algorithm verifiers reject.
+        // The names we parse must stay a subset of ALLOWED_ALGORITHMS, or the kit could sign with an algorithm verifiers reject.
         use provcheck_attestation_spec::ALLOWED_ALGORITHMS;
         for alg in [
             "ES256", "ES384", "ES512", "PS256", "PS384", "PS512", "Ed25519",
@@ -401,16 +380,14 @@ mod default_action_for_tests {
 
     #[test]
     fn existing_provenance_defaults_to_published() {
-        // Publisher-attestation case: source already has a
-        // C2PA chain, the signer's role is to vouch onward.
+        // Publisher-attestation case: source already has a chain; the signer vouches onward.
         let p = fake_provenance();
         assert_eq!(default_action_for(Some(&p)), SignAction::Published);
     }
 
     #[test]
     fn provenance_with_minimal_fields_still_published() {
-        // Even a manifest with no signer / no claim_generator
-        // counts as "this file has provenance".
+        // Even a manifest with no signer/claim_generator counts as "this file has provenance".
         let p = SourceProvenance {
             label: "minimal".into(),
             signer: None,
@@ -514,8 +491,7 @@ mod format_for_ingredient_tests {
 
     #[test]
     fn extension_lookup_is_case_insensitive() {
-        // Operators pass through paths from the filesystem; on
-        // Windows the case can be UPPER. Pin lowercase-normalisation.
+        // Windows paths can be UPPER-case; pin lowercase normalisation.
         assert_eq!(format_for_ingredient(Path::new("a.MP3")), "audio/mpeg");
         assert_eq!(format_for_ingredient(Path::new("a.JpEg")), "image/jpeg");
     }
@@ -609,9 +585,7 @@ pub fn embed_identity_assertion(
         SignError::ManifestJson("manifest 'assertions' is present but not an array".into())
     })?;
 
-    // Replace any pre-existing assertion with the same label so
-    // re-running embed is idempotent (calling it twice doesn't
-    // produce two identity assertions).
+    // Replace any same-label assertion so re-embedding stays idempotent.
     arr.retain(|a| a.get("label").and_then(|l| l.as_str()) != Some(IDENTITY_ASSERTION_LABEL));
     arr.push(entry);
 
@@ -678,9 +652,7 @@ mod embed_identity_assertion_tests {
 
     #[test]
     fn embedded_assertion_omits_handle_when_absent_per_serde_default() {
-        // IdentityClaim::handle is #[serde(skip_serializing_if =
-        // "Option::is_none")] — a None handle must not appear as
-        // a "handle":null field, just be absent.
+        // handle is skip_serializing_if None: a None handle must be absent, not "handle":null.
         let no_handle = IdentityClaim::new("did:plc:abc", None);
         let out = embed_identity_assertion("{}", &no_handle).expect("ok");
         let identity = find_identity_assertion(&out).expect("identity");
@@ -701,7 +673,6 @@ mod embed_identity_assertion_tests {
             1,
             "re-embed must REPLACE, not append a duplicate"
         );
-        // The replaced assertion must carry the new DID.
         let identity = find_identity_assertion(&second).expect("identity");
         assert_eq!(
             identity
@@ -714,9 +685,7 @@ mod embed_identity_assertion_tests {
 
     #[test]
     fn preserves_unrelated_assertions() {
-        // A manifest with an unrelated assertion (e.g. c2pa.actions)
-        // must keep that assertion intact when embed adds the
-        // identity assertion alongside.
+        // An unrelated assertion must survive embedding the identity assertion alongside it.
         let manifest = r#"{
             "assertions": [
                 {"label": "c2pa.actions.v2", "data": {"actions": []}}
@@ -735,8 +704,7 @@ mod embed_identity_assertion_tests {
 
     #[test]
     fn idempotent_replace_with_unrelated_assertions_preserved() {
-        // Re-embed must replace the existing identity assertion
-        // BUT keep any unrelated assertions in the array.
+        // Re-embed replaces the identity assertion but keeps unrelated ones.
         let manifest = r#"{
             "assertions": [
                 {"label": "c2pa.actions.v2", "data": {"actions": []}},
@@ -871,7 +839,6 @@ mod tests {
         assert!(!result.manifest_bytes.is_empty(), "got manifest bytes");
         assert!(dst.exists(), "signed file written");
 
-        // Verify by reading the signed file back through c2pa.
         let reader = c2pa::Reader::from_file(&dst).expect("reader");
         assert!(
             matches!(
@@ -882,10 +849,7 @@ mod tests {
             reader.validation_state()
         );
 
-        // And confirm the verifier's fingerprint computation of the
-        // signing cert matches what GeneratedKeypair gave us — the
-        // load-bearing publisher↔verifier contract for the atproto
-        // attestation flow.
+        // Confirm the verifier's fingerprint of the signing cert matches GeneratedKeypair's — the publisher-verifier contract.
         let active = reader.active_manifest().expect("active manifest");
         let chain = active
             .signature_info()
@@ -1046,11 +1010,7 @@ mod tests {
         sign_asset(&identity, &src, &signed, &minimal_wav_manifest()).expect("sign");
 
         let provenance = inspect_source(&signed).expect("source has provenance");
-        // Active manifest's signer should be the cert subject CN
-        // (the rcgen-default subject when fresh_identity built the
-        // cert). Asserting just presence — the exact string is a
-        // rcgen / c2pa-rs implementation detail and not part of the
-        // contract.
+        // Assert presence only; the exact signer string is an rcgen/c2pa-rs detail, not contract.
         assert!(provenance.signer.is_some(), "signer extracted");
         assert!(
             !provenance.label.is_empty(),
@@ -1073,18 +1033,13 @@ mod tests {
 
     #[test]
     fn republish_chains_parent_ingredient() {
-        // Two-cert scenario: cert A signs the file (the "doomscroll"
-        // role), cert B re-signs it (the "publisher" role). The
-        // resulting file should carry both manifests, and the
-        // active (publisher) manifest should declare a parent
-        // ingredient pointing at the doomscroll manifest's label.
+        // Two-cert scenario: A signs, B re-signs; the active (B) manifest must declare A as a parent ingredient.
         let dir = TempDir::new().expect("tempdir");
         let src = dir.path().join("raw.wav");
         let stage_a = dir.path().join("by-doomscroll.wav");
         let stage_b = dir.path().join("by-publisher.wav");
         write_silent_wav(&src);
 
-        // Cert A signs as "Doomscroll.fm" (the production tool).
         let identity_a = fresh_identity();
         let manifest_a = serde_json::json!({
             "claim_generator": "Doomscroll.fm/0.1.0",
@@ -1097,7 +1052,6 @@ mod tests {
         .to_string();
         sign_asset(&identity_a, &src, &stage_a, &manifest_a).expect("sign A");
 
-        // Cert B re-signs as "publisher" with action c2pa.published.
         let identity_b = fresh_identity();
         let manifest_b = serde_json::json!({
             "claim_generator": "provcheck-kit/0.3.1",
@@ -1110,8 +1064,6 @@ mod tests {
         .to_string();
         sign_asset(&identity_b, &stage_a, &stage_b, &manifest_b).expect("sign B");
 
-        // Open the result and check the active manifest has a
-        // parent ingredient.
         let reader = c2pa::Reader::from_file(&stage_b).expect("reader");
         let active = reader.active_manifest().expect("active");
         let ingredients = active.ingredients();
@@ -1124,9 +1076,7 @@ mod tests {
             .find(|i| matches!(i.relationship(), c2pa::Relationship::ParentOf));
         assert!(parent.is_some(), "found parentOf ingredient");
         let parent = parent.unwrap();
-        // The parent ingredient's label should match the doomscroll
-        // manifest's label in the manifest store. That's the
-        // load-bearing assertion — proves the lineage is explicit.
+        // Parent ingredient must carry a label into the store — proves the lineage is explicit.
         assert!(
             parent.label().is_some(),
             "parent ingredient carries a label pointing into the store"
@@ -1135,9 +1085,6 @@ mod tests {
 
     #[test]
     fn sign_with_identity_assertion_round_trips() {
-        // End-to-end: build manifest, embed identity, sign, read back,
-        // and assert the assertion is present in the signed file's
-        // active manifest with the right did + handle.
         let dir = TempDir::new().expect("tempdir");
         let src = dir.path().join("src.wav");
         let dst = dir.path().join("signed.wav");
@@ -1165,10 +1112,7 @@ mod tests {
 
     #[test]
     fn extra_assertions_round_trip_into_the_manifest() {
-        // The signing primitive doesn't transform the manifest
-        // JSON — what the caller asks for is what ends up in the
-        // signed file. Confirm with a custom assertion that we
-        // can find when we read it back.
+        // The primitive doesn't transform the manifest JSON: what the caller asks for is what lands.
         let dir = TempDir::new().expect("tempdir");
         let src = dir.path().join("src.wav");
         let dst = dir.path().join("signed.wav");

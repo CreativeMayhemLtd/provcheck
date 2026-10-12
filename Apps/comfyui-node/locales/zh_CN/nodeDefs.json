@@ -1,0 +1,31 @@
+{
+  "ProvcheckC2PA": {
+    "display_name": "Provcheck（免费 C2PA 水印）• Creative Mayhem",
+    "description": "面向 ComfyUI 的免费开源（Apache-2.0）provcheck，一个节点即可处理图像、音频和视频。写入（WRITE）：嵌入免费水印（图像使用 TrustMark，音频/视频的音轨使用 silentcipher），并可选择使用你本地的密钥和 atproto/Bluesky 身份进行 C2PA 签名，还可选择记录生成过程的工作流图；签名后的文件将写入你的输出目录。读取（READ）：对每个已连接的输入检测/验证 provcheck 标记。可接入图像、音频、视频，或任意组合。每个选项都是控件，也可以从其他节点接入，包括输出文件名。Creative Mayhem 还开发了 Backfire，这是一种密钥标记，AI 剥离操作会将其放大而非移除（商业附加组件，不包含在本免费套件中）：https://provcheck.ai/backfire 。更多信息：https://provcheck.ai",
+    "inputs": {
+      "mode": {
+        "name": "mode",
+        "tooltip": "write（写入）= 对每个已连接的输入进行水印嵌入和/或 C2PA 签名（最常见用法）。read（读取）= 检测/验证已存在的 provcheck 标记。",
+        "options": { "write": "写入", "read": "读取" }
+      },
+      "image": { "name": "图像", "tooltip": "可选的图像批次，用于写入或读取。" },
+      "audio": { "name": "音频", "tooltip": "可选的音频，用于写入或读取。" },
+      "video": { "name": "视频", "tooltip": "可选的视频。水印搭载在音轨上（画面帧保持不变）；容器文件将进行 C2PA 签名。" },
+      "watermark": { "name": "watermark", "tooltip": "[写入] 嵌入免费开源（FOSS）水印（图像使用 TrustMark，音频使用 silentcipher）。" },
+      "c2pa_sign": { "name": "c2pa_sign", "tooltip": "[写入] 使用你本地的签名密钥进行 C2PA 签名。签名后的文件将写入你的 ComfyUI 输出目录。" },
+      "embed_identity": { "name": "embed_identity", "tooltip": "[写入] 在清单中嵌入你的 atproto/Bluesky 身份（DID + 账号），以便验证者查看签名者身份。需要先通过 kit 登录。" },
+      "record_provenance": { "name": "record_provenance", "tooltip": "[写入] 将生成过程工作流的精选摘要（模型、种子、采样器、提示词）记录到签名清单中。" },
+      "include_full_workflow": { "name": "include_full_workflow", "tooltip": "[写入] 与 record_provenance 一起使用时：嵌入完整（已脱敏处理）的工作流，而不仅仅是摘要。默认关闭，以避免泄露提示词/路径信息。" },
+      "brand_id": { "name": "brand_id", "tooltip": "[写入] 你在 atproto 品牌注册表中的 5 位品牌 ID（0-31）。默认值 2 为公开的 rAIdio.bot ID；请使用你自己的 ID。" },
+      "filename_prefix": { "name": "filename_prefix", "tooltip": "[写入，在写入文件时生效] 已签名/加水印文件的输出文件名前缀。可编辑，也可以从其他节点接入（右键单击 -> 转换为输入）。" },
+      "timeout_secs": { "name": "timeout_secs", "tooltip": "每个项目的子进程超时时间（秒）。" }
+    },
+    "outputs": {
+      "0": { "name": "图像" },
+      "1": { "name": "音频" },
+      "2": { "name": "视频" },
+      "3": { "name": "报告" },
+      "4": { "name": "已检测" }
+    }
+  }
+}

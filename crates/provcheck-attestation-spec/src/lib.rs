@@ -217,14 +217,13 @@ mod hex_lower_tests {
 
     #[test]
     fn single_zero_byte_encodes_as_two_zero_chars() {
-        // The 2-char-per-byte invariant: 0x00 → "00", not "0".
+        // 2-char-per-byte: 0x00 -> "00", not "0".
         assert_eq!(hex_lower(&[0]), "00");
     }
 
     #[test]
     fn single_max_byte_encodes_lowercase() {
-        // 0xFF MUST be "ff", not "FF" — the lexicon pattern is
-        // strict lowercase.
+        // Lexicon pattern is strict lowercase: "ff", not "FF".
         assert_eq!(hex_lower(&[0xFF]), "ff");
     }
 
@@ -238,7 +237,6 @@ mod hex_lower_tests {
     #[test]
     fn round_trip_against_known_value() {
         // sha256("") = e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-        // Use that to pin a specific 32-byte sequence.
         let sha = [
             0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14, 0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f,
             0xb9, 0x24, 0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c, 0xa4, 0x95, 0x99, 0x1b,
@@ -252,8 +250,6 @@ mod hex_lower_tests {
 
     #[test]
     fn all_output_chars_match_lexicon_pattern() {
-        // Lexicon `[0-9a-f]{64}` — exhaust every possible byte
-        // and confirm no character outside that set appears.
         let bytes: Vec<u8> = (0..=255).collect();
         let out = hex_lower(&bytes);
         for c in out.chars() {
@@ -266,7 +262,6 @@ mod hex_lower_tests {
 
     #[test]
     fn output_length_is_always_double_input_length() {
-        // For any input length, output is exactly 2 * input.
         for len in [0, 1, 7, 16, 32, 100] {
             let bytes = vec![0u8; len];
             assert_eq!(hex_lower(&bytes).len(), 2 * len, "len={len}");
@@ -290,14 +285,7 @@ mod signing_key_record_serde_tests {
         }
     }
 
-    // ----- Lexicon rename pins ----------
-    //
-    // The on-wire JSON uses camelCase keys matching the lexicon
-    // (`createdAt`, `validFrom`, `validUntil`, `supersededBy`).
-    // Our Rust fields use snake_case. The `#[serde(rename)]`
-    // attrs are the bridge — pin every one explicitly. A silent
-    // drift (someone removes a rename, or renames the wrong
-    // field) would break every published record.
+    // Pins for the snake_case<->camelCase `#[serde(rename)]` bridge: a dropped rename breaks every published record.
 
     #[test]
     fn serialises_created_at_as_camel_case() {
@@ -346,8 +334,6 @@ mod signing_key_record_serde_tests {
         );
     }
 
-    // ----- skip_serializing_if pins ----------
-
     #[test]
     fn omits_none_label() {
         let r = minimal_record();
@@ -388,8 +374,6 @@ mod signing_key_record_serde_tests {
         );
     }
 
-    // ----- Required fields always present ----------
-
     #[test]
     fn always_emits_created_at_fingerprint_and_algorithm() {
         let r = minimal_record();
@@ -398,8 +382,6 @@ mod signing_key_record_serde_tests {
         assert!(json.contains("\"fingerprint\""));
         assert!(json.contains("\"algorithm\""));
     }
-
-    // ----- Round-trip ----------
 
     #[test]
     fn signing_key_record_round_trips_through_serde() {
@@ -419,9 +401,6 @@ mod signing_key_record_serde_tests {
 
     #[test]
     fn deserialises_legacy_record_without_optional_fields() {
-        // Pin backward-compat: a record with only the required
-        // fields must parse, with all the optional fields
-        // defaulting to None.
         let legacy = r#"{
             "createdAt": "2026-06-30T12:00:00Z",
             "fingerprint": "sha256:abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd",
@@ -439,11 +418,8 @@ mod signing_key_record_serde_tests {
 mod identity_claim_and_constants_tests {
     use super::*;
 
-    // ----- ALLOWED_ALGORITHMS contents ----------
-
     #[test]
     fn allowed_algorithms_contains_all_documented_jws_algs() {
-        // Pin every JWS alg the publisher MAY emit.
         for alg in [
             "ES256", "ES384", "ES512", "PS256", "PS384", "PS512", "RS256", "RS384", "RS512",
             "Ed25519",
@@ -457,16 +433,13 @@ mod identity_claim_and_constants_tests {
 
     #[test]
     fn allowed_algorithms_has_exactly_ten_entries() {
-        // Length pin so a future addition lands with an explicit
-        // test update (catches a silent expansion that lets
-        // verifiers accept records under a weaker algorithm).
+        // Length pin: a silent expansion could let verifiers accept a weaker algorithm.
         assert_eq!(ALLOWED_ALGORITHMS.len(), 10);
     }
 
     #[test]
     fn allowed_algorithms_rejects_hmac_family() {
-        // Symmetric-key algs must not appear — the C2PA chain is
-        // public-key only.
+        // Symmetric-key algs must not appear: the C2PA chain is public-key only.
         for alg in ["HS256", "HS384", "HS512", "none"] {
             assert!(
                 !ALLOWED_ALGORITHMS.contains(&alg),
@@ -475,13 +448,9 @@ mod identity_claim_and_constants_tests {
         }
     }
 
-    // ----- IDENTITY_ASSERTION_LABEL pin ----------
-
     #[test]
     fn identity_assertion_label_is_reverse_dns_form() {
-        // Pin the label literal so a future maintainer can't
-        // silently rename the C2PA assertion — verifiers query
-        // by this exact string.
+        // Verifiers query by this exact string; a silent rename breaks interop.
         assert_eq!(IDENTITY_ASSERTION_LABEL, "app.provcheck.identity");
         assert!(IDENTITY_ASSERTION_LABEL.starts_with("app.provcheck."));
     }
@@ -490,8 +459,6 @@ mod identity_claim_and_constants_tests {
     fn identity_claim_schema_version_is_one() {
         assert_eq!(IDENTITY_CLAIM_SCHEMA_VERSION, 1);
     }
-
-    // ----- IdentityClaim::new + serde ----------
 
     #[test]
     fn identity_claim_new_sets_current_schema_version() {
@@ -514,7 +481,6 @@ mod identity_claim_and_constants_tests {
 
     #[test]
     fn identity_claim_serde_omits_none_handle() {
-        // skip_serializing_if = "Option::is_none" on handle.
         let c = IdentityClaim::new("did:plc:abc", None);
         let json = serde_json::to_string(&c).expect("ser");
         assert!(
@@ -525,9 +491,7 @@ mod identity_claim_and_constants_tests {
 
     #[test]
     fn identity_claim_serde_omits_none_version() {
-        // Backward-compat: producers SHOULD send version=Some(1)
-        // but a None version (older shipped builds) must not
-        // serialise as null.
+        // A None version (older shipped builds) must not serialise as null.
         let c = IdentityClaim {
             did: "did:plc:abc".into(),
             handle: None,
@@ -542,8 +506,6 @@ mod identity_claim_and_constants_tests {
 
     #[test]
     fn identity_claim_deserialises_legacy_record_without_version() {
-        // Backward-compat: old records without a version field
-        // must deserialise (version defaults to None).
         let legacy = r#"{"did":"did:plc:abc"}"#;
         let c: IdentityClaim = serde_json::from_str(legacy).expect("legacy parse");
         assert_eq!(c.did, "did:plc:abc");
@@ -559,13 +521,8 @@ mod identity_claim_and_constants_tests {
         assert_eq!(back, original);
     }
 
-    // ----- ALLOWED_ALGORITHMS additional invariants ----------
-
     #[test]
     fn allowed_algorithms_strings_are_unique() {
-        // Duplicates would mean both publisher- and verifier-side
-        // search loops have an extra cycle for no benefit, but
-        // also signal a manifest-edit bug. Pin uniqueness.
         let mut seen = std::collections::HashSet::new();
         for alg in ALLOWED_ALGORITHMS {
             assert!(
@@ -577,11 +534,6 @@ mod identity_claim_and_constants_tests {
 
     #[test]
     fn allowed_algorithms_use_uppercase_alg_codes() {
-        // The JOSE algorithm name registry uses uppercase
-        // identifiers (ES256, PS384, RS512, Ed25519). Pin the
-        // case-sensitivity by checking each entry has at least
-        // one uppercase letter and (Ed25519 aside) no lowercase
-        // ones in the prefix.
         for alg in ALLOWED_ALGORITHMS {
             assert!(
                 alg.chars().any(|c| c.is_ascii_uppercase()),
@@ -592,9 +544,6 @@ mod identity_claim_and_constants_tests {
 
     #[test]
     fn allowed_algorithms_each_entry_is_short_enough_for_jws_header() {
-        // JOSE header `alg` values are short — 5 to 7 chars in
-        // practice. Pin a reasonable upper bound so a typo like
-        // "ES256-PSS-SHA256-LONG" doesn't slip in.
         for alg in ALLOWED_ALGORITHMS {
             assert!(
                 alg.len() <= 8,
@@ -607,8 +556,6 @@ mod identity_claim_and_constants_tests {
 
     #[test]
     fn allowed_algorithms_contains_ed25519_with_canonical_case() {
-        // Ed25519 has mixed case by convention (NOT ED25519).
-        // Pin the canonical spelling.
         assert!(ALLOWED_ALGORITHMS.contains(&"Ed25519"));
         assert!(!ALLOWED_ALGORITHMS.contains(&"ED25519"));
         assert!(!ALLOWED_ALGORITHMS.contains(&"ed25519"));
@@ -616,10 +563,7 @@ mod identity_claim_and_constants_tests {
 
     #[test]
     fn allowed_algorithms_excludes_eddsa_generic_name() {
-        // "EdDSA" is the generic algorithm family name JOSE
-        // technically registers, but our spec requires
-        // specifying the curve via "Ed25519". A future maintainer
-        // who adds "EdDSA" would break interop with c2pa-rs.
+        // Spec requires the curve via "Ed25519"; adding generic "EdDSA" breaks interop with c2pa-rs.
         assert!(!ALLOWED_ALGORITHMS.contains(&"EdDSA"));
     }
 }
@@ -651,16 +595,13 @@ mod tests {
 
     #[test]
     fn fingerprint_leaf_der_matches_known_value() {
-        // If this test fails, the algorithm changed. That's a wire-
-        // breaking change — coordinate with provcheck-platform and
-        // bump the lexicon.
+        // A failure here means the algorithm changed: a wire-breaking change needing a lexicon bump.
         assert_eq!(fingerprint_leaf_der(SAMPLE_DER), SAMPLE_FINGERPRINT);
     }
 
     #[test]
     fn fingerprint_pem_chain_handles_minimal_input() {
-        // A PEM CERTIFICATE block whose body decodes to SAMPLE_DER.
-        // base64("hello, der") = "aGVsbG8sIGRlcg==".
+        // base64("hello, der") = "aGVsbG8sIGRlcg==", decoding to SAMPLE_DER.
         let pem = "-----BEGIN CERTIFICATE-----\naGVsbG8sIGRlcg==\n-----END CERTIFICATE-----\n";
         let fp = fingerprint_pem_chain(pem).expect("parses");
         assert_eq!(fp, SAMPLE_FINGERPRINT);
@@ -668,7 +609,6 @@ mod tests {
 
     #[test]
     fn fingerprint_pem_chain_rejects_no_certificate_block() {
-        // A PEM PRIVATE KEY block, no CERTIFICATE.
         let pem = "-----BEGIN PRIVATE KEY-----\naGVsbG8sIGRlcg==\n-----END PRIVATE KEY-----\n";
         let err = fingerprint_pem_chain(pem).expect_err("should reject");
         assert!(matches!(err, FingerprintError::NoCertificate));
@@ -676,8 +616,7 @@ mod tests {
 
     #[test]
     fn fingerprint_pem_chain_picks_first_certificate() {
-        // Two CERTIFICATE blocks — the leaf (first) is what counts.
-        // base64("hello, der") then base64("goodbye, der").
+        // Two CERTIFICATE blocks; the leaf (first) is what counts.
         let pem = "-----BEGIN CERTIFICATE-----\n\
                    aGVsbG8sIGRlcg==\n\
                    -----END CERTIFICATE-----\n\
@@ -700,12 +639,10 @@ mod tests {
             superseded_by: None,
         };
         let json = serde_json::to_string(&r).expect("serialise");
-        // Optional fields are absent, not present-as-null.
         assert!(!json.contains("\"label\""));
         assert!(!json.contains("\"validFrom\""));
         assert!(!json.contains("\"validUntil\""));
         assert!(!json.contains("\"supersededBy\""));
-        // Wire field names are camelCase per lexicon.
         assert!(json.contains("\"createdAt\""));
         let decoded: SigningKeyRecord = serde_json::from_str(&json).expect("round-trip");
         assert_eq!(decoded, r);
@@ -729,21 +666,18 @@ mod tests {
 
     #[test]
     fn allowed_algorithms_includes_es256() {
-        // Sanity check: ES256 is what every signer in the c2pa
-        // ecosystem produces by default; it must be allowed.
+        // ES256 is the c2pa ecosystem default; it must be allowed.
         assert!(ALLOWED_ALGORITHMS.contains(&"ES256"));
     }
 
     #[test]
     fn identity_claim_round_trips_minimum_payload() {
-        // did only — handle and version absent.
         let c = IdentityClaim {
             did: "did:plc:abc123".to_string(),
             handle: None,
             version: None,
         };
         let json = serde_json::to_string(&c).expect("serialise");
-        // Optional fields stay absent rather than present-as-null.
         assert!(!json.contains("\"handle\""));
         assert!(!json.contains("\"version\""));
         let back: IdentityClaim = serde_json::from_str(&json).expect("round-trip");
@@ -761,14 +695,9 @@ mod tests {
 
     #[test]
     fn identity_assertion_label_matches_lexicon_id() {
-        // The C2PA assertion label and the lexicon's `id` must
-        // be the same string — they identify the same shape on
-        // either side of the wire. Locking this in code prevents
-        // a typo from breaking interop.
+        // Label and lexicon `id` must match: both sides of the wire identify the same shape.
         assert_eq!(IDENTITY_ASSERTION_LABEL, "app.provcheck.identity");
     }
-
-    // ----- v0.9.3 coverage additions ----------
 
     #[test]
     fn identity_claim_new_pins_current_schema_version() {
@@ -780,17 +709,13 @@ mod tests {
 
     #[test]
     fn identity_claim_schema_version_is_pinned_at_one() {
-        // v1 is the on-the-wire baseline. Bumping requires a
-        // verifier upgrade in the same release.
+        // Bumping the baseline requires a verifier upgrade in the same release.
         assert_eq!(IDENTITY_CLAIM_SCHEMA_VERSION, 1);
     }
 
     #[test]
     fn allowed_algorithms_pins_the_membership_list() {
-        // Each entry is referenced by SigningKeyRecord wire format.
-        // Lock the exact membership so a future maintainer cannot
-        // silently demote or admit an algorithm without a test
-        // failure.
+        // Lock exact membership: no silent demotion or admission of an algorithm.
         assert_eq!(
             ALLOWED_ALGORITHMS,
             &[
@@ -824,8 +749,7 @@ mod tests {
     #[test]
     fn fingerprint_pem_chain_rejects_garbled_input() {
         let r = fingerprint_pem_chain("not pem at all");
-        // Acceptable outcomes: parse-failed-empty OR no-certificate.
-        // Load-bearing is "Err, not panic".
+        // Load-bearing: Err, not panic.
         assert!(r.is_err());
     }
 
@@ -837,8 +761,7 @@ mod tests {
             fp.starts_with("sha256:"),
             "expected sha256: prefix, got {fp}"
         );
-        // 7 ("sha256:") + 64 (lowercase hex) = 71 chars.
-        assert_eq!(fp.len(), 71);
+        assert_eq!(fp.len(), 71); // 7 ("sha256:") + 64 hex.
         let hex = &fp[7..];
         assert!(
             hex.chars()

@@ -27,14 +27,13 @@ use std::path::PathBuf;
 /// Wrapped in `anyhow::Error` for ergonomic `?` use in command
 /// bodies; `main.rs` downcasts to map onto exit codes.
 #[derive(Debug, thiserror::Error)]
-#[allow(dead_code)] // SessionExpired + Io are consumed by the implementation passes
 pub enum KitError {
     #[error("atproto session expired — run `kit login`")]
     SessionExpired,
+    // Reserved for main.rs exit-code-2 mapping; no command path emits it yet.
+    #[allow(dead_code)]
     #[error("i/o: {0}")]
     Io(std::io::Error),
-    #[error("not implemented yet: {0}")]
-    NotImplemented(&'static str),
 }
 
 #[cfg(test)]
@@ -55,42 +54,19 @@ mod kit_error_tests {
         assert!(s.contains("i/o"));
         assert!(s.contains("perms"));
     }
-
-    #[test]
-    fn not_implemented_message_includes_subcommand_name() {
-        let s = format!("{}", KitError::NotImplemented("publish"));
-        assert!(s.contains("not implemented"));
-        assert!(s.contains("publish"));
-    }
 }
 
-// v0.9.64: pin that operator-facing "deferred feature" messages
-// do not embed a specific landed-in version. The previous
-// messages claimed "v0.3.0 / v0.5.1 / v0.5.0 P3" — once we
-// shipped past those, the messages were lying to users about
-// when a feature would land. The fix is to describe the
-// workaround, not promise a version.
 #[cfg(test)]
 mod no_stale_version_promises_tests {
-    // Operate on the captured stderr from running the lock/
-    // unlock async fns. Since they're async we test them via
-    // a small tokio runtime.
-
     fn capture_lock_stderr() -> String {
         let args = super::lock::CliArgs {
             data_dir: super::DataDirOpt { data_dir: None },
         };
-        // The function writes to stderr via eprintln!; we can't
-        // capture that without a test harness. Instead, we test
-        // the user-facing strings by checking the source — they
-        // are stable string literals not produced by interpolation.
+        // Can't capture eprintln! stderr here; just exercise the no-op. The real pin is the source-walk test below.
         let rt = tokio::runtime::Builder::new_current_thread()
             .build()
             .unwrap();
-        // run() returns Ok(()) — exit cleanly
         rt.block_on(super::lock::run(args)).expect("lock no-op");
-        // The message we actually pin lives below in the
-        // _message_source_does_not_promise tests.
         String::new()
     }
 
@@ -107,8 +83,7 @@ mod no_stale_version_promises_tests {
 
     #[test]
     fn lock_command_exits_clean() {
-        // The no-op command must exit Ok — the CLI exit-code
-        // contract is that "successfully did nothing" is exit 0.
+        // No-op command must exit Ok — "successfully did nothing" is exit 0.
         let _ = capture_lock_stderr();
     }
 
@@ -119,24 +94,13 @@ mod no_stale_version_promises_tests {
 
     #[test]
     fn deferred_message_source_does_not_promise_landed_version() {
-        // Pin by walking the source — a future maintainer who
-        // reintroduces a `lands in v0.X.Y` style sentinel in any
-        // user-facing deferred-feature message will trip this
-        // test.
-        //
-        // Build the stale tokens by string concatenation so the
-        // test itself does not contain the literal substring
-        // (which would make the test self-defeating — it would
-        // match its own source).
+        // Tokens built by concatenation so this test's own source doesn't contain the sentinels it forbids.
         let lands = ["lands", "in"].join(" ");
         let v_dot_three = format!("v0{}3", '.');
         let v_dot_five_p3 = format!("v0{}5{}0 P3", '.', '.');
         let v_dot_five_one = format!("v0{}5{}1", '.', '.');
 
         let source = include_str!("mod.rs");
-        // Sentinels to look for: kit-agent rationale tied to a
-        // dotted version, or the two specific "lands in vX" hooks
-        // that we removed in v0.9.64.
         let s1 = format!("{} (no kit-agent", v_dot_three);
         let s2 = format!("{} {}", lands, v_dot_five_one);
         let s3 = format!("{} {}", lands, v_dot_five_p3);
@@ -308,16 +272,6 @@ pub struct DataDirOpt {
     pub data_dir: Option<PathBuf>,
 }
 
-// ----------------------------------------------------------------
-// Command modules — one per subcommand. Each `run(args)` is the
-// real implementation; the surface compiled from the CLI dispatch
-// table here is the contract the user binary depends on.
-// ----------------------------------------------------------------
-
-// ----------------------------------------------------------------
-// `init` — Generate a fresh identity.
-// ----------------------------------------------------------------
-
 pub mod init {
     use anyhow::{Context, Result, bail};
     use clap::Args;
@@ -450,12 +404,7 @@ pub mod init {
                     .context("store key in encrypted file")?;
             }
             KeyProviderKind::Yubikey { .. } => {
-                // Init for a Yubikey identity goes through a
-                // different code path entirely (no software-
-                // keypair generation; the key is minted on-device).
-                // This arm exists so the compiler keeps every match
-                // exhaustive. Reaching it indicates an upstream
-                // dispatch bug.
+                // Unreachable: Yubikey init uses a separate path; arm exists only for match exhaustiveness.
                 bail!(
                     "internal error: software-keypair init arm reached \
                      for a Yubikey-backed identity. The Yubikey path \
@@ -495,8 +444,7 @@ pub mod init {
     /// cert, writes it into slot 9c, and persists the public
     /// artefacts. The private key never enters host RAM.
     async fn run_yubikey(args: CliArgs, dir: std::path::PathBuf) -> Result<()> {
-        // Detect connected Yubikeys before prompting the user — gives
-        // a clearer error path when zero devices are present.
+        // Detect devices before prompting so zero-device gives a clean error.
         let serials = list_connected().context("enumerate Yubikeys")?;
         let serial = match (serials.len(), args.serial) {
             (0, _) => bail!(
@@ -536,8 +484,7 @@ pub mod init {
         );
         eprintln!();
 
-        // Prompt for the PIV PIN. Plain rpassword — no PIN length /
-        // policy check (yubikey enforces 6-8 chars itself on verify).
+        // No PIN length check — the Yubikey enforces 6-8 chars on verify.
         let pin = rpassword::prompt_password("PIV PIN: ").context("read PIN")?;
         if pin.is_empty() {
             bail!("PIN required — aborted");
@@ -588,10 +535,6 @@ pub mod init {
     }
 }
 
-// ----------------------------------------------------------------
-// `status` — Report the current local + atproto state.
-// ----------------------------------------------------------------
-
 pub mod status {
     use anyhow::{Context, Result};
     use clap::Args;
@@ -617,10 +560,7 @@ pub mod status {
 
         match load_locked(&dir) {
             Ok(locked) => {
-                // RFC 3339 (e.g. "2026-06-14T08:28:05.199Z") instead
-                // of OffsetDateTime's verbose Display ("2026-06-14
-                // 8:28:05.1994507 +00:00:00"). Matches the wire
-                // format used everywhere else in the codebase.
+                // RFC 3339, not OffsetDateTime's verbose Display — matches the wire format used elsewhere.
                 let created = locked
                     .created_at
                     .format(&Rfc3339)
@@ -639,11 +579,7 @@ pub mod status {
                             format!("yubikey (serial {serial}, slot 0x{slot:02x})"),
                     }
                 );
-                // For Yubikey identities, query the live device state
-                // so the user sees whether the token is plugged in and
-                // how many PIN tries remain. Soft-failure: if the
-                // device isn't reachable, surface that as an
-                // informational line rather than aborting.
+                // Query live device state; soft-fail to an info line if the Yubikey isn't reachable.
                 if let provcheck_sign::types::KeyProviderKind::Yubikey { serial, slot } =
                     locked.key_provider
                 {
@@ -715,10 +651,6 @@ pub mod status {
         Ok(())
     }
 }
-
-// ----------------------------------------------------------------
-// `sign <FILE>` — Sign an asset with the local key.
-// ----------------------------------------------------------------
 
 pub mod sign {
     use std::path::PathBuf;
@@ -802,12 +734,6 @@ pub mod sign {
         let locked = load_locked(&dir)
             .context("load identity — run `kit init` first if you haven't already")?;
 
-        // Construct a c2pa signer via the recorded backend. The
-        // provider's `signer()` method handles passphrase / PIN entry
-        // and (for Yubikey) device interaction. Software backends
-        // wrap a fetched PEM via c2pa's existing builders; the
-        // Yubikey backend returns a custom signer that delegates
-        // every signature to the on-device key.
         let mut prompt = unlock_passphrase();
         let signer: Box<dyn c2pa::Signer> = match locked.key_provider {
             KeyProviderKind::Keychain => KeychainProvider::new()
@@ -821,11 +747,7 @@ pub mod sign {
                 .context("build signer from Yubikey")?,
         };
 
-        // Inspect the source for existing C2PA provenance so we can
-        // (a) pick the right default action, (b) tell the user what
-        // they're chaining into. provcheck-sign auto-adds the
-        // parent ingredient regardless of action — this only
-        // controls the claim verb on the new manifest.
+        // Inspect for existing provenance to pick the default action; provcheck-sign adds the parent ingredient regardless — this only sets the claim verb.
         let provenance = inspect_source(&args.file);
         if let Some(prov) = &provenance {
             eprintln!("source has existing C2PA provenance:");
@@ -870,11 +792,7 @@ pub mod sign {
             base_manifest
         };
 
-        // c2pa-rs refuses src == dst. When the user wants in-place
-        // (no --out), write to a sibling temp file and atomic-rename
-        // over the source on success. The temp file lives in the
-        // same directory as the source so std::fs::rename stays
-        // atomic on every platform (cross-volume rename isn't).
+        // c2pa-rs refuses src == dst; for in-place, temp-file + atomic rename, kept in the source dir so rename stays atomic (cross-volume isn't).
         let (effective_dst, in_place) = match &args.out {
             Some(p) => (p.clone(), false),
             None => (sidecar_tmp_path(&args.file), true),
@@ -888,8 +806,7 @@ pub mod sign {
         ) {
             Ok(r) => r,
             Err(e) => {
-                // Clean up the temp file so a failed in-place sign
-                // doesn't leave a half-written sidecar lying around.
+                // Remove temp so a failed in-place sign leaves no half-written sidecar.
                 if in_place {
                     let _ = std::fs::remove_file(&effective_dst);
                 }
@@ -899,7 +816,6 @@ pub mod sign {
 
         let final_path = if in_place {
             std::fs::rename(&effective_dst, &args.file).with_context(|| {
-                // Best-effort temp cleanup before returning.
                 let _ = std::fs::remove_file(&effective_dst);
                 format!(
                     "promote temp file {} → {} (signed file is at the temp \
@@ -1003,11 +919,6 @@ pub mod sign {
     }
 }
 
-// ----------------------------------------------------------------
-// `add-recovery-recipient <AGE-PUBKEY>` / `list-recovery-recipients`
-// / `remove-recovery-recipient <PUBKEY-OR-LABEL>`
-// ----------------------------------------------------------------
-
 pub mod add_recovery_recipient {
     use anyhow::{Context, Result, bail};
     use clap::Args;
@@ -1042,8 +953,7 @@ pub mod add_recovery_recipient {
             .unwrap_or_else(|| default_dir().context("resolve default data directory"))?;
         let mut locked = load_locked(&dir).context("load identity")?;
 
-        // Validate the pubkey is a real age recipient before
-        // storing it — refuse to register garbage.
+        // Validate the pubkey is a real age recipient before storing garbage.
         parse_recipient_pubkey(&args.pubkey)
             .with_context(|| format!("invalid age pubkey: {}", args.pubkey))?;
 
@@ -1204,16 +1114,7 @@ pub mod remove_recovery_recipient {
     }
 }
 
-// ----------------------------------------------------------------
-// `lock` / `unlock` — Passphrase-cache controls.
-// ----------------------------------------------------------------
-//
-// These exist on the CLI surface for future-compatibility with an
-// agent-daemon mode. The kit has no daemon today: each `kit`
-// invocation is a fresh process that drops its SecretCache at
-// exit. Both commands print an honest "no-op" rather than
-// pretending to do something. When a daemon ships these become
-// the actual hooks.
+// No-op today: no kit-agent daemon yet, so each process drops its SecretCache at exit. Forward-compatible shell for a future daemon.
 
 pub mod lock {
     use super::DataDirOpt;
@@ -1256,10 +1157,6 @@ pub mod unlock {
         Ok(())
     }
 }
-
-// ----------------------------------------------------------------
-// `change-passphrase` — Re-encrypt the on-disk key.
-// ----------------------------------------------------------------
 
 pub mod change_passphrase {
     use anyhow::{Context, Result, bail};
@@ -1319,10 +1216,6 @@ pub mod change_passphrase {
     }
 }
 
-// ----------------------------------------------------------------
-// `export-backup <FILE>` / `import-backup <FILE>`
-// ----------------------------------------------------------------
-
 pub mod export_backup {
     use std::path::PathBuf;
 
@@ -1377,7 +1270,6 @@ pub mod export_backup {
             .unwrap_or_else(|| default_dir().context("resolve default data directory"))?;
         let locked = load_locked(&dir).context("load identity")?;
 
-        // Unlock to obtain the private key.
         let mut unlock = unlock_passphrase();
         let key_pem = match locked.key_provider {
             KeyProviderKind::Keychain => KeychainProvider::new()
@@ -1486,10 +1378,6 @@ pub mod import_backup {
             );
         }
 
-        // v0.9.66: wire X25519-recipient backups through the CLI.
-        // Branch on --identity-file. The library has supported
-        // `import_with_x25519_identity` since v0.4; only the CLI
-        // surface was missing.
         let bundle = if let Some(ref id_path) = args.identity_file {
             use std::str::FromStr;
             eprintln!(
@@ -1499,10 +1387,7 @@ pub mod import_backup {
             );
             let id_text = std::fs::read_to_string(id_path)
                 .with_context(|| format!("read identity file {}", id_path.display()))?;
-            // Pick the first AGE-SECRET-KEY-1 line (rage-keygen's
-            // standard format prefixes the actual key with comment
-            // lines, so a line-by-line scan is more robust than a
-            // whole-file parse).
+            // Line scan for the first AGE-SECRET-KEY-1 — rage-keygen prefixes the key with comment lines.
             let secret_line = id_text
                 .lines()
                 .find(|line| line.starts_with("AGE-SECRET-KEY-1"))
@@ -1533,8 +1418,6 @@ pub mod import_backup {
         };
         let unlocked = bundle.into_unlocked(Some(backend));
 
-        // Store the private key via the chosen backend, then save
-        // the public artefacts.
         let mut new_pp = new_passphrase();
         match backend {
             KeyProviderKind::Keychain => {
@@ -1558,11 +1441,7 @@ pub mod import_backup {
                     .context("store key in encrypted file")?;
             }
             KeyProviderKind::Yubikey { .. } => {
-                // import-backup never targets a Yubikey: a backup file
-                // carries a software-extractable PEM, which can't be
-                // injected into a hardware token. The `backend` arg is
-                // chosen above and never selects Yubikey; this arm
-                // exists for match exhaustiveness.
+                // Unreachable: backend never selects Yubikey; hardware tokens don't accept imported keys. Arm exists for exhaustiveness.
                 bail!(
                     "import-backup cannot target a Yubikey backend — \
                      hardware tokens don't accept imported keys. To \
@@ -1580,24 +1459,13 @@ pub mod import_backup {
     }
 }
 
-// ----------------------------------------------------------------
-// atproto-side commands (login / logout / publish / list / revoke
-// / rotate) and the cross-cutting `verify` shortcut.
-//
-// These all share the same load-and-resume-session preamble. The
-// helpers in this section keep the common shape in one place.
-// ----------------------------------------------------------------
-
 async fn load_or_explain_session(
     dir: &std::path::Path,
 ) -> anyhow::Result<provcheck_publish::AtprotoClient> {
     use provcheck_publish::session::SessionError;
     match provcheck_publish::AtprotoClient::load_session(dir).await {
         Ok(c) => Ok(c),
-        // Route session-expired through the KitError variant so
-        // main.rs's exit-code mapping returns 3 (CI flows like
-        // `kit publish || kit login && kit publish` can distinguish
-        // expired-session from network/auth failures).
+        // Route session-expired through KitError so main.rs maps it to exit code 3.
         Err(SessionError::SessionExpired) => Err(anyhow::Error::from(KitError::SessionExpired)),
         Err(SessionError::Io(e)) if e.kind() == std::io::ErrorKind::NotFound => Err(
             anyhow::anyhow!("no atproto session on disk — run `kit login` first"),
@@ -1684,7 +1552,6 @@ pub mod login {
             .map(Ok)
             .unwrap_or_else(|| default_dir().context("resolve default data directory"))?;
 
-        // App password input — rpassword hides it.
         eprintln!("atproto app password (NOT your account password):");
         let app_password = rpassword::prompt_password("app password: ")
             .context("read app password from terminal")?;
@@ -1697,10 +1564,7 @@ pub mod login {
             .await
             .context("persist session to disk")?;
 
-        // Stamp the resolved did + handle onto the local identity so
-        // `kit status` and `kit publish` have them without a network
-        // call. Optional — login works without a local identity (a
-        // user could log in just to `kit list` someone else's flow).
+        // Stamp did + handle onto the local identity so status/publish avoid a network call; optional since login works without a local identity.
         if let Ok(mut locked) = load_locked(&dir) {
             let snap = client.snapshot();
             locked.did = Some(snap.did.clone());
@@ -1789,11 +1653,7 @@ pub mod publish {
         let client = super::load_or_explain_session(&dir).await?;
         let writer = RecordWriter::new(&client);
 
-        // Refuse to publish a duplicate without --force. Atproto
-        // happily creates a second record with the same fingerprint
-        // (rkey is server-assigned and different), but that's
-        // confusing for the verifier (which trusts the newest active
-        // record per fingerprint). Better to surface the dup loudly.
+        // Refuse duplicate without --force: atproto allows a second same-fingerprint record, but the verifier trusts the newest active one, so surface the dup.
         if !args.force {
             let existing = writer.list_signing_keys().await.context("atproto list")?;
             if existing
@@ -1824,15 +1684,7 @@ pub mod publish {
         let at_uri = match writer.publish_signing_key(&record).await {
             Ok(uri) => uri,
             Err(e) => {
-                // The publish call's outcome is genuinely
-                // ambiguous on connection failures: the request
-                // might have reached the PDS and been committed
-                // before our connection dropped. Tell the user
-                // explicitly so they don't assume "publish failed"
-                // means "no record was created" and immediately
-                // retry — a retry produces a duplicate if the
-                // first one landed. `kit list` is the source of
-                // truth.
+                // Publish outcome is ambiguous on connection failure — the commit may have landed, so warn the user to check with kit list before retrying.
                 eprintln!(
                     "warning: publish outcome unconfirmed. The PDS may or may \
                      not have committed the record. Run `kit list` to check \
@@ -1843,8 +1695,7 @@ pub mod publish {
             }
         };
 
-        // Refresh session-on-disk in case atrium rotated the JWTs
-        // during the call. Cheap, keeps subsequent commands working.
+        // Refresh session on disk in case atrium rotated the JWTs during the call.
         let _ = client.save_session(&dir).await;
 
         eprintln!("✓ Published.");
@@ -2120,16 +1971,13 @@ pub mod rotate {
         let client = super::load_or_explain_session(&dir).await?;
         let writer = RecordWriter::new(&client);
 
-        // Resolve the old record's rkey BEFORE we touch anything —
-        // saves us a doomed publish if the old fingerprint isn't on
-        // atproto in the first place.
+        // Resolve the old record first — avoids a doomed publish if the old fingerprint isn't on atproto.
         let existing = writer.list_signing_keys().await.context("atproto list")?;
         let old_entry = existing
             .iter()
             .find(|(_, r)| r.fingerprint == old.fingerprint && r.valid_until.is_none())
             .cloned();
 
-        // Step 1: generate fresh keypair.
         let subject = provcheck_sign::cert::SubjectInfo::default();
         let generated = generate(&subject).context("generate new keypair")?;
         let new_fingerprint = generated.fingerprint.clone();
@@ -2146,16 +1994,13 @@ pub mod rotate {
             recovery_recipients: old.recovery_recipients.clone(),
         };
 
-        // Step 2: stage the new private key beside the old one
-        // under `keys-staging/` (sibling dir of the data dir),
-        // then promote on success. Simpler than a rename dance.
+        // Stage the new key under keys-staging/, promote on success.
         let staging = staging_path_for(&dir);
         std::fs::create_dir_all(&staging).context("create staging dir")?;
         let mut prompt = new_passphrase();
         match new_locked.key_provider {
             KeyProviderKind::Keychain => {
-                // Keychain entry is keyed on fingerprint so it doesn't
-                // clash with the old one — store directly.
+                // Keychain entry is keyed on fingerprint, so it won't clash with the old one.
                 KeychainProvider::new()
                     .store(&staging, &new_fingerprint, &new_key_secret, &mut prompt)
                     .context("store new key in OS keychain")?;
@@ -2166,10 +2011,7 @@ pub mod rotate {
                     .context("store new key in encrypted file")?;
             }
             KeyProviderKind::Yubikey { .. } => {
-                // Yubikey rotation requires generating the key on-
-                // device, not in software — the staging path above
-                // generated a software keypair. Yubikey rotation is
-                // a follow-up; the workaround is documented below.
+                // Yubikey rotation needs an on-device keypair; unsupported here — see the workaround in the bail message.
                 bail!(
                     "Yubikey-backed identities cannot rotate via a plain \
                      `kit rotate` — a software keypair can't replace the \
@@ -2183,7 +2025,6 @@ pub mod rotate {
             }
         }
 
-        // Step 3: publish the new record.
         let created_at = OffsetDateTime::now_utc()
             .format(&Rfc3339)
             .context("format created_at")?;
@@ -2209,15 +2050,7 @@ pub mod rotate {
             }
         };
 
-        // Step 4: promote staging → primary. The old data dir gets
-        // moved aside to keys-rotated-<old-fp-prefix>/. Failures
-        // here are the dangerous case — the new record is already
-        // on atproto but the local identity is still the old one.
-        // We attempt to delete the orphan published record so the
-        // user isn't left with a fingerprint they can't sign with;
-        // if the cleanup also fails (rare — network down, etc.),
-        // surface BOTH errors so they can finish the cleanup
-        // manually.
+        // Promote staging → primary; old dir moves aside. Dangerous: the new record is already on atproto, so on failure we delete the orphan record and surface both errors.
         let backup_dir = rotated_path_for(&dir, &old.fingerprint);
         if let Err(rename_err) = std::fs::rename(&dir, &backup_dir) {
             let cleanup = cleanup_orphan_published(&writer, &new_uri).await;
@@ -2233,8 +2066,7 @@ pub mod rotate {
         }
         if let Err(rename_err) = std::fs::rename(&staging, &dir) {
             let cleanup = cleanup_orphan_published(&writer, &new_uri).await;
-            // Restore the old identity to its primary location so
-            // the user keeps working with their existing key.
+            // Restore the old identity to primary so the user keeps their working key.
             let restore_err = std::fs::rename(&backup_dir, &dir).err();
             let _ = std::fs::remove_dir_all(&staging);
             return Err(format_partial_rotation_err_with_restore(
@@ -2250,9 +2082,7 @@ pub mod rotate {
         }
         save_public_artefacts(&dir, &new_locked).context("save new identity.json")?;
 
-        // Step 5: revoke the old record with supersededBy →
-        // new_uri. Non-fatal — the user can run
-        // `kit revoke <old-fp> --superseded-by <new-uri>` later.
+        // Revoke the old record, linking supersededBy → new_uri; non-fatal (user can kit revoke later).
         if let Some((old_uri, mut old_record)) = old_entry {
             let old_rkey = old_uri.rkey().unwrap_or_default().to_string();
             old_record.valid_until = Some(
@@ -2305,8 +2135,7 @@ pub mod rotate {
     }
 
     fn rotated_path_for(dir: &std::path::Path, old_fingerprint: &str) -> PathBuf {
-        // Strip the `sha256:` prefix for the dir name; take a
-        // first-8-char slice so the path stays short.
+        // Short dir name: strip the sha256: prefix and take the first 8 chars.
         let fp = old_fingerprint
             .strip_prefix("sha256:")
             .unwrap_or(old_fingerprint);
@@ -2316,10 +2145,7 @@ pub mod rotate {
             .file_name()
             .and_then(|s| s.to_str())
             .unwrap_or("provcheck-kit");
-        // Best-effort uniqueness via the fingerprint shard — multiple
-        // rotations on the same day are rare, but if one collides
-        // the user gets a clear error from std::fs::rename rather
-        // than a silent overwrite.
+        // Fingerprint shard for uniqueness; a collision surfaces as a rename error, not a silent overwrite.
         parent.join(format!("{leaf}-rotated-{short}"))
     }
 
@@ -2408,11 +2234,6 @@ pub mod rotate {
         )
     }
 
-    // No end-to-end tests here yet — rotate needs an atproto mock
-    // to drive. The path-arithmetic helpers (staging_path_for,
-    // rotated_path_for) are pure functions and have direct unit
-    // tests below.
-
     #[cfg(test)]
     mod tests {
         use super::*;
@@ -2485,9 +2306,7 @@ pub mod verify {
     }
 
     pub async fn run(args: CliArgs) -> Result<()> {
-        // Use spawn_blocking so the synchronous Command call doesn't
-        // park the runtime's only thread (the binary uses
-        // current_thread flavor).
+        // spawn_blocking so the sync Command doesn't park the runtime's only thread (current_thread flavor).
         let provcheck_bin = args.provcheck_bin.clone();
         let file = args.file.clone();
         let passthrough = args.passthrough.clone();
@@ -2517,10 +2336,6 @@ pub mod verify {
         Ok(())
     }
 }
-
-// ----------------------------------------------------------------
-// `watermark` — embed a silentcipher mark into an audio file.
-// ----------------------------------------------------------------
 
 pub mod watermark {
     //! Stamp a neural watermark into an audio file. Three detector
@@ -2772,22 +2587,18 @@ pub mod watermark {
 
         #[test]
         fn dfm_payload_round_trips() {
-            // doomscroll.fm: b"DFM\x01\x00" → "44464d0100"
             let bytes = parse_payload_hex("44464d0100").expect("ok");
             assert_eq!(bytes, [b'D', b'F', b'M', 0x01, 0x00]);
         }
 
         #[test]
         fn rai_payload_round_trips() {
-            // rAIdio.bot: b"RAI\x01\x00" → "5241490100"
             let bytes = parse_payload_hex("5241490100").expect("ok");
             assert_eq!(bytes, [b'R', b'A', b'I', 0x01, 0x00]);
         }
 
         #[test]
         fn whitespace_in_input_is_tolerated() {
-            // Operator-friendly: copy-pasted strings often pick up
-            // spaces. The parser strips them.
             assert_eq!(
                 parse_payload_hex("5241 4901 00").expect("ok"),
                 [b'R', b'A', b'I', 0x01, 0x00]
@@ -2820,8 +2631,6 @@ pub mod watermark {
 
         #[test]
         fn non_hex_chars_error_with_byte_position() {
-            // 'g' is not a valid hex digit; the parser names the
-            // byte index in the error chain.
             let r = parse_payload_hex("4446gg0100");
             assert!(r.is_err());
             let msg = format!("{:#}", r.err().unwrap());
@@ -2840,7 +2649,6 @@ pub mod watermark {
 
         #[test]
         fn mixed_case_hex_accepted() {
-            // u8::from_str_radix is case-insensitive for hex.
             assert_eq!(
                 parse_payload_hex("5241AbcdEF").expect("ok"),
                 parse_payload_hex("5241abcdef").expect("ok")
@@ -2849,21 +2657,16 @@ pub mod watermark {
 
         #[test]
         fn all_zeros_payload_round_trips() {
-            // Edge corner of the 40-bit space.
             assert_eq!(parse_payload_hex("0000000000").expect("ok"), [0u8; 5]);
         }
 
         #[test]
         fn all_ones_payload_round_trips() {
-            // Other edge corner.
             assert_eq!(parse_payload_hex("ffffffffff").expect("ok"), [0xFFu8; 5]);
         }
 
         #[test]
         fn tabs_and_newlines_also_tolerated_as_whitespace() {
-            // is_whitespace catches \t and \n, not just spaces.
-            // Copy-paste from shell pipes is a common operator
-            // workflow; pin the broader whitespace acceptance.
             let with_tabs = "44\t46\t4d\t01\t00";
             let with_newline = "44\n46\n4d\n01\n00";
             assert_eq!(
@@ -2878,8 +2681,6 @@ pub mod watermark {
 
         #[test]
         fn nine_chars_just_below_required_length_errors() {
-            // 9 chars — one below the documented 10. Pin the
-            // strict-length boundary.
             let r = parse_payload_hex("123456789");
             assert!(r.is_err());
             let msg = format!("{}", r.err().unwrap());
@@ -2901,8 +2702,6 @@ pub mod watermark {
 
         #[test]
         fn mono_mode_always_emits_mono() {
-            // Mono mode is the user saying "I want mono out".
-            // Source channel count is irrelevant.
             assert_eq!(resolve_output_channels(ChannelMode::Mono, 1), 1);
             assert_eq!(resolve_output_channels(ChannelMode::Mono, 2), 1);
             assert_eq!(resolve_output_channels(ChannelMode::Mono, 6), 1);
@@ -2910,8 +2709,6 @@ pub mod watermark {
 
         #[test]
         fn stereo_mode_always_emits_stereo() {
-            // Stereo mode forces stereo output. Mono input gets
-            // upmixed to two-channel.
             assert_eq!(resolve_output_channels(ChannelMode::Stereo, 1), 2);
             assert_eq!(resolve_output_channels(ChannelMode::Stereo, 2), 2);
             assert_eq!(resolve_output_channels(ChannelMode::Stereo, 6), 2);
@@ -2925,8 +2722,7 @@ pub mod watermark {
 
         #[test]
         fn auto_mode_downmixes_multichannel_to_stereo() {
-            // Surround source (5.1, 7.1) → stereo. The kit's
-            // embed path doesn't carry > 2 channels.
+            // Embed path doesn't carry > 2 channels, so surround downmixes to stereo.
             assert_eq!(resolve_output_channels(ChannelMode::Auto, 3), 2);
             assert_eq!(resolve_output_channels(ChannelMode::Auto, 6), 2);
             assert_eq!(resolve_output_channels(ChannelMode::Auto, 8), 2);
@@ -3013,8 +2809,7 @@ pub mod watermark {
             .context("silentcipher stereo embed failed")?;
             (l, Some(r))
         } else {
-            // Mono output. If the source was stereo and we are
-            // forcing mono, downmix L and R before the single embed.
+            // Forcing mono from a stereo source: downmix L and R before the single embed.
             let mono = if source_channels >= 2 {
                 stereo
                     .left
@@ -3062,8 +2857,7 @@ pub mod watermark {
     async fn embed_audioseal(args: CliArgs) -> Result<()> {
         use provcheck_audioseal::{audio as as_audio, encode as as_encode, registry};
 
-        // Validate brand ID before downloading + tract-loading the
-        // generator; cheap and gives a clear error.
+        // Validate brand ID before the expensive generator load — cheap, clear error.
         if args.brand_id > registry::ID_MASK {
             bail!(
                 "--brand-id {} doesn't fit in 5 bits (max {})",
@@ -3175,11 +2969,6 @@ pub mod watermark {
 
         eprintln!("provcheck-kit: decoding {} (wavmark)", args.input.display());
 
-        // v0.9.63: wavmark stereo dispatch lands. Mirrors the
-        // audioseal path: decode the full stereo, decide whether
-        // to embed two-channel or downmix-to-mono based on
-        // --channels + source channel count, then route through
-        // the matching wavmark embed entry point.
         let input = args.input.clone();
         let mode = args.channels;
         let stereo = tokio::task::spawn_blocking(move || wm_audio::decode_to_stereo_16k(&input))
@@ -3378,8 +3167,7 @@ pub mod watermark {
             );
             Ok(())
         } else {
-            // Delete the output file so weak marks do not silently
-            // propagate to downstream pipelines.
+            // Delete the output so weak marks don't silently propagate downstream.
             let display = output.display().to_string();
             let _ = tokio::fs::remove_file(output).await;
             bail!(
@@ -3419,16 +3207,12 @@ mod tests {
 
     #[test]
     fn cli_definition_is_well_formed() {
-        // clap's `debug_assert` catches developer errors at test
-        // time (missing names, conflicting short flags, etc.) so
-        // the binary's --help output is guaranteed to render.
+        // clap debug_assert catches missing names / conflicting flags so --help always renders.
         Cli::command().debug_assert();
     }
 
     #[test]
     fn every_subcommand_is_reachable() {
-        // Verify the public surface — anyone who types
-        // `kit --help` sees the same 18 commands enumerated.
         let cmd = Cli::command();
         let names: Vec<&str> = cmd.get_subcommands().map(|c| c.get_name()).collect();
         for required in [
@@ -3480,9 +3264,6 @@ mod tests {
 
     #[test]
     fn parse_revoke_requires_fingerprint() {
-        // revoke takes a positional fingerprint and an optional
-        // --superseded-by at-uri; without the fingerprint the
-        // parse fails.
         assert!(Cli::try_parse_from(["provcheck-kit", "revoke"]).is_err());
         let ok = Cli::try_parse_from([
             "provcheck-kit",
@@ -3504,13 +3285,9 @@ mod tests {
         }
     }
 
-    // ----- normalise_fingerprint additional edges ----------
-
     #[test]
     fn normalise_fingerprint_accepts_minimum_8_chars() {
-        // The documented inclusive lower bound for "ambiguous
-        // but useful prefix match". Pin so a future tighten
-        // doesn't silently break short-prefix lookups.
+        // Pin the documented 8-char lower bound so a future tighten doesn't break short-prefix lookups.
         let r = super::normalise_fingerprint("abcdef01");
         assert!(r.is_ok(), "8-char hex prefix must be accepted");
         assert_eq!(r.unwrap(), "abcdef01");
@@ -3558,8 +3335,7 @@ mod tests {
 
     #[test]
     fn is_session_expired_catches_session_error_chain() {
-        // SessionError::SessionExpired wrapped under .context() — the
-        // common shape errors travel through publish/list/etc.
+        // SessionError::SessionExpired wrapped under .context() — the common shape from publish/list.
         let inner: anyhow::Error = provcheck_publish::session::SessionError::SessionExpired.into();
         let wrapped = inner.context("atproto session reload");
         assert!(super::is_session_expired(&wrapped));
@@ -3604,10 +3380,7 @@ mod tests {
         let got = super::normalise_fingerprint(
             "SHA256:0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF",
         );
-        // The prefix-strip is case-sensitive on "sha256:" — uppercase
-        // SHA256: doesn't strip, which means the whole string fails
-        // hex validation. This is intentional; the wire format uses
-        // lowercase exclusively.
+        // Prefix-strip is case-sensitive: uppercase SHA256: doesn't strip and fails hex validation — intentional, the wire format is lowercase.
         assert!(got.is_err(), "uppercase SHA256: prefix not stripped");
         // The hex chars themselves DO normalise to lowercase though.
         let got2 = super::normalise_fingerprint(
@@ -3679,8 +3452,7 @@ mod tests {
 
     #[test]
     fn parse_verify_passes_args_through() {
-        // verify's positional file + trailing passthrough args
-        // need to parse without clap eating the `--bsky-handle`.
+        // verify's positional file + trailing passthrough must parse without clap eating --bsky-handle.
         let cli = Cli::try_parse_from([
             "provcheck-kit",
             "verify",
@@ -3705,10 +3477,6 @@ mod tests {
         }
     }
 }
-
-// ----------------------------------------------------------------
-// `serve` — long-lived watermark worker (v0.6.0 P2)
-// ----------------------------------------------------------------
 
 pub mod serve {
     //! Long-lived watermark worker. Reads JSON-line requests on
@@ -3735,10 +3503,7 @@ pub mod serve {
     use std::path::PathBuf;
     use std::time::Instant;
 
-    // Suppress: the from_str method we use comes from the
-    // `ValueEnum` trait, but clap re-exports it via the macro
-    // expansion so the explicit import isn't needed at the call
-    // sites. Leaving it absent keeps the warning-clean build.
+    // ValueEnum::from_str is used below via clap's macro re-export; no explicit trait import needed.
 
     use anyhow::{Context, Result};
     use clap::{Args, ValueEnum};
@@ -3840,7 +3605,7 @@ pub mod serve {
     }
 
     pub async fn run(args: CliArgs) -> Result<()> {
-        let _ = args.protocol; // only Jsonl is wired for v0.6.0 P2
+        let _ = args.protocol; // only Jsonl is wired
 
         eprintln!("provcheck-kit: serve started (protocol=jsonl); send JSON requests on stdin");
         let stdin = std::io::stdin();
@@ -4021,7 +3786,6 @@ pub mod weights {
     }
 
     fn run_install(family: &str) -> Result<()> {
-        // "all" installs every family; otherwise collect one family's variants.
         let variants: Vec<&'static provcheck_weights::WeightEntry> = provcheck_weights::MANIFEST
             .iter()
             .filter(|e| family == "all" || e.family == family)
@@ -4178,16 +3942,11 @@ pub mod stamp {
             args.output.display()
         );
 
-        // Step 1: watermark. Routes through the existing kit
-        // command modules so we share their config, error
-        // surfaces, verify-after-embed self-test, and CLI flag
-        // semantics. The watermark step writes its output to
-        // args.output; downstream sign reads from there.
+        // Watermark via the existing kit command modules to share their flags and self-test; output goes to args.output for the sign step.
         if !args.no_watermark {
             run_watermark_step(&args, &modality).await?;
         } else {
-            // No watermark requested: copy input to output so the
-            // sign step has something to operate on.
+            // No watermark: copy input to output so the sign step has something to operate on.
             tokio::fs::copy(&args.input, &args.output)
                 .await
                 .with_context(|| {
@@ -4195,7 +3954,6 @@ pub mod stamp {
                 })?;
         }
 
-        // Step 2: C2PA sign in place (signs args.output, overwrites it).
         if !args.no_sign {
             run_sign_step(&args).await?;
         }
@@ -4257,8 +4015,6 @@ pub mod stamp {
         use super::*;
         use std::path::Path;
 
-        // ----- detect_modality coverage ----------
-
         #[test]
         fn detect_modality_classifies_audio_extensions() {
             for ext in [
@@ -4283,8 +4039,6 @@ pub mod stamp {
 
         #[test]
         fn detect_modality_is_case_insensitive() {
-            // Operators in the wild use Photo.JPG and MUSIC.MP3.
-            // The lowercase normalisation is load-bearing UX.
             let p = std::path::PathBuf::from("Photo.JPG");
             assert!(matches!(detect_modality(&p).unwrap(), Modality::Image));
             let p = std::path::PathBuf::from("MUSIC.MP3");
@@ -4317,42 +4071,30 @@ pub mod stamp {
 
         #[test]
         fn detect_modality_handles_full_path() {
-            // Not just bare filenames — any Path<...> with the
-            // right tail extension classifies correctly.
             let p = Path::new("/long/path/to/some/file.flac");
             assert!(matches!(detect_modality(p).unwrap(), Modality::Audio));
             let p = Path::new("C:\\Users\\creator\\Pictures\\out.png");
             assert!(matches!(detect_modality(p).unwrap(), Modality::Image));
         }
 
-        // ----- brand_id_to_payload_hex coverage ----------
-
         #[test]
         fn brand_id_to_payload_hex_doomscroll_is_dfm() {
-            // brand_id 1 → b"DFM\x01\x00" → "44464d0100".
-            // Pinned per the function doc comment.
             assert_eq!(brand_id_to_payload_hex(1), "44464d0100");
         }
 
         #[test]
         fn brand_id_to_payload_hex_raidio_is_rai() {
-            // brand_id 2 → b"RAI\x01\x00" → "5241490100".
-            // Pinned per the function doc comment.
             assert_eq!(brand_id_to_payload_hex(2), "5241490100");
         }
 
         #[test]
         fn brand_id_to_payload_hex_vaideo_is_vai() {
-            // brand_id 3 → b"VAI\x01\x00" → "5641490100".
             assert_eq!(brand_id_to_payload_hex(3), "5641490100");
         }
 
         #[test]
         fn brand_id_to_payload_hex_unknown_falls_back_to_doomscroll() {
-            // Any brand id outside the registered set falls back to
-            // DFM. Pinned so a future maintainer doesn't change the
-            // fallback brand silently — that would re-tag
-            // unregistered creators under doomscroll.
+            // Pin the DFM fallback so a future change doesn't silently re-tag unregistered creators under doomscroll.
             for unknown in [0u8, 4, 5, 16, 31] {
                 assert_eq!(
                     brand_id_to_payload_hex(unknown),
@@ -4364,8 +4106,7 @@ pub mod stamp {
 
         #[test]
         fn brand_id_to_payload_hex_is_always_10_chars() {
-            // 10 hex chars = 5 bytes = silentcipher payload size.
-            // Wire-format invariant.
+            // 10 hex chars = 5-byte silentcipher payload — wire-format invariant.
             for brand in 0u8..=31 {
                 assert_eq!(
                     brand_id_to_payload_hex(brand).len(),
@@ -4377,8 +4118,7 @@ pub mod stamp {
 
         #[test]
         fn brand_id_to_payload_hex_is_lowercase() {
-            // The kit's hex parser is lenient but the canonical
-            // form is lowercase — pin it.
+            // Parser is lenient but canonical form is lowercase — pin it.
             for brand in 0u8..=31 {
                 let h = brand_id_to_payload_hex(brand);
                 assert!(

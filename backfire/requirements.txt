@@ -3,9 +3,17 @@ numpy>=1.24
 pillow>=10.0
 # embed: additionally needs torch + a diffusion model (GPU recommended)
 # install torch for your platform separately (see pytorch.org), then:
-diffusers>=0.27
-transformers>=4.40
+# PINNED (do not float): diffusers 0.35.x aborts the embed import against torch 2.11
+#   ("Artifact of type=precompile already registered in mega-cache artifact factory" -
+#   diffusers.loaders.single_file_model collides with torch's inductor mega-cache).
+#   0.27.2 / transformers 4.37.2 is the tested pair (validated with torch 2.11.0+cu128).
+diffusers==0.27.2
+transformers==4.37.2
+# diffusers 0.27.2 imports huggingface_hub.cached_download, which hub>=0.26 removed;
+# 0.24.0 still has it AND satisfies accelerate>=0.21 (0.20.x does not). Pin it so a
+# fresh (or --system-site-packages) install cannot float hub past the break.
+huggingface_hub==0.24.0
 # neural-codec EOT (--codec-eot / --codec-iter, on by default); its pretrained
 # codecs download at embed time like the diffusion weights. For the diffusion-only
 # mark (--codec-eot 0 --codec-iter 0) this is not needed.
-compressai>=1.2
+compressai==1.2.8

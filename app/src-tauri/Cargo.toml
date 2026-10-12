@@ -7,7 +7,7 @@
 
 [package]
 name = "provcheck-app"
-version = "1.4.0"
+version = "1.5.0"
 description = "Drag-drop GUI for provcheck — verify C2PA Content Credentials."
 edition = "2024"
 rust-version = "1.85"
@@ -69,6 +69,15 @@ keyring = "3"
 # `open`, Linux: `xdg-open`). Wired via a tauri::command +
 # a JS delegated click handler in app.js.
 open = "5"
+
+# GUI-output localization (same fluent stack as provcheck-cli's brick C0):
+# i18n-embed + fluent, catalogs embedded from i18n/<lang>/provcheck-app.ftl.
+# Localizes complete user-facing sentences (ApiResult ok/err text); the JSON
+# envelope and technical { $err } diagnostics stay English.
+i18n-embed = { version = "0.15", features = ["fluent-system", "desktop-requester"] }
+i18n-embed-fl = "0.9"
+rust-embed = "8"
+once_cell = "1"
 
 [[bin]]
 name = "provcheck-app"

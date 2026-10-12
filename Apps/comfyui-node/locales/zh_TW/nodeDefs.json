@@ -1,0 +1,31 @@
+{
+  "ProvcheckC2PA": {
+    "display_name": "Provcheck（免費 C2PA 浮水印）• Creative Mayhem",
+    "description": "免費、開放原始碼（Apache-2.0）的 provcheck ComfyUI 節點，一個節點同時支援影像、音訊與影片。WRITE（寫入）：嵌入免費浮水印（影像使用 TrustMark，音訊／影片的音軌使用 silentcipher），並可選擇以您本機的金鑰搭配 atproto/Bluesky 身分進行 C2PA 簽署，也可選擇記錄生成流程圖；簽署後的檔案會寫入您的輸出目錄。READ（讀取）：對每個已連接的輸入偵測／驗證 provcheck 標記。可接入影像、音訊、影片，或任意組合。每個選項都是元件（widget），也都能從其他節點接線輸入，包括輸出檔名。Creative Mayhem 也推出 Backfire，一種會被 AI 去浮水印工具放大而非移除的具金鑰標記（商業附加功能，不包含於此免費套件）：https://provcheck.ai/backfire 。更多資訊：https://provcheck.ai",
+    "inputs": {
+      "mode": {
+        "name": "mode",
+        "tooltip": "write（寫入）＝對每個已連接的輸入進行浮水印嵌入及／或 C2PA 簽署（最常見用法）。read（讀取）＝偵測／驗證既有的 provcheck 標記。",
+        "options": { "write": "寫入", "read": "讀取" }
+      },
+      "image": { "name": "影像", "tooltip": "選填的影像批次，用於寫入或讀取。" },
+      "audio": { "name": "音訊", "tooltip": "選填的音訊，用於寫入或讀取。" },
+      "video": { "name": "影片", "tooltip": "選填的影片。浮水印會嵌入於音軌（畫面幀會保留不變）；容器檔案本身會進行 C2PA 簽署。" },
+      "watermark": { "name": "watermark", "tooltip": "[write] 嵌入免費開源（FOSS）浮水印（影像使用 TrustMark／音訊使用 silentcipher）。" },
+      "c2pa_sign": { "name": "c2pa_sign", "tooltip": "[write] 使用您本機的簽署金鑰進行 C2PA 簽署。簽署後的檔案會寫入您的 ComfyUI 輸出目錄。" },
+      "embed_identity": { "name": "embed_identity", "tooltip": "[write] 在資訊清單（manifest）中嵌入您的 atproto/Bluesky 身分（DID ＋帳號代稱），讓驗證者能得知簽署者身分。需要先以 kit 登入。" },
+      "record_provenance": { "name": "record_provenance", "tooltip": "[write] 將生成流程圖的精選摘要（模型、種子值、取樣器、提示詞）記錄至已簽署的資訊清單中。" },
+      "include_full_workflow": { "name": "include_full_workflow", "tooltip": "[write] 搭配 record_provenance 使用時：嵌入完整（已遮蔽敏感資訊的）工作流程，而不只是摘要。預設為關閉，以避免洩漏提示詞或路徑。" },
+      "brand_id": { "name": "brand_id", "tooltip": "[write] 來自 atproto 品牌註冊表的 5 位元品牌編號（0-31）。預設值 2 為公開的 rAIdio.bot 編號，請改用您自己的編號。" },
+      "filename_prefix": { "name": "filename_prefix", "tooltip": "[write，僅於實際寫入檔案時適用] 已簽署／已加浮水印檔案的輸出檔名前綴。可自行編輯，也可從其他節點接線輸入（在節點上按滑鼠右鍵並選擇 Convert to input）。" },
+      "timeout_secs": { "name": "timeout_secs", "tooltip": "每個項目的子行程逾時秒數。" }
+    },
+    "outputs": {
+      "0": { "name": "影像" },
+      "1": { "name": "音訊" },
+      "2": { "name": "影片" },
+      "3": { "name": "報告" },
+      "4": { "name": "偵測結果" }
+    }
+  }
+}
