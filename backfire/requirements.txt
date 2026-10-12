@@ -7,7 +7,7 @@ pillow>=10.0
 #   ("Artifact of type=precompile already registered in mega-cache artifact factory" -
 #   diffusers.loaders.single_file_model collides with torch's inductor mega-cache).
 #   0.27.2 / transformers 4.37.2 is the tested pair (validated with torch 2.11.0+cu128).
-diffusers==0.27.2
+diffusers==0.38.0
 transformers==4.37.2
 # diffusers 0.27.2 imports huggingface_hub.cached_download, which hub>=0.26 removed;
 # 0.24.0 still has it AND satisfies accelerate>=0.21 (0.20.x does not). Pin it so a
