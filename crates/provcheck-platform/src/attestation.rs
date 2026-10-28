@@ -274,13 +274,14 @@ pub fn verify_with_attestation(
     let config: AttestationConfig = attest.into();
 
     // A default Reader is fine here: trust-store settings don't affect cert_chain.
-    let cert_chain: Option<String> = match c2pa::Reader::from_file(path) {
-        Ok(reader) => reader
-            .active_manifest()
-            .and_then(|m| m.signature_info())
-            .map(|s| s.cert_chain.clone()),
-        Err(_) => None,
-    };
+    let cert_chain: Option<String> =
+        match c2pa::Reader::from_context(c2pa::Context::default()).with_file(path) {
+            Ok(reader) => reader
+                .active_manifest()
+                .and_then(|m| m.signature_info())
+                .map(|s| s.cert_chain.clone()),
+            Err(_) => None,
+        };
 
     let attestation = match cert_chain.as_deref() {
         Some(chain) => match fingerprint_leaf_cert(chain) {

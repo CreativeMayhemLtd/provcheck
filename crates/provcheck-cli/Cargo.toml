@@ -19,26 +19,26 @@ tempfile = "3"
 unic-langid = "0.9"
 
 [dependencies]
-provcheck = { path = "../provcheck" }
-provcheck-platform = { path = "../provcheck-platform" }
-provcheck-watermark = { path = "../provcheck-watermark" }
-provcheck-audioseal = { path = "../provcheck-audioseal" }
-provcheck-wavmark = { path = "../provcheck-wavmark" }
-provcheck-image = { path = "../provcheck-image" }
+provcheck = { workspace = true }
+provcheck-platform = { workspace = true }
+provcheck-watermark = { workspace = true }
+provcheck-audioseal = { workspace = true }
+provcheck-wavmark = { workspace = true }
+provcheck-image = { workspace = true }
 # --install-models: fetch every detector weight in the manifest.
-provcheck-weights = { path = "../provcheck-weights" }
-provcheck-video = { path = "../provcheck-video" }
-provcheck-synthid-text = { path = "../provcheck-synthid-text" }
+provcheck-weights = { workspace = true }
+provcheck-video = { workspace = true }
+provcheck-synthid-text = { workspace = true }
 
 # v0.9.73: AI-content detection dispatch via `--detect ai` flag.
 # The FOSS core ships the plumbing only; concrete detectors come
 # from a paid DLC pack or operator-supplied open-source wrapper.
-provcheck-detect = { path = "../provcheck-detect" }
+provcheck-detect = { workspace = true }
 # The DLC framework (Apache-2.0): offline seat-license verify + signed-pack pull,
 # so the reader can find/install the paid Pro Watermarking pack (Backfire + Mellin
 # tools). Never links the BUSL watermark crates; it only gates + locates the packs
 # the reader shells out to. Permissive-clean per WATERMARK_LICENSE_POLICY.md.
-provcheck-dlc = { path = "../provcheck-dlc" }
+provcheck-dlc = { workspace = true }
 clap = { workspace = true }
 # i18n (brick C0): fluent-rs runtime-output localization. The fluent stack is already
 # resolved in the workspace lock; these enable it directly for the CLI. Localizes

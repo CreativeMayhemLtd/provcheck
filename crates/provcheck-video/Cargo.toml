@@ -14,9 +14,9 @@ readme.workspace = true
 name = "provcheck_video"
 
 [dependencies]
-provcheck = { path = "../provcheck" }
-provcheck-image = { path = "../provcheck-image" }
-provcheck-weights = { path = "../provcheck-weights" }
+provcheck = { workspace = true }
+provcheck-image = { workspace = true }
+provcheck-weights = { workspace = true }
 tempfile = "3"
 serde.workspace = true
 serde_json.workspace = true

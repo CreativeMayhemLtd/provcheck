@@ -71,7 +71,7 @@ pub fn verify_with_options(path: &Path, opts: &VerifyOptions) -> Result<Report, 
             .map_err(|e| Error::InvalidTrustStore(e.to_string()))?;
         c2pa::Reader::from_context(context).with_file(path)
     } else {
-        c2pa::Reader::from_file(path)
+        c2pa::Reader::from_context(c2pa::Context::default()).with_file(path)
     };
 
     let reader = match reader_result {

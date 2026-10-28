@@ -12,7 +12,7 @@
 //! both ONNX files; this module exposes [`CHUNK_SAMPLES`] so callers
 //! know exactly what to pad or chunk to.
 
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 
 use tract_onnx::prelude::*;
 
@@ -25,7 +25,7 @@ pub const CHUNK_SAMPLES: usize = 160_000;
 /// Number of payload bits AudioSeal recovers per inference.
 pub const NBITS: usize = 16;
 
-type Runnable = TypedRunnableModel<TypedModel>;
+type Runnable = Arc<TypedRunnableModel>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ModelError {
@@ -80,10 +80,12 @@ pub fn run_detector_chunk(carrier: &[f32]) -> Result<(Vec<f32>, Vec<f32>), Model
     }
 
     let presence_view = presence
-        .to_array_view::<f32>()
+        .try_as_plain_ram()
+        .and_then(|v| v.to_array_view::<f32>())
         .map_err(|e: TractError| ModelError::Inference(e.to_string()))?;
     let message_view = message
-        .to_array_view::<f32>()
+        .try_as_plain_ram()
+        .and_then(|v| v.to_array_view::<f32>())
         .map_err(|e: TractError| ModelError::Inference(e.to_string()))?;
     Ok((
         presence_view.iter().copied().collect(),
@@ -124,7 +126,8 @@ pub fn run_generator_chunk(carrier: &[f32], msg: &[i64; NBITS]) -> Result<Vec<f3
         });
     }
     let view = out
-        .to_array_view::<f32>()
+        .try_as_plain_ram()
+        .and_then(|v| v.to_array_view::<f32>())
         .map_err(|e: TractError| ModelError::Inference(e.to_string()))?;
     Ok(view.iter().copied().collect())
 }

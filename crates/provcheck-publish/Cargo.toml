@@ -16,7 +16,7 @@ name = "provcheck_publish"
 [dependencies]
 # Shared wire-format types — the same SigningKeyRecord the verifier
 # (provcheck-platform) reads.
-provcheck-attestation-spec = { path = "../provcheck-attestation-spec" }
+provcheck-attestation-spec = { workspace = true }
 
 # atrium-rs ecosystem for atproto. Per architectural decision #2 in
 # the plan: this crate is the one place we accept tokio + async.

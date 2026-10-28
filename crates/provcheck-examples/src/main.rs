@@ -212,7 +212,9 @@ fn sign_with_brand(src: &Path, dest: &Path, brand: Brand, manifest_json: String)
     let signer = c2pa::create_signer::from_keys(&cert_pem, &key_pem, c2pa::SigningAlg::Es256, None)
         .context("create_signer")?;
 
-    let mut builder = c2pa::Builder::from_json(&manifest_json).context("builder from json")?;
+    let mut builder = c2pa::Builder::from_context(c2pa::Context::default())
+        .with_definition(&manifest_json)
+        .context("builder from json")?;
 
     // c2pa::Builder::sign_file wants a path for both source and dest
     // and writes the signed bytes to dest. For MP3 it also writes a

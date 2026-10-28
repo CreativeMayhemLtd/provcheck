@@ -274,38 +274,30 @@ gh release download vX.Y.0 -p "*setup.exe"
 
 ## Publishing to crates.io
 
-Once the matrix is green:
+Once the matrix is green and the release is signed + Latest, publish the source
+crates with the one fail-closed command (see RELEASE_RUNBOOK.md Step 8):
 
 ```bash
-# Workspace order matters — leaves first.
-for crate in \
-  provcheck-attestation-spec \
-  provcheck-weights \
-  provcheck \
-  provcheck-platform \
-  provcheck-sign \
-  provcheck-publish \
-  provcheck-watermark \
-  provcheck-audioseal \
-  provcheck-wavmark \
-  provcheck-image \
-  provcheck-video \
-  provcheck-synthid-text \
-  provcheck-cli \
-  provcheck-kit
-do
-  (cd crates/$crate && cargo publish --dry-run) || exit 1
-done
+scripts/publish-crates.sh --tag vX.Y.0 --dry-run   # gate + full workspace dry-run, publishes nothing
+scripts/publish-crates.sh --tag vX.Y.0             # the real, permanent publish
 ```
 
-If all `--dry-run`s pass, drop the flag and re-run. crates.io
-enforces order (a crate can't publish until its `path =` deps
-are already on crates.io); the loop above is the documented
-dependency order.
+It runs `cargo publish --workspace` (stable since Rust 1.90; MSRV is 1.91), which
+publishes every publishable member in dependency order in ONE command, computes the
+leaf-first order itself, respects `publish = false`, and whose verify makes
+`--workspace --dry-run` resolve bottom-up across not-yet-published siblings. No
+hand-maintained per-crate loop, and no sleep between crates (cargo auto-waits on the
+index since 1.66). The script gates on a clean tree at the tag, every internal `path`
+dep carrying a `version=`, and that no excluded/BUSL crate lands in the packaged set.
+
+17 Apache-2.0 members publish (all `crates/provcheck-*` except the exclusions below).
 
 ### Not-published crates
 
 - `provcheck-examples` — internal example harness, `publish = false`.
+- `provcheck-keying`, `provcheck-mellin`, `provcheck-idmark`, `provcheck-backfire-audio`,
+  `provcheck-credential` — BUSL-1.1 / commercial, workspace-`exclude`d + `publish = false`;
+  the Apache graph does not depend on them, so they never enter the publish set.
 
 ## Public mirror sync
 

@@ -78,8 +78,12 @@ fn sanity_check_pem(pem: &str) -> Result<(), Error> {
 /// failed-verification reports (exit 1), not as tool-level errors
 /// (exit 2) — the user's question has a real answer.
 ///
-/// Variant names tracked against c2pa 0.78.8's Error enum. When
+/// Variant names tracked against c2pa 0.90's Error enum. When
 /// bumping c2pa, recheck whether any new variants fit this category.
+/// c2pa 0.90 restructured the cert errors: CoseMissingKey -> CoseNoCerts,
+/// InvalidCoseSignature -> InvalidEcdsaSignature, and CoseCertExpiration /
+/// CoseCertRevoked folded into the CertificateProfileError / CertificateTrustError
+/// tuples (expiry = CertificateNotValidAtTime, revoke/untrusted = CertificateNotTrusted).
 fn is_manifest_parse_error(err: &c2pa::Error) -> bool {
     use c2pa::Error::*;
     matches!(
@@ -98,14 +102,14 @@ fn is_manifest_parse_error(err: &c2pa::Error) -> bool {
             | AssertionInvalidRedaction
             | HashMismatch(_)
             | CoseSignatureAlgorithmNotSupported
-            | CoseMissingKey
+            | CoseNoCerts
             | CoseX5ChainMissing
             | CoseInvalidCert
             | CoseSignature
             | CoseVerifier
-            | CoseCertExpiration
-            | CoseCertRevoked
-            | InvalidCoseSignature { .. }
+            | CertificateProfileError(_)
+            | CertificateTrustError(_)
+            | InvalidEcdsaSignature
     )
 }
 

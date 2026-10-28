@@ -52,14 +52,10 @@ same commit.
 | ID | Crate | Severity | Path | Why tolerated |
 |---|---|---|---|---|
 | [RUSTSEC-2023-0071](https://rustsec.org/advisories/RUSTSEC-2023-0071) | `rsa` 0.9.x | medium (5.9) | `c2pa` → `rsa` | Marvin Attack timing sidechannel. **No fixed version exists upstream.** Reachable only when verifying RSA-signed C2PA manifests; ECDSA / Ed25519 chains (the modal case, including everything `provcheck-kit` produces) are not affected. The `rsa` crate has acknowledged the issue but no fixed version has shipped — track the [advisory page](https://rustsec.org/advisories/RUSTSEC-2023-0071) for status changes. |
-| [RUSTSEC-2024-0436](https://rustsec.org/advisories/RUSTSEC-2024-0436) | `paste` 1.0.x | unmaintained | `tract-linalg` → `tract-core` → carried by `tract` deps still in the lockfile | Build-time procedural macro, no runtime surface. The image-modality decoder migrated from `tract` to `ort` in v0.7 phase 7b-followup, but `tract` is still pulled in transitively by other crates in the graph. Tract is preparing a replacement; we move when tract does, or the row drops if `tract` exits the workspace lockfile entirely. |
-| [RUSTSEC-2024-0370](https://rustsec.org/advisories/RUSTSEC-2024-0370) | `proc-macro-error` | unmaintained | transitive via `tract` | Build-time, no runtime surface. Same fix path as RUSTSEC-2024-0436. |
-| [RUSTSEC-2026-0319](https://rustsec.org/advisories/RUSTSEC-2026-0319) | `anymap2` 0.13.0 | unmaintained | `tract-linalg` → `liquid-core` → `anymap2` | Build-time, no runtime surface. The `liquid` templating dep inside `tract-linalg` pulls `anymap2`; same tract-stack root cause and fix path as RUSTSEC-2024-0436 (`paste`) and RUSTSEC-2024-0370 (`proc-macro-error`). The row drops when `tract` leaves the lockfile (the `ort` migration endgame). |
+| [RUSTSEC-2024-0370](https://rustsec.org/advisories/RUSTSEC-2024-0370) | `proc-macro-error` | unmaintained | `c2pa` → `static-iref` → `static-regular-grammar` | Build-time proc-macro, no runtime surface. Pulled by c2pa's `iref` / `static-iref` IRI-handling stack; the v1.5.0 tract 0.23 bump removed the older tract-stack path that also carried it. No fixed release of `proc-macro-error` exists; the row drops when `static-regular-grammar` migrates to `proc-macro-error2` or c2pa's iref chain updates. |
 | [RUSTSEC-2026-0173](https://rustsec.org/advisories/RUSTSEC-2026-0173) | `proc-macro-error2` | unmaintained | `age` → `i18n-embed-fl` → `provcheck-sign` | Build-time. The `age` crate uses `i18n-embed-fl` for localised error messages; we use age for at-rest encryption only (passphrase-protected ES256 keys), so the i18n surface is not load-bearing for us. Wait for `age` to either drop i18n-embed-fl or for i18n-embed-fl to migrate off proc-macro-error2. |
-| [RUSTSEC-2026-0217](https://rustsec.org/advisories/RUSTSEC-2026-0217) | `tract-nnef` 0.21.10 | medium | `tract-nnef` → `tract-onnx` → `provcheck-{watermark,audioseal,wavmark}` | Integer overflow in the NNEF `.dat` tensor parser yields an out-of-bounds read on model load. Companion to the `tract-onnx` external-data path-traversal advisory ([GHSA-h668-6x6g-f8r5](https://github.com/advisories/GHSA-h668-6x6g-f8r5) / CVE-2026-55832), which has no RustSec ID and so is Dependabot-only. **A fix exists (tract 0.21.16 / 0.21.17) but is unresolvable in this graph**: `tract-linalg 0.21.17` caps `time < 0.3.42`, while `c2pa` → `serde_with 3.21+` (which fixes its own advisory) requires `time ~0.3.47`; the two fixes are mutually exclusive on `time`, so we keep the serde_with fix and tolerate this one (measured 2026-08-20; not an MSRV issue, MSRV is 1.88). **Not reachable at runtime:** both are model-LOAD advisories, and our audio detectors compile ONNX weights in via `include_bytes!` and hand tract a `&[u8]` slice, so no untrusted model file is ever parsed. The row drops when tract lifts its `time` cap or leaves the lockfile entirely (the ort migration is the endgame). |
 | [RUSTSEC-2026-0253](https://rustsec.org/advisories/RUSTSEC-2026-0253) | `lru` 0.16.4 | unsound | `atrium-common` → atproto attestation stack | Unsoundness advisory (fixed in lru 0.18.2), pinned by `atrium-common 0.1.4`, which is already at its latest release. Unsound-classified, not a vulnerability with a demonstrated exploit path, and the lru use sits inside atrium's identity-resolution caching, fed by our own resolver flow rather than attacker-shaped keys. Bump lands automatically when atrium moves; re-check each audit pass. |
-| [RUSTSEC-2026-0194](https://rustsec.org/advisories/RUSTSEC-2026-0194) | `quick-xml` 0.39.x | high (7.5, availability) | `c2pa` → `quick-xml` | Quadratic-time duplicate-attribute checking: a crafted XMP packet whose start tag carries tens of thousands of attributes can stall the parsing thread for minutes to hours. **Reachable under untrusted input:** `verify()` calls `c2pa::Reader::from_file` (`crates/provcheck/src/verification.rs`), and c2pa parses a dropped file's embedded XMP through quick-xml before any claim validation, so the packet content is attacker-controlled. Availability-only, no integrity or confidentiality impact. **No upstream fix reachable:** even c2pa 0.89.0 (latest) and plist 1.9.0 still require `quick-xml ^0.39.x`, below the fixed 0.41.0; there is no c2pa or plist release on quick-xml 0.41 to bump to. In-product exposure is bounded: the CLI verifies one file per process (an operator interrupts a stall), and the GUI runs verify on a `spawn_blocking` thread. Downstream services that embed `provcheck::verify` over untrusted input should apply the "Verifying untrusted input in a service" guidance below until quick-xml clears upstream. |
-| [RUSTSEC-2026-0195](https://rustsec.org/advisories/RUSTSEC-2026-0195) | `quick-xml` 0.39.x | high (7.5, availability) | `c2pa` → `quick-xml` | Unbounded heap allocation from XML namespace declarations in `NsReader` (roughly 3x the tag's byte size, no cap): a crafted XMP packet can drive the process to OOM. Same entry point, same attacker-controlled XMP, same availability-only scope, and same no-upstream-fix status as RUSTSEC-2026-0194 above. quick-xml 0.41.0 adds a 256-declarations-per-element default cap (`NamespaceResolver::set_max_declarations_per_element`); we inherit the fix the moment c2pa or plist bumps to it. |
+| [RUSTSEC-2026-0367](https://rustsec.org/advisories/RUSTSEC-2026-0367) / [-0368](https://rustsec.org/advisories/RUSTSEC-2026-0368) / [-0369](https://rustsec.org/advisories/RUSTSEC-2026-0369) | `zip` 8.6.0 | medium | `c2pa` → `zip` | Three filesystem-extraction advisories in `ZipArchive::extract` / `ZipStreamReader::extract`: a crafted archive can place symlinks whose targets escape the destination directory and have Unix permissions, including SUID/SGID bits, applied through them. **Fixed in zip 9.0.0 but unreachable here:** `c2pa` 0.90.22 pins `zip ^8.6.0` (verified: `cargo update -p zip --precise 9.0.0` fails to select a version), so no c2pa release on zip 9 exists to bump to. `zip` is pulled only by c2pa and is never called directly by provcheck; the vulnerable path is extraction-to-filesystem, which the verify and sign flows do not perform on caller-supplied input, and the symlink, SUID, and SGID vectors are Unix-only and moot on the Windows release target. Re-evaluate when c2pa moves to zip 9. |
 
 **Dependabot-only advisories** (no RustSec ID, so not surfaced by `cargo audit`; tracked via GitHub Dependabot):
 
@@ -89,18 +85,6 @@ The unmaintained advisories in this group:
 - [RUSTSEC-2024-0420](https://rustsec.org/advisories/RUSTSEC-2024-0420) `gtk-sys`
 - [RUSTSEC-2024-0429](https://rustsec.org/advisories/RUSTSEC-2024-0429) `glib` — unsoundness in the `VariantStrIter` iterator impls; same gtk-rs 0.18 family, reached only through the Linux GTK backend (`cargo tree -i glib` finds no build path on Windows/macOS).
 
-The desktop GUI inherits both quick-xml advisories
-(RUSTSEC-2026-0194 / -0195) from the workspace table above via its
-`c2pa` → `provcheck` dependency, and it additionally resolves a
-**second** vulnerable quick-xml, 0.38.4, via
-`plist` → `tauri-utils` → `tauri`. That copy parses Tauri's own
-config and macOS property lists at build and startup time, not
-user-dropped media, so it is not an untrusted-input surface. It is
-below the fixed 0.41.0 for the same reason: plist 1.9.0 (latest)
-still requires `quick-xml ^0.39.2`, so there is no plist release to
-bump to. Both copies clear when their respective upstreams
-(`c2pa`, `plist`) move to quick-xml 0.41.
-
 Plus a handful of unrelated unmaintained-only advisories carried by
 deeper transitive deps:
 
@@ -117,35 +101,6 @@ All of the above are tracked-and-waiting-on-Tauri-2.x's-gtk4-move.
 When the Tauri release that ships the gtk4 backend lands, bump the
 Tauri dep, re-run `cargo audit`, and remove rows from this section
 to match what actually cleared.
-
-## Verifying untrusted input in a service
-
-The two `quick-xml` advisories above (RUSTSEC-2026-0194 / -0195) are
-availability-only and, until quick-xml clears upstream, cannot be
-neutralised from inside the process. A library-level wall-clock
-timeout does not help: Rust cannot cancel a running thread, so a
-thread parked in the quadratic attribute scan keeps burning CPU
-after the caller gives up, and the namespace-declaration
-allocation still climbs toward OOM. There is also no input-size cap
-we can apply cheaply, because c2pa parses the XMP packet internally
-and we never see its boundary; a whole-file cap cannot distinguish a
-legitimate hour-long MP3 from a small file carrying a pathological
-XMP tag.
-
-provcheck's own surfaces are bounded by their shape: the CLI reads
-one file per process, so a stall is a single interrupted invocation,
-and the GUI runs verify on a `spawn_blocking` thread against files
-the local user chose to open. Neither is a network-facing,
-unauthenticated endpoint.
-
-If you build one — any service that calls `provcheck::verify` (or
-c2pa directly) on files supplied by untrusted callers — do the
-verification in a **short-lived child process** with a wall-clock
-timeout and a memory limit (`ulimit -v` / `setrlimit(RLIMIT_AS)` on
-Linux, a Job Object memory cap on Windows), and kill the child on
-breach. Process isolation is the only mechanism that contains both
-a runaway parse thread and its allocation while the fix waits on
-upstream. Drop this guidance once the `quick-xml` rows clear.
 
 ## Update process
 

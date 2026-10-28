@@ -2,5 +2,14 @@
 # i18n/<lang>/provcheck-cli.ftl; en is the fallback language and source of truth.
 fallback_language = "en"
 
+# `domain` is pinned explicitly so the fl!() COMPILE-TIME check resolves the catalog
+# filename the same way in every build context. Without it, fl!() derives the domain from
+# find_crate, which returns the NORMALIZED (underscore) crate name "provcheck_cli" when the
+# crate is built standalone (as `cargo publish` does in its isolated verify step) but falls
+# back to the hyphenated CARGO_PKG_NAME in a workspace build. That split made the package
+# verify look for i18n/en/provcheck_cli.ftl while the committed catalogs are
+# provcheck-cli.ftl, so `cargo publish` failed only from the tarball. Pinning the domain to
+# the real filename keeps workspace builds AND `cargo publish --workspace` agreeing.
 [fluent]
 assets_dir = "i18n"
+domain = "provcheck-cli"

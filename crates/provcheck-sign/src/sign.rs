@@ -147,11 +147,15 @@ pub fn sign_asset_with_signer(
 ) -> Result<SignResult, SignError> {
     std::fs::metadata(src).map_err(SignError::Source)?;
 
-    let mut builder = c2pa::Builder::from_json(manifest_json)
+    let mut builder = c2pa::Builder::from_context(c2pa::Context::default())
+        .with_definition(manifest_json)
         .map_err(|e| SignError::ManifestJson(e.to_string()))?;
 
     // Chain an existing source manifest as a parent ingredient so the new signature sits in the lineage verifiers walk; only when the source has provenance, non-fatal on failure.
-    if c2pa::Reader::from_file(src).is_ok() {
+    if c2pa::Reader::from_context(c2pa::Context::default())
+        .with_file(src)
+        .is_ok()
+    {
         let title = src
             .file_name()
             .and_then(|s| s.to_str())
@@ -346,7 +350,9 @@ pub struct SourceProvenance {
 /// unreadable / unsigned / malformed source returns `None`, which
 /// is also the "no prior provenance" indicator.
 pub fn inspect_source(path: &std::path::Path) -> Option<SourceProvenance> {
-    let reader = c2pa::Reader::from_file(path).ok()?;
+    let reader = c2pa::Reader::from_context(c2pa::Context::default())
+        .with_file(path)
+        .ok()?;
     let active = reader.active_manifest()?;
     let label = active.label()?.to_string();
     let sig = active.signature_info();
@@ -816,7 +822,10 @@ mod tests {
                 {
                     "label": "c2pa.actions.v2",
                     "data": {
-                        "actions": [{"action": "c2pa.created"}]
+                        "actions": [{
+                            "action": "c2pa.created",
+                            "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/digitalCapture"
+                        }]
                     }
                 }
             ]
@@ -839,7 +848,9 @@ mod tests {
         assert!(!result.manifest_bytes.is_empty(), "got manifest bytes");
         assert!(dst.exists(), "signed file written");
 
-        let reader = c2pa::Reader::from_file(&dst).expect("reader");
+        let reader = c2pa::Reader::from_context(c2pa::Context::default())
+            .with_file(&dst)
+            .expect("reader");
         assert!(
             matches!(
                 reader.validation_state(),
@@ -1046,7 +1057,7 @@ mod tests {
             "format": "audio/wav",
             "title": "raw.wav",
             "assertions": [
-                {"label": "c2pa.actions.v2", "data": {"actions": [{"action": "c2pa.created"}]}}
+                {"label": "c2pa.actions.v2", "data": {"actions": [{"action": "c2pa.created", "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/digitalCapture"}]}}
             ]
         })
         .to_string();
@@ -1064,7 +1075,9 @@ mod tests {
         .to_string();
         sign_asset(&identity_b, &stage_a, &stage_b, &manifest_b).expect("sign B");
 
-        let reader = c2pa::Reader::from_file(&stage_b).expect("reader");
+        let reader = c2pa::Reader::from_context(c2pa::Context::default())
+            .with_file(&stage_b)
+            .expect("reader");
         let active = reader.active_manifest().expect("active");
         let ingredients = active.ingredients();
         assert!(
@@ -1095,7 +1108,9 @@ mod tests {
         let manifest = embed_identity_assertion(&minimal_wav_manifest(), &claim).expect("embed");
         sign_asset(&identity, &src, &dst, &manifest).expect("sign");
 
-        let reader = c2pa::Reader::from_file(&dst).expect("reader");
+        let reader = c2pa::Reader::from_context(c2pa::Context::default())
+            .with_file(&dst)
+            .expect("reader");
         let active = reader.active_manifest().expect("active manifest");
         let labels: Vec<String> = active
             .assertions()
@@ -1125,7 +1140,7 @@ mod tests {
             "format": "audio/wav",
             "title": "test.wav",
             "assertions": [
-                {"label": "c2pa.actions.v2", "data": {"actions": [{"action": "c2pa.created"}]}},
+                {"label": "c2pa.actions.v2", "data": {"actions": [{"action": "c2pa.created", "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/digitalCapture"}]}},
                 {"label": "com.provcheck.test", "data": {"flavour": "vanilla", "k": 42}}
             ]
         })
@@ -1133,7 +1148,9 @@ mod tests {
 
         sign_asset(&identity, &src, &dst, &manifest).expect("sign");
 
-        let reader = c2pa::Reader::from_file(&dst).expect("reader");
+        let reader = c2pa::Reader::from_context(c2pa::Context::default())
+            .with_file(&dst)
+            .expect("reader");
         let active = reader.active_manifest().expect("active manifest");
         let labels: Vec<String> = active
             .assertions()

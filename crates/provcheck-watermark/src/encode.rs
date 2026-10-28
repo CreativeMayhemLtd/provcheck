@@ -27,7 +27,7 @@
 //! `scripts/export-silentcipher-encoder.py`). License survey is in
 //! `WATERMARK_LICENSE_POLICY.md`.
 
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 
 #[cfg(not(feature = "cuda"))]
 use tract_onnx::prelude::*;
@@ -69,7 +69,7 @@ const MESSAGE_BAND_SIZE: usize = 1024;
 pub const DEFAULT_MESSAGE_SDR_DB: f32 = 30.0;
 
 #[cfg(not(feature = "cuda"))]
-type Runnable = TypedRunnableModel<TypedModel>;
+type Runnable = Arc<TypedRunnableModel>;
 
 /// v0.6.0 P4: CUDA backend via ort (onnxruntime-rs). Same ONNX
 /// file; the session pins the CUDA execution provider so the
@@ -615,7 +615,8 @@ fn run_encoder_chunk(
         )));
     }
     let view = out
-        .to_array_view::<f32>()
+        .try_as_plain_ram()
+        .and_then(|v| v.to_array_view::<f32>())
         .map_err(|e: TractError| EncodeError::Inference(e.to_string()))?;
     Ok(view.iter().copied().collect())
 }

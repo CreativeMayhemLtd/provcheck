@@ -14,7 +14,7 @@ readme.workspace = true
 name = "provcheck_stream_detect"
 
 [dependencies]
-provcheck-detect = { path = "../provcheck-detect" }
+provcheck-detect = { workspace = true }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

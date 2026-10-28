@@ -101,13 +101,15 @@ fn sign_file(src: &Path, dest: &Path) -> String {
         {
           "label": "c2pa.actions",
           "data": {
-            "actions": [ { "action": "c2pa.created" } ]
+            "actions": [ { "action": "c2pa.created", "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/digitalCapture" } ]
           }
         }
       ]
     }"#;
 
-    let mut builder = c2pa::Builder::from_json(manifest_json).expect("builder from json");
+    let mut builder = c2pa::Builder::from_context(c2pa::Context::default())
+        .with_definition(manifest_json)
+        .expect("builder from json");
     builder
         .sign_file(signer.as_ref(), src, dest)
         .expect("sign file");
@@ -499,13 +501,15 @@ fn sign_with_identity(src: &Path, dest: &Path, did: &str, handle: Option<&str>) 
         "claim_generator": "provcheck-test/0.1.0",
         "title": "identity assertion fixture",
         "assertions": [
-            {"label": "c2pa.actions", "data": {"actions": [{"action": "c2pa.created"}]}},
+            {"label": "c2pa.actions", "data": {"actions": [{"action": "c2pa.created", "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/digitalCapture"}]}},
             {"label": "app.provcheck.identity", "data": claim}
         ]
     })
     .to_string();
 
-    let mut builder = c2pa::Builder::from_json(&manifest).expect("builder");
+    let mut builder = c2pa::Builder::from_context(c2pa::Context::default())
+        .with_definition(&manifest)
+        .expect("builder");
     builder
         .sign_file(signer.as_ref(), src, dest)
         .expect("sign file");
@@ -586,11 +590,13 @@ fn publisher_attestation_chain_surfaces_parent_in_report() {
         "claim_generator": "Doomscroll.fm/0.1.0",
         "title": "raw.wav",
         "assertions": [
-            {"label": "c2pa.actions", "data": {"actions": [{"action": "c2pa.created"}]}}
+            {"label": "c2pa.actions", "data": {"actions": [{"action": "c2pa.created", "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/digitalCapture"}]}}
         ]
     })
     .to_string();
-    let mut builder_a = c2pa::Builder::from_json(&manifest_a).expect("builder A");
+    let mut builder_a = c2pa::Builder::from_context(c2pa::Context::default())
+        .with_definition(&manifest_a)
+        .expect("builder A");
     builder_a
         .sign_file(signer_a.as_ref(), &unsigned, &by_a)
         .expect("sign A");
@@ -609,7 +615,9 @@ fn publisher_attestation_chain_surfaces_parent_in_report() {
         ]
     })
     .to_string();
-    let mut builder_b = c2pa::Builder::from_json(&manifest_b).expect("builder B");
+    let mut builder_b = c2pa::Builder::from_context(c2pa::Context::default())
+        .with_definition(&manifest_b)
+        .expect("builder B");
     let ingredient_json = serde_json::json!({
         "title": "by-a.wav",
         "format": "audio/wav",

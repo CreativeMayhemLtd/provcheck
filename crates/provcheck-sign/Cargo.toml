@@ -14,7 +14,7 @@ readme.workspace = true
 name = "provcheck_sign"
 
 [dependencies]
-provcheck-attestation-spec = { path = "../provcheck-attestation-spec" }
+provcheck-attestation-spec = { workspace = true }
 
 # C2PA signing primitive. Pulls from workspace pin (rust_native_crypto,
 # no OpenSSL build dep).

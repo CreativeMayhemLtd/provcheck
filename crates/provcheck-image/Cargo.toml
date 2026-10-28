@@ -18,8 +18,8 @@ name = "provcheck_image"
 # end-to-end via ort 2.x. Weights are pulled via
 # provcheck-weights (the DLC delivery pattern, keeping the kit
 # binary slim instead of include_bytes!()ing the 60+ MB ONNX).
-provcheck = { path = "../provcheck" }
-provcheck-weights = { path = "../provcheck-weights" }
+provcheck = { workspace = true }
+provcheck-weights = { workspace = true }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
@@ -41,7 +41,7 @@ image = { version = "0.25", default-features = false, features = ["png", "jpeg",
 # silentcipher --features cuda path uses ort too but with
 # load-dynamic + CUDA EP; the image path's default is CPU +
 # bundled binaries.
-ort = { version = "2.0.0-rc.4", default-features = false, features = ["std", "ndarray", "load-dynamic"] }
+ort = { workspace = true }
 # ndarray for the input tensor construction. Behind a normal
 # dep here (the CUDA silentcipher build also has it but
 # feature-gated).

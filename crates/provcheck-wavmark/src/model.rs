@@ -27,7 +27,7 @@
 //!   wavmark-watermark_fc_back.bias.bin     ─ (32,) f32
 //! ```
 
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 
 use tract_onnx::prelude::*;
 
@@ -57,7 +57,7 @@ pub const FIX_PATTERN_LEN: usize = 16;
 pub const WAVMARK_FIX_PATTERN: [u8; FIX_PATTERN_LEN] =
     [1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 0, 1, 1, 0];
 
-type Runnable = TypedRunnableModel<TypedModel>;
+type Runnable = Arc<TypedRunnableModel>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ModelError {
@@ -158,10 +158,12 @@ pub fn run_hinet_forward(
     )?;
 
     let sig_view = sig_out
-        .to_array_view::<f32>()
+        .try_as_plain_ram()
+        .and_then(|v| v.to_array_view::<f32>())
         .map_err(|e: TractError| ModelError::Inference(e.to_string()))?;
     let msg_view = msg_out
-        .to_array_view::<f32>()
+        .try_as_plain_ram()
+        .and_then(|v| v.to_array_view::<f32>())
         .map_err(|e: TractError| ModelError::Inference(e.to_string()))?;
     Ok((
         sig_view.iter().copied().collect(),
@@ -213,10 +215,12 @@ pub fn run_hinet_reverse(
     )?;
 
     let sig_view = sig_out
-        .to_array_view::<f32>()
+        .try_as_plain_ram()
+        .and_then(|v| v.to_array_view::<f32>())
         .map_err(|e: TractError| ModelError::Inference(e.to_string()))?;
     let msg_view = msg_out
-        .to_array_view::<f32>()
+        .try_as_plain_ram()
+        .and_then(|v| v.to_array_view::<f32>())
         .map_err(|e: TractError| ModelError::Inference(e.to_string()))?;
     Ok((
         sig_view.iter().copied().collect(),

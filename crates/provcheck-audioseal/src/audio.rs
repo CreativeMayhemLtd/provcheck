@@ -148,9 +148,24 @@ pub struct StereoDecoded {
     pub source_channels: u16,
 }
 
-/// Decode `path` to two `f32` waveforms (left, right) at 16 kHz.
-/// Mirrors `provcheck-watermark::audio::decode_to_stereo_44k1`.
-pub fn decode_to_stereo_16k(path: &Path) -> Result<StereoDecoded, AudioError> {
+/// Native-sample-rate stereo decode output: the two channels at the file's OWN
+/// sample rate, with encoder delay/padding already trimmed. Used by the full-band
+/// delta-add mark, which must add the (16 kHz-derived) watermark back onto the
+/// untouched full-fidelity master rather than a 16 kHz downmix.
+#[derive(Debug)]
+pub struct StereoNative {
+    pub left: Vec<f32>,
+    pub right: Vec<f32>,
+    /// The file's own sample rate (e.g. 44_100).
+    pub sample_rate: u32,
+    /// Channel count of the original file BEFORE any duplication.
+    pub source_channels: u16,
+}
+
+/// Decode `path` to two `f32` waveforms (left, right) at the file's NATIVE sample
+/// rate, with encoder delay + padding trimmed (identical priming logic to
+/// [`decode_to_stereo_16k`], just without the final resample to 16 kHz).
+pub fn decode_to_stereo_native(path: &Path) -> Result<StereoNative, AudioError> {
     let file = File::open(path)?;
     let mss = MediaSourceStream::new(Box::new(file), Default::default());
 
@@ -230,20 +245,31 @@ pub fn decode_to_stereo_16k(path: &Path) -> Result<StereoDecoded, AudioError> {
         right.truncate(new_len);
     }
 
-    let (left, right) = if src_sample_rate == SAMPLE_RATE {
-        (left, right)
+    Ok(StereoNative {
+        left,
+        right,
+        sample_rate: src_sample_rate,
+        source_channels,
+    })
+}
+
+/// Decode `path` to two `f32` waveforms (left, right) at 16 kHz.
+/// Mirrors `provcheck-watermark::audio::decode_to_stereo_44k1`.
+pub fn decode_to_stereo_16k(path: &Path) -> Result<StereoDecoded, AudioError> {
+    let n = decode_to_stereo_native(path)?;
+    let (left, right) = if n.sample_rate == SAMPLE_RATE {
+        (n.left, n.right)
     } else {
-        let l = resample(&left, src_sample_rate, SAMPLE_RATE)
+        let l = resample(&n.left, n.sample_rate, SAMPLE_RATE)
             .map_err(|e| AudioError::Resample(e.to_string()))?;
-        let r = resample(&right, src_sample_rate, SAMPLE_RATE)
+        let r = resample(&n.right, n.sample_rate, SAMPLE_RATE)
             .map_err(|e| AudioError::Resample(e.to_string()))?;
         (l, r)
     };
-
     Ok(StereoDecoded {
         left,
         right,
-        source_channels,
+        source_channels: n.source_channels,
     })
 }
 

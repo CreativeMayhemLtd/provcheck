@@ -24,23 +24,23 @@ cuda = ["provcheck-watermark/cuda"]
 
 [dependencies]
 # The sibling crates this CLI composes.
-provcheck-sign = { path = "../provcheck-sign" }
-provcheck-publish = { path = "../provcheck-publish" }
-provcheck-attestation-spec = { path = "../provcheck-attestation-spec" }
+provcheck-sign = { workspace = true }
+provcheck-publish = { workspace = true }
+provcheck-attestation-spec = { workspace = true }
 # v0.3.8: the watermark crate's `encode` module + `audio` decoder, used
 # by the `kit watermark` subcommand to re-stamp ffmpeg-normalised mixes.
-provcheck-watermark = { path = "../provcheck-watermark" }
-provcheck-image = { path = "../provcheck-image" }
-provcheck-weights = { path = "../provcheck-weights" }
+provcheck-watermark = { workspace = true }
+provcheck-image = { workspace = true }
+provcheck-weights = { workspace = true }
 # v0.4.0: second watermark family. Adds `kit watermark --kind audioseal`.
-provcheck-audioseal = { path = "../provcheck-audioseal" }
+provcheck-audioseal = { workspace = true }
 
 # v0.5.0: kit sign now consumes Box<dyn c2pa::Signer> directly via
 # provider.signer() so the HSM-backed Yubikey path skips the
 # PEM-extraction step the software backends still use internally.
 c2pa.workspace = true
 # v0.4.1: third watermark family. Adds `kit watermark --kind wavmark`.
-provcheck-wavmark = { path = "../provcheck-wavmark" }
+provcheck-wavmark = { workspace = true }
 
 # WAV output for the watermark subcommand. Tiny dep (~150 LOC), no
 # additional MP3/AAC encoder — re-encode the output WAV externally
@@ -77,9 +77,9 @@ time = { version = "0.3", features = ["parsing", "formatting"] }
 # using the in-process library APIs (bypassing rpassword prompts
 # that can't be driven from a test). Pulls in provcheck for the
 # verifier side and tempfile/hound for fixture generation.
-provcheck = { path = "../provcheck" }
-provcheck-sign = { path = "../provcheck-sign" }
-provcheck-attestation-spec = { path = "../provcheck-attestation-spec" }
+provcheck = { workspace = true }
+provcheck-sign = { workspace = true }
+provcheck-attestation-spec = { workspace = true }
 secrecy = "0.10"
 tempfile = "3"
 hound = "3"

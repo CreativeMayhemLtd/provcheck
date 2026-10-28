@@ -76,8 +76,8 @@ fn main() -> anyhow::Result<()> {
         .into_iter()
         .next()
         .ok_or_else(|| anyhow::anyhow!("nnef returned no outputs"))?;
-    let onnx_view = onnx_first.to_array_view::<f32>()?;
-    let nnef_view = nnef_first.to_array_view::<f32>()?;
+    let onnx_view = onnx_first.try_as_plain_ram()?.to_array_view::<f32>()?;
+    let nnef_view = nnef_first.try_as_plain_ram()?.to_array_view::<f32>()?;
 
     let mut max_diff: f32 = 0.0;
     for (a, b) in onnx_view.iter().zip(nnef_view.iter()) {

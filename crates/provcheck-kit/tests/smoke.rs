@@ -322,7 +322,7 @@ fn end_to_end_identity_assertion_round_trip() {
         "format": "audio/wav",
         "title": "smoke.wav",
         "assertions": [
-            {"label": "c2pa.actions.v2", "data": {"actions": [{"action": "c2pa.created"}]}}
+            {"label": "c2pa.actions.v2", "data": {"actions": [{"action": "c2pa.created", "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/digitalCapture"}]}}
         ]
     })
     .to_string();
@@ -400,7 +400,7 @@ fn in_place_sign_round_trip_uses_sibling_tempfile() {
         "format": "audio/wav",
         "title": "in-place.wav",
         "assertions": [
-            {"label": "c2pa.actions.v2", "data": {"actions": [{"action": "c2pa.created"}]}}
+            {"label": "c2pa.actions.v2", "data": {"actions": [{"action": "c2pa.created", "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/digitalCapture"}]}}
         ]
     })
     .to_string();

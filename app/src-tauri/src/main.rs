@@ -2054,6 +2054,12 @@ fn default_manifest(
         if !trimmed.is_empty() {
             action_obj["softwareAgent"] = serde_json::Value::String(trimmed.to_string());
         }
+    } else if action.as_c2pa_label() == "c2pa.created" {
+        // C2PA 2.x requires a c2pa.created action to carry a digitalSourceType.
+        // Non-AI capture defaults to digitalCapture (real-world capture).
+        action_obj["digitalSourceType"] = serde_json::Value::String(
+            "http://cv.iptc.org/newscodes/digitalsourcetype/digitalCapture".to_string(),
+        );
     }
     // Bind claim_generator to CARGO_PKG_VERSION so it stays in sync with Cargo.toml on every release.
     const CG: &str = concat!("provcheck-app/", env!("CARGO_PKG_VERSION"));

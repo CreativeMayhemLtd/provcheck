@@ -85,13 +85,15 @@ pub fn sign_with_fresh_chain(src: &Path, dest: &Path) -> SignedFixture {
         {
           "label": "c2pa.actions",
           "data": {
-            "actions": [ { "action": "c2pa.created" } ]
+            "actions": [ { "action": "c2pa.created", "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/digitalCapture" } ]
           }
         }
       ]
     }"#;
 
-    let mut builder = c2pa::Builder::from_json(manifest_json).expect("builder from json");
+    let mut builder = c2pa::Builder::from_context(c2pa::Context::default())
+        .with_definition(manifest_json)
+        .expect("builder from json");
     builder
         .sign_file(signer.as_ref(), src, dest)
         .expect("sign file");

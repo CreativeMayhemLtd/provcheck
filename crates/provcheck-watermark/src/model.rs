@@ -9,16 +9,16 @@
 //! Input:  flat carrier `[1, 1, 2049, T]` row-major.
 //! Output: flat logits  `[1, 1, 5, T]`  row-major.
 
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 
 use tract_onnx::prelude::*;
 
 use crate::hparams::{FREQ_BINS, MESSAGE_DIM};
 
 /// Type alias for the runnable model we keep in the
-/// [`OnceLock`]. tract's `TypedRunnableModel<TypedModel>` is
+/// [`OnceLock`]. tract's `TypedRunnableModel` is
 /// what `into_runnable()` returns on an optimised model.
-type Runnable = TypedRunnableModel<TypedModel>;
+type Runnable = Arc<TypedRunnableModel>;
 
 /// Errors from the model layer. Wrapped into the crate's
 /// top-level [`crate::Error`] for the public API.
@@ -156,7 +156,8 @@ fn run_chunk(model: &Runnable, carrier: &[f32], chunk_t: usize) -> Result<Vec<f3
         });
     }
     let view = out
-        .to_array_view::<f32>()
+        .try_as_plain_ram()
+        .and_then(|v| v.to_array_view::<f32>())
         .map_err(|e: TractError| ModelError::Inference(e.to_string()))?;
     let logits: Vec<f32> = view.iter().copied().collect();
     Ok(logits)

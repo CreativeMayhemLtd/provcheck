@@ -26,9 +26,9 @@ exclude = ["crates/provcheck-keying", "crates/provcheck-mellin", "crates/provche
 resolver = "3"
 
 [workspace.package]
-version = "1.5.0"
+version = "1.5.1"
 edition = "2024"
-rust-version = "1.88"
+rust-version = "1.91"
 license = "Apache-2.0"
 authors = ["Creative Mayhem UG <info@rAIdio.bot>"]
 repository = "https://github.com/CreativeMayhemLtd/provcheck"
@@ -40,12 +40,34 @@ readme = "README.md"
 # `default-features = false` + `rust_native_crypto` avoids the openssl-sys
 # build (which needs a working OpenSSL + Perl toolchain — painful on
 # Windows). `file_io` turns on the path-based reader/writer API.
-c2pa = { version = "0.78", default-features = false, features = ["file_io", "rust_native_crypto"] }
+c2pa = { version = "0.90", default-features = false, features = ["file_io", "rust_native_crypto"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 clap = { version = "4", features = ["derive"] }
 anyhow = "1"
 thiserror = "2"
+# ort (ONNX Runtime) is PINNED to an exact pre-release. CHECK EVERY BUILD / RELEASE for a newer
+# rc or the 2.0.0 stable, and bump this one line deliberately (do not let it float across rc's).
+# This is the single source of truth: provcheck-image and provcheck-watermark inherit it. The pin
+# ships to crates.io consumers, so publishing a crate that depends on it carries the rc forward.
+ort = { version = "=2.0.0-rc.10", default-features = false, features = ["std", "ndarray", "load-dynamic"] }
+
+# Internal provcheck crates. version + path so `cargo publish` sees a version while local
+# builds resolve by path. Bump these together with [workspace.package] version on each release.
+provcheck = { version = "1.5.1", path = "crates/provcheck" }
+provcheck-attestation-spec = { version = "1.5.1", path = "crates/provcheck-attestation-spec" }
+provcheck-detect = { version = "1.5.1", path = "crates/provcheck-detect" }
+provcheck-weights = { version = "1.5.1", path = "crates/provcheck-weights" }
+provcheck-platform = { version = "1.5.1", path = "crates/provcheck-platform" }
+provcheck-sign = { version = "1.5.1", path = "crates/provcheck-sign" }
+provcheck-publish = { version = "1.5.1", path = "crates/provcheck-publish" }
+provcheck-image = { version = "1.5.1", path = "crates/provcheck-image" }
+provcheck-audioseal = { version = "1.5.1", path = "crates/provcheck-audioseal" }
+provcheck-watermark = { version = "1.5.1", path = "crates/provcheck-watermark" }
+provcheck-wavmark = { version = "1.5.1", path = "crates/provcheck-wavmark" }
+provcheck-synthid-text = { version = "1.5.1", path = "crates/provcheck-synthid-text" }
+provcheck-video = { version = "1.5.1", path = "crates/provcheck-video" }
+provcheck-dlc = { version = "1.5.1", path = "crates/provcheck-dlc" }
 
 [profile.release]
 opt-level = "z"      # size-optimise the distributable binaries

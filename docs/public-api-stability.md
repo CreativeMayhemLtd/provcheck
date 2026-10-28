@@ -132,10 +132,11 @@ Look for any of these signals:
   `COLLECTION_NSID` / `IDENTITY_ASSERTION_LABEL` (lexicon).
   Pinned by tests across v0.9.x.
 
-## Crates we MAY publish to crates.io
+## Crates we publish to crates.io
 
-A `[publish = true]` Cargo.toml field is the marker for crates we
-intend to push to crates.io once we ship v1.0:
+17 Apache-2.0 members publish, via `scripts/publish-crates.sh`
+(RELEASE_RUNBOOK.md Step 8). A crate is publishable by default; the
+marker is the opposite — `publish = false` keeps a crate OFF crates.io.
 
 - `provcheck` (the verifier library) — definitely
 - `provcheck-attestation-spec` — definitely (downstream verifiers
@@ -152,12 +153,17 @@ intend to push to crates.io once we ship v1.0:
 - `provcheck-stream-detect` — yes; rolling-window streaming
   intake for live audio (microphone, screen capture, RTSP feed)
   on top of the `provcheck-detect` Detector trait
+- `provcheck-dlc` — yes; the paid-DLC loader surface the `cli`
+  depends on (publishes the name; ships no commercial weights)
 - `provcheck-platform`, `provcheck-sign`, `provcheck-publish`,
   `provcheck-weights` — yes; they're the load-bearing pieces
 
 Crates intentionally NOT published:
 
-- `provcheck-examples` — internal example harness only.
+- `provcheck-examples` — internal example harness only, `publish = false`.
+- `provcheck-keying`, `provcheck-mellin`, `provcheck-idmark`,
+  `provcheck-backfire-audio`, `provcheck-credential` — BUSL-1.1 /
+  commercial; workspace-`exclude`d + `publish = false`.
 
 ## When this contract changes
 

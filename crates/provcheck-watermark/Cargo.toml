@@ -27,8 +27,8 @@ default = []
 cuda = ["dep:ort", "dep:ndarray"]
 
 [dependencies]
-provcheck = { path = "../provcheck" }
-provcheck-weights = { path = "../provcheck-weights" }
+provcheck = { workspace = true }
+provcheck-weights = { workspace = true }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
@@ -37,12 +37,12 @@ thiserror.workspace = true
 # models/silentcipher-decoder.onnx and is embedded into the
 # library via include_bytes!() at build time so there's nothing
 # to load at runtime.
-tract-onnx = "0.21"
+tract-onnx = "0.23"
 
 # Optional GPU-accelerated inference via onnxruntime, behind
 # the `cuda` feature flag. Same ONNX model files. The default
 # CPU build does not pull this in.
-ort = { version = "2.0.0-rc.4", optional = true, default-features = false, features = ["std", "ndarray", "cuda", "load-dynamic"] }
+ort = { workspace = true, optional = true, features = ["cuda"] }
 # ndarray for the ort path's input tensor construction. Behind
 # the cuda feature so we don't pull it into the default CPU build.
 ndarray = { version = "0.16", optional = true }
@@ -51,7 +51,7 @@ ndarray = { version = "0.16", optional = true }
 # run on every cold process start. The model itself is committed
 # at models/silentcipher-decoder.nnef.tgz; see examples/nnef-bake.rs
 # for the one-shot conversion tool.
-tract-nnef = { version = "0.21", features = ["flate2"] }
+tract-nnef = { version = "0.23", features = ["flate2"] }
 
 # Audio container decoding. Default features cover the common
 # containers; we add `mp3` explicitly because it's behind a
@@ -87,6 +87,6 @@ tempfile = "3"
 # explicit `download` API so they can exercise embed roundtrips
 # without depending on whichever weights happen to be cached
 # locally. v0.7 phase 8a.
-provcheck-weights = { path = "../provcheck-weights" }
+provcheck-weights = { workspace = true }
 # Examples use anyhow's "?" idiom; not pulled in by the lib.
 anyhow = "1"

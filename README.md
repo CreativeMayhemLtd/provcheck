@@ -1,7 +1,7 @@
 # provcheck
 
 **Install:** [release binary](https://github.com/CreativeMayhemLtd/provcheck/releases)
-(Windows / Linux / macOS, CLI + GUI) · or `cargo install provcheck-cli` · or
+(Windows / Linux / macOS, CLI + GUI) · or `cargo install --git` (see below) · or
 [build from source](https://github.com/CreativeMayhemLtd/provcheck/archive/refs/heads/main.zip).
 
 ---
@@ -55,18 +55,17 @@ license.
 **The keyed forensic add-ons (BUSL-1.1, opt-in, never bundled into the
 Apache-2.0 binary):**
 
-- **Backfire** (in `backfire/`) is an imperceptible, keyed image watermark
-  optimised to be a fixed point of AI provenance-stripping attacks, so running
-  the stripper leaves the keyed identifier readable instead of erasing it.
-  **Backfire 3.0** makes the mark a joint fixed point of two removers
-  at once, a diffusion purifier and a learned neural codec, and survives the
-  published removal tool behind the "invisible watermarks are provably
-  removable" result (Zhao et al., arXiv:2306.01953) at 99.5% on the diffusion
-  attack and 94 to 97.5% on the neural-codec attack across a 200-image set at
-  30 dB (86.5% on the hardest iterated pass), with zero false positives over
-  the 200 marked images and over 1,000 unmarked. It does not survive
-  controllable regeneration from clean noise; the honest limit is documented
-  in `backfire/LIMITS.md`.
+- **Backfire** (in `backfire/`) is a keyed image watermark in two forms. The
+  default mark is invisible and robust to everyday transforms and a neural-codec
+  strip (the published removal tool behind the "invisible watermarks are provably
+  removable" result, Zhao et al., arXiv:2306.01953), but it does not survive
+  controllable regeneration from clean noise. For that frontier, `--level maximum`
+  writes a **visible strip-proof seal**: visible by design, with a measured and
+  disclosed visibility cost, built so running an AI provenance stripper leaves the
+  keyed identifier readable instead of erasing it. It reads back through
+  controllable regeneration and a neural-codec strip at zero false positives; the
+  survival numbers, the disclosed scope limit, and the honest boundary are in the
+  v1.5.0 entry below and `backfire/LIMITS.md`.
 - **provcheck-mellin** (in `crates/provcheck-mellin/`) is the opt-in
   Fourier-Mellin audio channel: a keyed, per-copy serial for leak attribution,
   under the same BUSL-1.1 model.
@@ -143,8 +142,8 @@ other supply-chain scanners — see [`docs/sbom.md`](./docs/sbom.md).
 Bundles are currently unsigned — Gatekeeper / SmartScreen will warn on
 first launch.
 
-Intel Mac users: run the Apple Silicon binary through Rosetta, or use
-`cargo install` below.
+Intel Mac users: no prebuilt Intel binary; use `cargo install` below or
+build from source.
 
 ### Via cargo (any platform with a Rust toolchain)
 

@@ -722,6 +722,18 @@ pub mod sign {
         /// derivative), `created` otherwise.
         #[arg(long, value_name = "ACTION")]
         pub action: Option<String>,
+
+        /// IPTC DigitalSourceType for a newly `created` asset. C2PA 2.x
+        /// REQUIRES a created action to declare how the content was
+        /// produced, and provcheck signs ARBITRARY content, so this
+        /// states what YOUR file is. DEFAULT `digitalCapture` = a
+        /// real-world camera or recorder capture. OVERRIDE it for
+        /// anything else: `trainedAlgorithmicMedia` (AI-generated),
+        /// `digitalArt`, `minorHumanEdits`, `compositeSynthetic`,
+        /// `algorithmicallyEnhanced`, etc. Accepts a short IPTC token
+        /// or a full http(s) URI. Only applies to the `created` action.
+        #[arg(long, value_name = "TYPE")]
+        pub digital_source_type: Option<String>,
     }
 
     pub async fn run(args: CliArgs) -> Result<()> {
@@ -771,10 +783,26 @@ pub mod sign {
             None => default_action_for(provenance.as_ref()),
         };
 
+        // Resolve the digitalSourceType up front so a bad token fails before signing.
+        let digital_source_type = digital_source_type_uri(args.digital_source_type.as_deref())?;
+        // Make the provenance claim explicit to the user: a `created` sign stamps a
+        // digitalSourceType, and the default asserts a real-world capture — say so, so a
+        // user signing AI-generated or edited content knows to override it.
+        if args.manifest.is_none() && action.as_c2pa_label() == "c2pa.created" {
+            if args.digital_source_type.is_none() {
+                eprintln!(
+                    "digitalSourceType: {digital_source_type} (DEFAULT = real-world capture; \
+                     pass --digital-source-type for AI-generated, art, or edited content)"
+                );
+            } else {
+                eprintln!("digitalSourceType: {digital_source_type}");
+            }
+        }
+
         let base_manifest = match &args.manifest {
             Some(p) => std::fs::read_to_string(p)
                 .with_context(|| format!("read manifest from {}", p.display()))?,
-            None => default_manifest(&args.file, action)?,
+            None => default_manifest(&args.file, action, &digital_source_type)?,
         };
 
         let manifest_json = if args.embed_identity {
@@ -874,7 +902,11 @@ pub mod sign {
     /// asset. The CLI uses this when the user doesn't supply a
     /// manifest JSON file. `action` controls the c2pa.actions.v2
     /// verb on the new claim.
-    fn default_manifest(asset: &std::path::Path, action: SignAction) -> Result<String> {
+    fn default_manifest(
+        asset: &std::path::Path,
+        action: SignAction,
+        digital_source_type: &str,
+    ) -> Result<String> {
         let format = format_from_extension(asset).context(
             "infer asset format from extension — pass --manifest for unrecognised types",
         )?;
@@ -882,6 +914,14 @@ pub mod sign {
             .file_name()
             .and_then(|s| s.to_str())
             .unwrap_or("untitled");
+
+        // C2PA 2.x requires a `c2pa.created` action to carry a digitalSourceType;
+        // other verbs (opened/edited/published) do not and MUST NOT guess one.
+        let mut action_obj = serde_json::json!({"action": action.as_c2pa_label()});
+        if action.as_c2pa_label() == "c2pa.created" {
+            action_obj["digitalSourceType"] =
+                serde_json::Value::String(digital_source_type.to_string());
+        }
 
         let v = serde_json::json!({
             "claim_generator": "provcheck-kit/0.3.1",
@@ -891,11 +931,44 @@ pub mod sign {
             "assertions": [
                 {
                     "label": "c2pa.actions.v2",
-                    "data": {"actions": [{"action": action.as_c2pa_label()}]}
+                    "data": {"actions": [action_obj]}
                 }
             ]
         });
         Ok(v.to_string())
+    }
+
+    /// Resolve a `--digital-source-type` token to its full IPTC DigitalSourceType
+    /// URI. Bare tokens map onto the IPTC NewsCodes vocabulary; a full http(s) URI
+    /// passes through unchanged. `None` defaults to `digitalCapture` (a real-world
+    /// capture) — the caller is expected to surface that default to the user.
+    fn digital_source_type_uri(token: Option<&str>) -> Result<String> {
+        const BASE: &str = "http://cv.iptc.org/newscodes/digitalsourcetype/";
+        const KNOWN: &[&str] = &[
+            "digitalCapture",
+            "trainedAlgorithmicMedia",
+            "compositeSynthetic",
+            "algorithmicMedia",
+            "digitalArt",
+            "minorHumanEdits",
+            "compositeWithTrainedAlgorithmicMedia",
+            "compositeCapture",
+            "algorithmicallyEnhanced",
+            "humanEdits",
+        ];
+        let t = token.unwrap_or("digitalCapture").trim();
+        if t.starts_with("http://") || t.starts_with("https://") {
+            return Ok(t.to_string());
+        }
+        if KNOWN.contains(&t) {
+            Ok(format!("{BASE}{t}"))
+        } else {
+            anyhow::bail!(
+                "--digital-source-type {t:?}: expected an IPTC DigitalSourceType token \
+                 (e.g. digitalCapture, trainedAlgorithmicMedia, digitalArt, minorHumanEdits) \
+                 or a full http(s) URI"
+            )
+        }
     }
 
     fn format_from_extension(p: &std::path::Path) -> Option<&'static str> {
@@ -4006,6 +4079,7 @@ pub mod stamp {
             manifest: None,
             embed_identity: true,
             action: None,
+            digital_source_type: None, // inherit the default (digitalCapture) via digital_source_type_uri
         };
         sign::run(sargs).await.context("stamp: sign step")
     }

@@ -226,7 +226,7 @@ if [[ ! -t 0 ]]; then
         recent_offender=""
         recent_epoch=0
         while IFS='|' read -r existing_tag existing_epoch; do
-            [[ "$existing_tag" == "$tag_name" ]] && continue
+            [[ "$existing_tag" == "$tag_name" || "$existing_tag" == "tags/$tag_name" ]] && continue
             [[ -z "$existing_epoch" ]] && continue
             if [[ "$existing_epoch" -gt "$twentyfour_hours_ago" ]] && \
                [[ "$existing_epoch" -gt "$recent_epoch" ]]; then
@@ -452,7 +452,7 @@ green "  OK"
 # doc-lint warning accumulated invisibly across the v1.1.x iteration
 # series because the gate tested without -D warnings and never ran
 # fmt --check.
-yellow "[1/4] cargo fmt --check + clippy -D warnings"
+yellow "[1/5] cargo fmt --check + clippy -D warnings"
 if ! cargo fmt --check; then
     red "  FAIL: formatting drift. Run 'cargo fmt' and re-stage."
     exit 1
@@ -470,8 +470,26 @@ if ! RUSTFLAGS="-D warnings" CARGO_TARGET_DIR=./target-gate \
 fi
 green "  OK"
 
-# ---- 2. Workspace cargo test --------------------------------------
-yellow "[2/4] cargo test --release --workspace"
+# ---- 2. Workspace-excluded crates compile (dev tree) --------------
+# Crates listed under `exclude` in the root Cargo.toml are not part of
+# the workspace, so the clippy/test steps above never build them. In a
+# full dev checkout a cross-crate change can break one without any
+# workspace step noticing. The helper compiles each on its own
+# manifest (cargo check, compile-only). It is absent from a sanitized
+# checkout that carries no excluded crates, so this is a no-op there.
+if [ -f scripts/check-excluded-crates.sh ]; then
+    yellow "[2/5] workspace-excluded crates compile (cargo check)"
+    if ! bash scripts/check-excluded-crates.sh; then
+        red "  FAIL: an excluded crate does not compile (see output above)."
+        exit 1
+    fi
+    green "  OK"
+else
+    yellow "[2/5] workspace-excluded crates compile — SKIPPED (no helper in this checkout)"
+fi
+
+# ---- 3. Workspace cargo test --------------------------------------
+yellow "[3/5] cargo test --release --workspace"
 # Use a separate target dir so the test build's intermediate link
 # step does not collide with a long-running process holding
 # `target/release/*.exe` open on Windows. Same root cause as step 2's
@@ -485,9 +503,9 @@ green "  OK"
 
 # ---- 2. Parity sweep vs upstream Python silentcipher --------------
 if [[ "$SKIP_PARITY" == "1" ]]; then
-    yellow "[3/4] parity sweep SKIPPED (--skip-parity)"
+    yellow "[4/5] parity sweep SKIPPED (--skip-parity)"
 else
-    yellow "[3/4] parity sweep vs upstream Python (SDR 30 + 47)"
+    yellow "[4/5] parity sweep vs upstream Python (SDR 30 + 47)"
 
     # Skip silentcipher weights cleanly if they are not in HF cache.
     if ! python -c "from pathlib import Path; p = Path.home() / '.cache/huggingface/hub/models--sony--silentcipher'; import sys; sys.exit(0 if any(p.rglob('44_1_khz/73999_iteration/hparams.yaml')) else 1)" 2>/dev/null; then
@@ -536,7 +554,7 @@ else
 fi
 
 # ---- 3. AAC delivery survival (issues #23 + #24) ------------------
-yellow "[4/4] AAC delivery survival smoke (issues #23 + #24)"
+yellow "[5/5] AAC delivery survival smoke (issues #23 + #24)"
 if ! command -v ffmpeg >/dev/null; then
     yellow "  ffmpeg not on PATH — skipping codec survival smoke"
     yellow "  (this gate cannot run; add ffmpeg if you want it enforced)"
