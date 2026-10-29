@@ -26,11 +26,17 @@ your local view matches CI:
 ```bash
 cargo audit \
   --ignore RUSTSEC-2023-0071 \
-  --ignore RUSTSEC-2024-0436 \
+  --ignore RUSTSEC-2026-0387 \
+  --ignore RUSTSEC-2026-0367 \
+  --ignore RUSTSEC-2026-0368 \
+  --ignore RUSTSEC-2026-0369 \
   --ignore RUSTSEC-2024-0370 \
   --ignore RUSTSEC-2026-0173 \
-  --ignore RUSTSEC-2025-0136 \
-  --ignore RUSTSEC-2026-0097
+  --ignore RUSTSEC-2026-0374 \
+  --ignore RUSTSEC-2026-0253 \
+  --ignore RUSTSEC-2026-0370 \
+  --ignore RUSTSEC-2026-0371 \
+  --ignore RUSTSEC-2026-0372
 ```
 
 The ignored IDs mirror `SECURITY.md`'s tolerated table exactly.

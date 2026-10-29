@@ -26,7 +26,7 @@ exclude = ["crates/provcheck-keying", "crates/provcheck-mellin", "crates/provche
 resolver = "3"
 
 [workspace.package]
-version = "1.5.1"
+version = "1.5.2"
 edition = "2024"
 rust-version = "1.91"
 license = "Apache-2.0"
@@ -54,20 +54,20 @@ ort = { version = "=2.0.0-rc.10", default-features = false, features = ["std", "
 
 # Internal provcheck crates. version + path so `cargo publish` sees a version while local
 # builds resolve by path. Bump these together with [workspace.package] version on each release.
-provcheck = { version = "1.5.1", path = "crates/provcheck" }
-provcheck-attestation-spec = { version = "1.5.1", path = "crates/provcheck-attestation-spec" }
-provcheck-detect = { version = "1.5.1", path = "crates/provcheck-detect" }
-provcheck-weights = { version = "1.5.1", path = "crates/provcheck-weights" }
-provcheck-platform = { version = "1.5.1", path = "crates/provcheck-platform" }
-provcheck-sign = { version = "1.5.1", path = "crates/provcheck-sign" }
-provcheck-publish = { version = "1.5.1", path = "crates/provcheck-publish" }
-provcheck-image = { version = "1.5.1", path = "crates/provcheck-image" }
-provcheck-audioseal = { version = "1.5.1", path = "crates/provcheck-audioseal" }
-provcheck-watermark = { version = "1.5.1", path = "crates/provcheck-watermark" }
-provcheck-wavmark = { version = "1.5.1", path = "crates/provcheck-wavmark" }
-provcheck-synthid-text = { version = "1.5.1", path = "crates/provcheck-synthid-text" }
-provcheck-video = { version = "1.5.1", path = "crates/provcheck-video" }
-provcheck-dlc = { version = "1.5.1", path = "crates/provcheck-dlc" }
+provcheck = { version = "1.5.2", path = "crates/provcheck" }
+provcheck-attestation-spec = { version = "1.5.2", path = "crates/provcheck-attestation-spec" }
+provcheck-detect = { version = "1.5.2", path = "crates/provcheck-detect" }
+provcheck-weights = { version = "1.5.2", path = "crates/provcheck-weights" }
+provcheck-platform = { version = "1.5.2", path = "crates/provcheck-platform" }
+provcheck-sign = { version = "1.5.2", path = "crates/provcheck-sign" }
+provcheck-publish = { version = "1.5.2", path = "crates/provcheck-publish" }
+provcheck-image = { version = "1.5.2", path = "crates/provcheck-image" }
+provcheck-audioseal = { version = "1.5.2", path = "crates/provcheck-audioseal" }
+provcheck-watermark = { version = "1.5.2", path = "crates/provcheck-watermark" }
+provcheck-wavmark = { version = "1.5.2", path = "crates/provcheck-wavmark" }
+provcheck-synthid-text = { version = "1.5.2", path = "crates/provcheck-synthid-text" }
+provcheck-video = { version = "1.5.2", path = "crates/provcheck-video" }
+provcheck-dlc = { version = "1.5.2", path = "crates/provcheck-dlc" }
 
 [profile.release]
 opt-level = "z"      # size-optimise the distributable binaries

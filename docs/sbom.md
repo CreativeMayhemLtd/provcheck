@@ -8,7 +8,41 @@ Track, Trivy, Grype, Snyk, GitHub Advanced Security, Anchore, JFrog
 Xray, Sonatype Lifecycle, etc.) consume SBOMs to surface known
 CVEs and license compliance issues against a build.
 
-## What we ship
+provcheck exposes the SBOM on two surfaces: a committed, gate-enforced
+copy that rides to the public mirror on every publish, and tagged,
+release-scoped artefacts uploaded to each `vX.Y.0` GitHub Release.
+
+## In-repo SBOM (committed, every build)
+
+The repo carries a byte-reproducible SBOM for each shipping binary
+under `sbom/`:
+
+| File | Binary | Format |
+|---|---|---|
+| `sbom/provcheck.cdx.json` | `provcheck` verifier CLI | CycloneDX 1.6 |
+| `sbom/provcheck.spdx.json` | `provcheck` verifier CLI | SPDX 2.3 |
+| `sbom/provcheck-kit.cdx.json` | `provcheck-kit` creator CLI | CycloneDX 1.6 |
+| `sbom/provcheck-kit.spdx.json` | `provcheck-kit` creator CLI | SPDX 2.3 |
+
+Each has a `.sha256` sidecar. These are a pure function of `Cargo.lock`:
+`scripts/sbom-normalize.py` pins the two volatile fields `cargo-sbom`
+stamps (a random UUID and a wall-clock timestamp) and canonically
+sorts every array, so regenerating an unchanged dependency graph
+produces byte-identical output. That reproducibility is what lets the
+SBOM be committed and machine-checked.
+
+**Enforcement.** The pre-push gate (`scripts/check-before-push.sh`)
+regenerates the set into a temp dir and refuses the push if the
+committed copy differs, so the published SBOM can never silently drift
+from the binary. `sbom/` is deliberately not in
+`scripts/public-exclude.txt`, so the committed SBOM mirrors to the
+public repo on every publish.
+
+**Refreshing.** When `Cargo.lock` changes, run `scripts/refresh-sbom.sh`
+and commit the `sbom/` diff in the same commit as the lockfile change.
+If the graph did not change, it is a no-op.
+
+## What we ship per release
 
 Per release tag (`vX.Y.0` only — iteration tags do NOT ship release
 artefacts), in two formats:
@@ -135,14 +169,18 @@ everyone's happy. Disk cost is ~500 KB per release.
 The same script CI uses lives at `scripts/generate-sbom.sh`:
 
 ```bash
-cargo install cargo-sbom
-./scripts/generate-sbom.sh vX.Y.Z my-out-dir
+cargo install cargo-sbom --locked
+./scripts/generate-sbom.sh vX.Y.Z my-out-dir   # tagged release artefacts
+./scripts/refresh-sbom.sh                       # the committed sbom/ set
 ```
 
-This produces the same files CI uploads. If a downstream tool reports
-something surprising, regenerating locally is the first thing to try
-— the SBOM is a function of `Cargo.lock` and the `cargo-sbom` version,
-both of which are stable inputs.
+`generate-sbom.sh` produces the tagged files CI uploads to the Release
+page; `refresh-sbom.sh` regenerates the committed `sbom/` set (normalized
+and gate-checked). Both run `cargo-sbom` against the same `Cargo.lock`,
+so if a downstream tool reports something surprising, regenerating
+locally is the first thing to try — the SBOM is a function of
+`Cargo.lock` and the `cargo-sbom` version, both of which are stable
+inputs.
 
 ## Caveat — what the SBOM does and doesn't cover
 

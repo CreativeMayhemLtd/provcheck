@@ -408,6 +408,49 @@ if [[ -n "$boundary_dep_offenders" ]]; then
 fi
 green "  OK"
 
+# ---- SBOM freshness gate: committed sbom/ must match the dep graph ----
+#
+# The repo ships a byte-reproducible SBOM per shipping binary under
+# sbom/ (CycloneDX 1.6 + SPDX 2.3; see scripts/sbom-normalize.py for
+# why it is reproducible). It is a pure function of Cargo.lock, it
+# rides to the public mirror on every publish (sbom/ is deliberately
+# NOT in scripts/public-exclude.txt), and downstream supply-chain
+# tools pin its sha256 sidecar. This gate refuses a push whose
+# committed SBOM has drifted from the current dependency graph, so the
+# published SBOM can never silently lie about what is in the binary.
+# It runs in the always-on cheap-gate band (before the heavy-suite SHA
+# cache) because it is a few seconds of lockfile metadata, not a build.
+# A contributor box without cargo-sbom degrades to a skip, same shape
+# as the ffmpeg AAC smoke; CI and every release runner have it.
+yellow "[sbom] committed SBOM matches the dependency graph"
+if ! command -v cargo-sbom >/dev/null 2>&1; then
+    yellow "  cargo-sbom not on PATH — skipping SBOM freshness check"
+    yellow "  (install with: cargo install cargo-sbom --locked)"
+else
+    SBOM_TMP="$(mktemp -d)"
+    if ! bash scripts/refresh-sbom.sh "$SBOM_TMP" >/dev/null 2>&1; then
+        red "  FAIL: could not generate SBOM (see scripts/refresh-sbom.sh output)."
+        rm -rf "$SBOM_TMP"
+        exit 1
+    fi
+    sbom_drift=""
+    for gen in "$SBOM_TMP"/*.json "$SBOM_TMP"/*.sha256; do
+        base="$(basename "$gen")"
+        if ! diff -q "sbom/$base" "$gen" >/dev/null 2>&1; then
+            sbom_drift="$sbom_drift  $base"$'\n'
+        fi
+    done
+    rm -rf "$SBOM_TMP"
+    if [ -n "$sbom_drift" ]; then
+        red "  FAIL: committed SBOM is stale (the dependency graph changed):"
+        printf '%s' "$sbom_drift" >&2
+        red "  Run  scripts/refresh-sbom.sh  and commit the sbom/ diff in the"
+        red "  same commit as the Cargo.lock change that caused it."
+        exit 1
+    fi
+    green "  OK"
+fi
+
 # ---- SHA cache: skip the heavy suite if this exact commit already passed it ----
 # The gates above (public-content, release-tag, boundary) are cheap and always run.
 # The weights + fmt/clippy/test/parity/AAC below are ~10 min; re-running them on a

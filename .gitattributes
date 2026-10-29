@@ -7,6 +7,12 @@
 scripts/public-exclude.txt        text eol=lf
 scripts/public-term-denylist.txt  text eol=lf
 
+# The committed SBOM set is byte-reproducible and gate-checked (its sha256 is
+# pinned downstream), so it MUST be LF on every platform or the digest and the
+# pre-push diff drift between Windows and Linux. The .json is already covered
+# below; the sidecars need their own rule.
+sbom/*.sha256  text eol=lf
+
 # Line-parsed data + config formats: keep LF so nothing that reads them line by
 # line (or diffs them) is surprised by a stray CR on a Windows checkout.
 *.json  text eol=lf
