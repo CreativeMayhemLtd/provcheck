@@ -1,0 +1,234 @@
+{
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "bom-ref": "pkg:npm/%40tauri-apps/cli-darwin-arm64@2.10.1",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "6763a3097899f9f6d8672ecf98fdd64673a933df85cbea289ca0c499413a330378206698aa071e4e3c07b9c73f904118668b391880af7b7e5fed98a2ce0a849d"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR MIT"
+        }
+      ],
+      "name": "@tauri-apps/cli-darwin-arm64",
+      "purl": "pkg:npm/%40tauri-apps/cli-darwin-arm64@2.10.1",
+      "type": "library",
+      "version": "2.10.1"
+    },
+    {
+      "bom-ref": "pkg:npm/%40tauri-apps/cli-darwin-x64@2.10.1",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "57f8ab415be33cc18e4d0a8d8f9e4f9d03d5b87e1524ff2f64237b6a39e3f994bc2a89b5b44336851dea6db211a12ddd04ab3999b1bcca0d560bef7b76ad7b3f"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR MIT"
+        }
+      ],
+      "name": "@tauri-apps/cli-darwin-x64",
+      "purl": "pkg:npm/%40tauri-apps/cli-darwin-x64@2.10.1",
+      "type": "library",
+      "version": "2.10.1"
+    },
+    {
+      "bom-ref": "pkg:npm/%40tauri-apps/cli-linux-arm-gnueabihf@2.10.1",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "1f2cf0b1be159c258a19f4f0fb04add79676a4bc367f425d1417eadaf1c138186f83ba22eae84a885f3b8666d73815d465a1a4c910e4087b1dcc97087e8242db"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR MIT"
+        }
+      ],
+      "name": "@tauri-apps/cli-linux-arm-gnueabihf",
+      "purl": "pkg:npm/%40tauri-apps/cli-linux-arm-gnueabihf@2.10.1",
+      "type": "library",
+      "version": "2.10.1"
+    },
+    {
+      "bom-ref": "pkg:npm/%40tauri-apps/cli-linux-arm64-gnu@2.10.1",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "3b2398b36b791a4048bf25a3035fa1e026714dc773d4e64f09600fcf90d811f0747275871114e743f48b6b24339dcad3d24c11a127d2cfd2b17a79322684de94"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR MIT"
+        }
+      ],
+      "name": "@tauri-apps/cli-linux-arm64-gnu",
+      "purl": "pkg:npm/%40tauri-apps/cli-linux-arm64-gnu@2.10.1",
+      "type": "library",
+      "version": "2.10.1"
+    },
+    {
+      "bom-ref": "pkg:npm/%40tauri-apps/cli-linux-arm64-musl@2.10.1",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "3088fbf0f0c31a3920dcda86a6d0ce1a07d792ced2609c2188c87c481a194bebdf773ef23f98cdd7c6cd68b9c386c5483c045c0211354e5b197bff18c68db3aa"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR MIT"
+        }
+      ],
+      "name": "@tauri-apps/cli-linux-arm64-musl",
+      "purl": "pkg:npm/%40tauri-apps/cli-linux-arm64-musl@2.10.1",
+      "type": "library",
+      "version": "2.10.1"
+    },
+    {
+      "bom-ref": "pkg:npm/%40tauri-apps/cli-linux-riscv64-gnu@2.10.1",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "5f496f395520f0f0956a812d1009e9c669e4c2513581c3034ea7e16de7c808a0e739327912cb77a8bd12ad6c62cc369c90838a05cbeda5e8eb4a2569b8923593"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR MIT"
+        }
+      ],
+      "name": "@tauri-apps/cli-linux-riscv64-gnu",
+      "purl": "pkg:npm/%40tauri-apps/cli-linux-riscv64-gnu@2.10.1",
+      "type": "library",
+      "version": "2.10.1"
+    },
+    {
+      "bom-ref": "pkg:npm/%40tauri-apps/cli-linux-x64-gnu@2.10.1",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "dbfd766c4cec252f5f00ac9bc6089c083171603d56108f643beb650f05f9ce7586d86c0c05a896726846959f1f8be0cc7bd09795c55aacc4d87342f7444211c7"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR MIT"
+        }
+      ],
+      "name": "@tauri-apps/cli-linux-x64-gnu",
+      "purl": "pkg:npm/%40tauri-apps/cli-linux-x64-gnu@2.10.1",
+      "type": "library",
+      "version": "2.10.1"
+    },
+    {
+      "bom-ref": "pkg:npm/%40tauri-apps/cli-linux-x64-musl@2.10.1",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "63c274673b303f3e7451c18e16e5c610caf16e3c0a48f8177edc79aa792e32cdab9b0401e6cb2f2dbead9f9e300d26317bb4babe52e86fdbedd152ae34e68221"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR MIT"
+        }
+      ],
+      "name": "@tauri-apps/cli-linux-x64-musl",
+      "purl": "pkg:npm/%40tauri-apps/cli-linux-x64-musl@2.10.1",
+      "type": "library",
+      "version": "2.10.1"
+    },
+    {
+      "bom-ref": "pkg:npm/%40tauri-apps/cli-win32-arm64-msvc@2.10.1",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "892b7907cea31d800f25afc8958c3ef925ed14f1a75ad149ae21e7ed7d0d14156e9c5eb3bbdfbfcce9fc3a0a8859297c460ce12c65d0104b4605d478c33a5582"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR MIT"
+        }
+      ],
+      "name": "@tauri-apps/cli-win32-arm64-msvc",
+      "purl": "pkg:npm/%40tauri-apps/cli-win32-arm64-msvc@2.10.1",
+      "type": "library",
+      "version": "2.10.1"
+    },
+    {
+      "bom-ref": "pkg:npm/%40tauri-apps/cli-win32-ia32-msvc@2.10.1",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "817cb1804cec15e8269d6cb0614e6910151191c14dfcea38e44030bd9ac7321fb3512100bcee44f135ec80f003626df5775bbb3905373b71ec61f5417f69a81f"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR MIT"
+        }
+      ],
+      "name": "@tauri-apps/cli-win32-ia32-msvc",
+      "purl": "pkg:npm/%40tauri-apps/cli-win32-ia32-msvc@2.10.1",
+      "type": "library",
+      "version": "2.10.1"
+    },
+    {
+      "bom-ref": "pkg:npm/%40tauri-apps/cli-win32-x64-msvc@2.10.1",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "e829fb6293c5c330a1cb4111cfa7632849947a15ab62533ec5368dcc63e0668730dc10fb39fc1f5872955b15f3763116d8a7ca90775d7ddc4ad575d362a0512e"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR MIT"
+        }
+      ],
+      "name": "@tauri-apps/cli-win32-x64-msvc",
+      "purl": "pkg:npm/%40tauri-apps/cli-win32-x64-msvc@2.10.1",
+      "type": "library",
+      "version": "2.10.1"
+    },
+    {
+      "bom-ref": "pkg:npm/%40tauri-apps/cli@2.10.1",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "8d034617fe6abb03917594922ed4e5bb2290fa8e9231afc050809f85fe1e80218574c1ea5acb00a5581849b83e8e6ad9a1cf1ed43b1c36f8d39d7b651cb4b5d6"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR MIT"
+        }
+      ],
+      "name": "@tauri-apps/cli",
+      "purl": "pkg:npm/%40tauri-apps/cli@2.10.1",
+      "type": "library",
+      "version": "2.10.1"
+    }
+  ],
+  "metadata": {
+    "component": {
+      "bom-ref": "pkg:npm/provcheck-app@0.4.0",
+      "name": "provcheck-app",
+      "purl": "pkg:npm/provcheck-app@0.4.0",
+      "type": "application",
+      "version": "0.4.0"
+    },
+    "timestamp": "1970-01-01T00:00:00Z"
+  },
+  "serialNumber": "urn:uuid:1fddc156-2349-927c-f385-b3db4411a964",
+  "specVersion": "1.6",
+  "version": 1
+}

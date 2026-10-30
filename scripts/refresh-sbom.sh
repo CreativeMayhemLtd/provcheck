@@ -35,6 +35,10 @@ if ! command -v cargo-sbom >/dev/null 2>&1; then
 fi
 
 mkdir -p "$OUT_DIR"
+# Resolve to an absolute path: the GUI Rust SBOM is generated from inside
+# app/src-tauri (a subshell cd), where a relative OUT_DIR would no longer
+# point at the repo's sbom/ directory.
+OUT_DIR="$(cd "$OUT_DIR" && pwd)"
 
 # binary (what users invoke) -> cargo package that builds it.
 # provcheck-cli builds the `provcheck` binary; provcheck-kit builds
@@ -54,6 +58,41 @@ for binary in "${!BINARIES[@]}"; do
   cargo sbom --cargo-package "$package" --output-format spdx_json_2_3 \
     | python "$NORMALIZE" > "$spdx"
 done
+
+# The Tauri GUI (app/) is a shipping binary that lives OUTSIDE the Rust
+# workspace, so cargo-sbom --cargo-package cannot reach it. It has two
+# supply chains that must both be captured:
+#
+#   Rust   app/src-tauri/Cargo.lock  -- its own crate (provcheck-app),
+#          not a workspace member, so cargo-sbom is run from inside that
+#          directory where it reads the local manifest + lock.
+#   npm    app/package-lock.json     -- the JavaScript build toolchain,
+#          read directly by scripts/sbom-npm.py (no network, no external
+#          code; see that file for the trust rationale).
+#
+# Both are normalized through the same filter, so the GUI SBOM is
+# byte-reproducible and gate-checked exactly like the workspace set.
+GUI_TAURI_DIR="$REPO_ROOT/app/src-tauri"
+GUI_NPM_LOCK="$REPO_ROOT/app/package-lock.json"
+
+if [ -f "$GUI_TAURI_DIR/Cargo.toml" ]; then
+  (
+    cd "$GUI_TAURI_DIR"
+    cargo sbom --output-format cyclone_dx_json_1_6 | python "$NORMALIZE" \
+      > "$OUT_DIR/gui-rust.cdx.json"
+    cargo sbom --output-format spdx_json_2_3 | python "$NORMALIZE" \
+      > "$OUT_DIR/gui-rust.spdx.json"
+  )
+else
+  echo "[refresh-sbom] app/src-tauri absent -- skipping GUI Rust SBOM" >&2
+fi
+
+if [ -f "$GUI_NPM_LOCK" ]; then
+  python "$REPO_ROOT/scripts/sbom-npm.py" "$GUI_NPM_LOCK" | python "$NORMALIZE" \
+    > "$OUT_DIR/gui-npm.cdx.json"
+else
+  echo "[refresh-sbom] app/package-lock.json absent -- skipping GUI npm SBOM" >&2
+fi
 
 # sha256 sidecars. The SBOM is reproducible, so the digest is a stable
 # supply-chain anchor downstream consumers can pin against. Compute the

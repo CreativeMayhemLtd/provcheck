@@ -17,19 +17,33 @@ release-scoped artefacts uploaded to each `vX.Y.0` GitHub Release.
 The repo carries a byte-reproducible SBOM for each shipping binary
 under `sbom/`:
 
-| File | Binary | Format |
-|---|---|---|
-| `sbom/provcheck.cdx.json` | `provcheck` verifier CLI | CycloneDX 1.6 |
-| `sbom/provcheck.spdx.json` | `provcheck` verifier CLI | SPDX 2.3 |
-| `sbom/provcheck-kit.cdx.json` | `provcheck-kit` creator CLI | CycloneDX 1.6 |
-| `sbom/provcheck-kit.spdx.json` | `provcheck-kit` creator CLI | SPDX 2.3 |
+| File | Binary | Supply chain | Format |
+|---|---|---|---|
+| `sbom/provcheck.cdx.json` | `provcheck` verifier CLI | workspace `Cargo.lock` | CycloneDX 1.6 |
+| `sbom/provcheck.spdx.json` | `provcheck` verifier CLI | workspace `Cargo.lock` | SPDX 2.3 |
+| `sbom/provcheck-kit.cdx.json` | `provcheck-kit` creator CLI | workspace `Cargo.lock` | CycloneDX 1.6 |
+| `sbom/provcheck-kit.spdx.json` | `provcheck-kit` creator CLI | workspace `Cargo.lock` | SPDX 2.3 |
+| `sbom/gui-rust.cdx.json` | GUI (`provcheck-app`, Tauri) | `app/src-tauri/Cargo.lock` | CycloneDX 1.6 |
+| `sbom/gui-rust.spdx.json` | GUI (`provcheck-app`, Tauri) | `app/src-tauri/Cargo.lock` | SPDX 2.3 |
+| `sbom/gui-npm.cdx.json` | GUI build toolchain | `app/package-lock.json` | CycloneDX 1.6 |
 
-Each has a `.sha256` sidecar. These are a pure function of `Cargo.lock`:
-`scripts/sbom-normalize.py` pins the two volatile fields `cargo-sbom`
-stamps (a random UUID and a wall-clock timestamp) and canonically
-sorts every array, so regenerating an unchanged dependency graph
-produces byte-identical output. That reproducibility is what lets the
-SBOM be committed and machine-checked.
+Each has a `.sha256` sidecar. These are a pure function of the lockfile
+they describe: `scripts/sbom-normalize.py` pins the two volatile fields
+the generators stamp (a random UUID and a wall-clock timestamp) and
+canonically sorts every array, so regenerating an unchanged dependency
+graph produces byte-identical output. That reproducibility is what lets
+the SBOM be committed and machine-checked.
+
+The GUI lives outside the Rust workspace and has two supply chains. The
+Rust half (`gui-rust.*`) comes from `cargo-sbom` run inside
+`app/src-tauri`. The npm half (`gui-npm.cdx.json`) is read directly
+from `app/package-lock.json` by `scripts/sbom-npm.py` instead of the
+stock `@cyclonedx/cyclonedx-npm`, so the pre-push gate stays hermetic:
+no network and no third-party JavaScript runs on every push. The npm
+tree today is just the Tauri CLI and its platform binaries (all
+`Apache-2.0 OR MIT`); the frontend ships as a build-time bundle, so
+there are no runtime npm dependencies, and the file is CycloneDX-only
+because that is the native npm SBOM format.
 
 **Enforcement.** The pre-push gate (`scripts/check-before-push.sh`)
 regenerates the set into a temp dir and refuses the push if the
@@ -81,16 +95,14 @@ Two SBOMs cover the entire CLI surface:
   `provcheck-attestation-spec`, plus transitive deps including
   `atrium-api`, `tokio`, `age`, `keyring`).
 
-The Tauri GUI's SBOM is **not** currently shipped — that's a follow-up
-that needs the npm-side (Vite / Tauri JS) tree merged with the Rust
-side. If you need a GUI SBOM today, generate it locally:
-
-```bash
-cd app/src-tauri
-cargo sbom --output-format cyclone_dx_json_1_6 > provcheck-gui-rust.cdx.json
-cd ../
-npm sbom --sbom-format=cyclonedx > provcheck-gui-frontend.cdx.json
-```
+The Tauri GUI is covered by the committed in-repo set above
+(`sbom/gui-rust.*` for its Rust crate and `sbom/gui-npm.cdx.json` for
+its npm toolchain), regenerated and gate-checked by
+`scripts/refresh-sbom.sh` like every other binary. The GUI is not part
+of the per-release tagged artefacts because its version is decoupled
+from the workspace (`provcheck-app` tracks its own `app/src-tauri`
+version, 1.5.0 at time of writing); the committed set is the source of
+truth for the GUI supply chain.
 
 ## How to consume
 
