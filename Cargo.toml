@@ -50,7 +50,7 @@ thiserror = "2"
 # rc or the 2.0.0 stable, and bump this one line deliberately (do not let it float across rc's).
 # This is the single source of truth: provcheck-image and provcheck-watermark inherit it. The pin
 # ships to crates.io consumers, so publishing a crate that depends on it carries the rc forward.
-ort = { version = "=2.0.0-rc.10", default-features = false, features = ["std", "ndarray", "load-dynamic"] }
+ort = { version = "=2.0.0-rc.13", default-features = false, features = ["std", "ndarray", "load-dynamic"] }
 
 # Internal provcheck crates. version + path so `cargo publish` sees a version while local
 # builds resolve by path. Bump these together with [workspace.package] version on each release.
